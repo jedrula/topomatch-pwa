@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "homepage": "https://jedrula.github.io/topomatch-pwa",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
