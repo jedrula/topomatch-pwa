@@ -17,12 +17,13 @@ app.mount("#app");
 async function runInference() {
   try {
     // Fetch the ONNX model and convert it to a Uint8Array
-    const response = await fetch("/model.onnx");
-    const arrayBuffer = await response.arrayBuffer();
-    const modelBuffer = new Uint8Array(arrayBuffer);
+    // const response = await fetch("/resnet50-v2-7.onnx");
+    // const arrayBuffer = await response.arrayBuffer();
+    // const modelBuffer = new Uint8Array(arrayBuffer);
+    // console.log("arrau", arrayBuffer);
 
     // Create the inference session using the Uint8Array buffer
-    const session = await ort.InferenceSession.create(modelBuffer, {
+    const session = await ort.InferenceSession.create("/resnet50-v2-7.onnx", {
       executionProviders: [{ name: "cpu" }],
     });
 
