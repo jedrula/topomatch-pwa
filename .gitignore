@@ -1,4 +1,5 @@
 # Logs
+onnxruntime-main
 logs
 *.log
 npm-debug.log*
