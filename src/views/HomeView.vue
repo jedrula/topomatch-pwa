@@ -2,4 +2,106 @@
   <main>Hello World</main>
 </template>
 
-<script setup></script>
+<script setup>
+// Import ONNX Runtime Web with WebGPU support
+const ort = require("onnxruntime-web/webgpu");
+
+// Enable multi-threading for WASM
+ort.env.wasm.numThreads = 4;
+
+// Load and preprocess images
+async function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function preprocessImage(image, width, height) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(image, 0, 0, width, height);
+  const imageData = ctx.getImageData(0, 0, width, height).data;
+
+  const input = new Float32Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    const r = imageData[i * 4] / 255.0;
+    const g = imageData[i * 4 + 1] / 255.0;
+    const b = imageData[i * 4 + 2] / 255.0;
+    input[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+  }
+
+  return input;
+}
+
+async function createSession() {
+  const session = await ort.InferenceSession.create(
+    "./weights/superpoint_lightglue_pipeline.ort.onnx"
+  );
+  return session;
+}
+
+async function main() {
+  try {
+    const session = await createSession();
+
+    const imgPaths = [
+      "./assets/otwarcie_fabryczna_testowy.jpg",
+      "./assets/fabryczna_otwarcie_topo.jpg",
+    ];
+    const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
+
+    const imgWidth = 256;
+    const imgHeight = 256;
+    const tensors = images.map((image) => preprocessImage(image, imgWidth, imgHeight));
+
+    const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
+    const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
+    const feeds = { images: tensor };
+
+    console.time("Inference time");
+    const results = await session.run(feeds);
+    console.timeEnd("Inference time");
+
+    visualizeMatches(results, images, imgWidth, imgHeight);
+  } catch (e) {
+    console.error(`Failed to inference ONNX model: ${e}`);
+  }
+}
+
+function visualizeMatches(rawData, images, imgWidth, imgHeight) {
+  const canvas = document.createElement("canvas");
+  canvas.width = imgWidth * 2;
+  canvas.height = imgHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(images[0], 0, 0, imgWidth, imgHeight);
+  ctx.drawImage(images[1], imgWidth, 0, imgWidth, imgHeight);
+
+  for (let i = 0; i < Math.min(20, rawData.matches.dims[0]); i++) {
+    const matchBaseIndex = i * rawData.matches.dims[1];
+    const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
+    const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
+
+    const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]);
+    const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
+    const x1 =
+      Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) + imgWidth;
+    const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
+
+    ctx.strokeStyle = "red";
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  }
+}
+
+main();
+</script>
