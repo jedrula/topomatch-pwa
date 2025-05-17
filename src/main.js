@@ -7,6 +7,8 @@ import router from "./router";
 
 const app = createApp(App);
 
+console.log("a change");
+
 app.use(router);
 
 app.mount("#app");
