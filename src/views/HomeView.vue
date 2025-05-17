@@ -4,10 +4,13 @@
 
 <script setup>
 // Import ONNX Runtime Web with WebGPU support
-const ort = require("onnxruntime-web/webgpu");
+import * as ort from "onnxruntime-web/webgpu";
 
 // Enable multi-threading for WASM
 ort.env.wasm.numThreads = 4;
+ort.env.wasm.wasmPaths = {
+  wasm: "./ort-wasm-simd-threaded.wasm",
+};
 
 // Load and preprocess images
 async function loadImage(url) {
@@ -40,9 +43,7 @@ function preprocessImage(image, width, height) {
 }
 
 async function createSession() {
-  const session = await ort.InferenceSession.create(
-    "./weights/superpoint_lightglue_pipeline.ort.onnx"
-  );
+  const session = await ort.InferenceSession.create("./superpoint_lightglue_pipeline.ort.onnx");
   return session;
 }
 
