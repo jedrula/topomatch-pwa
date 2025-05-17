@@ -48,31 +48,27 @@ async function createSession() {
 }
 
 async function main() {
-  try {
-    const session = await createSession();
+  const session = await createSession();
 
-    const imgPaths = [
-      "./assets/otwarcie_fabryczna_testowy.jpg",
-      "./assets/fabryczna_otwarcie_topo.jpg",
-    ];
-    const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
+  const imgPaths = [
+    "./assets/otwarcie_fabryczna_testowy.jpg",
+    "./assets/fabryczna_otwarcie_topo.jpg",
+  ];
+  const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
 
-    const imgWidth = 256;
-    const imgHeight = 256;
-    const tensors = images.map((image) => preprocessImage(image, imgWidth, imgHeight));
+  const imgWidth = 256;
+  const imgHeight = 256;
+  const tensors = images.map((image) => preprocessImage(image, imgWidth, imgHeight));
 
-    const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
-    const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
-    const feeds = { images: tensor };
+  const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
+  const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
+  const feeds = { images: tensor };
 
-    console.time("Inference time");
-    const results = await session.run(feeds);
-    console.timeEnd("Inference time");
+  console.time("Inference time");
+  const results = await session.run(feeds);
+  console.timeEnd("Inference time");
 
-    visualizeMatches(results, images, imgWidth, imgHeight);
-  } catch (e) {
-    console.error(`Failed to inference ONNX model: ${e}`);
-  }
+  visualizeMatches(results, images, imgWidth, imgHeight);
 }
 
 function visualizeMatches(rawData, images, imgWidth, imgHeight) {
