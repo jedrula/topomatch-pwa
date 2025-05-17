@@ -8,7 +8,7 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: process.env.NODE_ENV === "production" ? "/topomatch-pwa/" : "/",
+  // base: process.env.NODE_ENV === "production" ? "/topomatch-pwa/" : "/",
   plugins: [
     vue(),
     vueDevTools(),
