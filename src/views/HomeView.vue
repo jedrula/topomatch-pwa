@@ -1,9 +1,12 @@
 <template>
-  <main>Hello World</main>
+  <main>
+    Hello World
+    <p>Inference Time: {{ inferenceTime }}</p>
+  </main>
 </template>
 
 <script setup>
-// Import ONNX Runtime Web with WebGPU support
+import { ref } from "vue";
 import * as ort from "onnxruntime-web/webgpu";
 
 // Enable multi-threading for WASM
@@ -47,25 +50,34 @@ async function createSession() {
   return session;
 }
 
+const inferenceTime = ref(null);
+
 async function main() {
-  const session = await createSession();
+  try {
+    const session = await createSession();
 
-  const imgPaths = ["./otwarcie_fabryczna_testowy.jpg", "./fabryczna_otwarcie_topo.jpg"];
-  const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
+    const imgPaths = ["./otwarcie_fabryczna_testowy.jpg", "./fabryczna_otwarcie_topo.jpg"];
+    const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
 
-  const imgWidth = 256;
-  const imgHeight = 256;
-  const tensors = images.map((image) => preprocessImage(image, imgWidth, imgHeight));
+    const imgWidth = 256;
+    const imgHeight = 256;
+    const tensors = images.map((image) => preprocessImage(image, imgWidth, imgHeight));
 
-  const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
-  const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
-  const feeds = { images: tensor };
+    const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
+    const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
+    const feeds = { images: tensor };
 
-  console.time("Inference time");
-  const results = await session.run(feeds);
-  console.timeEnd("Inference time");
+    const startTime = performance.now();
+    const results = await session.run(feeds);
+    const endTime = performance.now();
 
-  visualizeMatches(results, images, imgWidth, imgHeight);
+    inferenceTime.value = `${(endTime - startTime).toFixed(2)} ms`; // Set inference time
+
+    console.log("Inference results:", results);
+    // visualizeMatches(results, images, imgWidth, imgHeight);
+  } catch (e) {
+    console.error(`Failed to inference ONNX model: ${e}`);
+  }
 }
 
 function visualizeMatches(rawData, images, imgWidth, imgHeight) {
