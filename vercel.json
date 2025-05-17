@@ -1,5 +1,24 @@
 {
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
   "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cross-Origin-Embedder-Policy",
+          "value": "require-corp"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [
@@ -13,5 +32,6 @@
         }
       ]
     }
-  ]
+  ],
+  "cleanUrls": false
 }
