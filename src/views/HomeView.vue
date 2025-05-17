@@ -9,7 +9,7 @@ import * as ort from "onnxruntime-web/webgpu";
 // Enable multi-threading for WASM
 ort.env.wasm.numThreads = 4;
 ort.env.wasm.wasmPaths = {
-  wasm: "./ort-wasm-simd-threaded.wasm",
+  wasm: "./ort-wasm-simd-threaded.jsep.wasm",
 };
 
 // Load and preprocess images
@@ -50,10 +50,7 @@ async function createSession() {
 async function main() {
   const session = await createSession();
 
-  const imgPaths = [
-    "./assets/otwarcie_fabryczna_testowy.jpg",
-    "./assets/fabryczna_otwarcie_topo.jpg",
-  ];
+  const imgPaths = ["./otwarcie_fabryczna_testowy.jpg", "./fabryczna_otwarcie_topo.jpg"];
   const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
 
   const imgWidth = 256;
