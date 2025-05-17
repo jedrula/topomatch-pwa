@@ -1,7 +1,7 @@
 {
   "headers": [
     {
-      "source": "/ort-wasm-simd-threaded.jsep.wasm",
+      "source": "/",
       "headers": [
         {
           "key": "Cross-Origin-Embedder-Policy",
