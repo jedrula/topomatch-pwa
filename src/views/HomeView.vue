@@ -67,6 +67,8 @@ async function main() {
       preprocessImage(image, imgWidth, imgHeight, index)
     );
 
+    await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate delay, give time for console log/time
+
     const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
     const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
     const feeds = { images: tensor };
