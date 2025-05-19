@@ -26,7 +26,8 @@ async function loadImage(url) {
   });
 }
 
-function preprocessImage(image, width, height) {
+function preprocessImage(image, width, height, index) {
+  console.time(`Preprocess Image Time ${index}`);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -41,7 +42,7 @@ function preprocessImage(image, width, height) {
     const b = imageData[i * 4 + 2] / 255.0;
     input[i] = 0.299 * r + 0.587 * g + 0.114 * b;
   }
-
+  console.timeEnd(`Preprocess Image Time ${index}`);
   return input;
 }
 
@@ -61,7 +62,10 @@ async function main() {
 
     const imgWidth = 256;
     const imgHeight = 256;
-    const tensors = images.map((image) => preprocessImage(image, imgWidth, imgHeight));
+
+    const tensors = images.map((image, index) =>
+      preprocessImage(image, imgWidth, imgHeight, index)
+    );
 
     const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
     const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
