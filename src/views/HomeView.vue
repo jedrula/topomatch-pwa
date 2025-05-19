@@ -54,6 +54,7 @@ async function createSession() {
 
 const inferenceTime = ref(null);
 const sessionTime = ref(null);
+const errorString = ref(null);
 
 async function main() {
   try {
@@ -76,17 +77,19 @@ async function main() {
     const startSessionTime = performance.now();
     const session = await createSession();
     const endSessionTime = performance.now();
-    sessionTime = `${(endSessionTime - startSessionTime).toFixed(2)} ms`; // Set session time
+    sessionTime.value = `${(endSessionTime - startSessionTime).toFixed(2)} ms`; // Set session time
+    await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate delay, give time for console log/time
 
     const startTime = performance.now();
     const results = await session.run(feeds);
     const endTime = performance.now();
-
+    await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate delay, give time for console log/time
     inferenceTime.value = `${(endTime - startTime).toFixed(2)} ms`; // Set inference time
 
     console.log("Inference results:", results);
     // visualizeMatches(results, images, imgWidth, imgHeight);
   } catch (e) {
+    errorString.value = `Failed to inference ONNX model: ${e}`;
     console.error(`Failed to inference ONNX model: ${e}`);
   }
 }
