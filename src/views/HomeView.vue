@@ -3,12 +3,18 @@
     Hello World
     <p>Inference Time: {{ inferenceTime }}</p>
     <p>Session Time: {{ sessionTime }}</p>
+    <p>WebAssembly Threads Supported: {{ wasmThreadsSupported }}</p>
+    <p>WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
+    <p>Browser Info: {{ browserInfo }}</p>
+    <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
   </main>
 </template>
 
 <script setup>
 import { ref } from "vue";
 import * as ort from "onnxruntime-web/webgpu";
+import * as wasmFeatureDetect from "wasm-feature-detect";
+import Bowser from "bowser";
 
 // Enable multi-threading for WASM
 ort.env.wasm.numThreads = 4;
@@ -55,8 +61,37 @@ async function createSession() {
 const inferenceTime = ref(null);
 const sessionTime = ref(null);
 const errorString = ref(null);
+const wasmThreadsSupported = ref(null);
+const wasmSimdSupported = ref(null);
+const browserInfo = ref(null);
+
+function checkBrowser() {
+  const browser = Bowser.getParser(window.navigator.userAgent);
+  browserInfo.value = {
+    name: browser.getBrowserName(),
+    version: browser.getBrowserVersion(),
+    os: browser.getOSName(),
+    osVersion: browser.getOSVersion(),
+  };
+}
+
+async function checkWasmFeatures() {
+  wasmThreadsSupported.value = await wasmFeatureDetect.threads();
+  wasmSimdSupported.value = await wasmFeatureDetect.simd();
+
+  if (!wasmThreadsSupported.value) {
+    console.warn("WebAssembly threads are not supported. Multi-threading will be disabled.");
+    ort.env.wasm.numThreads = 1; // Fallback to single-threaded mode
+  }
+
+  if (!wasmSimdSupported.value) {
+    console.warn("WebAssembly SIMD is not supported. Performance may be reduced.");
+  }
+}
 
 async function main() {
+  checkBrowser();
+  await checkWasmFeatures();
   try {
     const imgPaths = ["./otwarcie_fabryczna_testowy.jpg", "./fabryczna_otwarcie_topo.jpg"];
     const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
@@ -87,7 +122,7 @@ async function main() {
     inferenceTime.value = `${(endTime - startTime).toFixed(2)} ms`; // Set inference time
 
     console.log("Inference results:", results);
-    // visualizeMatches(results, images, imgWidth, imgHeight);
+    visualizeMatches(results, images, imgWidth, imgHeight);
   } catch (e) {
     errorString.value = `Failed to inference ONNX model: ${e}`;
     console.error(`Failed to inference ONNX model: ${e}`);
