@@ -17,7 +17,7 @@ import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
 
 // Enable multi-threading for WASM
-ort.env.wasm.numThreads = 4;
+ort.env.wasm.numThreads = 2;
 ort.env.wasm.wasmPaths = {
   wasm: "./ort-wasm-simd-threaded.jsep.wasm",
 };
@@ -96,8 +96,8 @@ async function main() {
     const imgPaths = ["./otwarcie_fabryczna_testowy.jpg", "./fabryczna_otwarcie_topo.jpg"];
     const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
 
-    const imgWidth = 256;
-    const imgHeight = 256;
+    const imgWidth = 1024;
+    const imgHeight = 1024;
 
     const tensors = images.map((image, index) =>
       preprocessImage(image, imgWidth, imgHeight, index)
