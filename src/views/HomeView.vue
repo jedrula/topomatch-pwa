@@ -2,6 +2,7 @@
   <main>
     Hello World
     <p>Inference Time: {{ inferenceTime }}</p>
+    <p>Session Time: {{ sessionTime }}</p>
   </main>
 </template>
 
@@ -52,11 +53,10 @@ async function createSession() {
 }
 
 const inferenceTime = ref(null);
+const sessionTime = ref(null);
 
 async function main() {
   try {
-    const session = await createSession();
-
     const imgPaths = ["./otwarcie_fabryczna_testowy.jpg", "./fabryczna_otwarcie_topo.jpg"];
     const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
 
@@ -72,6 +72,11 @@ async function main() {
     const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
     const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
     const feeds = { images: tensor };
+
+    const startSessionTime = performance.now();
+    const session = await createSession();
+    const endSessionTime = performance.now();
+    sessionTime = `${(endSessionTime - startSessionTime).toFixed(2)} ms`; // Set session time
 
     const startTime = performance.now();
     const results = await session.run(feeds);
