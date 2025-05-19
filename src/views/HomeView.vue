@@ -7,6 +7,11 @@
     <p>WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
     <p>Browser Info: {{ browserInfo }}</p>
     <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
+
+    <div v-if="isLoading" class="spinner">
+      <p>{{ loadingMessage }}</p>
+      <div class="spinner-icon"></div>
+    </div>
   </main>
 </template>
 
@@ -22,6 +27,8 @@ const errorString = ref(null);
 const wasmThreadsSupported = ref(null);
 const wasmSimdSupported = ref(null);
 const browserInfo = ref(null);
+const isLoading = ref(false);
+const loadingMessage = ref("");
 const inferenceWorker = new Worker(new URL("../workers/inferenceWorker.js", import.meta.url), {
   type: "module",
 });
@@ -30,12 +37,14 @@ inferenceWorker.onmessage = (event) => {
   const { type, data } = event.data;
   if (type === "inferenceComplete") {
     inferenceTime.value = `${data.inferenceTime.toFixed(2)} ms`;
+    isLoading.value = false;
     console.log("Inference results:", data.results);
     visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
   } else if (type === "sessionCreated") {
     sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
+    isLoading.value = false;
     console.log("Session created in:", sessionTime.value);
-    inferenceWorker.postMessage({ type: "runInference" });
+    runInference();
   }
 };
 
@@ -64,7 +73,15 @@ async function checkWasmFeatures() {
 }
 
 async function createSession() {
+  isLoading.value = true;
+  loadingMessage.value = "Creating session...";
   inferenceWorker.postMessage({ type: "createSession" });
+}
+
+async function runInference() {
+  isLoading.value = true;
+  loadingMessage.value = "Inferencing...";
+  inferenceWorker.postMessage({ type: "runInference" });
 }
 
 onMounted(async () => {
@@ -102,3 +119,31 @@ function visualizeMatches(rawData, images, imgWidth, imgHeight) {
   }
 }
 </script>
+
+<style>
+.spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.spinner-icon {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-top: 4px solid #000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+</style>
