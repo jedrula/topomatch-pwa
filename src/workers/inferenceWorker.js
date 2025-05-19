@@ -8,12 +8,40 @@ ort.env.wasm.numThreads = 4;
 self.onmessage = async (event) => {
   const { type } = event.data;
 
-  if (type === "runInference") {
+  if (type === "createSession") {
     try {
+      const startTime = performance.now();
       const session = await ort.InferenceSession.create(
         "../../superpoint_lightglue_pipeline.ort.onnx"
       );
+      const endTime = performance.now();
 
+      self.session = session; // Store the session in the worker
+
+      self.postMessage({
+        type: "sessionCreated",
+        data: {
+          sessionTime: endTime - startTime,
+        },
+      });
+    } catch (error) {
+      self.postMessage({
+        type: "error",
+        data: { message: error.message },
+      });
+    }
+  }
+
+  if (type === "runInference") {
+    if (!self.session) {
+      self.postMessage({
+        type: "error",
+        data: { message: "Session is not initialized." },
+      });
+      return;
+    }
+
+    try {
       const imgPaths = [
         "../../otwarcie_fabryczna_testowy.jpg",
         "../../fabryczna_otwarcie_topo.jpg",
@@ -31,7 +59,7 @@ self.onmessage = async (event) => {
       const feeds = { images: tensor };
 
       const startTime = performance.now();
-      const results = await session.run(feeds);
+      const results = await self.session.run(feeds);
       const endTime = performance.now();
 
       self.postMessage({
@@ -39,6 +67,9 @@ self.onmessage = async (event) => {
         data: {
           inferenceTime: endTime - startTime,
           results,
+          images,
+          imgWidth,
+          imgHeight,
         },
       });
     } catch (error) {

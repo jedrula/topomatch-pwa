@@ -31,6 +31,11 @@ inferenceWorker.onmessage = (event) => {
   if (type === "inferenceComplete") {
     inferenceTime.value = `${data.inferenceTime.toFixed(2)} ms`;
     console.log("Inference results:", data.results);
+    visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
+  } else if (type === "sessionCreated") {
+    sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
+    console.log("Session created in:", sessionTime.value);
+    inferenceWorker.postMessage({ type: "runInference" });
   }
 };
 
@@ -58,14 +63,14 @@ async function checkWasmFeatures() {
   }
 }
 
-async function runInference() {
-  inferenceWorker.postMessage({ type: "runInference" });
+async function createSession() {
+  inferenceWorker.postMessage({ type: "createSession" });
 }
 
 onMounted(async () => {
   checkBrowser();
   await checkWasmFeatures();
-  await runInference();
+  await createSession();
 });
 
 function visualizeMatches(rawData, images, imgWidth, imgHeight) {
