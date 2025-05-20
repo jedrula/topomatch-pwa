@@ -1,5 +1,5 @@
 import * as ort from "onnxruntime-web/webgpu";
-
+console.log("wow");
 ort.env.wasm.wasmPaths = {
   wasm: "../../ort-wasm-simd-threaded.jsep.wasm",
 };

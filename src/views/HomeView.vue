@@ -17,10 +17,8 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import * as ort from "onnxruntime-web/webgpu";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
-import InferenceWorker from "../workers/inferenceWorker.js?worker";
 
 const inferenceTime = ref(null);
 const sessionTime = ref(null);
@@ -30,7 +28,9 @@ const wasmSimdSupported = ref(null);
 const browserInfo = ref(null);
 const isLoading = ref(false);
 const loadingMessage = ref("");
-const inferenceWorker = new InferenceWorker();
+const inferenceWorker = new Worker(new URL("../workers/inferenceWorker.js", import.meta.url), {
+  type: "module",
+});
 
 inferenceWorker.onmessage = (event) => {
   const { type, data } = event.data;
@@ -60,15 +60,6 @@ function checkBrowser() {
 async function checkWasmFeatures() {
   wasmThreadsSupported.value = await wasmFeatureDetect.threads();
   wasmSimdSupported.value = await wasmFeatureDetect.simd();
-
-  if (!wasmThreadsSupported.value) {
-    console.warn("WebAssembly threads are not supported. Multi-threading will be disabled.");
-    ort.env.wasm.numThreads = 1; // Fallback to single-threaded mode
-  }
-
-  if (!wasmSimdSupported.value) {
-    console.warn("WebAssembly SIMD is not supported. Performance may be reduced.");
-  }
 }
 
 async function createSession() {
