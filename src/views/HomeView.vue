@@ -20,6 +20,7 @@ import { ref, onMounted } from "vue";
 import * as ort from "onnxruntime-web/webgpu";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
+import InferenceWorker from "../workers/inferenceWorker.js?worker";
 
 const inferenceTime = ref(null);
 const sessionTime = ref(null);
@@ -29,9 +30,7 @@ const wasmSimdSupported = ref(null);
 const browserInfo = ref(null);
 const isLoading = ref(false);
 const loadingMessage = ref("");
-const inferenceWorker = new Worker(new URL("../workers/inferenceWorker.js", import.meta.url), {
-  type: "module",
-});
+const inferenceWorker = new InferenceWorker();
 
 inferenceWorker.onmessage = (event) => {
   const { type, data } = event.data;
