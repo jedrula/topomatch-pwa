@@ -28,8 +28,12 @@ const wasmSimdSupported = ref(null);
 const browserInfo = ref(null);
 const isLoading = ref(false);
 const loadingMessage = ref("");
-const inferenceWorker = new Worker(new URL("../workers/inferenceWorker.js", import.meta.url), {
-  type: "module",
+// const inferenceWorker = new Worker(new URL("../workers/inferenceWorker.js", import.meta.url), {
+//   type: "module",
+// });
+import WorkerInstance from "../workers/inferenceWorker?worker";
+const inferenceWorker = new WorkerInstance({
+  // type: "module",
 });
 
 inferenceWorker.onmessage = (event) => {

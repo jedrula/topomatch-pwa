@@ -1,10 +1,10 @@
-console.log("wow");
+import * as ort from "onnxruntime-web/webgpu";
+console.log("wow2");
 ort.env.wasm.wasmPaths = {
   wasm: "../../ort-wasm-simd-threaded.jsep.wasm",
 };
 // ort.env.wasm.simd = true;
 ort.env.wasm.numThreads = 4;
-import * as ort from "onnxruntime-web/webgpu";
 
 self.onmessage = async (event) => {
   const { type } = event.data;
