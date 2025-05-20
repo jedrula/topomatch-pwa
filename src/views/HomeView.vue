@@ -7,56 +7,20 @@
     <p>WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
     <p>Browser Info: {{ browserInfo }}</p>
     <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
+
+    <div v-if="isLoading" class="spinner">
+      <p>{{ loadingMessage }}</p>
+      <div class="spinner-icon"></div>
+    </div>
   </main>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import * as ort from "onnxruntime-web/webgpu";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
-
-// Enable multi-threading for WASM
-ort.env.wasm.numThreads = 2;
-ort.env.wasm.wasmPaths = {
-  wasm: "./ort-wasm-simd-threaded.jsep.wasm",
-};
-
-// Load and preprocess images
-async function loadImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-function preprocessImage(image, width, height, index) {
-  console.time(`Preprocess Image Time ${index}`);
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(image, 0, 0, width, height);
-  const imageData = ctx.getImageData(0, 0, width, height).data;
-
-  const input = new Float32Array(width * height);
-  for (let i = 0; i < width * height; i++) {
-    const r = imageData[i * 4] / 255.0;
-    const g = imageData[i * 4 + 1] / 255.0;
-    const b = imageData[i * 4 + 2] / 255.0;
-    input[i] = 0.299 * r + 0.587 * g + 0.114 * b;
-  }
-  console.timeEnd(`Preprocess Image Time ${index}`);
-  return input;
-}
-
-async function createSession() {
-  const session = await ort.InferenceSession.create("./superpoint_lightglue_pipeline.ort.onnx");
-  return session;
-}
+import InferenceWorker from "../workers/inferenceWorker.js?worker";
 
 const inferenceTime = ref(null);
 const sessionTime = ref(null);
@@ -64,6 +28,24 @@ const errorString = ref(null);
 const wasmThreadsSupported = ref(null);
 const wasmSimdSupported = ref(null);
 const browserInfo = ref(null);
+const isLoading = ref(false);
+const loadingMessage = ref("");
+const inferenceWorker = new InferenceWorker();
+
+inferenceWorker.onmessage = (event) => {
+  const { type, data } = event.data;
+  if (type === "inferenceComplete") {
+    inferenceTime.value = `${data.inferenceTime.toFixed(2)} ms`;
+    isLoading.value = false;
+    console.log("Inference results:", data.results);
+    visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
+  } else if (type === "sessionCreated") {
+    sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
+    isLoading.value = false;
+    console.log("Session created in:", sessionTime.value);
+    runInference();
+  }
+};
 
 function checkBrowser() {
   const browser = Bowser.getParser(window.navigator.userAgent);
@@ -89,45 +71,23 @@ async function checkWasmFeatures() {
   }
 }
 
-async function main() {
+async function createSession() {
+  isLoading.value = true;
+  loadingMessage.value = "Creating session...";
+  inferenceWorker.postMessage({ type: "createSession" });
+}
+
+async function runInference() {
+  isLoading.value = true;
+  loadingMessage.value = "Inferencing...";
+  inferenceWorker.postMessage({ type: "runInference" });
+}
+
+onMounted(async () => {
   checkBrowser();
   await checkWasmFeatures();
-  try {
-    const imgPaths = ["./otwarcie_fabryczna_testowy.jpg", "./fabryczna_otwarcie_topo.jpg"];
-    const images = await Promise.all(imgPaths.map((path) => loadImage(path)));
-
-    const imgWidth = 1024;
-    const imgHeight = 1024;
-
-    const tensors = images.map((image, index) =>
-      preprocessImage(image, imgWidth, imgHeight, index)
-    );
-
-    await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate delay, give time for console log/time
-
-    const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
-    const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
-    const feeds = { images: tensor };
-
-    const startSessionTime = performance.now();
-    const session = await createSession();
-    const endSessionTime = performance.now();
-    sessionTime.value = `${(endSessionTime - startSessionTime).toFixed(2)} ms`; // Set session time
-    await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate delay, give time for console log/time
-
-    const startTime = performance.now();
-    const results = await session.run(feeds);
-    const endTime = performance.now();
-    await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate delay, give time for console log/time
-    inferenceTime.value = `${(endTime - startTime).toFixed(2)} ms`; // Set inference time
-
-    console.log("Inference results:", results);
-    visualizeMatches(results, images, imgWidth, imgHeight);
-  } catch (e) {
-    errorString.value = `Failed to inference ONNX model: ${e}`;
-    console.error(`Failed to inference ONNX model: ${e}`);
-  }
-}
+  await createSession();
+});
 
 function visualizeMatches(rawData, images, imgWidth, imgHeight) {
   const canvas = document.createElement("canvas");
@@ -157,6 +117,32 @@ function visualizeMatches(rawData, images, imgWidth, imgHeight) {
     ctx.stroke();
   }
 }
-
-main();
 </script>
+
+<style>
+.spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.spinner-icon {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-top: 4px solid #000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+</style>
