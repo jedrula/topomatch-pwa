@@ -33,7 +33,7 @@ const loadingMessage = ref("");
 // });
 import WorkerInstance from "../workers/inferenceWorker?worker";
 const inferenceWorker = new WorkerInstance({
-  // type: "module",
+  type: "module",
 });
 
 inferenceWorker.onmessage = (event) => {

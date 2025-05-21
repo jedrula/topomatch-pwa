@@ -9,6 +9,7 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 // https://vite.dev/config/
 export default defineConfig({
   build: {
+    target: "esnext",
     polyfillModulePreload: false,
   },
   worker: {
