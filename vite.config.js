@@ -8,6 +8,10 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 
 // https://vite.dev/config/
 export default defineConfig({
+  assetsInclude: ["**/*.onnx"],
+  optimizeDeps: {
+    exclude: ["onnxruntime-web"],
+  },
   build: {
     target: "esnext",
     polyfillModulePreload: false,
@@ -57,11 +61,11 @@ export default defineConfig({
       targets: [
         {
           src: "node_modules/onnxruntime-web/dist/*.wasm",
-          dest: ".",
+          dest: "./src/workers",
         },
         {
           src: "node_modules/onnxruntime-web/dist/*.mjs",
-          dest: ".",
+          dest: "./src/workers",
         },
       ],
     }),
