@@ -2,6 +2,7 @@
   <div class="stokowka-grid">
     <div v-for="img in images" :key="img" class="stokowka-item">
       <img :src="img" alt="stokowka image" />
+      <div class="stokowka-filename">{{ img.split("/").pop() }}</div>
     </div>
   </div>
 </template>
@@ -39,5 +40,12 @@ onMounted(async () => {
   object-fit: cover;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.stokowka-filename {
+  margin-top: 0.5em;
+  font-size: 0.95em;
+  text-align: center;
+  color: #444;
+  word-break: break-all;
 }
 </style>
