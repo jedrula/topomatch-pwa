@@ -70,11 +70,11 @@ export default defineConfig({
         },
         {
           src: "node_modules/onnxruntime-web/dist/*.wasm",
-          dest: "./src/workers", // for dev:
+          dest: "./src/views", // for dev:
         },
         {
           src: "node_modules/onnxruntime-web/dist/*.mjs",
-          dest: "./src/workers", // for dev:
+          dest: "./src/views", // for dev:
         },
       ],
     }),

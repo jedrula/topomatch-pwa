@@ -34,13 +34,9 @@ const browserInfo = ref(null);
 const isLoading = ref(false);
 const loadingMessage = ref("");
 const userImageFile = ref(null);
-const inferenceWorker = new Worker(new URL("../workers/inferenceWorker.js", import.meta.url), {
+const inferenceWorker = new Worker(new URL("virtual:onnx-worker", import.meta.url), {
   type: "module",
 });
-// import WorkerInstance from "../workers/inferenceWorker?worker";
-// const inferenceWorker = new WorkerInstance({
-// type: "module",
-// });
 
 inferenceWorker.onmessage = (event) => {
   const { type, data } = event.data;
