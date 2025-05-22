@@ -21,6 +21,8 @@
       </button>
     </div>
 
+    <p v-if="matchCount !== null">Number of Matches: {{ matchCount }}</p>
+
     <RegionGallery @region-selected="onTopoSelected" manifestPath="/topos/stokowka/manifest.json" />
   </main>
 </template>
@@ -41,6 +43,7 @@ const isLoading = ref(false);
 const loadingMessage = ref("");
 const userImageFile = ref(null);
 const topoImage = ref(null);
+const matchCount = ref(null);
 const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
   type: "module",
 });
@@ -51,6 +54,7 @@ inferenceWorker.onmessage = (event) => {
     inferenceTime.value = `${data.inferenceTime.toFixed(2)} ms`;
     isLoading.value = false;
     console.log("Inference results:", data.results);
+    matchCount.value = data.results.matches?.dims?.[0] ?? null;
     visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
   } else if (type === "sessionCreated") {
     sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;

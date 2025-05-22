@@ -36,6 +36,7 @@ self.onmessage = async (event) => {
 
     try {
       if (!userImageBuffer || !topoImageBuffer) {
+        console.log("wwwww");
         self.postMessage({
           type: "error",
           data: { message: "Both user and topo images must be provided." },
