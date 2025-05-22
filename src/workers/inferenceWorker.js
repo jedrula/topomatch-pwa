@@ -2,6 +2,7 @@ self.onmessage = async (event) => {
   const { type, userImageBuffer, topoImageBuffer } = event.data;
 
   if (type === "createSession") {
+    console.log("createSession in worker");
     try {
       const startTime = performance.now();
       const session = await ort.InferenceSession.create(

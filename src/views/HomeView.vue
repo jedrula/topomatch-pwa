@@ -23,7 +23,7 @@
 
     <p v-if="matchCount !== null">Number of Matches: {{ matchCount }}</p>
 
-    <RegionGallery @region-selected="onTopoSelected" manifestPath="/topos/stokowka/manifest.json" />
+    <RegionGallery @topo-selected="onTopoSelected" manifestPath="/topos/stokowka/manifest.json" />
   </main>
 </template>
 
@@ -111,6 +111,7 @@ async function runInference(userFile, topoImagePath) {
   const resp = await fetch(topoImagePath);
   const topoBlob = await resp.blob();
   const topoArrayBuffer = await topoBlob.arrayBuffer();
+  console.log("calling postMessage to runInference");
   inferenceWorker.postMessage(
     {
       type: "runInference",

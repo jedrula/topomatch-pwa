@@ -25,11 +25,11 @@ const props = defineProps({
 
 const images = ref([]);
 const selectedImage = ref(null);
-const emit = defineEmits(["region-selected"]);
+const emit = defineEmits(["topo-selected"]);
 
 function selectImage(img) {
   selectedImage.value = img;
-  emit("region-selected", img);
+  emit("topo-selected", img);
 }
 
 onMounted(async () => {
