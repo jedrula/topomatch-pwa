@@ -14944,9 +14944,10 @@ console.log("wow3");
 ort.env.wasm.numThreads = 4;
 
 self.onmessage = async (event) => {
-  const { type, userImageBuffer } = event.data;
+  const { type, userImageBuffer, topoImageBuffer } = event.data;
 
   if (type === "createSession") {
+    console.log("createSession in worker");
     try {
       const startTime = performance.now();
       const session = await ort.InferenceSession.create(
@@ -14980,19 +14981,19 @@ self.onmessage = async (event) => {
     }
 
     try {
-      if (!userImageBuffer) {
+      if (!userImageBuffer || !topoImageBuffer) {
+        console.log("wwwww");
         self.postMessage({
           type: "error",
-          data: { message: "No user image provided." },
+          data: { message: "Both user and topo images must be provided." },
         });
         return;
       }
-      // Use user image as first, hardcoded as second
       const userBlob = new Blob([userImageBuffer]);
       const userBitmap = await createImageBitmap(userBlob);
-      const hardcodedPath = "../../fabryczna_otwarcie_topo.jpg";
-      const hardcodedBitmap = await loadImage(hardcodedPath);
-      const images = [userBitmap, hardcodedBitmap];
+      const blob = new Blob([topoImageBuffer]);
+      const topoBitmap = await createImageBitmap(blob);
+      const images = [userBitmap, topoBitmap];
 
       const imgWidth = 256;
       const imgHeight = 256;
