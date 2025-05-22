@@ -12,6 +12,11 @@
       <p>{{ loadingMessage }}</p>
       <div class="spinner-icon"></div>
     </div>
+
+    <div style="margin-top: 2em;">
+      <label for="user-image">Select image to match:</label>
+      <input id="user-image" type="file" accept="image/*" @change="onFileChange" />
+    </div>
   </main>
 </template>
 
@@ -28,6 +33,7 @@ const wasmSimdSupported = ref(null);
 const browserInfo = ref(null);
 const isLoading = ref(false);
 const loadingMessage = ref("");
+const userImageFile = ref(null);
 const inferenceWorker = new Worker(new URL("../workers/inferenceWorker.js", import.meta.url), {
   type: "module",
 });
@@ -76,6 +82,22 @@ async function runInference() {
   isLoading.value = true;
   loadingMessage.value = "Inferencing...";
   inferenceWorker.postMessage({ type: "runInference" });
+}
+
+function onFileChange(event) {
+  const file = event.target.files[0];
+  if (file) {
+    userImageFile.value = file;
+    runInferenceWithUserImage(file);
+  }
+}
+
+async function runInferenceWithUserImage(file) {
+  isLoading.value = true;
+  loadingMessage.value = "Inferencing with user image...";
+  // Read file as ArrayBuffer and send to worker
+  const arrayBuffer = await file.arrayBuffer();
+  inferenceWorker.postMessage({ type: "runInference", userImageBuffer: arrayBuffer }, [arrayBuffer]);
 }
 
 onMounted(async () => {

@@ -67,6 +67,14 @@ export default defineConfig({
           src: "node_modules/onnxruntime-web/dist/*.mjs",
           dest: "./assets",
         },
+        {
+          src: "node_modules/onnxruntime-web/dist/*.wasm",
+          dest: "./src/workers", // for dev:
+        },
+        {
+          src: "node_modules/onnxruntime-web/dist/*.mjs",
+          dest: "./src/workers", // for dev:
+        },
       ],
     }),
   ],
