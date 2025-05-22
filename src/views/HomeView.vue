@@ -16,6 +16,7 @@
     <div style="margin-top: 2em">
       <label for="user-image">Select image to match:</label>
       <input id="user-image" type="file" accept="image/*" @change="onFileChange" />
+      <button @click="onRunInferenceClick" :disabled="!userImageFile">Run Inference</button>
     </div>
   </main>
 </template>
@@ -77,7 +78,14 @@ function onFileChange(event) {
   const file = event.target.files[0];
   if (file) {
     userImageFile.value = file;
-    runInferenceWithUserImage(file);
+  }
+}
+
+function onRunInferenceClick() {
+  if (userImageFile.value) {
+    runInferenceWithUserImage(userImageFile.value);
+  } else {
+    errorString.value = "Please select an image first.";
   }
 }
 
