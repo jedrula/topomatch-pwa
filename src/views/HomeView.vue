@@ -18,6 +18,8 @@
       <input id="user-image" type="file" accept="image/*" @change="onFileChange" />
       <button @click="onRunInferenceClick" :disabled="!userImageFile">Run Inference</button>
     </div>
+
+    <StokowkaGallery />
   </main>
 </template>
 
@@ -25,6 +27,7 @@
 import { ref, onMounted } from "vue";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
+import StokowkaGallery from "@/components/StokowkaGallery.vue";
 
 const inferenceTime = ref(null);
 const sessionTime = ref(null);
