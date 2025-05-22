@@ -16,10 +16,12 @@
     <div style="margin-top: 2em">
       <label for="user-image">Select image to match:</label>
       <input id="user-image" type="file" accept="image/*" @change="onFileChange" />
-      <button @click="onRunInferenceClick" :disabled="!userImageFile">Run Inference</button>
+      <button @click="onRunInferenceClick" :disabled="!userImageFile || !topoImage">
+        Run Inference
+      </button>
     </div>
 
-    <StokowkaGallery />
+    <RegionGallery @region-selected="onTopoSelected" manifestPath="/topos/stokowka/manifest.json" />
   </main>
 </template>
 
@@ -27,7 +29,7 @@
 import { ref, onMounted } from "vue";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
-import StokowkaGallery from "@/components/StokowkaGallery.vue";
+import RegionGallery from "@/components/RegionGallery.vue";
 
 const inferenceTime = ref(null);
 const sessionTime = ref(null);
@@ -38,6 +40,7 @@ const browserInfo = ref(null);
 const isLoading = ref(false);
 const loadingMessage = ref("");
 const userImageFile = ref(null);
+const topoImage = ref(null);
 const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
   type: "module",
 });
@@ -84,22 +87,34 @@ function onFileChange(event) {
   }
 }
 
+function onTopoSelected(img) {
+  topoImage.value = img;
+}
+
 function onRunInferenceClick() {
-  if (userImageFile.value) {
-    runInferenceWithUserImage(userImageFile.value);
+  if (userImageFile.value && topoImage.value) {
+    runInference(userImageFile.value, topoImage.value);
   } else {
-    errorString.value = "Please select an image first.";
+    errorString.value = "Please select both an image to match and a topo image.";
   }
 }
 
-async function runInferenceWithUserImage(file) {
+async function runInference(userFile, topoImagePath) {
   isLoading.value = true;
-  loadingMessage.value = "Inferencing with user image...";
-  // Read file as ArrayBuffer and send to worker
-  const arrayBuffer = await file.arrayBuffer();
-  inferenceWorker.postMessage({ type: "runInference", userImageBuffer: arrayBuffer }, [
-    arrayBuffer,
-  ]);
+  loadingMessage.value = "Inferencing with user and topo image...";
+  // Read user file as ArrayBuffer
+  const userArrayBuffer = await userFile.arrayBuffer();
+  const resp = await fetch(topoImagePath);
+  const topoBlob = await resp.blob();
+  const topoArrayBuffer = await topoBlob.arrayBuffer();
+  inferenceWorker.postMessage(
+    {
+      type: "runInference",
+      userImageBuffer: userArrayBuffer,
+      topoImageBuffer: topoArrayBuffer,
+    },
+    [userArrayBuffer, topoArrayBuffer]
+  );
 }
 
 onMounted(async () => {
