@@ -13,7 +13,7 @@
       <div class="spinner-icon"></div>
     </div>
 
-    <div style="margin-top: 2em;">
+    <div style="margin-top: 2em">
       <label for="user-image">Select image to match:</label>
       <input id="user-image" type="file" accept="image/*" @change="onFileChange" />
     </div>
@@ -53,7 +53,6 @@ inferenceWorker.onmessage = (event) => {
     sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
     isLoading.value = false;
     console.log("Session created in:", sessionTime.value);
-    runInference();
   }
 };
 
@@ -78,12 +77,6 @@ async function createSession() {
   inferenceWorker.postMessage({ type: "createSession" });
 }
 
-async function runInference() {
-  isLoading.value = true;
-  loadingMessage.value = "Inferencing...";
-  inferenceWorker.postMessage({ type: "runInference" });
-}
-
 function onFileChange(event) {
   const file = event.target.files[0];
   if (file) {
@@ -97,7 +90,9 @@ async function runInferenceWithUserImage(file) {
   loadingMessage.value = "Inferencing with user image...";
   // Read file as ArrayBuffer and send to worker
   const arrayBuffer = await file.arrayBuffer();
-  inferenceWorker.postMessage({ type: "runInference", userImageBuffer: arrayBuffer }, [arrayBuffer]);
+  inferenceWorker.postMessage({ type: "runInference", userImageBuffer: arrayBuffer }, [
+    arrayBuffer,
+  ]);
 }
 
 onMounted(async () => {
