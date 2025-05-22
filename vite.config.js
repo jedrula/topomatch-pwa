@@ -5,7 +5,6 @@ import vue from "@vitejs/plugin-vue";
 import vueDevTools from "vite-plugin-vue-devtools";
 import { VitePWA } from "vite-plugin-pwa";
 import { viteStaticCopy } from "vite-plugin-static-copy";
-import prependWorkerOnnxCode from "./vite-plugin-prepend-worker";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -70,15 +69,14 @@ export default defineConfig({
         },
         {
           src: "node_modules/onnxruntime-web/dist/*.wasm",
-          dest: "./src/views", // for dev:
+          dest: "./public", // for dev:
         },
         {
           src: "node_modules/onnxruntime-web/dist/*.mjs",
-          dest: "./src/views", // for dev:
+          dest: "./public", // for dev:
         },
       ],
     }),
-    prependWorkerOnnxCode(),
   ],
   resolve: {
     alias: {
