@@ -36,6 +36,9 @@
           <div v-if="inferenceTimes && inferenceTimes[img] !== undefined" class="inference-time">
             Inference: {{ inferenceTimes[img].toFixed(2) }} ms
           </div>
+          <div v-if="matchCounts && matchCounts[img] !== undefined" class="match-count">
+            Number of Matches: {{ matchCounts[img] }}
+          </div>
         </div>
       </template>
     </RegionGallery>
@@ -49,6 +52,7 @@ import Bowser from "bowser";
 import RegionGallery from "@/components/RegionGallery.vue";
 
 const inferenceTimes = ref({}); // { [imgPath]: timeInMs }
+const matchCounts = ref({}); // { [imgPath]: matchCount }
 const sessionTime = ref(null);
 const errorString = ref(null);
 const wasmThreadsSupported = ref(null);
@@ -146,13 +150,15 @@ async function runInferenceBatch(userFile, topoImagePaths) {
         if (type === "inferenceComplete") {
           const elapsed = performance.now() - start;
           inferenceTimes.value[imgPath] = elapsed;
+          const matches = data.results.matches?.dims?.[0] ?? null;
+          matchCounts.value[imgPath] = matches;
           allResults.push({
             topo: imgPath,
-            matches: data.results.matches?.dims?.[0] ?? null,
+            matches,
             data,
             inferenceTime: elapsed,
           });
-          matchCount.value = data.results.matches?.dims?.[0] ?? null;
+          matchCount.value = matches;
           inferenceWorker.removeEventListener("message", handler);
           resolve();
         }
@@ -303,5 +309,11 @@ function visualizeMatches(rawData, images, imgWidth, imgHeight) {
   color: #1976d2;
   text-align: center;
   margin-top: 0.2em;
+}
+.match-count {
+  font-size: 0.9em;
+  color: #388e3c;
+  text-align: center;
+  margin-top: 0.1em;
 }
 </style>
