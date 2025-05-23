@@ -38,43 +38,19 @@
             theme: 'tooltip',
             autoHide: true,
           }"
-          style="cursor: pointer; position: relative"
+          style="cursor: pointer; position: relative;"
         >
           <button
+            v-if="inferenceResults[img]"
             class="visualize-btn"
             @click.stop="onTileVisualize(img)"
+            :aria-pressed="currentlyVisualizedImage === img"
             title="Visualize matches"
-            style="
-              position: absolute;
-              top: 6px;
-              left: 6px;
-              background: rgba(255, 255, 255, 0.85);
-              border: none;
-              border-radius: 50%;
-              padding: 2px;
-              cursor: pointer;
-              z-index: 2;
-              transition: background 0.2s;
-              box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-            "
+            style="position: absolute; top: 6px; left: 6px; background: rgba(255,255,255,0.85); border: none; border-radius: 50%; padding: 2px; cursor: pointer; z-index: 2; transition: background 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.08);"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <ellipse
-                cx="10"
-                cy="10"
-                rx="8"
-                ry="5"
-                stroke="#1976d2"
-                stroke-width="2"
-                fill="none"
-              />
-              <circle cx="10" cy="10" r="2.5" fill="#1976d2" />
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="10" cy="10" rx="8" ry="5" stroke="#1976d2" stroke-width="2" fill="none"/>
+              <circle cx="10" cy="10" r="2.5" fill="#1976d2"/>
             </svg>
           </button>
           <div class="region-gallery-image-wrapper">
@@ -108,6 +84,7 @@ const topoImages = ref([]); // array of selected topo images
 const allTopoImages = ref([]); // all available topo images
 const matchCount = ref(null);
 const currentlyProcessingImage = ref(null);
+const currentlyVisualizedImage = ref(null);
 const inferenceResults = ref({}); // { [imgPath]: { rawData, images, imgWidth, imgHeight } }
 const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
   type: "module",
@@ -252,27 +229,38 @@ function getMatchBorderColor(matches) {
   return `hsl(${hue}, 70%, 45%)`;
 }
 
+function clearVisualizations() {
+  // Remove all dynamically created visualization canvases
+  document.querySelectorAll('.visualization-canvas').forEach((el) => el.remove());
+}
+
+function onTileVisualize(img) {
+  // Only allow one visualization at a time
+  clearVisualizations();
+  currentlyVisualizedImage.value = img;
+  const result = inferenceResults.value[img];
+  if (result) {
+    visualizeMatches(result.rawData, result.images, result.imgWidth, result.imgHeight);
+  }
+}
+
 function visualizeMatches(rawData, images, imgWidth, imgHeight) {
   const canvas = document.createElement("canvas");
   canvas.width = imgWidth * 2;
   canvas.height = imgHeight;
+  canvas.className = 'visualization-canvas';
   document.body.appendChild(canvas);
   const ctx = canvas.getContext("2d");
-
   ctx.drawImage(images[0], 0, 0, imgWidth, imgHeight);
   ctx.drawImage(images[1], imgWidth, 0, imgWidth, imgHeight);
-
   for (let i = 0; i < Math.min(20, rawData.matches.dims[0]); i++) {
     const matchBaseIndex = i * rawData.matches.dims[1];
     const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
     const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
-
     const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]);
     const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
-    const x1 =
-      Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) + imgWidth;
+    const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) + imgWidth;
     const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
-
     ctx.strokeStyle = "red";
     ctx.beginPath();
     ctx.moveTo(x0, y0);
@@ -306,13 +294,6 @@ function tooltipContent(img) {
     content += `<div class='match-count'>Number of Matches: ${matchCounts.value[img]}</div>`;
   }
   return content || "<em>No data</em>";
-}
-
-function onTileVisualize(img) {
-  const result = inferenceResults.value[img];
-  if (result) {
-    visualizeMatches(result.rawData, result.images, result.imgWidth, result.imgHeight);
-  }
 }
 </script>
 
