@@ -16,14 +16,18 @@
     <div style="margin-top: 2em">
       <label for="user-image">Select image to match:</label>
       <input id="user-image" type="file" accept="image/*" @change="onFileChange" />
-      <button @click="onRunInferenceClick" :disabled="!userImageFile || !topoImage">
+      <button @click="onRunInferenceClick" :disabled="!userImageFile || topoImages.length === 0">
         Run Inference
       </button>
     </div>
 
     <p v-if="matchCount !== null">Number of Matches: {{ matchCount }}</p>
 
-    <RegionGallery @topo-selected="onTopoSelected" manifestPath="/topos/stokowka/manifest.json" />
+    <RegionGallery
+      @topo-selected="onTopoSelected"
+      @topo-list-loaded="onTopoListLoaded"
+      manifestPath="/topos/stokowka/manifest.json"
+    />
   </main>
 </template>
 
@@ -42,7 +46,8 @@ const browserInfo = ref(null);
 const isLoading = ref(false);
 const loadingMessage = ref("");
 const userImageFile = ref(null);
-const topoImage = ref(null);
+const topoImages = ref([]); // array of selected topo images
+const allTopoImages = ref([]); // all available topo images
 const matchCount = ref(null);
 const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
   type: "module",
@@ -55,7 +60,7 @@ inferenceWorker.onmessage = (event) => {
     isLoading.value = false;
     console.log("Inference results:", data.results);
     matchCount.value = data.results.matches?.dims?.[0] ?? null;
-    visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
+    // visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
   } else if (type === "sessionCreated") {
     sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
     isLoading.value = false;
@@ -91,35 +96,68 @@ function onFileChange(event) {
   }
 }
 
-function onTopoSelected(img) {
-  topoImage.value = img;
+function onTopoSelected(images) {
+  topoImages.value = images;
+}
+
+// Called by RegionGallery when it loads all images
+function onTopoListLoaded(images) {
+  allTopoImages.value = images;
+  topoImages.value = [...images]; // select all by default
 }
 
 function onRunInferenceClick() {
-  if (userImageFile.value && topoImage.value) {
-    runInference(userImageFile.value, topoImage.value);
+  if (userImageFile.value && topoImages.value.length > 0) {
+    runInferenceBatch(userImageFile.value, topoImages.value);
   } else {
-    errorString.value = "Please select both an image to match and a topo image.";
+    errorString.value = "Please select an image to match and at least one topo image.";
   }
 }
 
-async function runInference(userFile, topoImagePath) {
+async function runInferenceBatch(userFile, topoImagePaths) {
   isLoading.value = true;
-  loadingMessage.value = "Inferencing with user and topo image...";
-  // Read user file as ArrayBuffer
-  const userArrayBuffer = await userFile.arrayBuffer();
-  const resp = await fetch(topoImagePath);
-  const topoBlob = await resp.blob();
-  const topoArrayBuffer = await topoBlob.arrayBuffer();
-  console.log("calling postMessage to runInference");
-  inferenceWorker.postMessage(
-    {
-      type: "runInference",
-      userImageBuffer: userArrayBuffer,
-      topoImageBuffer: topoArrayBuffer,
-    },
-    [userArrayBuffer, topoArrayBuffer]
-  );
+  loadingMessage.value = `Inferencing with user image and ${topoImagePaths.length} topo images...`;
+  matchCount.value = null;
+  let allResults = [];
+  for (let i = 0; i < topoImagePaths.length; i++) {
+    loadingMessage.value = `Comparing with ${topoImagePaths[i].split("/").pop()} (${i + 1}/${
+      topoImagePaths.length
+    })...`;
+    const userArrayBuffer = await userFile.arrayBuffer();
+    const resp = await fetch(topoImagePaths[i]);
+    const topoBlob = await resp.blob();
+    const topoArrayBuffer = await topoBlob.arrayBuffer();
+    // Await inference result for each
+    await new Promise((resolve) => {
+      const handler = (event) => {
+        const { type, data } = event.data;
+        if (type === "inferenceComplete") {
+          allResults.push({
+            topo: topoImagePaths[i],
+            matches: data.results.matches?.dims?.[0] ?? null,
+            data,
+          });
+          matchCount.value = data.results.matches?.dims?.[0] ?? null;
+          // visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
+          inferenceWorker.removeEventListener("message", handler);
+          resolve();
+        }
+      };
+      inferenceWorker.addEventListener("message", handler);
+      inferenceWorker.postMessage(
+        {
+          type: "runInference",
+          userImageBuffer: userArrayBuffer,
+          topoImageBuffer: topoArrayBuffer,
+        },
+        [userArrayBuffer, topoArrayBuffer]
+      );
+    });
+  }
+  isLoading.value = false;
+  loadingMessage.value = "";
+  // Optionally: show summary or best match
+  console.log("All results:", allResults);
 }
 
 onMounted(async () => {
