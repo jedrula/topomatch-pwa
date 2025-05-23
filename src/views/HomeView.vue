@@ -1,8 +1,6 @@
 <template>
   <main>
-    Hello World
-    <p>Inference Time: {{ inferenceTime }}</p>
-    <p>Session Time: {{ sessionTime }}</p>
+    <p v-if="sessionTime">Session Time: {{ sessionTime }}</p>
     <p>WebAssembly Threads Supported: {{ wasmThreadsSupported }}</p>
     <p>WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
     <p>Browser Info: {{ browserInfo }}</p>
@@ -27,7 +25,20 @@
       @topo-selected="onTopoSelected"
       @topo-list-loaded="onTopoListLoaded"
       manifestPath="/topos/stokowka/manifest.json"
-    />
+    >
+      <template #default="{ img, selected }">
+        <div class="region-gallery-content">
+          <div class="region-gallery-image-wrapper">
+            <img :src="img" alt="region image" />
+            <span v-if="currentlyProcessingImage === img" class="mini-spinner"></span>
+          </div>
+          <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
+          <div v-if="inferenceTimes && inferenceTimes[img] !== undefined" class="inference-time">
+            Inference: {{ inferenceTimes[img].toFixed(2) }} ms
+          </div>
+        </div>
+      </template>
+    </RegionGallery>
   </main>
 </template>
 
@@ -37,7 +48,7 @@ import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
 import RegionGallery from "@/components/RegionGallery.vue";
 
-const inferenceTime = ref(null);
+const inferenceTimes = ref({}); // { [imgPath]: timeInMs }
 const sessionTime = ref(null);
 const errorString = ref(null);
 const wasmThreadsSupported = ref(null);
@@ -49,6 +60,7 @@ const userImageFile = ref(null);
 const topoImages = ref([]); // array of selected topo images
 const allTopoImages = ref([]); // all available topo images
 const matchCount = ref(null);
+const currentlyProcessingImage = ref(null);
 const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
   type: "module",
 });
@@ -56,7 +68,6 @@ const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", impor
 inferenceWorker.onmessage = (event) => {
   const { type, data } = event.data;
   if (type === "inferenceComplete") {
-    inferenceTime.value = `${data.inferenceTime.toFixed(2)} ms`;
     console.log("Inference results:", data.results);
     matchCount.value = data.results.matches?.dims?.[0] ?? null;
     // visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
@@ -119,25 +130,29 @@ async function runInferenceBatch(userFile, topoImagePaths) {
   matchCount.value = null;
   let allResults = [];
   for (let i = 0; i < topoImagePaths.length; i++) {
-    loadingMessage.value = `Comparing with ${topoImagePaths[i].split("/").pop()} (${i + 1}/${
+    const imgPath = topoImagePaths[i];
+    currentlyProcessingImage.value = imgPath;
+    loadingMessage.value = `Comparing with ${imgPath.split("/").pop()} (${i + 1}/${
       topoImagePaths.length
     })...`;
     const userArrayBuffer = await userFile.arrayBuffer();
-    const resp = await fetch(topoImagePaths[i]);
+    const resp = await fetch(imgPath);
     const topoBlob = await resp.blob();
     const topoArrayBuffer = await topoBlob.arrayBuffer();
-    // Await inference result for each
+    const start = performance.now();
     await new Promise((resolve) => {
       const handler = (event) => {
         const { type, data } = event.data;
         if (type === "inferenceComplete") {
+          const elapsed = performance.now() - start;
+          inferenceTimes.value[imgPath] = elapsed;
           allResults.push({
-            topo: topoImagePaths[i],
+            topo: imgPath,
             matches: data.results.matches?.dims?.[0] ?? null,
             data,
+            inferenceTime: elapsed,
           });
           matchCount.value = data.results.matches?.dims?.[0] ?? null;
-          // visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
           inferenceWorker.removeEventListener("message", handler);
           resolve();
         }
@@ -153,6 +168,7 @@ async function runInferenceBatch(userFile, topoImagePaths) {
       );
     });
   }
+  currentlyProcessingImage.value = null;
   isLoading.value = false;
   loadingMessage.value = "";
   // Optionally: show summary or best match
@@ -220,5 +236,72 @@ function visualizeMatches(rawData, images, imgWidth, imgHeight) {
   100% {
     transform: rotate(360deg);
   }
+}
+
+.mini-spinner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border: 3px solid rgba(0, 0, 0, 0.12);
+  border-top: 3px solid #1976d2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.region-gallery-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+  min-height: 170px;
+  box-sizing: border-box;
+}
+.region-gallery-item {
+  min-height: 200px;
+  height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  box-sizing: border-box;
+  background: #fff;
+  overflow: hidden;
+}
+.region-gallery-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.region-gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.region-gallery-filename {
+  margin-top: 0.5em;
+  font-size: 0.95em;
+  text-align: center;
+  color: #444;
+  word-break: break-all;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inference-time {
+  font-size: 0.9em;
+  color: #1976d2;
+  text-align: center;
+  margin-top: 0.2em;
 }
 </style>

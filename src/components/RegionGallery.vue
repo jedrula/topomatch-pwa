@@ -7,8 +7,10 @@
       @click="selectImage(img)"
       :class="{ selected: selectedImages.includes(img) }"
     >
-      <img :src="img" alt="region image" />
-      <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
+      <slot :img="img" :selected="selectedImages.includes(img)">
+        <img :src="img" alt="region image" />
+        <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
+      </slot>
     </div>
   </div>
 </template>
