@@ -27,18 +27,23 @@
       manifestPath="/topos/stokowka/manifest.json"
     >
       <template #default="{ img, selected }">
-        <div class="region-gallery-content">
+        <div
+          class="region-gallery-content"
+          :style="getTileStyle(img, selected)"
+          v-tooltip="{
+            content: tooltipContent(img),
+            html: true,
+            placement: 'top',
+            delay: { show: 100, hide: 100 },
+            theme: 'tooltip',
+            autoHide: true,
+          }"
+        >
           <div class="region-gallery-image-wrapper">
             <img :src="img" alt="region image" />
             <span v-if="currentlyProcessingImage === img" class="mini-spinner"></span>
           </div>
           <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
-          <div v-if="inferenceTimes && inferenceTimes[img] !== undefined" class="inference-time">
-            Inference: {{ inferenceTimes[img].toFixed(2) }} ms
-          </div>
-          <div v-if="matchCounts && matchCounts[img] !== undefined" class="match-count">
-            Number of Matches: {{ matchCounts[img] }}
-          </div>
         </div>
       </template>
     </RegionGallery>
@@ -187,6 +192,21 @@ onMounted(async () => {
   await createSession();
 });
 
+// Helper to get border color based on number of matches
+function getMatchBorderColor(matches) {
+  if (typeof matches !== "number") return "#1976d2"; // default blue
+  // Assume 0-100 is the range, interpolate from red to green
+  const min = 0,
+    max = 100;
+  const clamped = Math.max(min, Math.min(max, matches));
+  // Use color-mix if supported, else fallback
+  // 0 = red, 100 = green
+  const percent = (clamped - min) / (max - min);
+  // Use HSL: 0deg (red) to 120deg (green)
+  const hue = 0 + percent * 120;
+  return `hsl(${hue}, 70%, 45%)`;
+}
+
 function visualizeMatches(rawData, images, imgWidth, imgHeight) {
   const canvas = document.createElement("canvas");
   canvas.width = imgWidth * 2;
@@ -214,6 +234,33 @@ function visualizeMatches(rawData, images, imgWidth, imgHeight) {
     ctx.lineTo(x1, y1);
     ctx.stroke();
   }
+}
+
+function getTileStyle(img, selected) {
+  const matches =
+    matchCounts.value && matchCounts.value[img] !== undefined ? matchCounts.value[img] : undefined;
+  let border;
+  if (matches !== undefined) {
+    border = "2px solid " + getMatchBorderColor(matches);
+  } else if (selected) {
+    border = "1px solid #1976d2";
+  } else {
+    border = "1px solid transparent";
+  }
+  return { border };
+}
+
+function tooltipContent(img) {
+  let content = "";
+  if (inferenceTimes.value && inferenceTimes.value[img] !== undefined) {
+    content += `<div class='inference-time'>Inference: ${inferenceTimes.value[img].toFixed(
+      2
+    )} ms</div>`;
+  }
+  if (matchCounts.value && matchCounts.value[img] !== undefined) {
+    content += `<div class='match-count'>Number of Matches: ${matchCounts.value[img]}</div>`;
+  }
+  return content || "<em>No data</em>";
 }
 </script>
 
@@ -259,17 +306,16 @@ function visualizeMatches(rawData, images, imgWidth, imgHeight) {
 }
 
 .region-gallery-content {
+  padding: 5px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  height: 100%;
-  min-height: 170px;
   box-sizing: border-box;
+  background: #fff;
+  position: relative;
 }
 .region-gallery-item {
-  min-height: 200px;
-  height: 220px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -292,14 +338,13 @@ function visualizeMatches(rawData, images, imgWidth, imgHeight) {
   height: 100%;
   object-fit: cover;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .region-gallery-filename {
   margin-top: 0.5em;
   font-size: 0.95em;
   text-align: center;
   color: #444;
-  word-break: break-all;
+  white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;

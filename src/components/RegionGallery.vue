@@ -65,18 +65,13 @@ onMounted(async () => {
 }
 .region-gallery-item {
   cursor: pointer;
-  transition: box-shadow 0.2s, border 0.2s;
 }
-.region-gallery-item.selected {
-  border: 2px solid #1976d2;
-  box-shadow: 0 0 0 2px #1976d2;
-}
+
 .region-gallery-item img {
   width: 100%;
   height: 100px;
   object-fit: cover;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .region-gallery-filename {
   margin-top: 0.5em;
