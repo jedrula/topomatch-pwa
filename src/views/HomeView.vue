@@ -38,7 +38,45 @@
             theme: 'tooltip',
             autoHide: true,
           }"
+          style="cursor: pointer; position: relative"
         >
+          <button
+            class="visualize-btn"
+            @click.stop="onTileVisualize(img)"
+            title="Visualize matches"
+            style="
+              position: absolute;
+              top: 6px;
+              left: 6px;
+              background: rgba(255, 255, 255, 0.85);
+              border: none;
+              border-radius: 50%;
+              padding: 2px;
+              cursor: pointer;
+              z-index: 2;
+              transition: background 0.2s;
+              box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            "
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <ellipse
+                cx="10"
+                cy="10"
+                rx="8"
+                ry="5"
+                stroke="#1976d2"
+                stroke-width="2"
+                fill="none"
+              />
+              <circle cx="10" cy="10" r="2.5" fill="#1976d2" />
+            </svg>
+          </button>
           <div class="region-gallery-image-wrapper">
             <img :src="img" alt="region image" />
             <span v-if="currentlyProcessingImage === img" class="mini-spinner"></span>
@@ -70,6 +108,7 @@ const topoImages = ref([]); // array of selected topo images
 const allTopoImages = ref([]); // all available topo images
 const matchCount = ref(null);
 const currentlyProcessingImage = ref(null);
+const inferenceResults = ref({}); // { [imgPath]: { rawData, images, imgWidth, imgHeight } }
 const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
   type: "module",
 });
@@ -157,6 +196,12 @@ async function runInferenceBatch(userFile, topoImagePaths) {
           inferenceTimes.value[imgPath] = elapsed;
           const matches = data.results.matches?.dims?.[0] ?? null;
           matchCounts.value[imgPath] = matches;
+          inferenceResults.value[imgPath] = {
+            rawData: data.results,
+            images: data.images,
+            imgWidth: data.imgWidth,
+            imgHeight: data.imgHeight,
+          };
           allResults.push({
             topo: imgPath,
             matches,
@@ -262,6 +307,13 @@ function tooltipContent(img) {
   }
   return content || "<em>No data</em>";
 }
+
+function onTileVisualize(img) {
+  const result = inferenceResults.value[img];
+  if (result) {
+    visualizeMatches(result.rawData, result.images, result.imgWidth, result.imgHeight);
+  }
+}
 </script>
 
 <style>
@@ -360,5 +412,24 @@ function tooltipContent(img) {
   color: #388e3c;
   text-align: center;
   margin-top: 0.1em;
+}
+.visualize-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  border: none;
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  z-index: 2;
+  transition: background 0.2s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+.visualize-btn:hover {
+  background: #e3f2fd !important;
+}
+.visualize-btn svg {
+  display: block;
 }
 </style>

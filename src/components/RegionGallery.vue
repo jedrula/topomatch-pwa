@@ -67,6 +67,15 @@ onMounted(async () => {
   cursor: pointer;
 }
 
+.region-gallery-img-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .region-gallery-item img {
   width: 100%;
   height: 100px;
@@ -79,5 +88,8 @@ onMounted(async () => {
   text-align: center;
   color: #444;
   word-break: break-all;
+}
+.visualize-btn {
+  display: none;
 }
 </style>
