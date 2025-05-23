@@ -325,11 +325,10 @@ function tooltipContent(img) {
 }
 
 const sortedTopoImages = computed(() => {
-  // Only sort if all selected images have matchCounts, else keep original order
-  if (topoImages.value.length === 0) return [];
-  const allHaveCounts = topoImages.value.every((img) => matchCounts.value[img] !== undefined);
-  if (!allHaveCounts) return [...topoImages.value];
-  return [...topoImages.value].sort((a, b) => {
+  if (allTopoImages.value.length === 0) return [];
+  const allHaveCounts = allTopoImages.value.every(img => matchCounts.value[img] !== undefined);
+  if (!allHaveCounts) return [...allTopoImages.value];
+  return [...allTopoImages.value].sort((a, b) => {
     const ma = matchCounts.value[a] ?? -Infinity;
     const mb = matchCounts.value[b] ?? -Infinity;
     return mb - ma;
