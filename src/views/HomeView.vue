@@ -22,6 +22,7 @@
     <p v-if="matchCount !== null">Number of Matches: {{ matchCount }}</p>
 
     <RegionGallery
+      :images="sortedTopoImages"
       @topo-selected="onTopoSelected"
       @topo-list-loaded="onTopoListLoaded"
       manifestPath="/topos/stokowka/manifest.json"
@@ -38,7 +39,7 @@
             theme: 'tooltip',
             autoHide: true,
           }"
-          style="cursor: pointer; position: relative;"
+          style="cursor: pointer; position: relative"
         >
           <button
             v-if="inferenceResults[img]"
@@ -46,11 +47,37 @@
             @click.stop="onTileVisualize(img)"
             :aria-pressed="currentlyVisualizedImage === img"
             title="Visualize matches"
-            style="position: absolute; top: 6px; left: 6px; background: rgba(255,255,255,0.85); border: none; border-radius: 50%; padding: 2px; cursor: pointer; z-index: 2; transition: background 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.08);"
+            style="
+              position: absolute;
+              top: 6px;
+              left: 6px;
+              background: rgba(255, 255, 255, 0.85);
+              border: none;
+              border-radius: 50%;
+              padding: 2px;
+              cursor: pointer;
+              z-index: 2;
+              transition: background 0.2s;
+              box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            "
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <ellipse cx="10" cy="10" rx="8" ry="5" stroke="#1976d2" stroke-width="2" fill="none"/>
-              <circle cx="10" cy="10" r="2.5" fill="#1976d2"/>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <ellipse
+                cx="10"
+                cy="10"
+                rx="8"
+                ry="5"
+                stroke="#1976d2"
+                stroke-width="2"
+                fill="none"
+              />
+              <circle cx="10" cy="10" r="2.5" fill="#1976d2" />
             </svg>
           </button>
           <div class="region-gallery-image-wrapper">
@@ -65,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
 import RegionGallery from "@/components/RegionGallery.vue";
@@ -231,7 +258,7 @@ function getMatchBorderColor(matches) {
 
 function clearVisualizations() {
   // Remove all dynamically created visualization canvases
-  document.querySelectorAll('.visualization-canvas').forEach((el) => el.remove());
+  document.querySelectorAll(".visualization-canvas").forEach((el) => el.remove());
 }
 
 function onTileVisualize(img) {
@@ -248,7 +275,7 @@ function visualizeMatches(rawData, images, imgWidth, imgHeight) {
   const canvas = document.createElement("canvas");
   canvas.width = imgWidth * 2;
   canvas.height = imgHeight;
-  canvas.className = 'visualization-canvas';
+  canvas.className = "visualization-canvas";
   document.body.appendChild(canvas);
   const ctx = canvas.getContext("2d");
   ctx.drawImage(images[0], 0, 0, imgWidth, imgHeight);
@@ -259,7 +286,8 @@ function visualizeMatches(rawData, images, imgWidth, imgHeight) {
     const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
     const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]);
     const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
-    const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) + imgWidth;
+    const x1 =
+      Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) + imgWidth;
     const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
     ctx.strokeStyle = "red";
     ctx.beginPath();
@@ -295,6 +323,18 @@ function tooltipContent(img) {
   }
   return content || "<em>No data</em>";
 }
+
+const sortedTopoImages = computed(() => {
+  // Only sort if all selected images have matchCounts, else keep original order
+  if (topoImages.value.length === 0) return [];
+  const allHaveCounts = topoImages.value.every((img) => matchCounts.value[img] !== undefined);
+  if (!allHaveCounts) return [...topoImages.value];
+  return [...topoImages.value].sort((a, b) => {
+    const ma = matchCounts.value[a] ?? -Infinity;
+    const mb = matchCounts.value[b] ?? -Infinity;
+    return mb - ma;
+  });
+});
 </script>
 
 <style>

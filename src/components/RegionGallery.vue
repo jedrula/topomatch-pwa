@@ -1,7 +1,7 @@
 <template>
-  <div class="region-gallery-grid">
+  <transition-group name="gallery-fade" tag="div" class="region-gallery-grid">
     <div
-      v-for="img in images"
+      v-for="img in imagesProp"
       :key="img"
       class="region-gallery-item"
       @click="selectImage(img)"
@@ -12,22 +12,28 @@
         <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
       </slot>
     </div>
-  </div>
+  </transition-group>
 </template>
 
 <script setup>
-import { ref, onMounted, defineEmits } from "vue";
+import { ref, onMounted, defineEmits, computed } from "vue";
 
 const props = defineProps({
   manifestPath: {
     type: String,
     required: true,
   },
+  images: {
+    type: Array,
+    default: undefined,
+  },
 });
 
 const images = ref([]);
 const selectedImages = ref([]);
 const emit = defineEmits(["topo-selected", "topo-list-loaded"]);
+
+const imagesProp = computed(() => props.images ?? images.value);
 
 function selectImage(img) {
   if (selectedImages.value.includes(img)) {
@@ -62,6 +68,17 @@ onMounted(async () => {
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 16px;
   margin-top: 2em;
+}
+.gallery-fade-move {
+  transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);
+}
+.gallery-fade-enter-active,
+.gallery-fade-leave-active {
+  transition: opacity 0.3s;
+}
+.gallery-fade-enter-from,
+.gallery-fade-leave-to {
+  opacity: 0;
 }
 .region-gallery-item {
   cursor: pointer;
