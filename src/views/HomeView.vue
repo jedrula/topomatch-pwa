@@ -57,7 +57,6 @@ inferenceWorker.onmessage = (event) => {
   const { type, data } = event.data;
   if (type === "inferenceComplete") {
     inferenceTime.value = `${data.inferenceTime.toFixed(2)} ms`;
-    isLoading.value = false;
     console.log("Inference results:", data.results);
     matchCount.value = data.results.matches?.dims?.[0] ?? null;
     // visualizeMatches(data.results, data.images, data.imgWidth, data.imgHeight);
