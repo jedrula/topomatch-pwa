@@ -1,93 +1,107 @@
 <template>
   <main>
-    <p v-if="sessionTime">Session Time: {{ sessionTime }}</p>
-    <p>WebAssembly Threads Supported: {{ wasmThreadsSupported }}</p>
-    <p>WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
-    <p>Browser Info: {{ browserInfo }}</p>
-    <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
-
-    <div v-if="isLoading" class="spinner">
-      <p>{{ loadingMessage }}</p>
-      <div class="spinner-icon"></div>
+    <!-- Region Picker -->
+    <div style="margin-bottom: 2em">
+      <label for="region-picker"><strong>Select Region:</strong></label>
+      <select id="region-picker" v-model="selectedRegionId" @change="onRegionChange">
+        <option disabled value="">-- Select a region --</option>
+        <option v-for="region in regions" :key="region.id" :value="region.id">
+          {{ region.name }}
+        </option>
+      </select>
     </div>
 
-    <div style="margin-top: 2em">
-      <label for="user-image">Select image to match:</label>
-      <input id="user-image" type="file" accept="image/*" @change="onFileChange" />
-      <button @click="onRunInferenceClick" :disabled="!userImageFile || topoImages.length === 0">
-        Run Inference
-      </button>
-    </div>
+    <template v-if="selectedRegionId">
+      <p v-if="sessionTime">Session Time: {{ sessionTime }}</p>
+      <p>WebAssembly Threads Supported: {{ wasmThreadsSupported }}</p>
+      <p>WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
+      <p>Browser Info: {{ browserInfo }}</p>
+      <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
 
-    <p v-if="matchCount !== null">Number of Matches: {{ matchCount }}</p>
+      <div v-if="isLoading" class="spinner">
+        <p>{{ loadingMessage }}</p>
+        <div class="spinner-icon"></div>
+      </div>
 
-    <RegionGallery
-      :images="sortedTopoImages"
-      @topo-selected="onTopoSelected"
-      @topo-list-loaded="onTopoListLoaded"
-      manifestPath="/topos/stokowka/manifest.json"
-    >
-      <template #default="{ img, selected }">
-        <div
-          class="region-gallery-content"
-          :style="getTileStyle(img, selected)"
-          v-tooltip="{
-            content: tooltipContent(img),
-            html: true,
-            placement: 'top',
-            delay: { show: 100, hide: 100 },
-            theme: 'tooltip',
-            autoHide: true,
-          }"
-          style="cursor: pointer; position: relative"
-        >
-          <button
-            v-if="inferenceResults[img]"
-            class="visualize-btn"
-            @click.stop="onTileVisualize(img)"
-            :aria-pressed="currentlyVisualizedImage === img"
-            title="Visualize matches"
-            style="
-              position: absolute;
-              top: 6px;
-              left: 6px;
-              background: rgba(255, 255, 255, 0.85);
-              border: none;
-              border-radius: 50%;
-              padding: 2px;
-              cursor: pointer;
-              z-index: 2;
-              transition: background 0.2s;
-              box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-            "
+      <div style="margin-top: 2em">
+        <label for="user-image">Select image to match:</label>
+        <input id="user-image" type="file" accept="image/*" @change="onFileChange" />
+        <button @click="onRunInferenceClick" :disabled="!userImageFile || topoImages.length === 0">
+          Run Inference
+        </button>
+      </div>
+
+      <p v-if="matchCount !== null">Number of Matches: {{ matchCount }}</p>
+
+      <RegionGallery
+        :key="selectedRegionId"
+        :images="sortedTopoImages"
+        @topo-selected="onTopoSelected"
+        @topo-list-loaded="onTopoListLoaded"
+        :manifestPath="regionManifestPath"
+      >
+        <template #default="{ img, selected }">
+          <div
+            class="region-gallery-content"
+            :style="getTileStyle(img, selected)"
+            v-tooltip="{
+              content: tooltipContent(img),
+              html: true,
+              placement: 'top',
+              delay: { show: 100, hide: 100 },
+              theme: 'tooltip',
+              autoHide: true,
+            }"
+            style="cursor: pointer; position: relative"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+            <button
+              class="visualize-btn"
+              v-if="inferenceResults[img]"
+              @click.stop="onTileVisualize(img)"
+              :aria-pressed="currentlyVisualizedImage === img"
+              title="Visualize matches"
+              style="
+                position: absolute;
+                top: 6px;
+                left: 6px;
+                background: rgba(255, 255, 255, 0.85);
+                border: none;
+                border-radius: 50%;
+                padding: 2px;
+                cursor: pointer;
+                z-index: 2;
+                transition: background 0.2s;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+              "
             >
-              <ellipse
-                cx="10"
-                cy="10"
-                rx="8"
-                ry="5"
-                stroke="#1976d2"
-                stroke-width="2"
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
                 fill="none"
-              />
-              <circle cx="10" cy="10" r="2.5" fill="#1976d2" />
-            </svg>
-          </button>
-          <div class="region-gallery-image-wrapper">
-            <img :src="img" alt="region image" />
-            <span v-if="currentlyProcessingImage === img" class="mini-spinner"></span>
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <ellipse
+                  cx="10"
+                  cy="10"
+                  rx="8"
+                  ry="5"
+                  stroke="#1976d2"
+                  stroke-width="2"
+                  fill="none"
+                />
+                <circle cx="10" cy="10" r="2.5" fill="#1976d2" />
+              </svg>
+            </button>
+            <div class="region-gallery-image-wrapper">
+              <img :src="img" alt="region image" />
+              <span v-if="currentlyProcessingImage === img" class="mini-spinner"></span>
+            </div>
+            <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
           </div>
-          <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
-        </div>
-      </template>
-    </RegionGallery>
+        </template>
+      </RegionGallery>
+    </template>
   </main>
 </template>
 
@@ -241,6 +255,29 @@ onMounted(async () => {
   await createSession();
 });
 
+// REGION PICKER LOGIC
+const regions = [
+  { name: "Stokówka", id: "stokowka" },
+  { name: "Wibrem 23 May", id: "wibrem-23-may" },
+];
+const selectedRegionId = ref("");
+const regionManifestPath = computed(() =>
+  selectedRegionId.value ? `/topos/${selectedRegionId.value}/manifest.json` : ""
+);
+
+function onRegionChange() {
+  // Reset all state on region change
+  userImageFile.value = null;
+  topoImages.value = [];
+  allTopoImages.value = [];
+  matchCount.value = null;
+  inferenceResults.value = {};
+  matchCounts.value = {};
+  inferenceTimes.value = {};
+  currentlyProcessingImage.value = null;
+  currentlyVisualizedImage.value = null;
+}
+
 // Helper to get border color based on number of matches
 function getMatchBorderColor(matches) {
   if (typeof matches !== "number") return "#1976d2"; // default blue
@@ -326,7 +363,7 @@ function tooltipContent(img) {
 
 const sortedTopoImages = computed(() => {
   if (allTopoImages.value.length === 0) return [];
-  const allHaveCounts = allTopoImages.value.every(img => matchCounts.value[img] !== undefined);
+  const allHaveCounts = allTopoImages.value.every((img) => matchCounts.value[img] !== undefined);
   if (!allHaveCounts) return [...allTopoImages.value];
   return [...allTopoImages.value].sort((a, b) => {
     const ma = matchCounts.value[a] ?? -Infinity;
@@ -386,6 +423,7 @@ const sortedTopoImages = computed(() => {
   box-sizing: border-box;
   background: #fff;
   position: relative;
+  max-width: 100%;
 }
 .region-gallery-item {
   display: flex;

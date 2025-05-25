@@ -7,10 +7,7 @@
       @click="selectImage(img)"
       :class="{ selected: selectedImages.includes(img) }"
     >
-      <slot :img="img" :selected="selectedImages.includes(img)">
-        <img :src="img" alt="region image" />
-        <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
-      </slot>
+      <slot :img="img" :selected="selectedImages.includes(img)"></slot>
     </div>
   </transition-group>
 </template>
@@ -29,11 +26,11 @@ const props = defineProps({
   },
 });
 
-const images = ref([]);
+const imagesRef = ref([]); // renamed to avoid collision
 const selectedImages = ref([]);
 const emit = defineEmits(["topo-selected", "topo-list-loaded"]);
 
-const imagesProp = computed(() => props.images ?? images.value);
+const imagesProp = computed(() => props.images ?? imagesRef.value);
 
 function selectImage(img) {
   if (selectedImages.value.includes(img)) {
@@ -48,10 +45,10 @@ onMounted(async () => {
   try {
     const resp = await fetch(props.manifestPath);
     if (resp.ok) {
-      images.value = await resp.json();
-      selectedImages.value = [...images.value]; // select all by default
-      emit("topo-list-loaded", [...images.value]);
-      emit("topo-selected", [...images.value]);
+      imagesRef.value = await resp.json();
+      selectedImages.value = [...imagesRef.value]; // select all by default
+      emit("topo-list-loaded", [...imagesRef.value]);
+      emit("topo-selected", [...imagesRef.value]);
       return;
     } else {
       alert("Could not load region manifest.json (HTTP " + resp.status + ")");
