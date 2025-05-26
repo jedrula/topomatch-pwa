@@ -2,7 +2,7 @@
   <main>
     <!-- Region Picker -->
     <div style="margin-bottom: 2em">
-      <label for="region-picker"><strong>Select Region:</strong></label>
+      <label for="region-picker"><strong>Select a Region:</strong></label>
       <select id="region-picker" v-model="selectedRegionId" @change="onRegionChange">
         <option disabled value="">-- Select a region --</option>
         <option v-for="region in regions" :key="region.id" :value="region.id">
@@ -403,7 +403,9 @@ function updateMemoryInfo() {
     const used = performance.memory.usedJSHeapSize;
     const total = performance.memory.totalJSHeapSize;
     const limit = performance.memory.jsHeapSizeLimit;
-    memoryInfo.value = `${(used / 1048576).toFixed(1)} MB / ${(total / 1048576).toFixed(1)} MB (limit ${(limit / 1048576).toFixed(0)} MB)`;
+    memoryInfo.value = `${(used / 1048576).toFixed(1)} MB / ${(total / 1048576).toFixed(
+      1
+    )} MB (limit ${(limit / 1048576).toFixed(0)} MB)`;
   } else if (navigator.deviceMemory) {
     memoryInfo.value = `Device RAM: ${navigator.deviceMemory} GB`;
   } else {
