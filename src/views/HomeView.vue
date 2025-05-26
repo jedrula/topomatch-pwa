@@ -15,6 +15,7 @@
       <p v-if="sessionTime">Session Time: {{ sessionTime }}</p>
       <p>WebAssembly Threads Supported: {{ wasmThreadsSupported }}</p>
       <p>WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
+      <p v-if="memoryInfo">| Memory: {{ memoryInfo }}</p>
       <p>Browser Info: {{ browserInfo }}</p>
       <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
 
@@ -116,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from "vue";
+import { ref, onMounted, computed, nextTick, onUnmounted } from "vue";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
 import RegionGallery from "@/components/RegionGallery.vue";
@@ -265,6 +266,12 @@ onMounted(async () => {
   checkBrowser();
   await checkWasmFeatures();
   await createSession();
+  updateMemoryInfo();
+  memoryInterval = setInterval(updateMemoryInfo, 2000);
+});
+
+onUnmounted(() => {
+  if (memoryInterval) clearInterval(memoryInterval);
 });
 
 // REGION PICKER LOGIC
@@ -387,6 +394,22 @@ const sortedTopoImages = computed(() => {
     return mb - ma;
   });
 });
+
+const memoryInfo = ref("");
+let memoryInterval = null;
+
+function updateMemoryInfo() {
+  if (performance && performance.memory) {
+    const used = performance.memory.usedJSHeapSize;
+    const total = performance.memory.totalJSHeapSize;
+    const limit = performance.memory.jsHeapSizeLimit;
+    memoryInfo.value = `${(used / 1048576).toFixed(1)} MB / ${(total / 1048576).toFixed(1)} MB (limit ${(limit / 1048576).toFixed(0)} MB)`;
+  } else if (navigator.deviceMemory) {
+    memoryInfo.value = `Device RAM: ${navigator.deviceMemory} GB`;
+  } else {
+    memoryInfo.value = "";
+  }
+}
 </script>
 
 <style>
