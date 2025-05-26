@@ -14980,19 +14980,22 @@ self.onmessage = async (event) => {
       return;
     }
 
+    let userBitmap = null;
+    let topoBitmap = null;
+    let userBlob = null;
+    let topoBlob = null;
     try {
       if (!userImageBuffer || !topoImageBuffer) {
-        console.log("wwwww");
         self.postMessage({
           type: "error",
           data: { message: "Both user and topo images must be provided." },
         });
         return;
       }
-      const userBlob = new Blob([userImageBuffer]);
-      const userBitmap = await createImageBitmap(userBlob);
-      const blob = new Blob([topoImageBuffer]);
-      const topoBitmap = await createImageBitmap(blob);
+      userBlob = new Blob([userImageBuffer]);
+      userBitmap = await createImageBitmap(userBlob);
+      topoBlob = new Blob([topoImageBuffer]);
+      topoBitmap = await createImageBitmap(topoBlob);
       const images = [userBitmap, topoBitmap];
 
       const imgWidth = 256;
@@ -15023,6 +15026,14 @@ self.onmessage = async (event) => {
         type: "error",
         data: { message: error.message },
       });
+    } finally {
+      // Explicitly release resources to help GC, especially on mobile
+      if (userBitmap && typeof userBitmap.close === "function") userBitmap.close();
+      if (topoBitmap && typeof topoBitmap.close === "function") topoBitmap.close();
+      userBitmap = null;
+      topoBitmap = null;
+      userBlob = null;
+      topoBlob = null;
     }
   }
 };
