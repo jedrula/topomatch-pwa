@@ -102,11 +102,21 @@
         </template>
       </RegionGallery>
     </template>
+
+    <dialog
+      ref="visualizationDialog"
+      class="visualization-modal"
+      @close="onDialogClose"
+      :open="currentlyVisualizedImage !== null"
+    >
+      <button class="close-modal-btn" @click="closeVisualizationModal">×</button>
+      <canvas ref="visualizationCanvas" class="visualization-canvas"></canvas>
+    </dialog>
   </main>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, nextTick } from "vue";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
 import RegionGallery from "@/components/RegionGallery.vue";
@@ -130,6 +140,8 @@ const inferenceResults = ref({}); // { [imgPath]: { rawData, images, imgWidth, i
 const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
   type: "module",
 });
+const visualizationDialog = ref(null);
+const visualizationCanvas = ref(null);
 
 inferenceWorker.onmessage = (event) => {
   const { type, data } = event.data;
@@ -293,28 +305,32 @@ function getMatchBorderColor(matches) {
   return `hsl(${hue}, 70%, 45%)`;
 }
 
-function clearVisualizations() {
-  // Remove all dynamically created visualization canvases
-  document.querySelectorAll(".visualization-canvas").forEach((el) => el.remove());
-}
-
 function onTileVisualize(img) {
-  // Only allow one visualization at a time
-  clearVisualizations();
   currentlyVisualizedImage.value = img;
   const result = inferenceResults.value[img];
   if (result) {
-    visualizeMatches(result.rawData, result.images, result.imgWidth, result.imgHeight);
+    nextTick(() => {
+      drawVisualization(result.rawData, result.images, result.imgWidth, result.imgHeight);
+    });
   }
 }
 
-function visualizeMatches(rawData, images, imgWidth, imgHeight) {
-  const canvas = document.createElement("canvas");
+function closeVisualizationModal() {
+  if (visualizationDialog.value) {
+    visualizationDialog.value.close();
+  }
+}
+
+function onDialogClose() {
+  currentlyVisualizedImage.value = null;
+}
+function drawVisualization(rawData, images, imgWidth, imgHeight) {
+  const canvas = visualizationCanvas.value;
+  if (!canvas) return;
   canvas.width = imgWidth * 2;
   canvas.height = imgHeight;
-  canvas.className = "visualization-canvas";
-  document.body.appendChild(canvas);
   const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(images[0], 0, 0, imgWidth, imgHeight);
   ctx.drawImage(images[1], imgWidth, 0, imgWidth, imgHeight);
   for (let i = 0; i < Math.min(20, rawData.matches.dims[0]); i++) {
@@ -489,5 +505,47 @@ const sortedTopoImages = computed(() => {
 }
 .visualize-btn svg {
   display: block;
+}
+.visualization-modal {
+  position: fixed;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.95);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 10000;
+
+  &:open {
+    display: flex;
+  }
+}
+.visualization-canvas {
+  display: block;
+  max-width: 90vw;
+  max-height: 80vh;
+  margin: 2em auto 1em auto;
+  background: #222;
+  border-radius: 8px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
+}
+.close-modal-btn {
+  position: absolute;
+  top: 1.5em;
+  right: 2em;
+  font-size: 2.5em;
+  color: #fff;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 10001;
+  line-height: 1;
 }
 </style>
