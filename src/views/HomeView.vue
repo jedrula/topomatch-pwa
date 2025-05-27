@@ -212,16 +212,19 @@ async function runInferenceBatch(userFile, topoImagePaths) {
   let bestResult = null;
   let bestMatches = -Infinity;
   let bestImgPath = null;
+  // Read user image buffer once
+  const userArrayBuffer = await userFile.arrayBuffer();
   for (let i = 0; i < topoImagePaths.length; i++) {
     const imgPath = topoImagePaths[i];
     currentlyProcessingImage.value = imgPath;
     loadingMessage.value = `Comparing with ${imgPath.split("/").pop()} (${i + 1}/${
       topoImagePaths.length
     })...`;
-    const userArrayBuffer = await userFile.arrayBuffer();
     const resp = await fetch(imgPath);
     const topoBlob = await resp.blob();
     const topoArrayBuffer = await topoBlob.arrayBuffer();
+    // Clone the userArrayBuffer for each transfer to avoid DataCloneError
+    const userArrayBufferCopy = userArrayBuffer.slice(0);
     const start = performance.now();
     await new Promise((resolve) => {
       const handler = (event) => {
@@ -250,10 +253,10 @@ async function runInferenceBatch(userFile, topoImagePaths) {
       inferenceWorker.postMessage(
         {
           type: "runInference",
-          userImageBuffer: userArrayBuffer,
+          userImageBuffer: userArrayBufferCopy,
           topoImageBuffer: topoArrayBuffer,
         },
-        [userArrayBuffer, topoArrayBuffer]
+        [userArrayBufferCopy, topoArrayBuffer]
       );
     });
   }
