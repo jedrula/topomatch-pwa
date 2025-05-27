@@ -15,7 +15,6 @@
       <p v-if="sessionTime">Session Time: {{ sessionTime }}</p>
       <p>WebAssembly Threads Supported: {{ wasmThreadsSupported }}</p>
       <p>WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
-      <p v-if="memoryInfo">| Memory: {{ memoryInfo }}</p>
       <p>Browser Info: {{ browserInfo }}</p>
       <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
 
@@ -117,7 +116,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick, onUnmounted } from "vue";
+import { ref, onMounted, computed, nextTick } from "vue";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
 import RegionGallery from "@/components/RegionGallery.vue";
@@ -143,6 +142,7 @@ const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", impor
 });
 const visualizationDialog = ref(null);
 const visualizationCanvas = ref(null);
+const workerMemoryInfo = ref("");
 
 inferenceWorker.onmessage = (event) => {
   const { type, data } = event.data;
@@ -154,6 +154,8 @@ inferenceWorker.onmessage = (event) => {
     sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
     isLoading.value = false;
     console.log("Session created in:", sessionTime.value);
+  } else if (type === "workerMemoryInfo") {
+    workerMemoryInfo.value = data && data.memory ? data.memory : "";
   }
 };
 
@@ -207,7 +209,9 @@ async function runInferenceBatch(userFile, topoImagePaths) {
   isLoading.value = true;
   loadingMessage.value = `Inferencing with user image and ${topoImagePaths.length} topo images...`;
   matchCount.value = null;
-  let allResults = [];
+  let bestResult = null;
+  let bestMatches = -Infinity;
+  let bestImgPath = null;
   for (let i = 0; i < topoImagePaths.length; i++) {
     const imgPath = topoImagePaths[i];
     currentlyProcessingImage.value = imgPath;
@@ -227,18 +231,16 @@ async function runInferenceBatch(userFile, topoImagePaths) {
           inferenceTimes.value[imgPath] = elapsed;
           const matches = data.results.matches?.dims?.[0] ?? null;
           matchCounts.value[imgPath] = matches;
-          inferenceResults.value[imgPath] = {
-            rawData: data.results,
-            images: data.images,
-            imgWidth: data.imgWidth,
-            imgHeight: data.imgHeight,
-          };
-          allResults.push({
-            topo: imgPath,
-            matches,
-            data,
-            inferenceTime: elapsed,
-          });
+          if (matches !== null && matches > bestMatches) {
+            bestMatches = matches;
+            bestResult = {
+              rawData: data.results,
+              images: data.images,
+              imgWidth: data.imgWidth,
+              imgHeight: data.imgHeight,
+            };
+            bestImgPath = imgPath;
+          }
           matchCount.value = matches;
           inferenceWorker.removeEventListener("message", handler);
           resolve();
@@ -255,23 +257,22 @@ async function runInferenceBatch(userFile, topoImagePaths) {
       );
     });
   }
+  // Only keep the best result for visualization
+  inferenceResults.value = {};
+  if (bestResult && bestImgPath) {
+    inferenceResults.value[bestImgPath] = bestResult;
+  }
   currentlyProcessingImage.value = null;
   isLoading.value = false;
   loadingMessage.value = "";
   // Optionally: show summary or best match
-  console.log("All results:", allResults);
+  console.log("Best result:", bestResult);
 }
 
 onMounted(async () => {
   checkBrowser();
   await checkWasmFeatures();
   await createSession();
-  updateMemoryInfo();
-  memoryInterval = setInterval(updateMemoryInfo, 2000);
-});
-
-onUnmounted(() => {
-  if (memoryInterval) clearInterval(memoryInterval);
 });
 
 // REGION PICKER LOGIC
@@ -385,51 +386,31 @@ function tooltipContent(img) {
 }
 
 const sortedTopoImages = computed(() => {
-  if (allTopoImages.value.length === 0) return [];
-  const allHaveCounts = allTopoImages.value.every((img) => matchCounts.value[img] !== undefined);
-  if (!allHaveCounts) return [...allTopoImages.value];
-  return [...allTopoImages.value].sort((a, b) => {
-    const ma = matchCounts.value[a] ?? -Infinity;
-    const mb = matchCounts.value[b] ?? -Infinity;
-    return mb - ma;
+  if (topoImages.value.length === 0) return [];
+  return [...topoImages.value].sort((a, b) => {
+    const aMatches = matchCounts.value[a] || 0;
+    const bMatches = matchCounts.value[b] || 0;
+    return bMatches - aMatches; // sort descending
   });
 });
-
-const memoryInfo = ref("");
-let memoryInterval = null;
-
-function updateMemoryInfo() {
-  if (performance && performance.memory) {
-    const used = performance.memory.usedJSHeapSize;
-    const total = performance.memory.totalJSHeapSize;
-    const limit = performance.memory.jsHeapSizeLimit;
-    memoryInfo.value = `${(used / 1048576).toFixed(1)} MB / ${(total / 1048576).toFixed(
-      1
-    )} MB (limit ${(limit / 1048576).toFixed(0)} MB)`;
-  } else if (navigator.deviceMemory) {
-    memoryInfo.value = `Device RAM: ${navigator.deviceMemory} GB`;
-  } else {
-    memoryInfo.value = "";
-  }
-}
 </script>
 
-<style>
+<style scoped>
+/* Add your styles here */
 .spinner {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-top: 20px;
+  height: 100px;
 }
 
 .spinner-icon {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #1976d2;
+  border-radius: 50%;
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-top: 4px solid #000;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -441,136 +422,66 @@ function updateMemoryInfo() {
   }
 }
 
-.mini-spinner {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 22px;
-  height: 22px;
-  border: 3px solid rgba(0, 0, 0, 0.12);
-  border-top: 3px solid #1976d2;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.7);
+.region-gallery-content {
+  position: relative;
+  overflow: hidden;
 }
 
-.region-gallery-content {
-  padding: 5px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  box-sizing: border-box;
-  background: #fff;
-  position: relative;
-  max-width: 100%;
-}
-.region-gallery-item {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  box-sizing: border-box;
-  background: #fff;
-  overflow: hidden;
-}
 .region-gallery-image-wrapper {
-  position: relative;
-  width: 100%;
-  height: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-.region-gallery-item img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 8px;
-}
-.region-gallery-filename {
-  margin-top: 0.5em;
-  font-size: 0.95em;
-  text-align: center;
-  color: #444;
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.inference-time {
-  font-size: 0.9em;
-  color: #1976d2;
-  text-align: center;
-  margin-top: 0.2em;
-}
-.match-count {
-  font-size: 0.9em;
-  color: #388e3c;
-  text-align: center;
-  margin-top: 0.1em;
-}
-.visualize-btn {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  background: rgba(255, 255, 255, 0.85);
-  border: none;
-  border-radius: 50%;
-  padding: 2px;
-  cursor: pointer;
-  z-index: 2;
-  transition: background 0.2s;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-.visualize-btn:hover {
-  background: #e3f2fd !important;
-}
-.visualize-btn svg {
-  display: block;
-}
-.visualization-modal {
-  position: fixed;
-  top: 0;
-  width: 100vw;
-  height: 100vh;
-  max-width: 100vw;
-  max-height: 100vh;
-  padding: 0;
-  margin: 0;
-  border: none;
-  background: rgba(0, 0, 0, 0.95);
-  flex-direction: column;
+  display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  z-index: 10000;
+}
 
-  &:open {
-    display: flex;
-  }
+.region-gallery-image-wrapper img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
 }
-.visualization-canvas {
-  display: block;
-  max-width: 90vw;
-  max-height: 80vh;
-  margin: 2em auto 1em auto;
-  background: #222;
-  border-radius: 8px;
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
+
+.region-gallery-filename {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  color: white;
+  font-size: 0.8em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
+
+.mini-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin-top: -12px;
+  margin-left: -12px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid #1976d2;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.visualization-modal {
+  /* Your modal styles */
+}
+
 .close-modal-btn {
   position: absolute;
-  top: 1.5em;
-  right: 2em;
-  font-size: 2.5em;
-  color: #fff;
+  top: 10px;
+  right: 10px;
   background: none;
   border: none;
+  color: white;
+  font-size: 1.5em;
   cursor: pointer;
-  z-index: 10001;
-  line-height: 1;
+}
+
+.visualization-canvas {
+  width: 100%;
+  height: 100%;
 }
 </style>
