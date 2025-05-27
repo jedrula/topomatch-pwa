@@ -466,7 +466,25 @@ const sortedTopoImages = computed(() => {
 }
 
 .visualization-modal {
-  /* Your modal styles */
+  position: fixed;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.95);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 10000;
+
+  &:open {
+    display: flex;
+  }
 }
 
 .close-modal-btn {
@@ -481,7 +499,12 @@ const sortedTopoImages = computed(() => {
 }
 
 .visualization-canvas {
-  width: 100%;
-  height: 100%;
+  display: block;
+  max-width: 90vw;
+  max-height: 80vh;
+  margin: 2em auto 1em auto;
+  background: #222;
+  border-radius: 8px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
 }
 </style>
