@@ -5,7 +5,9 @@
       <RegionPicker
         :modelValue="regionId"
         @regionChange="onRegionChange"
-        @update:modelValue="(newRegionId) => $router.push({ params: { regionId: newRegionId } })"
+        @update:modelValue="
+          (newRegionId) => $router.push({ name: 'region', params: { regionId: newRegionId } })
+        "
       />
     </div>
 
