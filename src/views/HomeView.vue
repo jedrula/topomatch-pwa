@@ -1,14 +1,7 @@
 <template>
   <main>
-    <!-- Region Picker -->
     <div style="margin-bottom: 2em">
-      <label for="region-picker"><strong>Select a Region:</strong></label>
-      <select id="region-picker" v-model="selectedRegionId" @change="onRegionChange">
-        <option disabled value="">-- Select a region --</option>
-        <option v-for="region in regions" :key="region.id" :value="region.id">
-          {{ region.name }}
-        </option>
-      </select>
+      <RegionPicker v-model="selectedRegionId" @regionChange="onRegionChange" />
     </div>
 
     <template v-if="selectedRegionId">
@@ -120,6 +113,7 @@ import { ref, onMounted, computed, nextTick } from "vue";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
 import RegionGallery from "@/components/RegionGallery.vue";
+import RegionPicker from "@/components/RegionPicker.vue";
 
 const inferenceTimes = ref({}); // { [imgPath]: timeInMs }
 const matchCounts = ref({}); // { [imgPath]: matchCount }
@@ -278,11 +272,6 @@ onMounted(async () => {
   await createSession();
 });
 
-// REGION PICKER LOGIC
-const regions = [
-  { name: "Stokówka", id: "stokowka" },
-  { name: "Wibrem 23 May", id: "wibrem-23-may" },
-];
 const selectedRegionId = ref("");
 const regionManifestPath = computed(() =>
   selectedRegionId.value ? `/topos/${selectedRegionId.value}/manifest.json` : ""
