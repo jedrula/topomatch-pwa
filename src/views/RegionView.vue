@@ -26,100 +26,11 @@
       </div>
 
       <!-- File Upload Section -->
-      <div
-        v-if="!hasCompletedInference || showUploadSection"
-        class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 transition-all duration-300"
-        :class="{
-          'p-3': inferenceStore.currentlyProcessingImage || inferenceStore.isLoading,
-          'p-4': !inferenceStore.currentlyProcessingImage && !inferenceStore.isLoading,
-        }"
-      >
-        <!-- Processing State -->
-        <div
-          v-if="inferenceStore.currentlyProcessingImage || inferenceStore.isLoading"
-          class="flex items-center justify-center py-2"
-        >
-          <div class="flex items-center space-x-3">
-            <div
-              class="w-5 h-5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin"
-            ></div>
-            <span class="text-sm font-medium text-gray-700">
-              {{ inferenceStore.loadingMessage || "Analyzing your photo..." }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Upload State -->
-        <div v-else class="flex flex-col items-center text-center space-y-3">
-          <!-- Initialization Status -->
-          <div
-            v-if="!inferenceStore.sessionReady"
-            class="flex items-center space-x-2 text-amber-600"
-          >
-            <div
-              class="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin"
-            ></div>
-            <span class="text-sm font-medium">Initializing AI model...</span>
-          </div>
-
-          <!-- File Input Button -->
-          <div v-else class="relative">
-            <input
-              id="user-image"
-              type="file"
-              accept="image/*"
-              @change="onFileChange"
-              :disabled="!inferenceStore.sessionReady"
-              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-            />
-            <button
-              :disabled="!inferenceStore.sessionReady"
-              class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg shadow-sm transition-colors duration-200 flex items-center space-x-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              <span>Upload Photo</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Try Again Section (shown after inference is complete) -->
-      <div
-        v-if="hasCompletedInference && !showUploadSection"
-        class="bg-gray-50 rounded-lg border border-gray-200 p-3 mb-6"
-      >
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-2 text-sm text-gray-600">
-            <svg
-              class="w-4 h-4 text-green-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-            <span>Analysis complete! Click on images below to see matches.</span>
-          </div>
-          <button
-            @click="resetForNewUpload"
-            class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors underline"
-          >
-            Try another photo
-          </button>
-        </div>
-      </div>
+      <FileUploadSection
+        :has-completed-inference="hasCompletedInference"
+        @file-selected="onFileChange"
+        @reset-upload="resetForNewUpload"
+      />
 
       <!-- Region Gallery -->
       <RegionGallery
@@ -130,69 +41,12 @@
         :manifestPath="regionManifestPath"
       >
         <template #default="{ img, selected }">
-          <div
-            class="relative overflow-hidden group"
-            :style="getTileStyle(img, selected)"
-            v-tooltip="{
-              content: tooltipContent(img),
-              html: true,
-              placement: 'top',
-              delay: { show: 100, hide: 100 },
-              theme: 'tooltip',
-              autoHide: true,
-            }"
-          >
-            <!-- Visualize Button -->
-            <button
-              v-if="inferenceStore.inferenceResults[img]"
-              @click.stop="onTileVisualize(img)"
-              :aria-pressed="currentlyVisualizedImage === img"
-              title="Visualize matches"
-              class="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-200 rounded-full p-1.5 shadow-sm transition-all duration-200 opacity-0 group-hover:opacity-100"
-            >
-              <svg
-                class="w-4 h-4 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
-            </button>
-
-            <!-- Image Container -->
-            <div class="w-full h-full flex items-center justify-center relative">
-              <img :src="img" alt="region image" class="max-w-full max-h-full object-cover" />
-
-              <!-- Processing Spinner -->
-              <div
-                v-if="inferenceStore.currentlyProcessingImage === img"
-                class="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm"
-              >
-                <div
-                  class="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin"
-                ></div>
-              </div>
-            </div>
-
-            <!-- Filename -->
-            <div
-              class="absolute bottom-1 left-1 right-1 bg-black/70 backdrop-blur-sm rounded px-2 py-1"
-            >
-              <p class="text-white text-xs font-medium truncate">{{ img.split("/").pop() }}</p>
-            </div>
-          </div>
+          <GalleryTile
+            :img="img"
+            :selected="selected"
+            :is-currently-visualized="currentlyVisualizedImage === img"
+            @visualize="onTileVisualize"
+          />
         </template>
       </RegionGallery>
 
@@ -227,9 +81,11 @@
 </template>
 
 <script setup>
-import { computed, ref, nextTick, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
+import FileUploadSection from "@/components/FileUploadSection.vue";
+import GalleryTile from "@/components/GalleryTile.vue";
 import RegionGallery from "@/components/RegionGallery.vue";
 import MainFooter from "@/components/MainFooter.vue";
 import { useInferenceStore } from "@/stores/inferenceStore";
@@ -248,7 +104,6 @@ const allTopoImages = ref([]); // all available topo images
 const currentlyVisualizedImage = ref(null);
 const visualizationDialog = ref(null);
 const visualizationCanvas = ref(null);
-const showUploadSection = ref(false);
 
 const regionManifestPath = computed(() => {
   const baseUrl = import.meta.env.BASE_URL;
@@ -264,11 +119,9 @@ const hasCompletedInference = computed(() => {
   );
 });
 
-function onFileChange(event) {
-  const file = event.target.files[0];
+function onFileChange(file) {
   if (file) {
     userImageFile.value = file;
-    showUploadSection.value = false; // Hide upload section during processing
     // Automatically run inference when image is selected
     if (topoImages.value.length > 0 && inferenceStore.sessionReady) {
       inferenceStore.runInferenceBatch(file, topoImages.value);
@@ -296,27 +149,9 @@ function onTopoSelected(selectedImages) {
 }
 
 function resetForNewUpload() {
-  showUploadSection.value = true;
-  // Clear the file input
-  const fileInput = document.getElementById("user-image");
-  if (fileInput) {
-    fileInput.value = "";
-  }
-}
-
-// Helper to get border color based on number of matches
-function getMatchBorderColor(matches) {
-  if (typeof matches !== "number") return "#1976d2"; // default blue
-  // Assume 0-100 is the range, interpolate from red to green
-  const min = 0,
-    max = 100;
-  const clamped = Math.max(min, Math.min(max, matches));
-  // Use color-mix if supported, else fallback
-  // 0 = red, 100 = green
-  const percent = (clamped - min) / (max - min);
-  // Use HSL: 0deg (red) to 120deg (green)
-  const hue = 0 + percent * 120;
-  return `hsl(${hue}, 70%, 45%)`;
+  // The FileUploadSection component handles its own state reset
+  // Clear the file input is now handled by the component
+  // Just reset our local state if needed
 }
 
 function onTileVisualize(img) {
@@ -327,9 +162,10 @@ function onTileVisualize(img) {
     if (visualizationDialog.value) {
       visualizationDialog.value.showModal();
     }
-    nextTick(() => {
+    // Use nextTick equivalent with setTimeout
+    setTimeout(() => {
       drawVisualization(result.rawData, result.images, result.imgWidth, result.imgHeight);
-    });
+    }, 0);
   }
 }
 
@@ -367,35 +203,6 @@ function drawVisualization(rawData, images, imgWidth, imgHeight) {
     ctx.lineTo(x1, y1);
     ctx.stroke();
   }
-}
-
-function getTileStyle(img, selected) {
-  const matches =
-    inferenceStore.matchCounts && inferenceStore.matchCounts[img] !== undefined
-      ? inferenceStore.matchCounts[img]
-      : undefined;
-  let border;
-  if (matches !== undefined) {
-    border = "2px solid " + getMatchBorderColor(matches);
-  } else if (selected) {
-    border = "1px solid #1976d2";
-  } else {
-    border = "1px solid transparent";
-  }
-  return { border };
-}
-
-function tooltipContent(img) {
-  let content = "";
-  if (inferenceStore.inferenceTimes && inferenceStore.inferenceTimes[img] !== undefined) {
-    content += `<div class='inference-time'>Inference: ${inferenceStore.inferenceTimes[img].toFixed(
-      2
-    )} ms</div>`;
-  }
-  if (inferenceStore.matchCounts && inferenceStore.matchCounts[img] !== undefined) {
-    content += `<div class='match-count'>Number of Matches: ${inferenceStore.matchCounts[img]}</div>`;
-  }
-  return content || "<em>No data</em>";
 }
 
 const sortedTopoImages = computed(() => {
