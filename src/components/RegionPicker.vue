@@ -25,7 +25,7 @@
       >
         <img
           :src="region.thumbnail"
-          alt="region.name"
+          :alt="region.name"
           class="w-full object-cover rounded-md"
           style="aspect-ratio: 1 / 1"
         />
@@ -44,8 +44,12 @@ const selectedRegionId = defineModel({
 });
 
 const regions = [
-  { name: "Stokówka", id: "stokowka", thumbnail: "/images/stokowka.jpg" },
-  { name: "Wibrem 23 May", id: "wibrem-23-may", thumbnail: "/images/wibrem-23-may.jpg" },
+  { name: "Stokówka", id: "stokowka", thumbnail: "/topos/stokowka/bulderowa.jpg" },
+  {
+    name: "Wibrem 23 May",
+    id: "wibrem-23-may",
+    thumbnail: "/topos/wibrem-23-may/WhatsApp Image 2025-05-24 at 00.15.17.jpeg",
+  },
 ];
 </script>
 
