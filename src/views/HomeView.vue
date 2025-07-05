@@ -6,9 +6,6 @@
 
     <template v-if="selectedRegionId">
       <p v-if="sessionTime">Session Time: {{ sessionTime }}</p>
-      <p>WebAssembly Threads Supported: {{ wasmThreadsSupported }}</p>
-      <p>WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
-      <p>Browser Info: {{ browserInfo }}</p>
       <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
 
       <div v-if="isLoading" class="spinner">
@@ -105,23 +102,21 @@
       <button class="close-modal-btn" @click="closeVisualizationModal">×</button>
       <canvas ref="visualizationCanvas" class="visualization-canvas"></canvas>
     </dialog>
+
+    <MainFooter :sessionTime="sessionTime" />
   </main>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from "vue";
-import * as wasmFeatureDetect from "wasm-feature-detect";
-import Bowser from "bowser";
+import { ref, computed, nextTick, onMounted } from "vue";
 import RegionGallery from "@/components/RegionGallery.vue";
 import RegionPicker from "@/components/RegionPicker.vue";
+import MainFooter from "@/components/MainFooter.vue";
 
 const inferenceTimes = ref({}); // { [imgPath]: timeInMs }
 const matchCounts = ref({}); // { [imgPath]: matchCount }
 const sessionTime = ref(null);
 const errorString = ref(null);
-const wasmThreadsSupported = ref(null);
-const wasmSimdSupported = ref(null);
-const browserInfo = ref(null);
 const isLoading = ref(false);
 const loadingMessage = ref("");
 const userImageFile = ref(null);
@@ -152,21 +147,6 @@ inferenceWorker.onmessage = (event) => {
     workerMemoryInfo.value = data && data.memory ? data.memory : "";
   }
 };
-
-function checkBrowser() {
-  const browser = Bowser.getParser(window.navigator.userAgent);
-  browserInfo.value = {
-    name: browser.getBrowserName(),
-    version: browser.getBrowserVersion(),
-    os: browser.getOSName(),
-    osVersion: browser.getOSVersion(),
-  };
-}
-
-async function checkWasmFeatures() {
-  wasmThreadsSupported.value = await wasmFeatureDetect.threads();
-  wasmSimdSupported.value = await wasmFeatureDetect.simd();
-}
 
 async function createSession() {
   isLoading.value = true;
@@ -267,8 +247,6 @@ async function runInferenceBatch(userFile, topoImagePaths) {
 }
 
 onMounted(async () => {
-  checkBrowser();
-  await checkWasmFeatures();
   await createSession();
 });
 
