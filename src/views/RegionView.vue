@@ -62,6 +62,10 @@
         :image-list="sortedTopoImages"
         :current-image-index="currentImageIndex"
         :visualization-availability="visualizationAvailability"
+        :is-processing="inferenceStore.isLoading"
+        :match-count="currentImageMatchCount"
+        :analyzed-images-count="analyzedImagesCount"
+        :current-image-position="currentImageAnalysisPosition"
         @close="onDialogClose"
         @toggle-mode="toggleModalMode"
         @navigate="onNavigateImage"
@@ -146,6 +150,27 @@ const visualizationAvailability = computed(() => {
     availability[image] = !!inferenceStore.inferenceResults[image];
   }
   return availability;
+});
+
+const currentImageMatchCount = computed(() => {
+  if (!currentlyVisualizedImage.value) return null;
+  return inferenceStore.matchCounts[currentlyVisualizedImage.value] ?? null;
+});
+
+const analyzedImagesCount = computed(() => {
+  return Object.keys(inferenceStore.matchCounts).length;
+});
+
+const currentImageAnalysisPosition = computed(() => {
+  if (!currentlyVisualizedImage.value || currentImageMatchCount.value === null) return null;
+  
+  // Get all analyzed images sorted by match count (descending)
+  const analyzedImages = Object.entries(inferenceStore.matchCounts)
+    .sort(([, a], [, b]) => b - a)
+    .map(([imagePath]) => imagePath);
+  
+  const position = analyzedImages.indexOf(currentlyVisualizedImage.value);
+  return position >= 0 ? position + 1 : null;
 });
 
 function onFileChange(file) {

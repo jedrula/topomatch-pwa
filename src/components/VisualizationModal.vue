@@ -42,9 +42,14 @@
 
     <!-- Toggle between Preview/Visualization button -->
     <button
-      v-if="canVisualize"
-      @click="toggleMode"
-      class="absolute top-4 left-4 z-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/20 rounded-lg px-3 py-2 flex items-center gap-2 transition-all duration-200"
+      v-if="canVisualize || (visualizationAvailability[imageList[currentImageIndex]] !== undefined)"
+      @click="canVisualize ? toggleMode() : null"
+      :disabled="!canVisualize"
+      :title="!canVisualize && matchCount !== null && matchCount < 50 ? `Not enough matches (${matchCount}) to visualize` : ''"
+      class="absolute top-4 left-4 z-10 backdrop-blur-sm text-white border rounded-lg px-3 py-2 flex items-center gap-2 transition-all duration-200"
+      :class="canVisualize 
+        ? 'bg-white/10 hover:bg-white/20 border-white/20 cursor-pointer' 
+        : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-60'"
     >
       <svg
         v-if="modalMode === 'preview'"
@@ -94,12 +99,44 @@
       🏆 Best Match
     </div>
 
-    <!-- Image counter -->
-    <div
-      v-if="imageList.length > 1"
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white rounded-lg px-3 py-1 text-sm font-medium"
-    >
-      {{ currentImageIndex + 1 }} / {{ imageList.length }}
+    <!-- Status indicator replacing simple counter -->
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+      <!-- Analysis status -->
+      <div
+        v-if="isProcessing"
+        class="bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 text-blue-100 rounded-lg px-3 py-1 text-sm font-medium flex items-center gap-2"
+      >
+        <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Analyzing images...
+      </div>
+      
+      <!-- Image analysis status -->
+      <div class="bg-black/50 backdrop-blur-sm text-white rounded-lg px-3 py-1 text-sm font-medium">
+        <div v-if="currentImagePosition !== null" class="flex items-center gap-3">
+          <!-- Position among analyzed -->
+          <span>#{{ currentImagePosition }} of {{ analyzedImagesCount }} analyzed</span>
+          
+          <!-- Match count -->
+          <span v-if="matchCount !== null" class="text-gray-300">
+            {{ matchCount }} matches
+          </span>
+        </div>
+        
+        <div v-else-if="matchCount !== null" class="flex items-center gap-3">
+          <span class="text-gray-300">{{ matchCount }} matches</span>
+          <span v-if="analyzedImagesCount > 0">({{ analyzedImagesCount }} images analyzed)</span>
+        </div>
+        
+        <div v-else-if="analyzedImagesCount > 0">
+          {{ analyzedImagesCount }} images analyzed
+        </div>
+        
+        <div v-else>
+          Not yet analyzed
+        </div>
+      </div>
     </div>
 
     <!-- Image Preview (for large image view) -->
@@ -151,6 +188,22 @@ const props = defineProps({
   visualizationAvailability: {
     type: Object,
     default: () => ({}),
+  },
+  isProcessing: {
+    type: Boolean,
+    default: false,
+  },
+  matchCount: {
+    type: Number,
+    default: null,
+  },
+  analyzedImagesCount: {
+    type: Number,
+    default: 0,
+  },
+  currentImagePosition: {
+    type: Number,
+    default: null,
   },
 });
 
