@@ -9,10 +9,22 @@
 
     <div style="margin-top: 2em">
       <label for="user-image">Select image to match:</label>
-      <input id="user-image" type="file" accept="image/*" @change="onFileChange" />
-      <button @click="onRunInferenceClick" :disabled="!userImageFile || topoImages.length === 0">
+      <input 
+        id="user-image" 
+        type="file" 
+        accept="image/*" 
+        @change="onFileChange" 
+        :disabled="!inferenceStore.sessionReady"
+      />
+      <button 
+        @click="onRunInferenceClick" 
+        :disabled="!userImageFile || topoImages.length === 0 || !inferenceStore.sessionReady"
+      >
         Run Inference
       </button>
+      <p v-if="!inferenceStore.sessionReady" class="session-status">
+        Initializing inference session...
+      </p>
     </div>
 
     <p v-if="inferenceStore.matchCount !== null">Number of Matches: {{ inferenceStore.matchCount }}</p>
@@ -248,9 +260,10 @@ const sortedTopoImages = computed(() => {
   });
 });
 
-onMounted(async () => {
-  // Create session when component mounts
-  await inferenceStore.createSession();
+onMounted(() => {
+  // Session is created eagerly when the store is initialized
+  // No need to create session here anymore
+  console.log("RegionView mounted, session ready:", inferenceStore.sessionReady);
 });
 
 onUnmounted(() => {
@@ -370,5 +383,12 @@ onUnmounted(() => {
   background: #222;
   border-radius: 8px;
   box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
+}
+
+.session-status {
+  color: #666;
+  font-style: italic;
+  margin-top: 0.5em;
+  font-size: 0.9em;
 }
 </style>

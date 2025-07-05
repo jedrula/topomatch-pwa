@@ -7,14 +7,15 @@ export const useInferenceStore = defineStore("inference", () => {
   });
 
   const sessionTime = ref(null);
-  const isLoading = ref(false);
-  const loadingMessage = ref("");
+  const isLoading = ref(true); // Start loading immediately
+  const loadingMessage = ref("Creating inference session...");
   const inferenceResults = ref({});
   const matchCounts = ref({});
   const inferenceTimes = ref({});
   const currentlyProcessingImage = ref(null);
   const matchCount = ref(null);
   const errorString = ref(null);
+  const sessionReady = ref(false);
 
   inferenceWorker.onmessage = (event) => {
     const { type, data } = event.data;
@@ -23,20 +24,36 @@ export const useInferenceStore = defineStore("inference", () => {
       matchCount.value = data.results.matches?.dims?.[0] ?? null;
     } else if (type === "sessionCreated") {
       sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
+      sessionReady.value = true;
       isLoading.value = false;
+      loadingMessage.value = "";
       console.log("Session created in:", sessionTime.value);
+    } else if (type === "error") {
+      errorString.value = data.message;
+      isLoading.value = false;
+      loadingMessage.value = "";
+      console.error("Inference worker error:", data.message);
     } else if (type === "workerMemoryInfo") {
       console.log("Worker memory info:", data.memory);
     }
   };
 
-  const createSession = async () => {
-    isLoading.value = true;
-    loadingMessage.value = "Creating session...";
+  // Create session immediately when store is initialized
+  const initializeSession = () => {
+    console.log("Initializing inference session...");
     inferenceWorker.postMessage({ type: "createSession" });
   };
 
+  // Start session creation immediately
+  initializeSession();
+
   const runInferenceBatch = async (userFile, topoImagePaths) => {
+    // Check if session is ready before starting inference
+    if (!sessionReady.value) {
+      errorString.value = "Inference session is not ready yet. Please wait.";
+      return;
+    }
+
     isLoading.value = true;
     loadingMessage.value = `Inferencing with user image and ${topoImagePaths.length} topo images...`;
     matchCount.value = null;
@@ -130,7 +147,7 @@ export const useInferenceStore = defineStore("inference", () => {
     currentlyProcessingImage,
     matchCount,
     errorString,
-    createSession,
+    sessionReady,
     runInferenceBatch,
     resetInferenceState,
   };
