@@ -1,116 +1,120 @@
 <template>
-  <main>
-    <p v-if="inferenceStore.errorString" style="color: red">
-      Error: {{ inferenceStore.errorString }}
-    </p>
-
-    <div v-if="inferenceStore.isLoading" class="spinner">
-      <p>{{ inferenceStore.loadingMessage }}</p>
-      <div class="spinner-icon"></div>
-    </div>
-
-    <div style="margin-top: 2em">
-      <label for="user-image">Select image to match:</label>
-      <input
-        id="user-image"
-        type="file"
-        accept="image/*"
-        @change="onFileChange"
-        :disabled="!inferenceStore.sessionReady"
-      />
-      <p v-if="!inferenceStore.sessionReady" class="session-status">
-        Initializing inference session...
+  <div>
+    <AppHeader />
+    <main class="pt-4 px-4">
+      <p v-if="inferenceStore.errorString" style="color: red">
+        Error: {{ inferenceStore.errorString }}
       </p>
-    </div>
 
-    <RegionGallery
-      :key="regionId"
-      :images="sortedTopoImages"
-      @topo-selected="onTopoSelected"
-      @topo-list-loaded="onTopoListLoaded"
-      :manifestPath="regionManifestPath"
-    >
-      <template #default="{ img, selected }">
-        <div
-          class="region-gallery-content"
-          :style="getTileStyle(img, selected)"
-          v-tooltip="{
-            content: tooltipContent(img),
-            html: true,
-            placement: 'top',
-            delay: { show: 100, hide: 100 },
-            theme: 'tooltip',
-            autoHide: true,
-          }"
-        >
-          <button
-            class="visualize-btn"
-            v-if="inferenceStore.inferenceResults[img]"
-            @click.stop="onTileVisualize(img)"
-            :aria-pressed="currentlyVisualizedImage === img"
-            title="Visualize matches"
-            style="
-              position: absolute;
-              top: 6px;
-              left: 6px;
-              background: rgba(255, 255, 255, 0.85);
-              border: none;
-              border-radius: 50%;
-              padding: 2px;
-              cursor: pointer;
-              z-index: 2;
-              transition: background 0.2s;
-              box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-            "
+      <div v-if="inferenceStore.isLoading" class="spinner">
+        <p>{{ inferenceStore.loadingMessage }}</p>
+        <div class="spinner-icon"></div>
+      </div>
+
+      <div style="margin-top: 2em">
+        <label for="user-image">Select image to match:</label>
+        <input
+          id="user-image"
+          type="file"
+          accept="image/*"
+          @change="onFileChange"
+          :disabled="!inferenceStore.sessionReady"
+        />
+        <p v-if="!inferenceStore.sessionReady" class="session-status">
+          Initializing inference session...
+        </p>
+      </div>
+
+      <RegionGallery
+        :key="regionId"
+        :images="sortedTopoImages"
+        @topo-selected="onTopoSelected"
+        @topo-list-loaded="onTopoListLoaded"
+        :manifestPath="regionManifestPath"
+      >
+        <template #default="{ img, selected }">
+          <div
+            class="region-gallery-content"
+            :style="getTileStyle(img, selected)"
+            v-tooltip="{
+              content: tooltipContent(img),
+              html: true,
+              placement: 'top',
+              delay: { show: 100, hide: 100 },
+              theme: 'tooltip',
+              autoHide: true,
+            }"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+            <button
+              class="visualize-btn"
+              v-if="inferenceStore.inferenceResults[img]"
+              @click.stop="onTileVisualize(img)"
+              :aria-pressed="currentlyVisualizedImage === img"
+              title="Visualize matches"
+              style="
+                position: absolute;
+                top: 6px;
+                left: 6px;
+                background: rgba(255, 255, 255, 0.85);
+                border: none;
+                border-radius: 50%;
+                padding: 2px;
+                cursor: pointer;
+                z-index: 2;
+                transition: background 0.2s;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+              "
             >
-              <ellipse
-                cx="10"
-                cy="10"
-                rx="8"
-                ry="5"
-                stroke="#1976d2"
-                stroke-width="2"
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
                 fill="none"
-              />
-              <circle cx="10" cy="10" r="2.5" fill="#1976d2" />
-            </svg>
-          </button>
-          <div class="region-gallery-image-wrapper">
-            <img :src="img" alt="region image" />
-            <span
-              v-if="inferenceStore.currentlyProcessingImage === img"
-              class="mini-spinner"
-            ></span>
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <ellipse
+                  cx="10"
+                  cy="10"
+                  rx="8"
+                  ry="5"
+                  stroke="#1976d2"
+                  stroke-width="2"
+                  fill="none"
+                />
+                <circle cx="10" cy="10" r="2.5" fill="#1976d2" />
+              </svg>
+            </button>
+            <div class="region-gallery-image-wrapper">
+              <img :src="img" alt="region image" />
+              <span
+                v-if="inferenceStore.currentlyProcessingImage === img"
+                class="mini-spinner"
+              ></span>
+            </div>
+            <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
           </div>
-          <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
-        </div>
-      </template>
-    </RegionGallery>
+        </template>
+      </RegionGallery>
 
-    <dialog
-      ref="visualizationDialog"
-      class="visualization-modal"
-      @close="onDialogClose"
-      :open="currentlyVisualizedImage !== null"
-    >
-      <button class="close-modal-btn" @click="closeVisualizationModal">×</button>
-      <canvas ref="visualizationCanvas" class="visualization-canvas"></canvas>
-    </dialog>
+      <dialog
+        ref="visualizationDialog"
+        class="visualization-modal"
+        @close="onDialogClose"
+        :open="currentlyVisualizedImage !== null"
+      >
+        <button class="close-modal-btn" @click="closeVisualizationModal">×</button>
+        <canvas ref="visualizationCanvas" class="visualization-canvas"></canvas>
+      </dialog>
 
-    <MainFooter />
-  </main>
+      <MainFooter />
+    </main>
+  </div>
 </template>
 
 <script setup>
 import { computed, ref, nextTick, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
+import AppHeader from "@/components/AppHeader.vue";
 import RegionGallery from "@/components/RegionGallery.vue";
 import MainFooter from "@/components/MainFooter.vue";
 import { useInferenceStore } from "@/stores/inferenceStore";

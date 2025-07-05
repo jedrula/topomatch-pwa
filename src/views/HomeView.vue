@@ -1,21 +1,25 @@
 <template>
-  <main>
-    <div class="my-2">
-      <RegionPicker @regionChange="onRegionChange" />
-    </div>
-    
-    <!-- Show global session loading state -->
-    <div v-if="inferenceStore.isLoading && !inferenceStore.sessionReady" class="session-init">
-      <p>{{ inferenceStore.loadingMessage }}</p>
-      <div class="spinner-icon"></div>
-    </div>
-    
-    <MainFooter :sessionTime="inferenceStore.sessionTime" />
-  </main>
+  <div>
+    <AppHeader />
+    <main class="pt-4 px-4">
+      <div class="my-2">
+        <RegionPicker @regionChange="onRegionChange" />
+      </div>
+
+      <!-- Show global session loading state -->
+      <div v-if="inferenceStore.isLoading && !inferenceStore.sessionReady" class="session-init">
+        <p>{{ inferenceStore.loadingMessage }}</p>
+        <div class="spinner-icon"></div>
+      </div>
+
+      <MainFooter />
+    </main>
+  </div>
 </template>
 
 <script setup>
 import { useRouter } from "vue-router";
+import AppHeader from "@/components/AppHeader.vue";
 import RegionPicker from "@/components/RegionPicker.vue";
 import MainFooter from "@/components/MainFooter.vue";
 import { useInferenceStore } from "@/stores/inferenceStore";
