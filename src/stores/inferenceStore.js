@@ -13,7 +13,6 @@ export const useInferenceStore = defineStore("inference", () => {
   const matchCounts = ref({});
   const inferenceTimes = ref({});
   const currentlyProcessingImage = ref(null);
-  const matchCount = ref(null);
   const errorString = ref(null);
   const sessionReady = ref(false);
 
@@ -21,7 +20,6 @@ export const useInferenceStore = defineStore("inference", () => {
     const { type, data } = event.data;
     if (type === "inferenceComplete") {
       console.log("Inference results:", data.results);
-      matchCount.value = data.results.matches?.dims?.[0] ?? null;
     } else if (type === "sessionCreated") {
       sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
       sessionReady.value = true;
@@ -56,7 +54,6 @@ export const useInferenceStore = defineStore("inference", () => {
 
     isLoading.value = true;
     loadingMessage.value = `Inferencing with user image and ${topoImagePaths.length} topo images...`;
-    matchCount.value = null;
     let bestResult = null;
     let bestMatches = -Infinity;
     let bestImgPath = null;
@@ -121,7 +118,6 @@ export const useInferenceStore = defineStore("inference", () => {
     inferenceResults.value = {};
     if (bestResult && bestImgPath) {
       inferenceResults.value[bestImgPath] = bestResult;
-      matchCount.value = bestMatches; // Update global matchCount with best result
     }
 
     currentlyProcessingImage.value = null;
@@ -132,7 +128,6 @@ export const useInferenceStore = defineStore("inference", () => {
   };
 
   const resetInferenceState = () => {
-    matchCount.value = null;
     inferenceResults.value = {};
     matchCounts.value = {};
     inferenceTimes.value = {};
@@ -148,7 +143,6 @@ export const useInferenceStore = defineStore("inference", () => {
     matchCounts,
     inferenceTimes,
     currentlyProcessingImage,
-    matchCount,
     errorString,
     sessionReady,
     runInferenceBatch,

@@ -23,10 +23,6 @@
       </p>
     </div>
 
-    <p v-if="inferenceStore.matchCount !== null">
-      Number of Matches: {{ inferenceStore.matchCount }}
-    </p>
-
     <RegionGallery
       :key="regionId"
       :images="sortedTopoImages"
@@ -108,7 +104,7 @@
       <canvas ref="visualizationCanvas" class="visualization-canvas"></canvas>
     </dialog>
 
-    <MainFooter :sessionTime="inferenceStore.sessionTime" />
+    <MainFooter />
   </main>
 </template>
 
@@ -158,7 +154,7 @@ function onFileChange(event) {
 function onTopoListLoaded(images) {
   allTopoImages.value = images;
   topoImages.value = [...images]; // select all by default
-  
+
   // If user has already selected an image, run inference now
   if (userImageFile.value && inferenceStore.sessionReady) {
     inferenceStore.runInferenceBatch(userImageFile.value, topoImages.value);

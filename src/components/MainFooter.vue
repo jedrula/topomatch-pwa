@@ -7,7 +7,10 @@
       Debug
     </button>
     <div v-if="showDebugInfo" class="mt-2 text-sm text-gray-600">
-      <p v-if="sessionTime">Session Time: {{ sessionTime }}</p>
+      <p v-if="inferenceStore.sessionTime">Session Time: {{ inferenceStore.sessionTime }}</p>
+      <p v-if="inferenceStore.matchCount !== null">
+        Best Match Count: {{ inferenceStore.matchCount }}
+      </p>
       <p v-if="wasmThreadsSupported">WebAssembly Threads Supported: {{ wasmThreadsSupported }}</p>
       <p v-if="wasmSimdSupported">WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
       <p v-if="browserInfo">Browser Info: {{ browserInfo.name }} {{ browserInfo.version }}</p>
@@ -19,13 +22,9 @@
 import { ref, onMounted } from "vue";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
+import { useInferenceStore } from "@/stores/inferenceStore";
 
-defineProps({
-  sessionTime: {
-    type: String,
-    default: null,
-  },
-});
+const inferenceStore = useInferenceStore();
 
 const showDebugInfo = ref(false);
 const wasmThreadsSupported = ref(null);
