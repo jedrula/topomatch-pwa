@@ -9,6 +9,12 @@ const router = createRouter({
       name: "home",
       component: HomeView,
     },
+    {
+      path: "/:regionId",
+      name: "region",
+      component: HomeView,
+      props: true,
+    },
   ],
 });
 

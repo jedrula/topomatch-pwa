@@ -6,7 +6,7 @@
       @change="$emit('regionChange', selectedRegionId)"
       class="p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mx-auto"
     >
-      <option disabled value="" class="text-gray-500">Select a location</option>
+      <option disabled :value="undefined" class="text-gray-500">Select a location</option>
       <option v-for="region in regions" :key="region.id" :value="region.id" class="text-gray-700">
         {{ region.name }}
       </option>
@@ -39,8 +39,7 @@
 defineEmits(["regionChange"]);
 
 const selectedRegionId = defineModel({
-  type: String,
-  required: true,
+  type: String | undefined,
 });
 
 const regions = [

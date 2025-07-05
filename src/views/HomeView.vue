@@ -1,10 +1,15 @@
 <template>
   <main>
-    <div class="my-2">
-      <RegionPicker v-model="selectedRegionId" @regionChange="onRegionChange" />
+    <div v-if="!regionId" class="my-2">
+      <!-- update:modelValue should change route param -->
+      <RegionPicker
+        :modelValue="regionId"
+        @regionChange="onRegionChange"
+        @update:modelValue="(newRegionId) => $router.push({ params: { regionId: newRegionId } })"
+      />
     </div>
 
-    <template v-if="selectedRegionId">
+    <template v-else>
       <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
 
       <div v-if="isLoading" class="spinner">
@@ -23,7 +28,7 @@
       <p v-if="matchCount !== null">Number of Matches: {{ matchCount }}</p>
 
       <RegionGallery
-        :key="selectedRegionId"
+        :key="regionId"
         :images="sortedTopoImages"
         @topo-selected="onTopoSelected"
         @topo-list-loaded="onTopoListLoaded"
@@ -108,9 +113,13 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted } from "vue";
+import { useRoute } from "vue-router";
 import RegionGallery from "@/components/RegionGallery.vue";
 import RegionPicker from "@/components/RegionPicker.vue";
 import MainFooter from "@/components/MainFooter.vue";
+
+const route = useRoute();
+const regionId = computed(() => route.params.regionId);
 
 const inferenceTimes = ref({}); // { [imgPath]: timeInMs }
 const matchCounts = ref({}); // { [imgPath]: matchCount }
@@ -218,7 +227,6 @@ async function runInferenceBatch(userFile, topoImagePaths) {
             bestImgPath = imgPath;
           }
           matchCount.value = matches;
-          inferenceWorker.removeEventListener("message", handler);
           resolve();
         }
       };
@@ -249,9 +257,8 @@ onMounted(async () => {
   await createSession();
 });
 
-const selectedRegionId = ref("");
 const regionManifestPath = computed(() =>
-  selectedRegionId.value ? `/topos/${selectedRegionId.value}/manifest.json` : ""
+  regionId.value ? `/topos/${regionId.value}/manifest.json` : ""
 );
 
 function onRegionChange() {
