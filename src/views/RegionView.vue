@@ -1,6 +1,8 @@
 <template>
   <main>
-    <p v-if="inferenceStore.errorString" style="color: red">Error: {{ inferenceStore.errorString }}</p>
+    <p v-if="inferenceStore.errorString" style="color: red">
+      Error: {{ inferenceStore.errorString }}
+    </p>
 
     <div v-if="inferenceStore.isLoading" class="spinner">
       <p>{{ inferenceStore.loadingMessage }}</p>
@@ -9,15 +11,15 @@
 
     <div style="margin-top: 2em">
       <label for="user-image">Select image to match:</label>
-      <input 
-        id="user-image" 
-        type="file" 
-        accept="image/*" 
-        @change="onFileChange" 
+      <input
+        id="user-image"
+        type="file"
+        accept="image/*"
+        @change="onFileChange"
         :disabled="!inferenceStore.sessionReady"
       />
-      <button 
-        @click="onRunInferenceClick" 
+      <button
+        @click="onRunInferenceClick"
         :disabled="!userImageFile || topoImages.length === 0 || !inferenceStore.sessionReady"
       >
         Run Inference
@@ -27,7 +29,9 @@
       </p>
     </div>
 
-    <p v-if="inferenceStore.matchCount !== null">Number of Matches: {{ inferenceStore.matchCount }}</p>
+    <p v-if="inferenceStore.matchCount !== null">
+      Number of Matches: {{ inferenceStore.matchCount }}
+    </p>
 
     <RegionGallery
       :key="regionId"
@@ -90,7 +94,10 @@
           </button>
           <div class="region-gallery-image-wrapper">
             <img :src="img" alt="region image" />
-            <span v-if="inferenceStore.currentlyProcessingImage === img" class="mini-spinner"></span>
+            <span
+              v-if="inferenceStore.currentlyProcessingImage === img"
+              class="mini-spinner"
+            ></span>
           </div>
           <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
         </div>
@@ -226,7 +233,9 @@ function drawVisualization(rawData, images, imgWidth, imgHeight) {
 
 function getTileStyle(img, selected) {
   const matches =
-    inferenceStore.matchCounts && inferenceStore.matchCounts[img] !== undefined ? inferenceStore.matchCounts[img] : undefined;
+    inferenceStore.matchCounts && inferenceStore.matchCounts[img] !== undefined
+      ? inferenceStore.matchCounts[img]
+      : undefined;
   let border;
   if (matches !== undefined) {
     border = "2px solid " + getMatchBorderColor(matches);

@@ -98,7 +98,9 @@ export const useInferenceStore = defineStore("inference", () => {
               };
               bestImgPath = imgPath;
             }
-            matchCount.value = matches;
+            
+            // Remove the event listener after handling this specific inference
+            inferenceWorker.removeEventListener("message", handler);
             resolve();
           }
         };
@@ -119,6 +121,7 @@ export const useInferenceStore = defineStore("inference", () => {
     inferenceResults.value = {};
     if (bestResult && bestImgPath) {
       inferenceResults.value[bestImgPath] = bestResult;
+      matchCount.value = bestMatches; // Update global matchCount with best result
     }
 
     currentlyProcessingImage.value = null;
