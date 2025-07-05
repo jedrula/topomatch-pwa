@@ -59,8 +59,11 @@
         :can-visualize="canVisualize"
         :is-winner="currentlyVisualizedImage === winnerImage"
         :visualization-data="currentVisualizationData"
+        :image-list="sortedTopoImages"
+        :current-image-index="currentImageIndex"
         @close="onDialogClose"
         @toggle-mode="toggleModalMode"
+        @navigate="onNavigateImage"
       />
 
       <MainFooter />
@@ -131,12 +134,17 @@ const currentVisualizationData = computed(() => {
   return inferenceStore.inferenceResults[currentlyVisualizedImage.value] || null;
 });
 
+const currentImageIndex = computed(() => {
+  if (!currentlyVisualizedImage.value) return 0;
+  return sortedTopoImages.value.indexOf(currentlyVisualizedImage.value);
+});
+
 function onFileChange(file) {
   if (file) {
     userImageFile.value = file;
     // Automatically run inference when image is selected
     if (topoImages.value.length > 0 && inferenceStore.sessionReady) {
-      inferenceStore.runInferenceBatch(file, topoImages.value, onInferenceComplete);
+      inferenceStore.runInferenceBatch(file, topoImages.value);
     } else if (topoImages.value.length === 0) {
       inferenceStore.errorString = "Please wait for topo images to load.";
     } else {
@@ -152,7 +160,7 @@ function onTopoListLoaded(images) {
 
   // If user has already selected an image, run inference now
   if (userImageFile.value && inferenceStore.sessionReady) {
-    inferenceStore.runInferenceBatch(userImageFile.value, topoImages.value, onInferenceComplete);
+    inferenceStore.runInferenceBatch(userImageFile.value, topoImages.value);
   }
 }
 
@@ -167,9 +175,9 @@ function resetForNewUpload() {
 }
 
 // Callback for when inference completes - auto-open visualization of best match
-function onInferenceComplete(bestImagePath) {
-  onTileVisualize(bestImagePath);
-}
+// function onInferenceComplete(bestImagePath) {
+//   onTileVisualize(bestImagePath);
+// }
 
 function toggleModalMode() {
   if (modalMode.value === "preview") {
@@ -202,6 +210,16 @@ function onDialogClose() {
   currentlyVisualizedImage.value = null;
   modalMode.value = "";
   previewImage.value = null;
+}
+
+function onNavigateImage(newIndex) {
+  const newImage = sortedTopoImages.value[newIndex];
+  if (newImage) {
+    currentlyVisualizedImage.value = newImage;
+    if (modalMode.value === "preview") {
+      previewImage.value = newImage;
+    }
+  }
 }
 
 const sortedTopoImages = computed(() => {

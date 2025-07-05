@@ -138,10 +138,7 @@ export const useInferenceStore = defineStore("inference", () => {
 
     // Call the completion callback if provided
     if (onComplete && bestImgPath) {
-      // Add a small delay to let the UI update and show the results first
-      setTimeout(() => {
-        onComplete(bestImgPath);
-      }, 1000);
+      onComplete(bestImgPath);
     }
   };
 

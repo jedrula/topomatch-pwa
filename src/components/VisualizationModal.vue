@@ -19,6 +19,27 @@
       </svg>
     </button>
 
+    <!-- Navigation arrows -->
+    <button
+      v-if="imageList.length > 1 && currentImageIndex > 0"
+      @click="navigateImage(-1)"
+      class="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/20 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-200"
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    </button>
+
+    <button
+      v-if="imageList.length > 1 && currentImageIndex < imageList.length - 1"
+      @click="navigateImage(1)"
+      class="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/20 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-200"
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+    </button>
+
     <!-- Toggle between Preview/Visualization button -->
     <button
       v-if="canVisualize"
@@ -65,12 +86,20 @@
       class="max-w-[90vw] max-h-[80vh] bg-gray-800 rounded-lg shadow-2xl border border-gray-600"
     ></canvas>
 
-    <!-- Winner indicator for best match visualization -->
+    <!-- Winner indicator for best match (shown in both modes) -->
     <div
-      v-if="modalMode === 'visualization' && isWinner"
+      v-if="isWinner"
       class="absolute top-16 left-4 bg-green-500/20 backdrop-blur-sm border border-green-400/30 rounded-lg px-3 py-2 text-green-100 text-sm font-medium"
     >
       🏆 Best Match
+    </div>
+
+    <!-- Image counter -->
+    <div
+      v-if="imageList.length > 1"
+      class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white rounded-lg px-3 py-1 text-sm font-medium"
+    >
+      {{ currentImageIndex + 1 }} / {{ imageList.length }}
     </div>
 
     <!-- Image Preview (for large image view) -->
@@ -88,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from "vue";
+import { ref, watch, nextTick, onMounted, onUnmounted } from "vue";
 
 const props = defineProps({
   modalMode: {
@@ -111,9 +140,17 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  imageList: {
+    type: Array,
+    default: () => [],
+  },
+  currentImageIndex: {
+    type: Number,
+    default: 0,
+  },
 });
 
-const emit = defineEmits(['close', 'toggle-mode']);
+const emit = defineEmits(["close", "toggle-mode", "navigate"]);
 
 const dialogRef = ref(null);
 const canvasRef = ref(null);
@@ -131,11 +168,31 @@ const closeModal = () => {
 };
 
 const onDialogClose = () => {
-  emit('close');
+  emit("close");
 };
 
 const toggleMode = () => {
-  emit('toggle-mode');
+  emit("toggle-mode");
+};
+
+const navigateImage = (direction) => {
+  const newIndex = props.currentImageIndex + direction;
+  if (newIndex >= 0 && newIndex < props.imageList.length) {
+    emit("navigate", newIndex);
+  }
+};
+
+const handleKeyDown = (event) => {
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    navigateImage(-1);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    navigateImage(1);
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    closeModal();
+  }
 };
 
 const drawVisualization = (rawData, images, imgWidth, imgHeight) => {
@@ -164,11 +221,20 @@ const drawVisualization = (rawData, images, imgWidth, imgHeight) => {
   }
 };
 
+// Keyboard navigation
+onMounted(() => {
+  document.addEventListener("keydown", handleKeyDown);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("keydown", handleKeyDown);
+});
+
 // Watch for visualization data changes and draw when needed
 watch(
   () => props.visualizationData,
   (newData) => {
-    if (newData && props.modalMode === 'visualization') {
+    if (newData && props.modalMode === "visualization") {
       nextTick(() => {
         drawVisualization(newData.rawData, newData.images, newData.imgWidth, newData.imgHeight);
       });
@@ -181,9 +247,14 @@ watch(
 watch(
   () => props.modalMode,
   (newMode) => {
-    if (newMode === 'visualization' && props.visualizationData) {
+    if (newMode === "visualization" && props.visualizationData) {
       nextTick(() => {
-        drawVisualization(props.visualizationData.rawData, props.visualizationData.images, props.visualizationData.imgWidth, props.visualizationData.imgHeight);
+        drawVisualization(
+          props.visualizationData.rawData,
+          props.visualizationData.images,
+          props.visualizationData.imgWidth,
+          props.visualizationData.imgHeight
+        );
       });
     }
   }
