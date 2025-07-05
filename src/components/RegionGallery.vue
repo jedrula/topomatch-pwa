@@ -14,9 +14,10 @@
 
 <script setup>
 import { ref, onMounted, defineEmits, computed } from "vue";
+import { getManifestForRegion } from "@/data/manifests";
 
 const props = defineProps({
-  manifestPath: {
+  regionId: {
     type: String,
     required: true,
   },
@@ -32,19 +33,24 @@ const emit = defineEmits(["topo-list-loaded"]);
 
 const imagesProp = computed(() => props.images ?? imagesRef.value);
 
-onMounted(async () => {
+const selectImage = (img) => {
+  const index = selectedImages.value.indexOf(img);
+  if (index > -1) {
+    selectedImages.value.splice(index, 1);
+  } else {
+    selectedImages.value.push(img);
+  }
+};
+
+onMounted(() => {
   try {
-    const resp = await fetch(props.manifestPath);
-    if (resp.ok) {
-      imagesRef.value = await resp.json();
-      selectedImages.value = [...imagesRef.value]; // select all by default
-      emit("topo-list-loaded", [...imagesRef.value]);
-      return;
-    } else {
-      alert("Could not load region manifest.json (HTTP " + resp.status + ")");
-    }
-  } catch (e) {
-    alert("Error loading region manifest.json: " + e);
+    const manifestData = getManifestForRegion(props.regionId);
+    imagesRef.value = manifestData;
+    selectedImages.value = [...manifestData]; // select all by default
+    emit("topo-list-loaded", [...manifestData]);
+  } catch (error) {
+    console.error("Error loading region manifest:", error);
+    alert(`Error loading region manifest: ${error.message}`);
   }
 });
 </script>

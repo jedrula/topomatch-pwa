@@ -38,7 +38,7 @@
         :images="sortedTopoImages"
         @topo-selected="onTopoSelected"
         @topo-list-loaded="onTopoListLoaded"
-        :manifestPath="regionManifestPath"
+        :regionId="regionId"
       >
         <template #default="{ img, selected }">
           <GalleryTile
@@ -103,11 +103,6 @@ const visualizationModalRef = ref(null);
 const modalMode = ref(""); // 'visualization' or 'preview'
 const previewImage = ref(null);
 
-const regionManifestPath = computed(() => {
-  const baseUrl = import.meta.env.BASE_URL;
-  return `${baseUrl}topos/${regionId}/manifest.json`;
-});
-
 const hasCompletedInference = computed(() => {
   return (
     userImageFile.value &&
@@ -163,12 +158,12 @@ const analyzedImagesCount = computed(() => {
 
 const currentImageAnalysisPosition = computed(() => {
   if (!currentlyVisualizedImage.value || currentImageMatchCount.value === null) return null;
-  
+
   // Get all analyzed images sorted by match count (descending)
   const analyzedImages = Object.entries(inferenceStore.matchCounts)
     .sort(([, a], [, b]) => b - a)
     .map(([imagePath]) => imagePath);
-  
+
   const position = analyzedImages.indexOf(currentlyVisualizedImage.value);
   return position >= 0 ? position + 1 : null;
 });
