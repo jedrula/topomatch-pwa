@@ -149,7 +149,7 @@
       v-if="modalMode === 'preview'"
       class="max-w-[90vw] max-h-[80vh] flex items-center justify-center"
     >
-      <img
+      <CachedImage
         :src="previewImage"
         alt="Large image preview"
         class="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
@@ -160,6 +160,7 @@
 
 <script setup>
 import { ref, watch, nextTick, onMounted, onUnmounted } from "vue";
+import CachedImage from "@/components/CachedImage.vue";
 
 const props = defineProps({
   modalMode: {

@@ -38,7 +38,7 @@
 
     <!-- Image Container -->
     <div class="w-full h-full flex items-center justify-center relative">
-      <img :src="img" alt="region image" class="max-w-full max-h-full object-cover" />
+      <CachedImage :src="img" alt="region image" class="max-w-full max-h-full object-cover" />
 
       <!-- Processing Spinner -->
       <div
@@ -61,6 +61,7 @@
 <script setup>
 import { computed } from "vue";
 import { useInferenceStore } from "@/stores/inferenceStore";
+import CachedImage from "@/components/CachedImage.vue";
 
 const props = defineProps({
   img: {

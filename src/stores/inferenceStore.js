@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import { imageCacheService } from "@/services/imageCacheService";
 
 export const useInferenceStore = defineStore("inference", () => {
   const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
@@ -80,7 +81,7 @@ export const useInferenceStore = defineStore("inference", () => {
         topoImagePaths.length
       })...`;
 
-      const resp = await fetch(imgPath);
+      const resp = await imageCacheService.fetchImage(imgPath);
       const topoBlob = await resp.blob();
       const topoArrayBuffer = await topoBlob.arrayBuffer();
 
