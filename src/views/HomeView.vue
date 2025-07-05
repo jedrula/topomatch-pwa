@@ -1,15 +1,32 @@
 <template>
-  <div>
+  <div class="min-h-screen bg-gray-50">
     <AppHeader />
-    <main class="pt-4 px-4">
-      <div class="my-2">
+    <main class="max-w-6xl mx-auto px-4 py-8 pb-24">
+      <!-- Hero Section -->
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">Select a Climbing Region</h1>
+        <p class="text-gray-600 text-lg max-w-2xl mx-auto">
+          Choose a region to match your climbing photos with our topo database
+        </p>
+      </div>
+
+      <!-- Region Picker -->
+      <div class="mb-8">
         <RegionPicker @regionChange="onRegionChange" />
       </div>
 
-      <!-- Show global session loading state -->
-      <div v-if="inferenceStore.isLoading && !inferenceStore.sessionReady" class="session-init">
-        <p>{{ inferenceStore.loadingMessage }}</p>
-        <div class="spinner-icon"></div>
+      <!-- Global session loading state -->
+      <div
+        v-if="inferenceStore.isLoading && !inferenceStore.sessionReady"
+        class="flex flex-col items-center justify-center py-12 text-center"
+      >
+        <div class="flex items-center space-x-3 mb-4">
+          <div
+            class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"
+          ></div>
+          <p class="text-gray-600 font-medium">{{ inferenceStore.loadingMessage }}</p>
+        </div>
+        <p class="text-sm text-gray-500">Preparing the inference engine...</p>
       </div>
 
       <MainFooter />
@@ -31,34 +48,3 @@ function onRegionChange(newRegionId) {
   router.push({ name: "region", params: { regionId: newRegionId } });
 }
 </script>
-
-<style scoped>
-/* Add your styles here */
-.session-init {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2em;
-  color: #666;
-}
-
-.spinner-icon {
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid #1976d2;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 0.8s linear infinite;
-  margin-top: 1em;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-</style>

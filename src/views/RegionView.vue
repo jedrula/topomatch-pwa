@@ -1,30 +1,74 @@
 <template>
-  <div>
+  <div class="min-h-screen bg-gray-50">
     <AppHeader />
-    <main class="pt-4 px-4">
-      <p v-if="inferenceStore.errorString" style="color: red">
-        Error: {{ inferenceStore.errorString }}
-      </p>
-
-      <div v-if="inferenceStore.isLoading" class="spinner">
-        <p>{{ inferenceStore.loadingMessage }}</p>
-        <div class="spinner-icon"></div>
+    <main class="max-w-6xl mx-auto px-4 py-6 pb-24">
+      <!-- Error Message -->
+      <div
+        v-if="inferenceStore.errorString"
+        class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6"
+      >
+        <div class="flex items-center">
+          <svg
+            class="w-5 h-5 text-red-400 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <p class="text-red-700 font-medium">{{ inferenceStore.errorString }}</p>
+        </div>
       </div>
 
-      <div style="margin-top: 2em">
-        <label for="user-image">Select image to match:</label>
-        <input
-          id="user-image"
-          type="file"
-          accept="image/*"
-          @change="onFileChange"
-          :disabled="!inferenceStore.sessionReady"
-        />
-        <p v-if="!inferenceStore.sessionReady" class="session-status">
-          Initializing inference session...
-        </p>
+      <!-- Loading Spinner -->
+      <div
+        v-if="inferenceStore.isLoading"
+        class="flex flex-col items-center justify-center py-12 text-center"
+      >
+        <div class="flex items-center space-x-3 mb-4">
+          <div
+            class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"
+          ></div>
+          <p class="text-gray-700 font-medium">{{ inferenceStore.loadingMessage }}</p>
+        </div>
       </div>
 
+      <!-- File Upload Section -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload Image to Match</h2>
+        <div class="space-y-4">
+          <div>
+            <label for="user-image" class="block text-sm font-medium text-gray-700 mb-2">
+              Select your climbing photo:
+            </label>
+            <input
+              id="user-image"
+              type="file"
+              accept="image/*"
+              @change="onFileChange"
+              :disabled="!inferenceStore.sessionReady"
+              class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+
+          <div
+            v-if="!inferenceStore.sessionReady"
+            class="flex items-center space-x-2 text-amber-600"
+          >
+            <div
+              class="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin"
+            ></div>
+            <p class="text-sm font-medium">Initializing inference session...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Region Gallery -->
       <RegionGallery
         :key="regionId"
         :images="sortedTopoImages"
@@ -34,7 +78,7 @@
       >
         <template #default="{ img, selected }">
           <div
-            class="region-gallery-content"
+            class="relative overflow-hidden group"
             :style="getTileStyle(img, selected)"
             v-tooltip="{
               content: tooltipContent(img),
@@ -45,65 +89,83 @@
               autoHide: true,
             }"
           >
+            <!-- Visualize Button -->
             <button
-              class="visualize-btn"
               v-if="inferenceStore.inferenceResults[img]"
               @click.stop="onTileVisualize(img)"
               :aria-pressed="currentlyVisualizedImage === img"
               title="Visualize matches"
-              style="
-                position: absolute;
-                top: 6px;
-                left: 6px;
-                background: rgba(255, 255, 255, 0.85);
-                border: none;
-                border-radius: 50%;
-                padding: 2px;
-                cursor: pointer;
-                z-index: 2;
-                transition: background 0.2s;
-                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-              "
+              class="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-200 rounded-full p-1.5 shadow-sm transition-all duration-200 opacity-0 group-hover:opacity-100"
             >
               <svg
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
+                class="w-4 h-4 text-blue-600"
                 fill="none"
-                xmlns="http://www.w3.org/2000/svg"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <ellipse
-                  cx="10"
-                  cy="10"
-                  rx="8"
-                  ry="5"
-                  stroke="#1976d2"
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
                   stroke-width="2"
-                  fill="none"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                 />
-                <circle cx="10" cy="10" r="2.5" fill="#1976d2" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
               </svg>
             </button>
-            <div class="region-gallery-image-wrapper">
-              <img :src="img" alt="region image" />
-              <span
+
+            <!-- Image Container -->
+            <div class="w-full h-full flex items-center justify-center relative">
+              <img :src="img" alt="region image" class="max-w-full max-h-full object-cover" />
+
+              <!-- Processing Spinner -->
+              <div
                 v-if="inferenceStore.currentlyProcessingImage === img"
-                class="mini-spinner"
-              ></span>
+                class="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+              >
+                <div
+                  class="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin"
+                ></div>
+              </div>
             </div>
-            <div class="region-gallery-filename">{{ img.split("/").pop() }}</div>
+
+            <!-- Filename -->
+            <div
+              class="absolute bottom-1 left-1 right-1 bg-black/70 backdrop-blur-sm rounded px-2 py-1"
+            >
+              <p class="text-white text-xs font-medium truncate">{{ img.split("/").pop() }}</p>
+            </div>
           </div>
         </template>
       </RegionGallery>
 
+      <!-- Visualization Modal -->
       <dialog
         ref="visualizationDialog"
-        class="visualization-modal"
+        class="fixed inset-0 w-full h-full max-w-none max-h-none bg-black/95 backdrop-blur-sm hidden flex-col items-center justify-center border-0 p-0 m-0 overflow-hidden z-50 open:flex"
         @close="onDialogClose"
-        :open="currentlyVisualizedImage !== null"
       >
-        <button class="close-modal-btn" @click="closeVisualizationModal">×</button>
-        <canvas ref="visualizationCanvas" class="visualization-canvas"></canvas>
+        <button
+          @click="closeVisualizationModal"
+          class="absolute top-4 right-4 z-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/20 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+        <canvas
+          ref="visualizationCanvas"
+          class="max-w-[90vw] max-h-[80vh] bg-gray-800 rounded-lg shadow-2xl border border-gray-600"
+        ></canvas>
       </dialog>
 
       <MainFooter />
@@ -188,6 +250,10 @@ function onTileVisualize(img) {
   currentlyVisualizedImage.value = img;
   const result = inferenceStore.inferenceResults[img];
   if (result) {
+    // Open the dialog first
+    if (visualizationDialog.value) {
+      visualizationDialog.value.showModal();
+    }
     nextTick(() => {
       drawVisualization(result.rawData, result.images, result.imgWidth, result.imgHeight);
     });
@@ -286,124 +352,3 @@ onUnmounted(() => {
   inferenceStore.resetInferenceState();
 });
 </script>
-
-<style scoped>
-/* Add your styles here */
-.spinner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100px;
-}
-
-.spinner-icon {
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid #1976d2;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.region-gallery-content {
-  position: relative;
-  overflow: hidden;
-}
-
-.region-gallery-image-wrapper {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.region-gallery-image-wrapper img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: cover;
-}
-
-.region-gallery-filename {
-  position: absolute;
-  bottom: 4px;
-  left: 4px;
-  right: 4px;
-  color: white;
-  font-size: 0.8em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
-}
-
-.mini-spinner {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 24px;
-  height: 24px;
-  margin-top: -12px;
-  margin-left: -12px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top: 3px solid #1976d2;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-.visualization-modal {
-  position: fixed;
-  top: 0;
-  width: 100vw;
-  height: 100vh;
-  max-width: 100vw;
-  max-height: 100vh;
-  padding: 0;
-  margin: 0;
-  border: none;
-  background: rgba(0, 0, 0, 0.95);
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  z-index: 10000;
-}
-
-.visualization-modal:open {
-  display: flex;
-}
-
-.close-modal-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1.5em;
-  cursor: pointer;
-}
-
-.visualization-canvas {
-  display: block;
-  max-width: 90vw;
-  max-height: 80vh;
-  margin: 2em auto 1em auto;
-  background: #222;
-  border-radius: 8px;
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
-}
-
-.session-status {
-  color: #666;
-  font-style: italic;
-  margin-top: 0.5em;
-  font-size: 0.9em;
-}
-</style>
