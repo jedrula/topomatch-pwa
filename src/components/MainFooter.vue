@@ -8,9 +8,7 @@
     </button>
     <div v-if="showDebugInfo" class="mt-2 text-sm text-gray-600">
       <p v-if="inferenceStore.sessionTime">Session Time: {{ inferenceStore.sessionTime }}</p>
-      <p v-if="inferenceStore.matchCount !== null">
-        Best Match Count: {{ inferenceStore.matchCount }}
-      </p>
+      <p v-if="bestMatchCount !== null">Best Match Count: {{ bestMatchCount }}</p>
       <p v-if="wasmThreadsSupported">WebAssembly Threads Supported: {{ wasmThreadsSupported }}</p>
       <p v-if="wasmSimdSupported">WebAssembly SIMD Supported: {{ wasmSimdSupported }}</p>
       <p v-if="browserInfo">Browser Info: {{ browserInfo.name }} {{ browserInfo.version }}</p>
@@ -19,7 +17,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import * as wasmFeatureDetect from "wasm-feature-detect";
 import Bowser from "bowser";
 import { useInferenceStore } from "@/stores/inferenceStore";
@@ -30,6 +28,12 @@ const showDebugInfo = ref(false);
 const wasmThreadsSupported = ref(null);
 const wasmSimdSupported = ref(null);
 const browserInfo = ref(null);
+
+// Get the best match count from the first item in sortedMatchCounts
+const bestMatchCount = computed(() => {
+  const sortedCounts = Object.values(inferenceStore.sortedMatchCounts);
+  return sortedCounts.length > 0 ? sortedCounts[0] : null;
+});
 
 function toggleDebugInfo() {
   showDebugInfo.value = !showDebugInfo.value;

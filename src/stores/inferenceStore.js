@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
 export const useInferenceStore = defineStore("inference", () => {
   const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
@@ -44,6 +44,16 @@ export const useInferenceStore = defineStore("inference", () => {
 
   // Start session creation immediately
   initializeSession();
+
+  // Computed property to get match counts sorted by value (descending)
+  const sortedMatchCounts = computed(() => {
+    return Object.entries(matchCounts.value)
+      .sort(([, a], [, b]) => b - a) // sort by match count descending
+      .reduce((acc, [imagePath, count]) => {
+        acc[imagePath] = count;
+        return acc;
+      }, {});
+  });
 
   const runInferenceBatch = async (userFile, topoImagePaths) => {
     // Check if session is ready before starting inference
@@ -141,6 +151,7 @@ export const useInferenceStore = defineStore("inference", () => {
     loadingMessage,
     inferenceResults,
     matchCounts,
+    sortedMatchCounts,
     inferenceTimes,
     currentlyProcessingImage,
     errorString,

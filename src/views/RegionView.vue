@@ -257,11 +257,18 @@ function tooltipContent(img) {
 
 const sortedTopoImages = computed(() => {
   if (topoImages.value.length === 0) return [];
-  return [...topoImages.value].sort((a, b) => {
-    const aMatches = inferenceStore.matchCounts[a] || 0;
-    const bMatches = inferenceStore.matchCounts[b] || 0;
-    return bMatches - aMatches; // sort descending
-  });
+
+  // Get the sorted order from the store's sortedMatchCounts
+  const sortedImagePaths = Object.keys(inferenceStore.sortedMatchCounts);
+
+  // Return topoImages sorted by the order from sortedMatchCounts
+  // Images with match counts come first, then remaining images
+  const imagesWithoutMatches = topoImages.value.filter((img) => !sortedImagePaths.includes(img));
+
+  return [
+    ...sortedImagePaths.filter((img) => topoImages.value.includes(img)), // sorted by match count
+    ...imagesWithoutMatches, // remaining images at the end
+  ];
 });
 
 onMounted(() => {
