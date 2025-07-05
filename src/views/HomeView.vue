@@ -48,7 +48,6 @@
               theme: 'tooltip',
               autoHide: true,
             }"
-            style="cursor: pointer; position: relative"
           >
             <button
               class="visualize-btn"
@@ -169,10 +168,6 @@ function onFileChange(event) {
   if (file) {
     userImageFile.value = file;
   }
-}
-
-function onTopoSelected(images) {
-  topoImages.value = images;
 }
 
 // Called by RegionGallery when it loads all images

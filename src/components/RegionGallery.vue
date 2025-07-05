@@ -28,18 +28,9 @@ const props = defineProps({
 
 const imagesRef = ref([]); // renamed to avoid collision
 const selectedImages = ref([]);
-const emit = defineEmits(["topo-selected", "topo-list-loaded"]);
+const emit = defineEmits(["topo-list-loaded"]);
 
 const imagesProp = computed(() => props.images ?? imagesRef.value);
-
-function selectImage(img) {
-  if (selectedImages.value.includes(img)) {
-    selectedImages.value = selectedImages.value.filter((i) => i !== img);
-  } else {
-    selectedImages.value.push(img);
-  }
-  emit("topo-selected", [...selectedImages.value]);
-}
 
 onMounted(async () => {
   try {
@@ -48,7 +39,6 @@ onMounted(async () => {
       imagesRef.value = await resp.json();
       selectedImages.value = [...imagesRef.value]; // select all by default
       emit("topo-list-loaded", [...imagesRef.value]);
-      emit("topo-selected", [...imagesRef.value]);
       return;
     } else {
       alert("Could not load region manifest.json (HTTP " + resp.status + ")");
@@ -76,9 +66,6 @@ onMounted(async () => {
 .gallery-fade-enter-from,
 .gallery-fade-leave-to {
   opacity: 0;
-}
-.region-gallery-item {
-  cursor: pointer;
 }
 
 .region-gallery-img-wrapper {
