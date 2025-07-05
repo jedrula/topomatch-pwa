@@ -5,7 +5,6 @@
     </div>
 
     <template v-if="selectedRegionId">
-      <p v-if="sessionTime">Session Time: {{ sessionTime }}</p>
       <p v-if="errorString" style="color: red">Error: {{ errorString }}</p>
 
       <div v-if="isLoading" class="spinner">
