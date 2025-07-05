@@ -61,6 +61,7 @@
         :visualization-data="currentVisualizationData"
         :image-list="sortedTopoImages"
         :current-image-index="currentImageIndex"
+        :visualization-availability="visualizationAvailability"
         @close="onDialogClose"
         @toggle-mode="toggleModalMode"
         @navigate="onNavigateImage"
@@ -139,6 +140,14 @@ const currentImageIndex = computed(() => {
   return sortedTopoImages.value.indexOf(currentlyVisualizedImage.value);
 });
 
+const visualizationAvailability = computed(() => {
+  const availability = {};
+  for (const image of sortedTopoImages.value) {
+    availability[image] = !!inferenceStore.inferenceResults[image];
+  }
+  return availability;
+});
+
 function onFileChange(file) {
   if (file) {
     userImageFile.value = file;
@@ -212,10 +221,21 @@ function onDialogClose() {
   previewImage.value = null;
 }
 
-function onNavigateImage(newIndex) {
+function onNavigateImage(navigationData) {
+  // Handle both old format (just index) and new format (object with index and mode)
+  const newIndex = typeof navigationData === "number" ? navigationData : navigationData.index;
+  const suggestedMode = typeof navigationData === "object" ? navigationData.mode : modalMode.value;
+
   const newImage = sortedTopoImages.value[newIndex];
   if (newImage) {
     currentlyVisualizedImage.value = newImage;
+
+    // Switch mode if suggested and different from current
+    if (suggestedMode !== modalMode.value) {
+      modalMode.value = suggestedMode;
+    }
+
+    // Update preview image for preview mode
     if (modalMode.value === "preview") {
       previewImage.value = newImage;
     }

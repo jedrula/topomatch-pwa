@@ -148,6 +148,10 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  visualizationAvailability: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 const emit = defineEmits(["close", "toggle-mode", "navigate"]);
@@ -178,7 +182,17 @@ const toggleMode = () => {
 const navigateImage = (direction) => {
   const newIndex = props.currentImageIndex + direction;
   if (newIndex >= 0 && newIndex < props.imageList.length) {
-    emit("navigate", newIndex);
+    const nextImage = props.imageList[newIndex];
+    const hasVisualizationData = props.visualizationAvailability[nextImage];
+
+    // If we're in visualization mode but the next image can't be visualized,
+    // suggest switching to preview mode
+    let suggestedMode = props.modalMode;
+    if (props.modalMode === "visualization" && !hasVisualizationData) {
+      suggestedMode = "preview";
+    }
+
+    emit("navigate", { index: newIndex, mode: suggestedMode });
   }
 };
 

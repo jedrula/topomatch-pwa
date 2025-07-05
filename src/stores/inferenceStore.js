@@ -64,6 +64,8 @@ export const useInferenceStore = defineStore("inference", () => {
 
     isLoading.value = true;
     loadingMessage.value = `Inferencing with user image and ${topoImagePaths.length} topo images...`;
+    const MATCH_THRESHOLD = 50; // Store results if matches >= 50
+    const allResults = {}; // Store all results temporarily
     let bestResult = null;
     let bestMatches = -Infinity;
     let bestImgPath = null;
@@ -95,14 +97,22 @@ export const useInferenceStore = defineStore("inference", () => {
             const matches = data.results.matches?.dims?.[0] ?? null;
             matchCounts.value[imgPath] = matches;
 
+            const currentResult = {
+              rawData: data.results,
+              images: data.images,
+              imgWidth: data.imgWidth,
+              imgHeight: data.imgHeight,
+            };
+
+            // Store result if it meets threshold or is the best so far
+            if (matches !== null && matches >= MATCH_THRESHOLD) {
+              allResults[imgPath] = currentResult;
+            }
+
+            // Track the best result regardless of threshold
             if (matches !== null && matches > bestMatches) {
               bestMatches = matches;
-              bestResult = {
-                rawData: data.results,
-                images: data.images,
-                imgWidth: data.imgWidth,
-                imgHeight: data.imgHeight,
-              };
+              bestResult = currentResult;
               bestImgPath = imgPath;
             }
 
@@ -124,9 +134,9 @@ export const useInferenceStore = defineStore("inference", () => {
       });
     }
 
-    // Only keep the best result for visualization
-    inferenceResults.value = {};
-    if (bestResult && bestImgPath) {
+    // Store results: all above threshold + ensure best match is included
+    inferenceResults.value = { ...allResults };
+    if (bestResult && bestImgPath && !inferenceResults.value[bestImgPath]) {
       inferenceResults.value[bestImgPath] = bestResult;
     }
 
@@ -134,7 +144,8 @@ export const useInferenceStore = defineStore("inference", () => {
     isLoading.value = false;
     loadingMessage.value = "";
 
-    console.log("Best result:", bestResult);
+    console.log("Results stored for", Object.keys(inferenceResults.value).length, "images");
+    console.log("Best result:", bestResult, "with", bestMatches, "matches");
 
     // Call the completion callback if provided
     if (onComplete && bestImgPath) {
