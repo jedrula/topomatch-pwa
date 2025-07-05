@@ -55,7 +55,7 @@ export const useInferenceStore = defineStore("inference", () => {
       }, {});
   });
 
-  const runInferenceBatch = async (userFile, topoImagePaths) => {
+  const runInferenceBatch = async (userFile, topoImagePaths, onComplete = null) => {
     // Check if session is ready before starting inference
     if (!sessionReady.value) {
       errorString.value = "Inference session is not ready yet. Please wait.";
@@ -135,6 +135,14 @@ export const useInferenceStore = defineStore("inference", () => {
     loadingMessage.value = "";
 
     console.log("Best result:", bestResult);
+
+    // Call the completion callback if provided
+    if (onComplete && bestImgPath) {
+      // Add a small delay to let the UI update and show the results first
+      setTimeout(() => {
+        onComplete(bestImgPath);
+      }, 1000);
+    }
   };
 
   const resetInferenceState = () => {

@@ -57,6 +57,7 @@
         class="fixed inset-0 w-full h-full max-w-none max-h-none bg-black/95 backdrop-blur-sm hidden flex-col items-center justify-center border-0 p-0 m-0 overflow-hidden z-50 open:flex"
         @close="onDialogClose"
       >
+        <!-- Close button -->
         <button
           @click="closeVisualizationModal"
           class="absolute top-4 right-4 z-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/20 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200"
@@ -71,12 +72,59 @@
           </svg>
         </button>
 
+        <!-- Toggle between Preview/Visualization button -->
+        <button
+          v-if="canVisualize"
+          @click="toggleModalMode"
+          class="absolute top-4 left-4 z-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/20 rounded-lg px-3 py-2 flex items-center gap-2 transition-all duration-200"
+        >
+          <svg
+            v-if="modalMode === 'preview'"
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+            />
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+          <span class="text-sm">
+            {{ modalMode === "preview" ? "Show Matches" : "Show Image" }}
+          </span>
+        </button>
+
         <!-- Visualization Canvas (for match visualization) -->
         <canvas
           v-if="modalMode === 'visualization'"
           ref="visualizationCanvas"
           class="max-w-[90vw] max-h-[80vh] bg-gray-800 rounded-lg shadow-2xl border border-gray-600"
         ></canvas>
+
+        <!-- Winner indicator for best match visualization -->
+        <div
+          v-if="modalMode === 'visualization' && currentlyVisualizedImage === winnerImage"
+          class="absolute top-16 left-4 bg-green-500/20 backdrop-blur-sm border border-green-400/30 rounded-lg px-3 py-2 text-green-100 text-sm font-medium"
+        >
+          🏆 Best Match
+        </div>
 
         <!-- Image Preview (for large image view) -->
         <div
@@ -97,7 +145,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted, watch } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
 import FileUploadSection from "@/components/FileUploadSection.vue";
@@ -137,12 +185,29 @@ const hasCompletedInference = computed(() => {
   );
 });
 
+const winnerImage = computed(() => {
+  if (!hasCompletedInference.value) return null;
+
+  // Get the image with the highest match count
+  const sortedEntries = Object.entries(inferenceStore.sortedMatchCounts);
+  if (sortedEntries.length === 0) return null;
+
+  return sortedEntries[0][0]; // Return the image path of the top match
+});
+
+const canVisualize = computed(() => {
+  return (
+    currentlyVisualizedImage.value &&
+    inferenceStore.inferenceResults[currentlyVisualizedImage.value]
+  );
+});
+
 function onFileChange(file) {
   if (file) {
     userImageFile.value = file;
     // Automatically run inference when image is selected
     if (topoImages.value.length > 0 && inferenceStore.sessionReady) {
-      inferenceStore.runInferenceBatch(file, topoImages.value);
+      inferenceStore.runInferenceBatch(file, topoImages.value, onInferenceComplete);
     } else if (topoImages.value.length === 0) {
       inferenceStore.errorString = "Please wait for topo images to load.";
     } else {
@@ -158,7 +223,7 @@ function onTopoListLoaded(images) {
 
   // If user has already selected an image, run inference now
   if (userImageFile.value && inferenceStore.sessionReady) {
-    inferenceStore.runInferenceBatch(userImageFile.value, topoImages.value);
+    inferenceStore.runInferenceBatch(userImageFile.value, topoImages.value, onInferenceComplete);
   }
 }
 
@@ -170,6 +235,27 @@ function resetForNewUpload() {
   // The FileUploadSection component handles its own state reset
   // Clear the file input is now handled by the component
   // Just reset our local state if needed
+}
+
+// Callback for when inference completes - auto-open visualization of best match
+function onInferenceComplete(bestImagePath) {
+  onTileVisualize(bestImagePath);
+}
+
+function toggleModalMode() {
+  if (modalMode.value === "preview") {
+    modalMode.value = "visualization";
+    // Draw the visualization when switching to it
+    const result = inferenceStore.inferenceResults[currentlyVisualizedImage.value];
+    if (result) {
+      setTimeout(() => {
+        drawVisualization(result.rawData, result.images, result.imgWidth, result.imgHeight);
+      }, 0);
+    }
+  } else {
+    modalMode.value = "preview";
+    previewImage.value = currentlyVisualizedImage.value;
+  }
 }
 
 function onTileVisualize(img) {
