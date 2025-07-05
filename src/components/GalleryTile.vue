@@ -36,6 +36,21 @@
       </svg>
     </button>
 
+    <!-- Cache Status Indicator -->
+    <div
+      v-if="isCached"
+      class="absolute top-2 right-2 z-10 bg-green-500 text-white rounded-full p-1 shadow-sm"
+      title="Downloaded for offline use"
+    >
+      <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fill-rule="evenodd"
+          d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    </div>
+
     <!-- Image Container -->
     <div class="w-full h-full flex items-center justify-center relative">
       <CachedImage :src="img" alt="region image" class="max-w-full max-h-full object-cover" />
@@ -59,8 +74,9 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useInferenceStore } from "@/stores/inferenceStore";
+import { imageCacheService } from "@/services/imageCacheService";
 import CachedImage from "@/components/CachedImage.vue";
 
 const props = defineProps({
@@ -81,6 +97,47 @@ const props = defineProps({
 const emit = defineEmits(["visualize", "click"]);
 
 const inferenceStore = useInferenceStore();
+const isCached = ref(false);
+
+// Check if image is cached
+const checkCacheStatus = async () => {
+  try {
+    isCached.value = await imageCacheService.isImageCached(props.img);
+  } catch (error) {
+    console.error('Error checking cache status:', error);
+  }
+};
+
+// Check cache status on mount and when img changes
+onMounted(async () => {
+  // Small delay to ensure cache service is initialized
+  await new Promise(resolve => setTimeout(resolve, 50));
+  await checkCacheStatus();
+  
+  // Listen for cache updates
+  imageCacheService.addEventListener('cacheUpdated', handleCacheUpdate);
+  imageCacheService.addEventListener('cacheRefresh', handleCacheRefresh);
+});
+
+onUnmounted(() => {
+  imageCacheService.removeEventListener('cacheUpdated', handleCacheUpdate);
+  imageCacheService.removeEventListener('cacheRefresh', handleCacheRefresh);
+});
+
+watch(() => props.img, checkCacheStatus);
+
+// Handle cache update events
+const handleCacheUpdate = (event) => {
+  const { imagePath, action } = event.detail;
+  if (imagePath === props.img) {
+    isCached.value = action === 'cached';
+  }
+};
+
+// Handle cache refresh events
+const handleCacheRefresh = async () => {
+  await checkCacheStatus();
+};
 
 function onVisualize() {
   emit("visualize", props.img);

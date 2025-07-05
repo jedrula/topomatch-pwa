@@ -53,21 +53,6 @@ export default defineConfig({
             handler: "StaleWhileRevalidate",
           },
           {
-            // Cache topo images specifically with longer cache time
-            urlPattern: /\/topos\/.*\.(jpg|jpeg|png|webp|svg)$/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "topo-images-cache",
-              expiration: {
-                maxEntries: 200, // Cache up to 200 topo images
-                maxAgeSeconds: 60 * 60 * 24 * 30, // Cache for 30 days
-              },
-              cacheableResponse: {
-                statuses: [200],
-              },
-            },
-          },
-          {
             urlPattern: ({ request }) => request.destination === "image",
             handler: "CacheFirst",
           },

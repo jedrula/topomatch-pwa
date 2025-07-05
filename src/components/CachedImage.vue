@@ -10,8 +10,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
-import { imageCacheService } from '@/services/imageCacheService';
+import { ref, onMounted, watch } from "vue";
+import { imageCacheService } from "@/services/imageCacheService";
 
 const props = defineProps({
   src: {
@@ -20,11 +20,11 @@ const props = defineProps({
   },
   alt: {
     type: String,
-    default: '',
+    default: "",
   },
   class: {
     type: String,
-    default: '',
+    default: "",
   },
 });
 
@@ -40,7 +40,7 @@ const loadFromCache = async (imagePath) => {
       console.log(`Loaded from cache: ${imagePath}`);
     }
   } catch (error) {
-    console.error('Error loading from cache:', error);
+    console.error("Error loading from cache:", error);
   }
 };
 
@@ -62,20 +62,23 @@ onMounted(() => {
 });
 
 // Watch for src changes
-watch(() => props.src, (newSrc) => {
-  cachedSrc.value = null; // Reset cached src
-  loadFromCache(newSrc);
-});
+watch(
+  () => props.src,
+  (newSrc) => {
+    cachedSrc.value = null; // Reset cached src
+    loadFromCache(newSrc);
+  }
+);
 
 // Clean up blob URLs when component unmounts
 const cleanup = () => {
-  if (cachedSrc.value && cachedSrc.value.startsWith('blob:')) {
+  if (cachedSrc.value && cachedSrc.value.startsWith("blob:")) {
     URL.revokeObjectURL(cachedSrc.value);
   }
 };
 
 // Note: Vue 3 doesn't have beforeUnmount in script setup, but we can use onBeforeUnmount
-import { onBeforeUnmount } from 'vue';
+import { onBeforeUnmount } from "vue";
 onBeforeUnmount(cleanup);
 </script>
 

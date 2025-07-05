@@ -32,19 +32,11 @@
         @reset-upload="resetForNewUpload"
       />
 
-      <!-- Cache Status Indicator -->
-      <div v-if="cacheProgress.isLoading" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm text-blue-700 font-medium">Caching images for offline use...</span>
-          <span class="text-xs text-blue-600">{{ cacheProgress.current }}/{{ cacheProgress.total }}</span>
-        </div>
-        <div class="w-full bg-blue-200 rounded-full h-2">
-          <div 
-            class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-            :style="{ width: `${(cacheProgress.current / cacheProgress.total) * 100}%` }"
-          ></div>
-        </div>
-      </div>
+      <!-- Region Cache Manager -->
+      <RegionCacheManager
+        :region-id="regionId"
+        :image-paths="allTopoImages"
+      />
 
       <!-- Region Gallery -->
       <RegionGallery
@@ -97,6 +89,7 @@ import AppHeader from "@/components/AppHeader.vue";
 import FileUploadSection from "@/components/FileUploadSection.vue";
 import GalleryTile from "@/components/GalleryTile.vue";
 import RegionGallery from "@/components/RegionGallery.vue";
+import RegionCacheManager from "@/components/RegionCacheManager.vue";
 import VisualizationModal from "@/components/VisualizationModal.vue";
 import MainFooter from "@/components/MainFooter.vue";
 import { useInferenceStore } from "@/stores/inferenceStore";
@@ -113,7 +106,6 @@ const inferenceStore = useInferenceStore();
 const userImageFile = ref(null);
 const topoImages = ref([]); // array of selected topo images
 const allTopoImages = ref([]); // all available topo images
-const cacheProgress = ref({ current: 0, total: 0, isLoading: false });
 const currentlyVisualizedImage = ref(null);
 const visualizationModalRef = ref(null);
 const modalMode = ref(""); // 'visualization' or 'preview'
@@ -199,26 +191,9 @@ function onFileChange(file) {
 }
 
 // Called by RegionGallery when it loads all images
-async function onTopoListLoaded(images) {
+function onTopoListLoaded(images) {
   allTopoImages.value = images;
   topoImages.value = [...images]; // select all by default
-
-  // Start caching images in the background
-  cacheProgress.value = { current: 0, total: images.length, isLoading: true };
-  
-  try {
-    console.log(`Starting to cache ${images.length} images for region ${regionId}`);
-    
-    await imageCacheService.cacheRegionImages(images, (current, total) => {
-      cacheProgress.value = { current, total, isLoading: current < total };
-    });
-    
-    console.log(`Successfully cached all images for region ${regionId}`);
-    cacheProgress.value = { current: images.length, total: images.length, isLoading: false };
-  } catch (error) {
-    console.error('Error caching region images:', error);
-    cacheProgress.value = { ...cacheProgress.value, isLoading: false };
-  }
 
   // If user has already selected an image, run inference now
   if (userImageFile.value && inferenceStore.sessionReady) {
@@ -315,6 +290,11 @@ onMounted(() => {
   // Session is created eagerly when the store is initialized
   // No need to create session here anymore
   console.log("RegionView mounted, session ready:", inferenceStore.sessionReady);
+  
+  // Trigger cache status refresh for all components
+  setTimeout(() => {
+    imageCacheService.refreshCacheStatus();
+  }, 200);
 });
 
 onUnmounted(() => {
