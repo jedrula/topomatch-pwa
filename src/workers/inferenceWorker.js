@@ -2,11 +2,23 @@ self.onmessage = async (event) => {
   const { type, userImageBuffer, topoImageBuffer } = event.data;
 
   if (type === "createSession") {
-    console.log("createSession in worker");
+    console.log("createSession in worker 2");
     try {
       const startTime = performance.now();
+      // Use WASM options to enable SIMD and threads if supported
       const session = await ort.InferenceSession.create(
-        "../../superpoint_lightglue_pipeline.ort.onnx"
+        "../../superpoint_lightglue_pipeline.ort.onnx",
+        {
+          executionProviders: ["wasm"],
+          graphOptimizationLevel: "all",
+          wasm: {
+            numThreads: navigator.hardwareConcurrency
+              ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
+              : 2,
+            simd: true,
+            threads: true,
+          },
+        }
       );
       const endTime = performance.now();
 

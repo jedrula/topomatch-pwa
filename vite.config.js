@@ -39,7 +39,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 60 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 70 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === "document",
@@ -53,6 +53,20 @@ export default defineConfig({
           {
             urlPattern: ({ request }) => request.destination === "image",
             handler: "CacheFirst",
+          },
+          {
+            urlPattern: /.*\.onnx$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "onnx-model-cache",
+              expiration: {
+                maxEntries: 1,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // Cache for 30 days
+              },
+              cacheableResponse: {
+                statuses: [200],
+              },
+            },
           },
         ],
       },
