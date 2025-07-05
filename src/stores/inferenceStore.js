@@ -1,0 +1,137 @@
+import { defineStore } from "pinia";
+import { ref } from "vue";
+
+export const useInferenceStore = defineStore("inference", () => {
+  const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
+    type: "module",
+  });
+
+  const sessionTime = ref(null);
+  const isLoading = ref(false);
+  const loadingMessage = ref("");
+  const inferenceResults = ref({});
+  const matchCounts = ref({});
+  const inferenceTimes = ref({});
+  const currentlyProcessingImage = ref(null);
+  const matchCount = ref(null);
+  const errorString = ref(null);
+
+  inferenceWorker.onmessage = (event) => {
+    const { type, data } = event.data;
+    if (type === "inferenceComplete") {
+      console.log("Inference results:", data.results);
+      matchCount.value = data.results.matches?.dims?.[0] ?? null;
+    } else if (type === "sessionCreated") {
+      sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
+      isLoading.value = false;
+      console.log("Session created in:", sessionTime.value);
+    } else if (type === "workerMemoryInfo") {
+      console.log("Worker memory info:", data.memory);
+    }
+  };
+
+  const createSession = async () => {
+    isLoading.value = true;
+    loadingMessage.value = "Creating session...";
+    inferenceWorker.postMessage({ type: "createSession" });
+  };
+
+  const runInferenceBatch = async (userFile, topoImagePaths) => {
+    isLoading.value = true;
+    loadingMessage.value = `Inferencing with user image and ${topoImagePaths.length} topo images...`;
+    matchCount.value = null;
+    let bestResult = null;
+    let bestMatches = -Infinity;
+    let bestImgPath = null;
+
+    // Read user image buffer once
+    const userArrayBuffer = await userFile.arrayBuffer();
+
+    for (let i = 0; i < topoImagePaths.length; i++) {
+      const imgPath = topoImagePaths[i];
+      currentlyProcessingImage.value = imgPath;
+      loadingMessage.value = `Comparing with ${imgPath.split("/").pop()} (${i + 1}/${
+        topoImagePaths.length
+      })...`;
+
+      const resp = await fetch(imgPath);
+      const topoBlob = await resp.blob();
+      const topoArrayBuffer = await topoBlob.arrayBuffer();
+
+      // Clone the userArrayBuffer for each transfer to avoid DataCloneError
+      const userArrayBufferCopy = userArrayBuffer.slice(0);
+      const start = performance.now();
+
+      await new Promise((resolve) => {
+        const handler = (event) => {
+          const { type, data } = event.data;
+          if (type === "inferenceComplete") {
+            const elapsed = performance.now() - start;
+            inferenceTimes.value[imgPath] = elapsed;
+            const matches = data.results.matches?.dims?.[0] ?? null;
+            matchCounts.value[imgPath] = matches;
+
+            if (matches !== null && matches > bestMatches) {
+              bestMatches = matches;
+              bestResult = {
+                rawData: data.results,
+                images: data.images,
+                imgWidth: data.imgWidth,
+                imgHeight: data.imgHeight,
+              };
+              bestImgPath = imgPath;
+            }
+            matchCount.value = matches;
+            resolve();
+          }
+        };
+
+        inferenceWorker.addEventListener("message", handler);
+        inferenceWorker.postMessage(
+          {
+            type: "runInference",
+            userImageBuffer: userArrayBufferCopy,
+            topoImageBuffer: topoArrayBuffer,
+          },
+          [userArrayBufferCopy, topoArrayBuffer]
+        );
+      });
+    }
+
+    // Only keep the best result for visualization
+    inferenceResults.value = {};
+    if (bestResult && bestImgPath) {
+      inferenceResults.value[bestImgPath] = bestResult;
+    }
+
+    currentlyProcessingImage.value = null;
+    isLoading.value = false;
+    loadingMessage.value = "";
+
+    console.log("Best result:", bestResult);
+  };
+
+  const resetInferenceState = () => {
+    matchCount.value = null;
+    inferenceResults.value = {};
+    matchCounts.value = {};
+    inferenceTimes.value = {};
+    currentlyProcessingImage.value = null;
+    errorString.value = null;
+  };
+
+  return {
+    sessionTime,
+    isLoading,
+    loadingMessage,
+    inferenceResults,
+    matchCounts,
+    inferenceTimes,
+    currentlyProcessingImage,
+    matchCount,
+    errorString,
+    createSession,
+    runInferenceBatch,
+    resetInferenceState,
+  };
+});
