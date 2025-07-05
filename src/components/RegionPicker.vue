@@ -1,19 +1,37 @@
 <template>
-  <div class="mb-4">
-    <label for="region-picker" class="block text-lg font-semibold text-gray-700 mb-2">
-      Select Location:
-    </label>
+  <div class="text-center">
     <select
       id="region-picker"
       v-model="selectedRegionId"
-      @change="$emit('regionChange', $event.target.value)"
-      class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      @change="$emit('regionChange', selectedRegionId)"
+      class="p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mx-auto"
     >
-      <option disabled value="" class="text-gray-500">-- Select a location --</option>
+      <option disabled value="" class="text-gray-500">Select a location</option>
       <option v-for="region in regions" :key="region.id" :value="region.id" class="text-gray-700">
         {{ region.name }}
       </option>
     </select>
+
+    <h2 class="text-lg font-semibold text-gray-700 mt-6">Popular Locations</h2>
+    <div class="grid grid-cols-2 gap-4 mt-4 mx-auto" style="max-width: fit-content">
+      <div
+        v-for="region in regions"
+        :key="region.id"
+        @click="
+          selectedRegionId = region.id;
+          $emit('regionChange', region.id);
+        "
+        class="cursor-pointer w-32 h-32 border border-gray-300 rounded-md shadow-sm p-2 hover:bg-gray-100"
+      >
+        <img
+          :src="region.thumbnail"
+          alt="region.name"
+          class="w-full object-cover rounded-md"
+          style="aspect-ratio: 1 / 1"
+        />
+        <p class="text-sm text-gray-700 mt-2">{{ region.name }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -26,8 +44,8 @@ const selectedRegionId = defineModel({
 });
 
 const regions = [
-  { name: "Stokówka", id: "stokowka" },
-  { name: "Wibrem 23 May", id: "wibrem-23-may" },
+  { name: "Stokówka", id: "stokowka", thumbnail: "/images/stokowka.jpg" },
+  { name: "Wibrem 23 May", id: "wibrem-23-may", thumbnail: "/images/wibrem-23-may.jpg" },
 ];
 </script>
 

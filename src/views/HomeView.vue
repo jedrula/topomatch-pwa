@@ -1,6 +1,6 @@
 <template>
   <main>
-    <div style="margin-bottom: 2em">
+    <div class="my-2">
       <RegionPicker v-model="selectedRegionId" @regionChange="onRegionChange" />
     </div>
 
