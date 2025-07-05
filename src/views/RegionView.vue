@@ -46,6 +46,7 @@
             :selected="selected"
             :is-currently-visualized="currentlyVisualizedImage === img"
             @visualize="onTileVisualize"
+            @click="onTileClick"
           />
         </template>
       </RegionGallery>
@@ -69,10 +70,25 @@
             />
           </svg>
         </button>
+
+        <!-- Visualization Canvas (for match visualization) -->
         <canvas
+          v-if="modalMode === 'visualization'"
           ref="visualizationCanvas"
           class="max-w-[90vw] max-h-[80vh] bg-gray-800 rounded-lg shadow-2xl border border-gray-600"
         ></canvas>
+
+        <!-- Image Preview (for large image view) -->
+        <div
+          v-if="modalMode === 'preview'"
+          class="max-w-[90vw] max-h-[80vh] flex items-center justify-center"
+        >
+          <img
+            :src="previewImage"
+            alt="Large image preview"
+            class="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+          />
+        </div>
       </dialog>
 
       <MainFooter />
@@ -81,7 +97,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
 import FileUploadSection from "@/components/FileUploadSection.vue";
@@ -104,6 +120,8 @@ const allTopoImages = ref([]); // all available topo images
 const currentlyVisualizedImage = ref(null);
 const visualizationDialog = ref(null);
 const visualizationCanvas = ref(null);
+const modalMode = ref(""); // 'visualization' or 'preview'
+const previewImage = ref(null);
 
 const regionManifestPath = computed(() => {
   const baseUrl = import.meta.env.BASE_URL;
@@ -155,6 +173,7 @@ function resetForNewUpload() {
 }
 
 function onTileVisualize(img) {
+  modalMode.value = "visualization";
   currentlyVisualizedImage.value = img;
   const result = inferenceStore.inferenceResults[img];
   if (result) {
@@ -169,6 +188,16 @@ function onTileVisualize(img) {
   }
 }
 
+function onTileClick(img) {
+  // Show large image preview
+  modalMode.value = "preview";
+  previewImage.value = img;
+  currentlyVisualizedImage.value = img;
+  if (visualizationDialog.value) {
+    visualizationDialog.value.showModal();
+  }
+}
+
 function closeVisualizationModal() {
   if (visualizationDialog.value) {
     visualizationDialog.value.close();
@@ -177,6 +206,8 @@ function closeVisualizationModal() {
 
 function onDialogClose() {
   currentlyVisualizedImage.value = null;
+  modalMode.value = "";
+  previewImage.value = null;
 }
 
 function drawVisualization(rawData, images, imgWidth, imgHeight) {

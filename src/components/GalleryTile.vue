@@ -1,7 +1,8 @@
 <template>
   <div
-    class="relative overflow-hidden group"
+    class="relative overflow-hidden group cursor-pointer"
     :style="tileStyle"
+    @click="onTileClick"
     v-tooltip="{
       content: tooltipContent,
       html: true,
@@ -76,12 +77,16 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["visualize"]);
+const emit = defineEmits(["visualize", "click"]);
 
 const inferenceStore = useInferenceStore();
 
 function onVisualize() {
   emit("visualize", props.img);
+}
+
+function onTileClick() {
+  emit("click", props.img);
 }
 
 // Helper to get border color based on number of matches
@@ -127,6 +132,11 @@ const tooltipContent = computed(() => {
       inferenceStore.matchCounts[props.img]
     }</div>`;
   }
-  return content || "<em>No data</em>";
+  if (!content) {
+    content = "<em>No data</em>";
+  }
+  content +=
+    "<div class='click-hint' style='margin-top: 8px; font-size: 11px; color: #6b7280;'>Click to view large image</div>";
+  return content;
 });
 </script>
