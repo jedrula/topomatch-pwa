@@ -98,7 +98,7 @@ export const useInferenceStore = defineStore("inference", () => {
               };
               bestImgPath = imgPath;
             }
-            
+
             // Remove the event listener after handling this specific inference
             inferenceWorker.removeEventListener("message", handler);
             resolve();

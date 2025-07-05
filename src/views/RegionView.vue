@@ -18,12 +18,6 @@
         @change="onFileChange"
         :disabled="!inferenceStore.sessionReady"
       />
-      <button
-        @click="onRunInferenceClick"
-        :disabled="!userImageFile || topoImages.length === 0 || !inferenceStore.sessionReady"
-      >
-        Run Inference
-      </button>
       <p v-if="!inferenceStore.sessionReady" class="session-status">
         Initializing inference session...
       </p>
@@ -149,6 +143,14 @@ function onFileChange(event) {
   const file = event.target.files[0];
   if (file) {
     userImageFile.value = file;
+    // Automatically run inference when image is selected
+    if (topoImages.value.length > 0 && inferenceStore.sessionReady) {
+      inferenceStore.runInferenceBatch(file, topoImages.value);
+    } else if (topoImages.value.length === 0) {
+      inferenceStore.errorString = "Please wait for topo images to load.";
+    } else {
+      inferenceStore.errorString = "Inference session is not ready yet.";
+    }
   }
 }
 
@@ -156,18 +158,15 @@ function onFileChange(event) {
 function onTopoListLoaded(images) {
   allTopoImages.value = images;
   topoImages.value = [...images]; // select all by default
+  
+  // If user has already selected an image, run inference now
+  if (userImageFile.value && inferenceStore.sessionReady) {
+    inferenceStore.runInferenceBatch(userImageFile.value, topoImages.value);
+  }
 }
 
 function onTopoSelected(selectedImages) {
   topoImages.value = selectedImages;
-}
-
-function onRunInferenceClick() {
-  if (userImageFile.value && topoImages.value.length > 0) {
-    inferenceStore.runInferenceBatch(userImageFile.value, topoImages.value);
-  } else {
-    inferenceStore.errorString = "Please select an image to match and at least one topo image.";
-  }
 }
 
 // Helper to get border color based on number of matches
