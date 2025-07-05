@@ -25,37 +25,33 @@
         </div>
       </div>
 
-      <!-- Loading Spinner -->
-      <div
-        v-if="inferenceStore.isLoading"
-        class="flex flex-col items-center justify-center py-12 text-center"
-      >
-        <div class="flex items-center space-x-3 mb-4">
-          <div
-            class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"
-          ></div>
-          <p class="text-gray-700 font-medium">{{ inferenceStore.loadingMessage }}</p>
-        </div>
-      </div>
-
       <!-- File Upload Section -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload Image to Match</h2>
-        <div class="space-y-4">
-          <div>
-            <label for="user-image" class="block text-sm font-medium text-gray-700 mb-2">
-              Select your climbing photo:
-            </label>
-            <input
-              id="user-image"
-              type="file"
-              accept="image/*"
-              @change="onFileChange"
-              :disabled="!inferenceStore.sessionReady"
-              class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+      <div
+        v-if="!hasCompletedInference || showUploadSection"
+        class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 transition-all duration-300"
+        :class="{
+          'p-3': inferenceStore.currentlyProcessingImage || inferenceStore.isLoading,
+          'p-4': !inferenceStore.currentlyProcessingImage && !inferenceStore.isLoading,
+        }"
+      >
+        <!-- Processing State -->
+        <div
+          v-if="inferenceStore.currentlyProcessingImage || inferenceStore.isLoading"
+          class="flex items-center justify-center py-2"
+        >
+          <div class="flex items-center space-x-3">
+            <div
+              class="w-5 h-5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin"
+            ></div>
+            <span class="text-sm font-medium text-gray-700">
+              {{ inferenceStore.loadingMessage || "Analyzing your photo..." }}
+            </span>
           </div>
+        </div>
 
+        <!-- Upload State -->
+        <div v-else class="flex flex-col items-center text-center space-y-3">
+          <!-- Initialization Status -->
           <div
             v-if="!inferenceStore.sessionReady"
             class="flex items-center space-x-2 text-amber-600"
@@ -63,8 +59,65 @@
             <div
               class="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin"
             ></div>
-            <p class="text-sm font-medium">Initializing inference session...</p>
+            <span class="text-sm font-medium">Initializing AI model...</span>
           </div>
+
+          <!-- File Input Button -->
+          <div v-else class="relative">
+            <input
+              id="user-image"
+              type="file"
+              accept="image/*"
+              @change="onFileChange"
+              :disabled="!inferenceStore.sessionReady"
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            />
+            <button
+              :disabled="!inferenceStore.sessionReady"
+              class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg shadow-sm transition-colors duration-200 flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span>Upload Photo</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Try Again Section (shown after inference is complete) -->
+      <div
+        v-if="hasCompletedInference && !showUploadSection"
+        class="bg-gray-50 rounded-lg border border-gray-200 p-3 mb-6"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2 text-sm text-gray-600">
+            <svg
+              class="w-4 h-4 text-green-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span>Analysis complete! Click on images below to see matches.</span>
+          </div>
+          <button
+            @click="resetForNewUpload"
+            class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors underline"
+          >
+            Try another photo
+          </button>
         </div>
       </div>
 
@@ -195,16 +248,27 @@ const allTopoImages = ref([]); // all available topo images
 const currentlyVisualizedImage = ref(null);
 const visualizationDialog = ref(null);
 const visualizationCanvas = ref(null);
+const showUploadSection = ref(false);
 
 const regionManifestPath = computed(() => {
   const baseUrl = import.meta.env.BASE_URL;
   return `${baseUrl}topos/${regionId}/manifest.json`;
 });
 
+const hasCompletedInference = computed(() => {
+  return (
+    userImageFile.value &&
+    Object.keys(inferenceStore.inferenceResults).length > 0 &&
+    !inferenceStore.currentlyProcessingImage &&
+    !inferenceStore.isLoading
+  );
+});
+
 function onFileChange(event) {
   const file = event.target.files[0];
   if (file) {
     userImageFile.value = file;
+    showUploadSection.value = false; // Hide upload section during processing
     // Automatically run inference when image is selected
     if (topoImages.value.length > 0 && inferenceStore.sessionReady) {
       inferenceStore.runInferenceBatch(file, topoImages.value);
@@ -229,6 +293,15 @@ function onTopoListLoaded(images) {
 
 function onTopoSelected(selectedImages) {
   topoImages.value = selectedImages;
+}
+
+function resetForNewUpload() {
+  showUploadSection.value = true;
+  // Clear the file input
+  const fileInput = document.getElementById("user-image");
+  if (fileInput) {
+    fileInput.value = "";
+  }
 }
 
 // Helper to get border color based on number of matches
