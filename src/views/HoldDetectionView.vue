@@ -7,9 +7,7 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-3xl font-bold text-gray-900">Hold Detection</h1>
-            <p class="text-gray-600 mt-2">
-              AI-powered climbing hold identification and analysis
-            </p>
+            <p class="text-gray-600 mt-2">AI-powered climbing hold identification and analysis</p>
           </div>
           <router-link
             to="/"
@@ -39,7 +37,7 @@
                 Currently using: WhatsApp Image 2025-05-24 at 00.15.17.jpeg
               </p>
             </div>
-            
+
             <div class="p-6">
               <!-- Image Container -->
               <div class="relative bg-gray-100 rounded-lg overflow-hidden">
@@ -50,22 +48,18 @@
                   class="w-full h-auto object-contain"
                   @load="onImageLoad"
                 />
-                
+
                 <!-- Hold Detection Overlay -->
-                <div
-                  v-if="detectionResults && imageLoaded"
-                  class="absolute inset-0"
-                  :style="{ transform: `scale(${imageScale})`, transformOrigin: 'top left' }"
-                >
+                <div v-if="detectionResults && imageLoaded" class="absolute inset-0 opacity-30">
                   <div
                     v-for="(hold, index) in detectionResults.holds"
                     :key="index"
                     class="absolute border-2 border-red-500 bg-red-500 bg-opacity-20 cursor-pointer hover:bg-opacity-30 transition-all duration-200"
                     :style="{
-                      left: `${hold.x}px`,
-                      top: `${hold.y}px`,
-                      width: `${hold.width}px`,
-                      height: `${hold.height}px`,
+                      left: `${hold.x * imageScale}px`,
+                      top: `${hold.y * imageScale}px`,
+                      width: `${hold.width * imageScale}px`,
+                      height: `${hold.height * imageScale}px`,
                     }"
                     @click="selectHold(hold, index)"
                     :class="{
@@ -74,7 +68,9 @@
                     }"
                   >
                     <!-- Hold Label -->
-                    <div class="absolute -top-6 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div
+                      class="absolute -top-6 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
                       {{ hold.type }} ({{ Math.round(hold.confidence * 100) }}%)
                     </div>
                   </div>
@@ -86,7 +82,9 @@
                   class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"
                 >
                   <div class="bg-white rounded-lg p-6 text-center">
-                    <div class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <div
+                      class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"
+                    ></div>
                     <p class="text-gray-800 font-medium">{{ holdDetectionStore.loadingMessage }}</p>
                   </div>
                 </div>
@@ -147,6 +145,23 @@
                   <span>Upload Image (Soon)</span>
                 </button>
               </div>
+
+              <!-- Scale Adjustment Input -->
+              <div class="mt-6">
+                <label for="scale-input" class="block text-sm font-medium text-gray-700"
+                  >Adjust Scale</label
+                >
+                <input
+                  id="scale-input"
+                  type="number"
+                  min="0.1"
+                  max="3"
+                  step="0.01"
+                  v-model.number="imageScale"
+                  class="w-full mt-2 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p class="text-sm text-gray-500 mt-1">Current Scale: {{ imageScale.toFixed(2) }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -157,7 +172,7 @@
           <div class="bg-white rounded-lg shadow-sm border border-gray-200">
             <div class="p-6">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Detection Status</h3>
-              
+
               <div class="space-y-4">
                 <!-- Session Status -->
                 <div class="flex items-center justify-between">
@@ -180,7 +195,11 @@
                 <div class="flex items-center justify-between">
                   <span class="text-gray-600">Detection Results</span>
                   <span class="text-sm font-medium text-gray-900">
-                    {{ detectionResults ? `${detectionResults.holds.length} holds found` : "No results" }}
+                    {{
+                      detectionResults
+                        ? `${detectionResults.holds.length} holds found`
+                        : "No results"
+                    }}
                   </span>
                 </div>
 
@@ -199,7 +218,7 @@
           <div v-if="detectionResults" class="bg-white rounded-lg shadow-sm border border-gray-200">
             <div class="p-6">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Hold Statistics</h3>
-              
+
               <!-- Hold Type Distribution -->
               <div class="space-y-3">
                 <div
@@ -219,7 +238,9 @@
               <div class="mt-4 pt-4 border-t border-gray-100">
                 <div class="flex items-center justify-between">
                   <span class="font-medium text-gray-700">Total Holds</span>
-                  <span class="text-lg font-bold text-blue-600">{{ detectionResults.holds.length }}</span>
+                  <span class="text-lg font-bold text-blue-600">{{
+                    detectionResults.holds.length
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -229,23 +250,31 @@
           <div v-if="selectedHold" class="bg-white rounded-lg shadow-sm border border-gray-200">
             <div class="p-6">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Selected Hold</h3>
-              
+
               <div class="space-y-3">
                 <div class="flex items-center justify-between">
                   <span class="text-gray-600">Type</span>
-                  <span class="text-sm font-medium text-gray-900 capitalize">{{ selectedHold.type }}</span>
+                  <span class="text-sm font-medium text-gray-900 capitalize">{{
+                    selectedHold.type
+                  }}</span>
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-gray-600">Confidence</span>
-                  <span class="text-sm font-medium text-gray-900">{{ Math.round(selectedHold.confidence * 100) }}%</span>
+                  <span class="text-sm font-medium text-gray-900"
+                    >{{ Math.round(selectedHold.confidence * 100) }}%</span
+                  >
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-gray-600">Position</span>
-                  <span class="text-sm font-medium text-gray-900">{{ selectedHold.x }}, {{ selectedHold.y }}</span>
+                  <span class="text-sm font-medium text-gray-900"
+                    >{{ selectedHold.x }}, {{ selectedHold.y }}</span
+                  >
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-gray-600">Size</span>
-                  <span class="text-sm font-medium text-gray-900">{{ selectedHold.width }} × {{ selectedHold.height }}</span>
+                  <span class="text-sm font-medium text-gray-900"
+                    >{{ selectedHold.width }} × {{ selectedHold.height }}</span
+                  >
                 </div>
               </div>
             </div>
@@ -255,7 +284,7 @@
           <div v-if="detectionResults" class="bg-white rounded-lg shadow-sm border border-gray-200">
             <div class="p-6">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Detected Holds</h3>
-              
+
               <div class="space-y-2 max-h-64 overflow-y-auto">
                 <div
                   v-for="(hold, index) in holdDetectionStore.sortedHolds"
@@ -271,7 +300,9 @@
                     <div class="text-sm text-gray-500">{{ hold.x }}, {{ hold.y }}</div>
                   </div>
                   <div class="text-right">
-                    <div class="text-sm font-medium text-gray-900">{{ Math.round(hold.confidence * 100) }}%</div>
+                    <div class="text-sm font-medium text-gray-900">
+                      {{ Math.round(hold.confidence * 100) }}%
+                    </div>
                   </div>
                 </div>
               </div>
@@ -281,7 +312,10 @@
       </div>
 
       <!-- Error Message -->
-      <div v-if="holdDetectionStore.errorString" class="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+      <div
+        v-if="holdDetectionStore.errorString"
+        class="mt-6 bg-red-50 border border-red-200 rounded-lg p-4"
+      >
         <div class="flex items-center">
           <svg
             class="w-5 h-5 text-red-400 mr-2"
@@ -306,7 +340,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
 import MainFooter from "@/components/MainFooter.vue";
 import { useHoldDetectionStore } from "@/stores/holdDetectionStore";
@@ -336,37 +370,83 @@ const onImageLoad = () => {
 };
 
 const calculateImageScale = () => {
-  if (!climbingImage.value || !detectionResults.value) {
+  if (!climbingImage.value) {
+    console.warn("climbingImage is not ready.");
     imageScale.value = 1;
     return;
   }
 
   const displayedWidth = climbingImage.value.clientWidth;
   const displayedHeight = climbingImage.value.clientHeight;
-  const originalWidth = detectionResults.value.imageWidth;
-  const originalHeight = detectionResults.value.imageHeight;
+  const originalWidth = climbingImage.value.naturalWidth;
+  const originalHeight = climbingImage.value.naturalHeight;
 
-  // Calculate scale based on how the image is displayed
+  if (!displayedWidth || !displayedHeight || !originalWidth || !originalHeight) {
+    console.warn("Image dimensions are not properly set.", {
+      displayedWidth,
+      displayedHeight,
+      originalWidth,
+      originalHeight,
+    });
+    imageScale.value = 1;
+    return;
+  }
+
+  // Calculate scale based on the original image dimensions
   const scaleX = displayedWidth / originalWidth;
   const scaleY = displayedHeight / originalHeight;
-  
+
   // Use the smaller scale to maintain aspect ratio
   imageScale.value = Math.min(scaleX, scaleY);
+
+  console.log("Image scale calculated:", {
+    displayedWidth,
+    displayedHeight,
+    originalWidth,
+    originalHeight,
+    scaleX,
+    scaleY,
+    imageScale: imageScale.value,
+  });
+
+  // Debugging: Check if the calculated scale matches 0.57
+  if (Math.abs(imageScale.value - 0.57) < 0.01) {
+    console.log(
+      "The calculated scale matches 0.57. This is likely due to the displayed dimensions:",
+      {
+        displayedWidth,
+        displayedHeight,
+        originalWidth,
+        originalHeight,
+      }
+    );
+  }
 };
 
 const runDetection = async () => {
-  // Create a mock file object for the hardcoded image
-  const mockFile = {
-    name: "WhatsApp Image 2025-05-24 at 00.15.17.jpeg",
-    size: 0, // We don't have the actual size
-    type: "image/jpeg",
-  };
+  try {
+    // Fetch the hardcoded image and create a proper file-like object
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    }
 
-  await holdDetectionStore.runHoldDetection(mockFile);
-  
-  // Recalculate scale after detection results are available
-  if (detectionResults.value) {
-    calculateImageScale();
+    const blob = await response.blob();
+
+    // Create a file-like object with the arrayBuffer method
+    const imageFile = new File([blob], "WhatsApp Image 2025-05-24 at 00.15.17.jpeg", {
+      type: "image/jpeg",
+    });
+
+    await holdDetectionStore.runHoldDetection(imageFile);
+
+    // Recalculate scale after detection results are available
+    if (detectionResults.value) {
+      calculateImageScale();
+    }
+  } catch (error) {
+    console.error("Error loading image for detection:", error);
+    // You could set an error state here if needed
   }
 };
 
@@ -378,6 +458,14 @@ const clearResults = () => {
   holdDetectionStore.resetDetectionState();
   selectedHoldIndex.value = null;
 };
+
+// Watch for changes in detectionResults and recalculate image scale
+watch(detectionResults, (newValue) => {
+  if (newValue) {
+    console.log("detectionResults updated:", newValue);
+    calculateImageScale();
+  }
+});
 
 // Lifecycle
 onMounted(() => {

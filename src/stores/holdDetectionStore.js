@@ -2,9 +2,8 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 
 export const useHoldDetectionStore = defineStore("holdDetection", () => {
-  // TODO: We'll create a separate worker for hold detection model
-  // For now, using a placeholder that we'll implement once we have the ONNX model
-  const holdDetectionWorker = null;
+  // Initialize the hold detection worker
+  const holdDetectionWorker = ref(null);
 
   const sessionTime = ref(null);
   const isLoading = ref(false);
@@ -14,11 +13,95 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
   const errorString = ref(null);
   const sessionReady = ref(false);
 
-  // Placeholder initialization - we'll implement this once we have the ONNX model
+  // Initialize the worker and create session
   const initializeSession = () => {
-    console.log("Hold detection model not yet implemented");
-    // For now, we'll simulate readiness
-    sessionReady.value = true;
+    console.log("Initializing hold detection worker...");
+
+    if (holdDetectionWorker.value) {
+      holdDetectionWorker.value.terminate();
+    }
+
+    // Create new worker
+    console.log("Creating new hold detection worker...");
+    holdDetectionWorker.value = new Worker(
+      new URL("/holdDetectionWorker.combined.js", import.meta.url),
+      { type: "module" }
+    );
+
+    // Set up worker message handling
+    holdDetectionWorker.value.onmessage = (event) => {
+      const { type, data } = event.data;
+      console.log("Received message from hold detection worker:", type, data);
+
+      switch (type) {
+        case "sessionCreated":
+          sessionReady.value = true;
+          sessionTime.value = data.sessionTime;
+          console.log(`Hold detection session created in ${data.sessionTime.toFixed(2)}ms`);
+          break;
+
+        case "detectionComplete": {
+          // Add some heuristics to classify holds since the model only outputs "hold"
+          const classifiedHolds = data.detections.map((hold) => {
+            let type = "hold"; // default
+
+            // Simple heuristics based on size and aspect ratio
+            const area = hold.width * hold.height;
+            const aspectRatio = hold.width / hold.height;
+
+            if (area > 2000) {
+              type = "jug"; // Large holds
+            } else if (area < 800) {
+              type = "crimp"; // Small holds
+            } else if (aspectRatio > 1.5) {
+              type = "sloper"; // Wide holds
+            } else if (aspectRatio < 0.7) {
+              type = "pinch"; // Tall/narrow holds
+            } else if (hold.confidence > 0.9) {
+              type = "pocket"; // High confidence medium holds
+            } else {
+              type = "jug"; // Default to jug for medium holds
+            }
+
+            return { ...hold, type };
+          });
+
+          detectionResults.value = {
+            holds: classifiedHolds,
+            imageWidth: data.imageWidth,
+            imageHeight: data.imageHeight,
+            processingTime: data.processingTime,
+          };
+          currentlyProcessingImage.value = null;
+          isLoading.value = false;
+          loadingMessage.value = "";
+          console.log(`Hold detection completed in ${data.processingTime.toFixed(2)}ms`);
+          break;
+        }
+
+        case "error":
+          console.error("Hold detection worker error:", data.message);
+          errorString.value = data.message;
+          currentlyProcessingImage.value = null;
+          isLoading.value = false;
+          loadingMessage.value = "";
+          break;
+
+        default:
+          console.warn("Unknown message type from hold detection worker:", type);
+      }
+    };
+
+    holdDetectionWorker.value.onerror = (error) => {
+      console.error("Hold detection worker error:", error);
+      errorString.value = "Worker error occurred. Please refresh and try again.";
+      sessionReady.value = false;
+      isLoading.value = false;
+    };
+
+    // Request session creation
+    console.log("Requesting session creation from worker...");
+    holdDetectionWorker.value.postMessage({ type: "createSession" });
   };
 
   // Start session creation immediately
@@ -31,39 +114,28 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
       return;
     }
 
+    if (!holdDetectionWorker.value) {
+      errorString.value = "Hold detection worker is not available. Please refresh and try again.";
+      return;
+    }
+
     isLoading.value = true;
     loadingMessage.value = "Detecting climbing holds...";
     currentlyProcessingImage.value = imageFile.name;
     errorString.value = null;
 
     try {
-      // TODO: Implement actual hold detection inference
-      // For now, we'll create mock data that simulates detected holds
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate processing time
+      // Convert image file to array buffer
+      const imageBuffer = await imageFile.arrayBuffer();
 
-      // Mock detection results - replace with actual model inference
-      const mockResults = {
-        holds: [
-          { x: 150, y: 200, width: 40, height: 40, confidence: 0.95, type: "jug" },
-          { x: 300, y: 180, width: 35, height: 35, confidence: 0.87, type: "crimp" },
-          { x: 450, y: 220, width: 45, height: 30, confidence: 0.91, type: "sloper" },
-          { x: 200, y: 350, width: 38, height: 42, confidence: 0.83, type: "pinch" },
-          { x: 380, y: 380, width: 33, height: 36, confidence: 0.89, type: "pocket" },
-          { x: 120, y: 450, width: 41, height: 39, confidence: 0.76, type: "jug" },
-          { x: 350, y: 480, width: 37, height: 34, confidence: 0.92, type: "crimp" },
-        ],
-        imageWidth: 600,
-        imageHeight: 800,
-        processingTime: 1850,
-      };
-
-      detectionResults.value = mockResults;
-      console.log("Hold detection completed:", mockResults);
-
+      // Send detection request to worker
+      holdDetectionWorker.value.postMessage({
+        type: "runDetection",
+        imageBuffer: imageBuffer,
+      });
     } catch (error) {
       console.error("Hold detection error:", error);
       errorString.value = error.message || "Failed to detect holds. Please try again.";
-    } finally {
       currentlyProcessingImage.value = null;
       isLoading.value = false;
       loadingMessage.value = "";
@@ -76,12 +148,20 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
     errorString.value = null;
   };
 
+  const terminateWorker = () => {
+    if (holdDetectionWorker.value) {
+      holdDetectionWorker.value.terminate();
+      holdDetectionWorker.value = null;
+      sessionReady.value = false;
+    }
+  };
+
   // Computed property to get hold count by type
   const holdCounts = computed(() => {
     if (!detectionResults.value?.holds) return {};
-    
+
     const counts = {};
-    detectionResults.value.holds.forEach(hold => {
+    detectionResults.value.holds.forEach((hold) => {
       counts[hold.type] = (counts[hold.type] || 0) + 1;
     });
     return counts;
@@ -90,7 +170,7 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
   // Computed property to get holds sorted by confidence
   const sortedHolds = computed(() => {
     if (!detectionResults.value?.holds) return [];
-    
+
     return [...detectionResults.value.holds].sort((a, b) => b.confidence - a.confidence);
   });
 
@@ -106,5 +186,6 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
     sortedHolds,
     runHoldDetection,
     resetDetectionState,
+    terminateWorker,
   };
 });
