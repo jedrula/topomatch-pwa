@@ -50,28 +50,30 @@
                 />
 
                 <!-- Hold Detection Overlay -->
-                <div v-if="detectionResults && imageLoaded" class="absolute inset-0 opacity-30">
+                <div v-if="detectionResults && imageLoaded" class="absolute inset-0 opacity-70">
                   <div
                     v-for="(hold, index) in detectionResults.holds"
-                    :key="index"
-                    class="absolute border-2 border-red-500 bg-red-500 bg-opacity-20 cursor-pointer hover:bg-opacity-30 transition-all duration-200"
+                    :key="hold.id || index"
+                    class="absolute border-2 cursor-pointer hover:opacity-100 transition-all duration-200"
                     :style="{
                       left: `${hold.x * imageScale}px`,
                       top: `${hold.y * imageScale}px`,
                       width: `${hold.width * imageScale}px`,
                       height: `${hold.height * imageScale}px`,
+                      borderColor: hold.color ? hold.color.hex : '#ef4444',
+                      backgroundColor: hold.color ? hold.color.hex + '40' : '#ef444440',
                     }"
                     @click="selectHold(hold, index)"
                     :class="{
-                      'border-blue-500 bg-blue-500': selectedHoldIndex === index,
-                      'border-red-500 bg-red-500': selectedHoldIndex !== index,
+                      'ring-4 ring-blue-500': selectedHoldIndex === index,
                     }"
                   >
                     <!-- Hold Label -->
                     <div
-                      class="absolute -top-6 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity"
+                      class="absolute -top-8 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity z-10"
                     >
-                      {{ hold.type }} ({{ Math.round(hold.confidence * 100) }}%)
+                      <div>{{ hold.type }} ({{ Math.round(hold.confidence * 100) }}%)</div>
+                      <div v-if="hold.color" class="text-gray-300">{{ hold.color.name }}</div>
                     </div>
                   </div>
                 </div>
@@ -264,17 +266,31 @@
                     >{{ Math.round(selectedHold.confidence * 100) }}%</span
                   >
                 </div>
+                <div v-if="selectedHold.color" class="flex items-center justify-between">
+                  <span class="text-gray-600">Color</span>
+                  <div class="flex items-center space-x-2">
+                    <div 
+                      class="w-3 h-3 rounded-full border border-gray-300"
+                      :style="{ backgroundColor: selectedHold.color.hex }"
+                    ></div>
+                    <span class="text-sm font-medium text-gray-900 capitalize">{{ selectedHold.color.name }}</span>
+                  </div>
+                </div>
                 <div class="flex items-center justify-between">
                   <span class="text-gray-600">Position</span>
                   <span class="text-sm font-medium text-gray-900"
-                    >{{ selectedHold.x }}, {{ selectedHold.y }}</span
+                    >{{ Math.round(selectedHold.x) }}, {{ Math.round(selectedHold.y) }}</span
                   >
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-gray-600">Size</span>
                   <span class="text-sm font-medium text-gray-900"
-                    >{{ selectedHold.width }} × {{ selectedHold.height }}</span
+                    >{{ Math.round(selectedHold.width) }} × {{ Math.round(selectedHold.height) }}</span
                   >
+                </div>
+                <div v-if="selectedHold.shape" class="flex items-center justify-between">
+                  <span class="text-gray-600">Shape</span>
+                  <span class="text-sm font-medium text-gray-900 capitalize">{{ selectedHold.shape.type }}</span>
                 </div>
               </div>
             </div>
@@ -288,22 +304,70 @@
               <div class="space-y-2 max-h-64 overflow-y-auto">
                 <div
                   v-for="(hold, index) in holdDetectionStore.sortedHolds"
-                  :key="index"
+                  :key="hold.id || index"
                   @click="selectHold(hold, index)"
                   class="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all duration-200"
                   :class="{
                     'border-blue-500 bg-blue-50': selectedHoldIndex === index,
                   }"
                 >
-                  <div>
-                    <div class="font-medium text-gray-900 capitalize">{{ hold.type }}</div>
-                    <div class="text-sm text-gray-500">{{ hold.x }}, {{ hold.y }}</div>
+                  <div class="flex items-center space-x-3">
+                    <div 
+                      v-if="hold.color"
+                      class="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                      :style="{ backgroundColor: hold.color.hex }"
+                    ></div>
+                    <div>
+                      <div class="font-medium text-gray-900 capitalize">{{ hold.type }}</div>
+                      <div class="text-sm text-gray-500">{{ Math.round(hold.x) }}, {{ Math.round(hold.y) }}</div>
+                    </div>
                   </div>
                   <div class="text-right">
                     <div class="text-sm font-medium text-gray-900">
                       {{ Math.round(hold.confidence * 100) }}%
                     </div>
+                    <div v-if="hold.color" class="text-xs text-gray-500 capitalize">{{ hold.color.name }}</div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Color Groups -->
+          <div v-if="holdDetectionStore.holdGroups.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="p-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Boulder Problems</h3>
+              <p class="text-gray-600 text-sm mb-4">Holds grouped by color for boulder problem identification</p>
+
+              <!-- Color Groups -->
+              <div class="space-y-3">
+                <div
+                  v-for="group in holdDetectionStore.holdGroups"
+                  :key="group.id"
+                  class="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                >
+                  <div class="flex items-center space-x-3">
+                    <div
+                      class="w-4 h-4 rounded-full border border-gray-300"
+                      :style="{ backgroundColor: group.color.hex }"
+                    ></div>
+                    <div>
+                      <span class="text-gray-900 font-medium capitalize">{{ group.color.name }} Problem</span>
+                      <div class="text-xs text-gray-500">{{ group.holds.length }} holds</div>
+                    </div>
+                  </div>
+                  <span class="text-sm font-medium text-gray-900">{{ group.holds.length }}</span>
+                </div>
+              </div>
+
+              <!-- Pipeline Info -->
+              <div v-if="holdDetectionStore.pipelineInfo.totalDetections" class="mt-4 pt-4 border-t border-gray-100">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Pipeline Statistics</h4>
+                <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                  <div>Raw Detections: {{ holdDetectionStore.pipelineInfo.totalDetections }}</div>
+                  <div>Enhanced: {{ holdDetectionStore.pipelineInfo.enhancedDetections }}</div>
+                  <div>Color Groups: {{ holdDetectionStore.pipelineInfo.colorGroups }}</div>
+                  <div>Processing: {{ detectionResults.processingTime?.toFixed(0) }}ms</div>
                 </div>
               </div>
             </div>

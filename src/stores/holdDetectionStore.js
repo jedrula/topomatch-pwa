@@ -2,6 +2,31 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 
 export const useHoldDetectionStore = defineStore("holdDetection", () => {
+  // Helper function for hold type classification (fallback)
+  const classifyHoldType = (hold) => {
+    let type = "hold"; // default
+
+    // Simple heuristics based on size and aspect ratio
+    const area = hold.width * hold.height;
+    const aspectRatio = hold.width / hold.height;
+
+    if (area > 2000) {
+      type = "jug"; // Large holds
+    } else if (area < 800) {
+      type = "crimp"; // Small holds
+    } else if (aspectRatio > 1.5) {
+      type = "sloper"; // Wide holds
+    } else if (aspectRatio < 0.7) {
+      type = "pinch"; // Tall/narrow holds
+    } else if (hold.confidence > 0.9) {
+      type = "pocket"; // High confidence medium holds
+    } else {
+      type = "jug"; // Default to jug for medium holds
+    }
+
+    return type;
+  };
+
   // Initialize the hold detection worker
   const holdDetectionWorker = ref(null);
 
@@ -41,41 +66,31 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
           break;
 
         case "detectionComplete": {
-          // Add some heuristics to classify holds since the model only outputs "hold"
-          const classifiedHolds = data.detections.map((hold) => {
-            let type = "hold"; // default
-
-            // Simple heuristics based on size and aspect ratio
-            const area = hold.width * hold.height;
-            const aspectRatio = hold.width / hold.height;
-
-            if (area > 2000) {
-              type = "jug"; // Large holds
-            } else if (area < 800) {
-              type = "crimp"; // Small holds
-            } else if (aspectRatio > 1.5) {
-              type = "sloper"; // Wide holds
-            } else if (aspectRatio < 0.7) {
-              type = "pinch"; // Tall/narrow holds
-            } else if (hold.confidence > 0.9) {
-              type = "pocket"; // High confidence medium holds
-            } else {
-              type = "jug"; // Default to jug for medium holds
-            }
-
-            return { ...hold, type };
+          // Enhanced detection results with segmentation and color analysis
+          const enhancedHolds = data.detections.map((hold) => {
+            // Keep the enhanced data from segmentation pipeline
+            return {
+              ...hold,
+              // Add legacy type classification for backwards compatibility
+              type: hold.type || classifyHoldType(hold)
+            };
           });
 
           detectionResults.value = {
-            holds: classifiedHolds,
+            holds: enhancedHolds,
+            holdGroups: data.holdGroups || [],
             imageWidth: data.imageWidth,
             imageHeight: data.imageHeight,
             processingTime: data.processingTime,
+            pipelineInfo: data.pipelineInfo || {}
           };
           currentlyProcessingImage.value = null;
           isLoading.value = false;
           loadingMessage.value = "";
-          console.log(`Hold detection completed in ${data.processingTime.toFixed(2)}ms`);
+          console.log(`Enhanced hold detection completed in ${data.processingTime.toFixed(2)}ms`);
+          if (data.pipelineInfo) {
+            console.log("Pipeline info:", data.pipelineInfo);
+          }
           break;
         }
 
@@ -174,6 +189,30 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
     return [...detectionResults.value.holds].sort((a, b) => b.confidence - a.confidence);
   });
 
+  // Computed property to get hold groups by color
+  const holdGroups = computed(() => {
+    return detectionResults.value?.holdGroups || [];
+  });
+
+  // Computed property to get color distribution
+  const colorDistribution = computed(() => {
+    if (!detectionResults.value?.holds) return {};
+
+    const distribution = {};
+    detectionResults.value.holds.forEach((hold) => {
+      if (hold.color) {
+        const colorName = hold.color.name;
+        distribution[colorName] = (distribution[colorName] || 0) + 1;
+      }
+    });
+    return distribution;
+  });
+
+  // Computed property to get pipeline statistics
+  const pipelineInfo = computed(() => {
+    return detectionResults.value?.pipelineInfo || {};
+  });
+
   return {
     sessionTime,
     isLoading,
@@ -184,6 +223,9 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
     sessionReady,
     holdCounts,
     sortedHolds,
+    holdGroups,
+    colorDistribution,
+    pipelineInfo,
     runHoldDetection,
     resetDetectionState,
     terminateWorker,

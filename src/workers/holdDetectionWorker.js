@@ -6,6 +6,9 @@
 
 console.log("Hold detection worker initialized");
 
+// Initialize segmentation pipeline
+const segmentationPipeline = new SegmentationPipeline();
+
 self.onmessage = async (event) => {
   const { type, imageBuffer } = event.data;
   console.log("Hold detection worker received message:", type);
@@ -14,6 +17,9 @@ self.onmessage = async (event) => {
     console.log("Creating hold detection session...");
     try {
       const startTime = performance.now();
+
+      // Initialize segmentation pipeline
+      await segmentationPipeline.initialize();
 
       // Use WASM options to enable SIMD and threads if supported
       const session = await ort.InferenceSession.create(
@@ -90,13 +96,26 @@ self.onmessage = async (event) => {
         modelInputSize
       );
 
+      // Enhanced pipeline: Add segmentation and color analysis
+      console.log("Running segmentation pipeline...");
+      const enhancedDetections = await segmentationPipeline.processDetections(detections, imageBitmap);
+      
+      // Group holds by color for boulder problem identification
+      const holdGroups = segmentationPipeline.groupHoldsByColor(enhancedDetections);
+
       self.postMessage({
         type: "detectionComplete",
         data: {
-          detections,
+          detections: enhancedDetections,
+          holdGroups: holdGroups,
           processingTime: endTime - startTime,
           imageWidth: imageBitmap.width,
           imageHeight: imageBitmap.height,
+          pipelineInfo: {
+            totalDetections: detections.length,
+            enhancedDetections: enhancedDetections.length,
+            colorGroups: holdGroups.length
+          }
         },
       });
     } catch (error) {
@@ -170,7 +189,7 @@ function postprocessYOLOResults(results, originalWidth, originalHeight, modelInp
   console.log("Model input size:", modelInputSize);
 
   const detections = [];
-  const confidenceThreshold = 0.3; // Minimum confidence to consider a detection
+  const confidenceThreshold = 0.2; // Lowered minimum confidence to consider a detection
   const nmsThreshold = 0.45; // Non-maximum suppression threshold
 
   // Calculate scale factors for coordinate conversion
