@@ -65,6 +65,8 @@
                     @click="selectHold(hold, index)"
                     :class="{
                       'ring-4 ring-blue-500': selectedHoldIndex === index,
+                      'ring-2 ring-yellow-400 ring-offset-1': isHoldHighlighted(hold),
+                      'opacity-30': highlightedBoulderProblem && !isHoldHighlighted(hold),
                     }"
                   >
                     <!-- Hold Label -->
@@ -234,7 +236,11 @@
                   <div
                     v-for="group in holdDetectionStore.holdGroups"
                     :key="group.id"
-                    class="flex items-center justify-between p-2 rounded-lg bg-gray-50"
+                    @click="selectBoulderProblem(group)"
+                    class="flex items-center justify-between p-2 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                    :class="{
+                      'bg-yellow-100 ring-2 ring-yellow-400': highlightedBoulderProblem?.id === group.id,
+                    }"
                   >
                     <div class="flex items-center space-x-3">
                       <div
@@ -421,6 +427,7 @@ const climbingImage = ref(null);
 const imageLoaded = ref(false);
 const imageScale = ref(1);
 const selectedHoldIndex = ref(null);
+const highlightedBoulderProblem = ref(null);
 
 // Hardcoded image URL for now
 const imageUrl = "/topos/wibrem-23-may/WhatsApp Image 2025-05-24 at 00.15.17.jpeg";
@@ -431,6 +438,15 @@ const selectedHold = computed(() => {
   if (selectedHoldIndex.value === null || !detectionResults.value) return null;
   return detectionResults.value.holds[selectedHoldIndex.value];
 });
+
+// Check if a hold is part of the highlighted boulder problem
+const isHoldHighlighted = (hold) => {
+  if (!highlightedBoulderProblem.value) return false;
+  return highlightedBoulderProblem.value.holds.some(groupHold => 
+    groupHold.id === hold.id || 
+    (groupHold.x === hold.x && groupHold.y === hold.y) // fallback comparison
+  );
+};
 
 // Methods
 const onImageLoad = () => {
@@ -523,9 +539,19 @@ const selectHold = (hold, index) => {
   selectedHoldIndex.value = selectedHoldIndex.value === index ? null : index;
 };
 
+const selectBoulderProblem = (group) => {
+  // Toggle selection - if same group is clicked again, deselect
+  if (highlightedBoulderProblem.value?.id === group.id) {
+    highlightedBoulderProblem.value = null;
+  } else {
+    highlightedBoulderProblem.value = group;
+  }
+};
+
 const clearResults = () => {
   holdDetectionStore.resetDetectionState();
   selectedHoldIndex.value = null;
+  highlightedBoulderProblem.value = null;
 };
 
 // Watch for changes in detectionResults and recalculate image scale
