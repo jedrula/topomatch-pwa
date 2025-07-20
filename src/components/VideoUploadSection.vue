@@ -1,10 +1,14 @@
 <template>
   <!-- Video Upload Section -->
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 transition-all duration-300 p-4">
+  <div
+    class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 transition-all duration-300 p-4"
+  >
     <div class="flex flex-col items-center text-center space-y-3">
       <h3 class="text-lg font-semibold text-gray-900">Upload Climbing Video</h3>
-      <p class="text-sm text-gray-600">Share your climbing videos and link them to boulder problems</p>
-      
+      <p class="text-sm text-gray-600">
+        Share your climbing videos and link them to boulder problems
+      </p>
+
       <!-- Video Upload Button -->
       <div class="relative">
         <input
@@ -45,7 +49,12 @@
       <div class="flex items-center justify-between p-6 border-b border-gray-200">
         <div class="flex items-center space-x-3">
           <div class="flex-shrink-0">
-            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-6 h-6 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -128,13 +137,11 @@
 
           <!-- Boulder Problem Selection -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Boulder Problem *
-            </label>
+            <label class="block text-sm font-medium text-gray-700 mb-2"> Boulder Problem * </label>
             <p class="text-xs text-gray-500 mb-3">
               Select the photo that matches the boulder problem in your video
             </p>
-            
+
             <!-- Photo Carousel -->
             <div class="relative bg-gray-100 rounded-lg overflow-hidden">
               <div v-if="regionPhotos.length > 0" class="aspect-w-16 aspect-h-12">
@@ -144,44 +151,73 @@
                   class="w-full h-48 object-cover"
                 />
               </div>
-              
+
               <!-- No photos state -->
               <div v-else class="h-48 flex items-center justify-center">
                 <div class="text-center text-gray-500">
-                  <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <svg
+                    class="w-12 h-12 mx-auto mb-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                   <p class="text-sm">No photos available in this region</p>
                 </div>
               </div>
 
               <!-- Carousel Controls -->
-              <div v-if="regionPhotos.length > 1" class="absolute inset-y-0 left-0 flex items-center">
+              <div
+                v-if="regionPhotos.length > 1"
+                class="absolute inset-y-0 left-0 flex items-center"
+              >
                 <button
                   @click="previousPhoto"
                   type="button"
                   class="ml-2 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full transition-all"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 19l-7-7 7-7"
+                    />
                   </svg>
                 </button>
               </div>
-              
-              <div v-if="regionPhotos.length > 1" class="absolute inset-y-0 right-0 flex items-center">
+
+              <div
+                v-if="regionPhotos.length > 1"
+                class="absolute inset-y-0 right-0 flex items-center"
+              >
                 <button
                   @click="nextPhoto"
                   type="button"
                   class="mr-2 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full transition-all"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </button>
               </div>
 
               <!-- Photo counter -->
-              <div v-if="regionPhotos.length > 1" class="absolute bottom-2 left-1/2 transform -translate-x-1/2">
+              <div
+                v-if="regionPhotos.length > 1"
+                class="absolute bottom-2 left-1/2 transform -translate-x-1/2"
+              >
                 <div class="bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                   {{ currentPhotoIndex + 1 }} / {{ regionPhotos.length }}
                 </div>
@@ -219,7 +255,7 @@
               :disabled="uploadProgress < 100 || !videoMetadata.title.trim() || !currentPhoto"
               class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
             >
-              {{ uploadProgress < 100 ? 'Finish Upload' : 'Save & Publish' }}
+              {{ uploadProgress < 100 ? "Finish Upload" : "Save & Publish" }}
             </button>
           </div>
         </div>
@@ -230,6 +266,13 @@
 
 <script setup>
 import { ref, reactive, computed } from "vue";
+
+const props = defineProps({
+  regionPhotos: {
+    type: Array,
+    default: () => [],
+  },
+});
 
 const emit = defineEmits(["video-uploaded"]);
 
@@ -248,46 +291,24 @@ const videoMetadata = reactive({
 });
 
 // Photo carousel state
-const regionPhotos = ref([]);
 const currentPhotoIndex = ref(0);
 const currentPhoto = computed(() => {
-  if (regionPhotos.value.length === 0) return null;
-  return regionPhotos.value[currentPhotoIndex.value];
+  if (props.regionPhotos.length === 0) return null;
+  return props.regionPhotos[currentPhotoIndex.value];
 });
-
-// Mock region photos - replace with actual data from your API
-const loadRegionPhotos = () => {
-  // This would typically come from a store or API call
-  regionPhotos.value = [
-    {
-      id: 1,
-      name: "Fabryczna Opening Topo",
-      url: "/fabryczna_otwarcie_topo.jpg",
-      date: "May 24, 2025"
-    },
-    {
-      id: 2,
-      name: "Test Photo Fabryczna",
-      url: "/otwarcie_fabryczna_testowy.jpg", 
-      date: "May 23, 2025"
-    }
-  ];
-  currentPhotoIndex.value = 0;
-};
 
 // Photo carousel navigation
 const nextPhoto = () => {
-  if (regionPhotos.value.length > 1) {
-    currentPhotoIndex.value = (currentPhotoIndex.value + 1) % regionPhotos.value.length;
+  if (props.regionPhotos.length > 1) {
+    currentPhotoIndex.value = (currentPhotoIndex.value + 1) % props.regionPhotos.length;
     videoMetadata.boulderProblemId = currentPhoto.value?.id || null;
   }
 };
 
 const previousPhoto = () => {
-  if (regionPhotos.value.length > 1) {
-    currentPhotoIndex.value = currentPhotoIndex.value === 0 
-      ? regionPhotos.value.length - 1 
-      : currentPhotoIndex.value - 1;
+  if (props.regionPhotos.length > 1) {
+    currentPhotoIndex.value =
+      currentPhotoIndex.value === 0 ? props.regionPhotos.length - 1 : currentPhotoIndex.value - 1;
     videoMetadata.boulderProblemId = currentPhoto.value?.id || null;
   }
 };
@@ -308,12 +329,12 @@ async function onVideoChange(event) {
   uploadProgress.value = 0;
   uploadStatus.value = "Preparing upload...";
 
-  // Load region photos and initialize carousel
-  loadRegionPhotos();
+  // Initialize carousel
+  currentPhotoIndex.value = 0;
 
   // Pre-populate title with filename (without extension)
-  const fileName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-  videoMetadata.title = fileName.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  const fileName = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
+  videoMetadata.title = fileName.replace(/[_-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
   // Set initial boulder problem if photos are available
   if (currentPhoto.value) {
@@ -334,7 +355,7 @@ async function startVideoUpload(file) {
     formData.append("video", file);
 
     console.log(`Uploading video: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
-    
+
     uploadStatus.value = "Uploading...";
 
     // Create AbortController for cancellation
@@ -367,17 +388,16 @@ async function startVideoUpload(file) {
 
       const result = await response.json();
       console.log("Video upload successful:", result);
-
     } catch (error) {
       clearInterval(uploadSimulation);
-      if (error.name === 'AbortError') {
+      if (error.name === "AbortError") {
         uploadStatus.value = "Upload cancelled";
         uploadProgress.value = 0;
       } else {
         console.error("Error uploading video:", error);
         uploadStatus.value = "Upload failed - server endpoint not available";
         uploadProgress.value = 0;
-        
+
         // For demo purposes, simulate successful upload after a delay
         setTimeout(() => {
           uploadProgress.value = 100;
@@ -396,10 +416,10 @@ function closeVideoModal() {
   if (uploadController && uploadProgress.value < 100) {
     const shouldCancel = confirm("Upload is still in progress. Cancel upload?");
     if (!shouldCancel) return;
-    
+
     uploadController.abort();
   }
-  
+
   showVideoModal.value = false;
   selectedVideoFile.value = null;
   uploadProgress.value = 0;
@@ -414,7 +434,6 @@ function resetVideoMetadata() {
     description: "",
     boulderProblemId: null,
   });
-  regionPhotos.value = [];
   currentPhotoIndex.value = 0;
 }
 
@@ -445,7 +464,7 @@ async function submitVideoMetadata() {
         name: selectedVideoFile.value.name,
         size: selectedVideoFile.value.size,
         type: selectedVideoFile.value.type,
-      }
+      },
     };
 
     console.log("Saving video metadata:", metadataPayload);
@@ -460,7 +479,6 @@ async function submitVideoMetadata() {
     alert("Video published successfully!");
     emit("video-uploaded", metadataPayload);
     closeVideoModal();
-
   } catch (error) {
     console.error("Error saving video metadata:", error);
     alert("Failed to save video metadata. Please try again.");

@@ -19,10 +19,10 @@ class ImageCacheService extends EventTarget {
         this.cache = await caches.open(CACHE_NAME);
         console.log(`Cache ${CACHE_NAME} initialized`);
       } catch (error) {
-        console.error('Failed to initialize cache:', error);
+        console.error("Failed to initialize cache:", error);
       }
     } else {
-      console.warn('Cache API not available');
+      console.warn("Cache API not available");
     }
   }
 
@@ -43,7 +43,7 @@ class ImageCacheService extends EventTarget {
     for (let i = 0; i < imagePaths.length; i++) {
       // Check for cancellation
       if (signal?.aborted) {
-        throw new Error('AbortError');
+        throw new Error("AbortError");
       }
 
       const imagePath = imagePaths[i];
@@ -62,11 +62,13 @@ class ImageCacheService extends EventTarget {
             // Clone the response to cache it
             await this.cache.put(imagePath, response.clone());
             console.log(`Successfully cached: ${imagePath}`);
-            
+
             // Emit cache update event
-            this.dispatchEvent(new CustomEvent('cacheUpdated', { 
-              detail: { imagePath, action: 'cached' } 
-            }));
+            this.dispatchEvent(
+              new CustomEvent("cacheUpdated", {
+                detail: { imagePath, action: "cached" },
+              })
+            );
           } else {
             console.warn(`Failed to fetch image: ${imagePath}, status: ${response.status}`);
           }
@@ -80,7 +82,7 @@ class ImageCacheService extends EventTarget {
         // Small delay to avoid overwhelming the browser
         await new Promise((resolve) => setTimeout(resolve, 10));
       } catch (error) {
-        if (error.name === 'AbortError' || signal?.aborted) {
+        if (error.name === "AbortError" || signal?.aborted) {
           throw error;
         }
         console.error(`Error caching image ${imagePath}:`, error);
@@ -103,13 +105,12 @@ class ImageCacheService extends EventTarget {
     if (!this.cache) {
       await this.initCache();
     }
-    
+
     if (!this.cache) return false;
 
     try {
       const cachedResponse = await this.cache.match(imagePath);
       const isCached = !!cachedResponse;
-      console.log(`Cache check for ${imagePath}: ${isCached ? 'CACHED' : 'NOT CACHED'}`);
       return isCached;
     } catch (error) {
       console.error("Error checking cache:", error);
@@ -153,11 +154,13 @@ class ImageCacheService extends EventTarget {
     // Cache the response for future use
     if (networkResponse.ok && this.cache) {
       await this.cache.put(imagePath, networkResponse.clone());
-      
+
       // Emit cache update event
-      this.dispatchEvent(new CustomEvent('cacheUpdated', { 
-        detail: { imagePath, action: 'cached' } 
-      }));
+      this.dispatchEvent(
+        new CustomEvent("cacheUpdated", {
+          detail: { imagePath, action: "cached" },
+        })
+      );
     }
 
     return networkResponse;
@@ -192,7 +195,7 @@ class ImageCacheService extends EventTarget {
     if (!this.cache) {
       await this.initCache();
     }
-    
+
     if (!this.cache) {
       return { cached: 0, total: imagePaths.length };
     }
@@ -214,19 +217,21 @@ class ImageCacheService extends EventTarget {
    */
   async removeCachedImages(imagePaths) {
     if (!this.cache) return;
-    
+
     try {
-      await Promise.all(imagePaths.map(imagePath => this.cache.delete(imagePath)));
+      await Promise.all(imagePaths.map((imagePath) => this.cache.delete(imagePath)));
       console.log(`Removed ${imagePaths.length} images from cache`);
-      
+
       // Emit cache update events for removed images
-      imagePaths.forEach(imagePath => {
-        this.dispatchEvent(new CustomEvent('cacheUpdated', { 
-          detail: { imagePath, action: 'removed' } 
-        }));
+      imagePaths.forEach((imagePath) => {
+        this.dispatchEvent(
+          new CustomEvent("cacheUpdated", {
+            detail: { imagePath, action: "removed" },
+          })
+        );
       });
     } catch (error) {
-      console.error('Error removing cached images:', error);
+      console.error("Error removing cached images:", error);
     }
   }
 
@@ -234,7 +239,7 @@ class ImageCacheService extends EventTarget {
    * Force refresh cache status for all components
    */
   refreshCacheStatus() {
-    this.dispatchEvent(new CustomEvent('cacheRefresh'));
+    this.dispatchEvent(new CustomEvent("cacheRefresh"));
   }
 
   /**

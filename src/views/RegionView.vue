@@ -34,14 +34,13 @@
 
       <!-- Video Upload Section -->
       <VideoUploadSection
+        :regionPhotos="regionPhotosForVideo"
         @video-uploaded="onVideoUploaded"
+        style="margin-top: 5rem"
       />
 
       <!-- Region Cache Manager -->
-      <RegionCacheManager
-        :region-id="regionId"
-        :image-paths="allTopoImages"
-      />
+      <RegionCacheManager :region-id="regionId" :image-paths="allTopoImages" />
 
       <!-- Region Gallery -->
       <RegionGallery
@@ -124,6 +123,16 @@ const hasCompletedInference = computed(() => {
     !inferenceStore.currentlyProcessingImage &&
     !inferenceStore.isLoading
   );
+});
+
+// Transform topo images for video upload section
+const regionPhotosForVideo = computed(() => {
+  return allTopoImages.value.map((image, index) => ({
+    id: index + 1, // Simple ID based on index
+    name: image.name || `Image ${index + 1}`, // Use filename if no name
+    url: image.url || image,
+    date: image.lastModified ? new Date(image.lastModified).toLocaleDateString() : null,
+  }));
 });
 
 const winnerImage = computed(() => {
@@ -303,7 +312,7 @@ onMounted(() => {
   // Session is created eagerly when the store is initialized
   // No need to create session here anymore
   console.log("RegionView mounted, session ready:", inferenceStore.sessionReady);
-  
+
   // Trigger cache status refresh for all components
   setTimeout(() => {
     imageCacheService.refreshCacheStatus();
