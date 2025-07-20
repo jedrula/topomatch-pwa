@@ -194,6 +194,78 @@
               Select the photo that matches the boulder problem in your video
             </p>
 
+            <!-- Video Analysis Status or Manual Trigger -->
+            <div
+              v-if="
+                isAnalyzingVideo ||
+                analysisProgress ||
+                (selectedVideoFile && props.regionPhotos.length > 0)
+              "
+              class="mb-3"
+            >
+              <!-- Analysis in progress or completed -->
+              <div
+                v-if="isAnalyzingVideo || analysisProgress"
+                class="p-3 bg-blue-50 border border-blue-200 rounded-lg"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-2">
+                    <div
+                      v-if="isAnalyzingVideo"
+                      class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"
+                    ></div>
+                    <svg
+                      v-else
+                      class="w-4 h-4 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 13l4 4L19 7"
+                      ></path>
+                    </svg>
+                    <span class="text-sm font-medium text-blue-800">{{
+                      analysisProgress || "Analyzing video..."
+                    }}</span>
+                  </div>
+                  <button
+                    v-if="!isAnalyzingVideo && selectedVideoFile"
+                    @click="runVideoFrameAnalysis(selectedVideoFile)"
+                    type="button"
+                    class="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Retry Analysis
+                  </button>
+                </div>
+              </div>
+
+              <!-- Manual trigger button -->
+              <div
+                v-else-if="selectedVideoFile && props.regionPhotos.length > 0"
+                class="text-center"
+              >
+                <button
+                  @click="runVideoFrameAnalysis(selectedVideoFile)"
+                  type="button"
+                  class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors space-x-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    ></path>
+                  </svg>
+                  <span>Auto-analyze video frame</span>
+                </button>
+              </div>
+            </div>
+
             <!-- Photo Carousel -->
             <div class="relative bg-gray-100 rounded-lg overflow-hidden">
               <div v-if="regionPhotos.length > 0" class="aspect-w-16 aspect-h-12">
@@ -318,6 +390,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from "vue";
+import { useInferenceStore } from "@/stores/inferenceStore";
 
 const props = defineProps({
   regionPhotos: {
@@ -327,6 +400,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["video-uploaded"]);
+
+// Get inference store for video frame analysis
+const inferenceStore = useInferenceStore();
 
 // Video upload modal state
 const showVideoModal = ref(false);
@@ -345,11 +421,14 @@ const videoMetadata = reactive({
 });
 
 // Clear ascent style when wasSent is unchecked
-watch(() => videoMetadata.wasSent, (newValue) => {
-  if (!newValue) {
-    videoMetadata.ascentStyle = null;
+watch(
+  () => videoMetadata.wasSent,
+  (newValue) => {
+    if (!newValue) {
+      videoMetadata.ascentStyle = null;
+    }
   }
-});
+);
 
 // Photo carousel state
 const currentPhotoIndex = ref(0);
@@ -357,6 +436,111 @@ const currentPhoto = computed(() => {
   if (props.regionPhotos.length === 0) return null;
   return props.regionPhotos[currentPhotoIndex.value];
 });
+
+// Video frame analysis state
+const isAnalyzingVideo = ref(false);
+const analysisProgress = ref("");
+
+// Extract a frame from video file at specified time (default: 5 seconds)
+const extractVideoFrame = (videoFile, timeInSeconds = 5) => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    video.onloadedmetadata = () => {
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Seek to the specified time (or middle of video if shorter)
+      const seekTime = Math.min(timeInSeconds, video.duration / 2);
+      video.currentTime = seekTime;
+    };
+
+    video.onseeked = () => {
+      // Draw the current frame to canvas
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Convert canvas to blob
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            // Create a File object from the blob
+            const frameFile = new File([blob], `frame_${timeInSeconds}s.jpg`, {
+              type: "image/jpeg",
+            });
+            resolve(frameFile);
+          } else {
+            reject(new Error("Failed to extract frame"));
+          }
+        },
+        "image/jpeg",
+        0.8
+      );
+    };
+
+    video.onerror = (error) => {
+      reject(new Error("Failed to load video: " + error.message));
+    };
+
+    // Load the video file
+    const url = URL.createObjectURL(videoFile);
+    video.src = url;
+  });
+};
+
+// Run automatic matching on video frame
+const runVideoFrameAnalysis = async (videoFile) => {
+  if (!props.regionPhotos.length || !inferenceStore.sessionReady) {
+    console.log("Cannot analyze video: no photos or session not ready");
+    return;
+  }
+
+  try {
+    isAnalyzingVideo.value = true;
+    analysisProgress.value = "Extracting frame from video...";
+
+    // Extract frame from video
+    const frameFile = await extractVideoFrame(videoFile);
+
+    analysisProgress.value = "Analyzing frame against region photos...";
+
+    // Convert region photos to the format expected by inference
+    const topoImagePaths = props.regionPhotos.map((photo) => photo.url);
+
+    // Run inference on the extracted frame
+    await inferenceStore.runInferenceBatch(frameFile, topoImagePaths, (bestMatch) => {
+      if (bestMatch) {
+        // Find the photo that matches the best result
+        const bestPhotoIndex = props.regionPhotos.findIndex((photo) => photo.url === bestMatch);
+        if (bestPhotoIndex !== -1) {
+          currentPhotoIndex.value = bestPhotoIndex;
+          videoMetadata.boulderProblemId = props.regionPhotos[bestPhotoIndex].id;
+          analysisProgress.value = `Auto-selected: ${props.regionPhotos[bestPhotoIndex].name}`;
+
+          setTimeout(() => {
+            analysisProgress.value = "";
+            isAnalyzingVideo.value = false;
+          }, 2000);
+        }
+      } else {
+        analysisProgress.value = "No clear match found";
+        setTimeout(() => {
+          analysisProgress.value = "";
+          isAnalyzingVideo.value = false;
+        }, 2000);
+      }
+    });
+  } catch (error) {
+    console.error("Video analysis error:", error);
+    analysisProgress.value = "Analysis failed";
+    setTimeout(() => {
+      analysisProgress.value = "";
+      isAnalyzingVideo.value = false;
+    }, 2000);
+  }
+};
 
 // Photo carousel navigation
 const nextPhoto = () => {
@@ -404,6 +588,11 @@ async function onVideoChange(event) {
 
   // Start upload immediately in background
   startVideoUpload(file);
+
+  // Start automatic video frame analysis
+  if (props.regionPhotos.length > 0) {
+    runVideoFrameAnalysis(file);
+  }
 
   // Clear the input so the same file can be selected again
   event.target.value = "";
@@ -498,6 +687,8 @@ function resetVideoMetadata() {
     ascentStyle: null,
   });
   currentPhotoIndex.value = 0;
+  isAnalyzingVideo.value = false;
+  analysisProgress.value = "";
 }
 
 async function submitVideoMetadata() {
