@@ -56,7 +56,7 @@ export const useInferenceStore = defineStore("inference", () => {
       }, {});
   });
 
-  const runInferenceBatch = async (userFile, topoImagePaths, onComplete = null) => {
+  const runInferenceBatch = async (userFile, topoImagePaths, onComplete = null, progressCallback = null) => {
     // Check if session is ready before starting inference
     if (!sessionReady.value) {
       errorString.value = "Inference session is not ready yet. Please wait.";
@@ -80,6 +80,11 @@ export const useInferenceStore = defineStore("inference", () => {
       loadingMessage.value = `Comparing with ${imgPath.split("/").pop()} (${i + 1}/${
         topoImagePaths.length
       })...`;
+
+      // Call progress callback if provided
+      if (progressCallback) {
+        progressCallback(i, topoImagePaths.length);
+      }
 
       const resp = await imageCacheService.fetchImage(imgPath);
       const topoBlob = await resp.blob();
@@ -173,6 +178,7 @@ export const useInferenceStore = defineStore("inference", () => {
     currentlyProcessingImage,
     errorString,
     sessionReady,
+    inferenceWorker,
     runInferenceBatch,
     resetInferenceState,
   };

@@ -191,7 +191,7 @@
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2"> Boulder Problem * </label>
             <p class="text-xs text-gray-500 mb-3">
-              Select the photo that matches the boulder problem in your video
+              We'll analyze your video to find the matching boulder problem automatically
             </p>
 
             <!-- Video Analysis Status or Manual Trigger -->
@@ -228,9 +228,19 @@
                         d="M5 13l4 4L19 7"
                       ></path>
                     </svg>
-                    <span class="text-sm font-medium text-blue-800">{{
-                      analysisProgress || "Analyzing video..."
-                    }}</span>
+                    <div class="flex flex-col">
+                      <span class="text-sm font-medium text-blue-800">{{
+                        analysisProgress || "Analyzing video..."
+                      }}</span>
+                      <span
+                        v-if="isAnalyzingVideo && analysisImageTotal > 0"
+                        class="text-xs text-blue-600"
+                      >
+                        {{ analysisImageCount }}/{{ analysisImageTotal }} images ({{
+                          analysisPercentage
+                        }}%)
+                      </span>
+                    </div>
                   </div>
                   <button
                     v-if="!isAnalyzingVideo && selectedVideoFile"
@@ -238,20 +248,37 @@
                     type="button"
                     class="text-xs text-blue-600 hover:text-blue-800 underline"
                   >
-                    Retry Analysis
+                    Re-analyze
+                  </button>
+                </div>
+
+                <!-- Subtle abort option during analysis -->
+                <div v-if="isAnalyzingVideo" class="mt-2 pt-2 border-t border-blue-200">
+                  <button
+                    @click="
+                      isAnalyzingVideo = false;
+                      analysisProgress = '';
+                      showManualSelection = true;
+                    "
+                    type="button"
+                    class="text-xs text-blue-500 hover:text-blue-600 opacity-75 hover:opacity-100 transition-opacity"
+                  >
+                    Choose manually instead
                   </button>
                 </div>
               </div>
 
-              <!-- Manual trigger button -->
+              <!-- Manual trigger button (when no analysis has run yet) -->
               <div
-                v-else-if="selectedVideoFile && props.regionPhotos.length > 0"
+                v-else-if="
+                  selectedVideoFile && props.regionPhotos.length > 0 && !showManualSelection
+                "
                 class="text-center"
               >
                 <button
                   @click="runVideoFrameAnalysis(selectedVideoFile)"
                   type="button"
-                  class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors space-x-2"
+                  class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors space-x-2"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -266,92 +293,205 @@
               </div>
             </div>
 
-            <!-- Photo Carousel -->
-            <div class="relative bg-gray-100 rounded-lg overflow-hidden">
-              <div v-if="regionPhotos.length > 0" class="aspect-w-16 aspect-h-12">
-                <img
-                  :src="currentPhoto.url"
-                  :alt="currentPhoto.name"
-                  class="w-full h-48 object-cover"
-                />
-              </div>
-
-              <!-- No photos state -->
-              <div v-else class="h-48 flex items-center justify-center">
-                <div class="text-center text-gray-500">
-                  <svg
-                    class="w-12 h-12 mx-auto mb-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <p class="text-sm">No photos available in this region</p>
-                </div>
-              </div>
-
-              <!-- Carousel Controls -->
-              <div
-                v-if="regionPhotos.length > 1"
-                class="absolute inset-y-0 left-0 flex items-center"
-              >
-                <button
-                  @click="previousPhoto"
-                  type="button"
-                  class="ml-2 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full transition-all"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <div
-                v-if="regionPhotos.length > 1"
-                class="absolute inset-y-0 right-0 flex items-center"
-              >
-                <button
-                  @click="nextPhoto"
-                  type="button"
-                  class="mr-2 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full transition-all"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <!-- Photo counter -->
-              <div
-                v-if="regionPhotos.length > 1"
-                class="absolute bottom-2 left-1/2 transform -translate-x-1/2"
-              >
-                <div class="bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                  {{ currentPhotoIndex + 1 }} / {{ regionPhotos.length }}
+            <!-- Selected Photo Display (when auto-analysis completed) -->
+            <div
+              v-if="
+                !isAnalyzingVideo &&
+                !showManualSelection &&
+                currentPhoto &&
+                videoMetadata.boulderProblemId
+              "
+              class="mb-3"
+            >
+              <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-start space-x-4">
+                  <img
+                    :src="currentPhoto.url"
+                    :alt="currentPhoto.name"
+                    class="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                  />
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-2">
+                      <div>
+                        <p class="text-sm font-medium text-green-800">
+                          Selected: {{ currentPhoto.name }}
+                        </p>
+                        <p v-if="currentPhoto.date" class="text-xs text-green-600">
+                          {{ currentPhoto.date }}
+                        </p>
+                      </div>
+                      <svg
+                        class="w-5 h-5 text-green-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M5 13l4 4L19 7"
+                        ></path>
+                      </svg>
+                    </div>
+                    <div class="flex space-x-3">
+                      <button
+                        @click="showManualSelection = true"
+                        type="button"
+                        class="text-xs text-green-700 hover:text-green-800 underline"
+                      >
+                        Choose different photo
+                      </button>
+                      <button
+                        @click="runVideoFrameAnalysis(selectedVideoFile)"
+                        type="button"
+                        class="text-xs text-green-700 hover:text-green-800 underline"
+                      >
+                        Re-analyze video
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- Photo Info -->
-            <div v-if="currentPhoto" class="mt-2 p-2 bg-gray-50 rounded">
-              <p class="text-sm font-medium text-gray-700">{{ currentPhoto.name }}</p>
-              <p v-if="currentPhoto.date" class="text-xs text-gray-500">{{ currentPhoto.date }}</p>
+            <!-- Manual Photo Selection (only when opted-in) -->
+            <div v-if="showManualSelection">
+              <div class="mb-2 flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700">Choose manually:</span>
+                <button
+                  @click="showManualSelection = false"
+                  type="button"
+                  class="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  ✕ Close manual selection
+                </button>
+              </div>
+
+              <!-- Photo Carousel -->
+              <div class="relative bg-gray-100 rounded-lg overflow-hidden">
+                <div v-if="regionPhotos.length > 0" class="aspect-w-16 aspect-h-12">
+                  <img
+                    :src="currentPhoto.url"
+                    :alt="currentPhoto.name"
+                    class="w-full h-48 object-cover"
+                  />
+                </div>
+
+                <!-- No photos state -->
+                <div v-else class="h-48 flex items-center justify-center">
+                  <div class="text-center text-gray-500">
+                    <svg
+                      class="w-12 h-12 mx-auto mb-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <p class="text-sm">No photos available in this region</p>
+                  </div>
+                </div>
+
+                <!-- Carousel Controls -->
+                <div
+                  v-if="regionPhotos.length > 1"
+                  class="absolute inset-y-0 left-0 flex items-center"
+                >
+                  <button
+                    @click="previousPhoto"
+                    type="button"
+                    class="ml-2 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full transition-all"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 19l-7-7 7-7"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <div
+                  v-if="regionPhotos.length > 1"
+                  class="absolute inset-y-0 right-0 flex items-center"
+                >
+                  <button
+                    @click="nextPhoto"
+                    type="button"
+                    class="mr-2 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full transition-all"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Photo counter -->
+                <div
+                  v-if="regionPhotos.length > 1"
+                  class="absolute bottom-2 left-1/2 transform -translate-x-1/2"
+                >
+                  <div class="bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                    {{ currentPhotoIndex + 1 }} / {{ regionPhotos.length }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Photo Info for Manual Selection -->
+              <div v-if="currentPhoto" class="mt-2 p-2 bg-gray-50 rounded">
+                <p class="text-sm font-medium text-gray-700">{{ currentPhoto.name }}</p>
+                <p v-if="currentPhoto.date" class="text-xs text-gray-500">
+                  {{ currentPhoto.date }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Fallback when no analysis and no manual selection -->
+            <div
+              v-if="
+                !isAnalyzingVideo &&
+                !showManualSelection &&
+                !videoMetadata.boulderProblemId &&
+                props.regionPhotos.length > 0
+              "
+              class="text-center p-6 bg-gray-50 rounded-lg"
+            >
+              <svg
+                class="w-8 h-8 mx-auto mb-2 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                ></path>
+              </svg>
+              <p class="text-sm text-gray-600 mb-3">
+                Click the button above to automatically find the matching boulder photo
+              </p>
+              <button
+                @click="showManualSelection = true"
+                type="button"
+                class="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                or choose manually
+              </button>
             </div>
           </div>
         </div>
@@ -440,6 +580,15 @@ const currentPhoto = computed(() => {
 // Video frame analysis state
 const isAnalyzingVideo = ref(false);
 const analysisProgress = ref("");
+const showManualSelection = ref(false);
+const analysisImageCount = ref(0);
+const analysisImageTotal = ref(0);
+
+// Computed property for analysis percentage
+const analysisPercentage = computed(() => {
+  if (analysisImageTotal.value === 0) return 0;
+  return Math.round((analysisImageCount.value / analysisImageTotal.value) * 100);
+});
 
 // Extract a frame from video file at specified time (default: 5 seconds)
 const extractVideoFrame = (videoFile, timeInSeconds = 5) => {
@@ -500,38 +649,51 @@ const runVideoFrameAnalysis = async (videoFile) => {
   try {
     isAnalyzingVideo.value = true;
     analysisProgress.value = "Extracting frame from video...";
+    analysisImageCount.value = 0;
+    analysisImageTotal.value = 0;
 
     // Extract frame from video
     const frameFile = await extractVideoFrame(videoFile);
 
     analysisProgress.value = "Analyzing frame against region photos...";
+    analysisImageTotal.value = props.regionPhotos.length;
+    analysisImageCount.value = 0;
 
     // Convert region photos to the format expected by inference
     const topoImagePaths = props.regionPhotos.map((photo) => photo.url);
 
-    // Run inference on the extracted frame
-    await inferenceStore.runInferenceBatch(frameFile, topoImagePaths, (bestMatch) => {
-      if (bestMatch) {
-        // Find the photo that matches the best result
-        const bestPhotoIndex = props.regionPhotos.findIndex((photo) => photo.url === bestMatch);
-        if (bestPhotoIndex !== -1) {
-          currentPhotoIndex.value = bestPhotoIndex;
-          videoMetadata.boulderProblemId = props.regionPhotos[bestPhotoIndex].id;
-          analysisProgress.value = `Auto-selected: ${props.regionPhotos[bestPhotoIndex].name}`;
+    // Use the enhanced store function with progress tracking
+    await inferenceStore.runInferenceBatch(
+      frameFile, 
+      topoImagePaths, 
+      (bestMatch) => {
+        if (bestMatch) {
+          // Find the photo that matches the best result
+          const bestPhotoIndex = props.regionPhotos.findIndex((photo) => photo.url === bestMatch);
+          if (bestPhotoIndex !== -1) {
+            currentPhotoIndex.value = bestPhotoIndex;
+            videoMetadata.boulderProblemId = props.regionPhotos[bestPhotoIndex].id;
+            analysisProgress.value = `Auto-selected: ${props.regionPhotos[bestPhotoIndex].name}`;
 
+            setTimeout(() => {
+              analysisProgress.value = "";
+              isAnalyzingVideo.value = false;
+            }, 2000);
+          }
+        } else {
+          analysisProgress.value = "No clear match found";
           setTimeout(() => {
             analysisProgress.value = "";
             isAnalyzingVideo.value = false;
           }, 2000);
         }
-      } else {
-        analysisProgress.value = "No clear match found";
-        setTimeout(() => {
-          analysisProgress.value = "";
-          isAnalyzingVideo.value = false;
-        }, 2000);
+      },
+      (currentIndex, totalImages) => {
+        // Progress callback - update our tracking variables
+        analysisImageCount.value = currentIndex + 1;
+        analysisImageTotal.value = totalImages;
       }
-    });
+    );
   } catch (error) {
     console.error("Video analysis error:", error);
     analysisProgress.value = "Analysis failed";
@@ -689,6 +851,9 @@ function resetVideoMetadata() {
   currentPhotoIndex.value = 0;
   isAnalyzingVideo.value = false;
   analysisProgress.value = "";
+  showManualSelection.value = false;
+  analysisImageCount.value = 0;
+  analysisImageTotal.value = 0;
 }
 
 async function submitVideoMetadata() {
