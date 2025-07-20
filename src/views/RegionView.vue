@@ -32,6 +32,11 @@
         @reset-upload="resetForNewUpload"
       />
 
+      <!-- Video Upload Section -->
+      <VideoUploadSection
+        @video-uploaded="onVideoUploaded"
+      />
+
       <!-- Region Cache Manager -->
       <RegionCacheManager
         :region-id="regionId"
@@ -87,6 +92,7 @@ import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
 import FileUploadSection from "@/components/FileUploadSection.vue";
+import VideoUploadSection from "@/components/VideoUploadSection.vue";
 import GalleryTile from "@/components/GalleryTile.vue";
 import RegionGallery from "@/components/RegionGallery.vue";
 import RegionCacheManager from "@/components/RegionCacheManager.vue";
@@ -209,6 +215,13 @@ function resetForNewUpload() {
   // The FileUploadSection component handles its own state reset
   // Clear the file input is now handled by the component
   // Just reset our local state if needed
+}
+
+function onVideoUploaded(videoMetadata) {
+  // Handle the video upload completion
+  console.log("Video uploaded with metadata:", videoMetadata);
+  // Here you could update a store, refresh a list of videos, etc.
+  // For now, just log the successful upload
 }
 
 // Callback for when inference completes - auto-open visualization of best match
