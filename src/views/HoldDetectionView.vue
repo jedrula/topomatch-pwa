@@ -239,7 +239,8 @@
                     @click="selectBoulderProblem(group)"
                     class="flex items-center justify-between p-2 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                     :class="{
-                      'bg-yellow-100 ring-2 ring-yellow-400': highlightedBoulderProblem?.id === group.id,
+                      'bg-yellow-100 ring-2 ring-yellow-400':
+                        highlightedBoulderProblem?.id === group.id,
                     }"
                   >
                     <div class="flex items-center space-x-3">
@@ -442,9 +443,8 @@ const selectedHold = computed(() => {
 // Check if a hold is part of the highlighted boulder problem
 const isHoldHighlighted = (hold) => {
   if (!highlightedBoulderProblem.value) return false;
-  return highlightedBoulderProblem.value.holds.some(groupHold => 
-    groupHold.id === hold.id || 
-    (groupHold.x === hold.x && groupHold.y === hold.y) // fallback comparison
+  return highlightedBoulderProblem.value.holds.some(
+    (groupHold) => groupHold.id === hold.id || (groupHold.x === hold.x && groupHold.y === hold.y) // fallback comparison
   );
 };
 
