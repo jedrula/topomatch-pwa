@@ -135,6 +135,58 @@
             ></textarea>
           </div>
 
+          <!-- Was Sent Checkbox -->
+          <div>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                v-model="videoMetadata.wasSent"
+                class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
+              />
+              <span class="text-sm font-medium text-gray-700">Boulder was sent (completed)</span>
+            </label>
+          </div>
+
+          <!-- Ascent Style (only show if was sent) -->
+          <div v-if="videoMetadata.wasSent">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Ascent Style</label>
+            <div class="space-y-2">
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="ascentStyle"
+                  value="flash"
+                  v-model="videoMetadata.ascentStyle"
+                  class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500 focus:ring-2"
+                />
+                <span class="text-sm text-gray-700">Flash</span>
+                <span class="text-xs text-gray-500">(first attempt, no beta)</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="ascentStyle"
+                  value="onsite"
+                  v-model="videoMetadata.ascentStyle"
+                  class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500 focus:ring-2"
+                />
+                <span class="text-sm text-gray-700">Onsite</span>
+                <span class="text-xs text-gray-500">(first attempt, with beta)</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="ascentStyle"
+                  value="RP"
+                  v-model="videoMetadata.ascentStyle"
+                  class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500 focus:ring-2"
+                />
+                <span class="text-sm text-gray-700">Redpoint (RP)</span>
+                <span class="text-xs text-gray-500">(after practice attempts)</span>
+              </label>
+            </div>
+          </div>
+
           <!-- Boulder Problem Selection -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2"> Boulder Problem * </label>
@@ -265,7 +317,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, watch } from "vue";
 
 const props = defineProps({
   regionPhotos: {
@@ -288,6 +340,15 @@ const videoMetadata = reactive({
   title: "",
   description: "",
   boulderProblemId: null,
+  wasSent: false,
+  ascentStyle: null, // "flash", "onsite", "RP" (redpoint)
+});
+
+// Clear ascent style when wasSent is unchecked
+watch(() => videoMetadata.wasSent, (newValue) => {
+  if (!newValue) {
+    videoMetadata.ascentStyle = null;
+  }
 });
 
 // Photo carousel state
@@ -433,6 +494,8 @@ function resetVideoMetadata() {
     title: "",
     description: "",
     boulderProblemId: null,
+    wasSent: false,
+    ascentStyle: null,
   });
   currentPhotoIndex.value = 0;
 }
@@ -460,6 +523,8 @@ async function submitVideoMetadata() {
       title: videoMetadata.title.trim(),
       description: videoMetadata.description.trim(),
       boulderProblemId: videoMetadata.boulderProblemId,
+      wasSent: videoMetadata.wasSent,
+      ascentStyle: videoMetadata.wasSent ? videoMetadata.ascentStyle : null,
       fileInfo: {
         name: selectedVideoFile.value.name,
         size: selectedVideoFile.value.size,
