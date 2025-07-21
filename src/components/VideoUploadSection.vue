@@ -724,9 +724,6 @@ const runVideoFrameAnalysis = async (videoFile) => {
     // Extract frame from video
     const frameFile = await extractVideoFrame(videoFile);
 
-    // Pause briefly to let the user see the extracted frame
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
     analysisProgress.value = "Analyzing frame against region photos...";
     analysisImageTotal.value = props.regionPhotos.length;
     analysisImageCount.value = 0;
