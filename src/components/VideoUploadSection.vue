@@ -252,6 +252,42 @@
                   </button>
                 </div>
 
+                <!-- Show extracted frame during analysis -->
+                <div v-if="extractedFrameUrl" class="mt-3">
+                  <p class="text-xs text-blue-700 mb-1">Extracted video frame:</p>
+                  <img
+                    :src="extractedFrameUrl"
+                    alt="Extracted video frame"
+                    class="w-full max-h-48 object-contain rounded-lg bg-gray-50"
+                  />
+                </div>
+
+                <!-- Show frame and best match side by side when analysis complete but still showing progress banner -->
+                <div
+                  v-if="
+                    !isAnalyzingVideo &&
+                    analysisProgress &&
+                    videoMetadata.boulderProblemId &&
+                    currentPhoto
+                  "
+                  class="mt-3"
+                >
+                  <div class="flex flex-col sm:flex-row gap-3">
+                    <!-- Extracted frame already shown above when in progress -->
+                    <div v-if="isAnalyzingVideo" class="hidden"></div>
+
+                    <!-- Matched Boulder Photo -->
+                    <div class="flex-1">
+                      <p class="text-xs text-blue-700 mb-1">Matched Boulder Photo:</p>
+                      <img
+                        :src="currentPhoto.url"
+                        :alt="currentPhoto.name"
+                        class="w-full max-h-48 object-contain rounded-lg bg-gray-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Subtle abort option during analysis -->
                 <div v-if="isAnalyzingVideo" class="mt-2 pt-2 border-t border-blue-200">
                   <button
@@ -281,11 +317,36 @@
             >
               <div class="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div class="flex flex-col space-y-4">
-                  <img
-                    :src="currentPhoto.url"
-                    :alt="currentPhoto.name"
-                    class="w-full max-h-64 object-contain rounded-lg bg-gray-50"
-                  />
+                  <!-- Comparison view - side by side display -->
+                  <div class="flex flex-col sm:flex-row gap-4">
+                    <!-- Extracted Video Frame -->
+                    <div class="flex-1">
+                      <p class="text-xs text-gray-500 mb-1">Extracted Video Frame:</p>
+                      <img
+                        v-if="extractedFrameUrl"
+                        :src="extractedFrameUrl"
+                        alt="Extracted video frame"
+                        class="w-full max-h-64 object-contain rounded-lg bg-gray-50"
+                      />
+                      <div
+                        v-else
+                        class="w-full max-h-64 flex items-center justify-center bg-gray-100 rounded-lg min-h-[10rem]"
+                      >
+                        <p class="text-sm text-gray-400">No frame available</p>
+                      </div>
+                    </div>
+
+                    <!-- Matched Boulder Photo -->
+                    <div class="flex-1">
+                      <p class="text-xs text-gray-500 mb-1">Matched Boulder Photo:</p>
+                      <img
+                        :src="currentPhoto.url"
+                        :alt="currentPhoto.name"
+                        class="w-full max-h-64 object-contain rounded-lg bg-gray-50"
+                      />
+                    </div>
+                  </div>
+
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between mb-2">
                       <div>
@@ -346,34 +407,58 @@
 
               <!-- Photo Carousel -->
               <div class="relative bg-gray-50 rounded-lg overflow-hidden">
-                <div
-                  v-if="regionPhotos.length > 0"
-                  class="flex items-center justify-center min-h-[12rem]"
-                >
-                  <img
-                    :src="currentPhoto.url"
-                    :alt="currentPhoto.name"
-                    class="max-w-full max-h-64 object-contain rounded-lg"
-                  />
-                </div>
-
-                <!-- No photos state -->
-                <div v-else class="h-48 flex items-center justify-center">
-                  <div class="text-center text-gray-500">
-                    <svg
-                      class="w-12 h-12 mx-auto mb-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                <!-- Comparison view for manual selection -->
+                <div class="flex flex-col sm:flex-row gap-4 p-4">
+                  <!-- Extracted Video Frame -->
+                  <div class="flex-1">
+                    <p class="text-xs text-gray-500 mb-1">Extracted Video Frame:</p>
+                    <img
+                      v-if="extractedFrameUrl"
+                      :src="extractedFrameUrl"
+                      alt="Extracted video frame"
+                      class="w-full max-h-48 object-contain rounded-lg bg-gray-50"
+                    />
+                    <div
+                      v-else
+                      class="w-full max-h-48 flex items-center justify-center bg-gray-100 rounded-lg min-h-[8rem]"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      <p class="text-sm text-gray-400">No frame available</p>
+                    </div>
+                  </div>
+
+                  <!-- Candidate Boulder Photo -->
+                  <div class="flex-1 relative">
+                    <p class="text-xs text-gray-500 mb-1">Candidate Boulder Photo:</p>
+                    <div
+                      v-if="regionPhotos.length > 0"
+                      class="w-full h-48 flex items-center justify-center"
+                    >
+                      <img
+                        :src="currentPhoto.url"
+                        :alt="currentPhoto.name"
+                        class="max-w-full max-h-48 object-contain rounded-lg"
                       />
-                    </svg>
-                    <p class="text-sm">No photos available in this region</p>
+                    </div>
+
+                    <!-- No photos state -->
+                    <div v-else class="max-h-48 min-h-[8rem] flex items-center justify-center">
+                      <div class="text-center text-gray-500">
+                        <svg
+                          class="w-12 h-12 mx-auto mb-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <p class="text-sm">No photos available in this region</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -562,6 +647,7 @@ const analysisProgress = ref("");
 const showManualSelection = ref(false);
 const analysisImageCount = ref(0);
 const analysisImageTotal = ref(0);
+const extractedFrameUrl = ref(null);
 
 // Computed property for analysis percentage
 const analysisPercentage = computed(() => {
@@ -598,6 +684,10 @@ const extractVideoFrame = (videoFile, timeInSeconds = 5) => {
             const frameFile = new File([blob], `frame_${timeInSeconds}s.jpg`, {
               type: "image/jpeg",
             });
+
+            // Store the frame URL for display
+            extractedFrameUrl.value = URL.createObjectURL(blob);
+
             resolve(frameFile);
           } else {
             reject(new Error("Failed to extract frame"));
@@ -633,6 +723,9 @@ const runVideoFrameAnalysis = async (videoFile) => {
 
     // Extract frame from video
     const frameFile = await extractVideoFrame(videoFile);
+
+    // Pause briefly to let the user see the extracted frame
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     analysisProgress.value = "Analyzing frame against region photos...";
     analysisImageTotal.value = props.regionPhotos.length;
@@ -833,6 +926,7 @@ function resetVideoMetadata() {
   showManualSelection.value = false;
   analysisImageCount.value = 0;
   analysisImageTotal.value = 0;
+  extractedFrameUrl.value = null;
 }
 
 async function submitVideoMetadata() {
