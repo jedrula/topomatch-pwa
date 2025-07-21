@@ -346,7 +346,10 @@
 
               <!-- Photo Carousel -->
               <div class="relative bg-gray-50 rounded-lg overflow-hidden">
-                <div v-if="regionPhotos.length > 0" class="flex items-center justify-center min-h-[12rem]">
+                <div
+                  v-if="regionPhotos.length > 0"
+                  class="flex items-center justify-center min-h-[12rem]"
+                >
                   <img
                     :src="currentPhoto.url"
                     :alt="currentPhoto.name"
