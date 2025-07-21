@@ -56,7 +56,12 @@ export const useInferenceStore = defineStore("inference", () => {
       }, {});
   });
 
-  const runInferenceBatch = async (userFile, topoImagePaths, onComplete = null, progressCallback = null) => {
+  const runInferenceBatch = async (
+    userFile,
+    topoImagePaths,
+    onComplete = null,
+    progressCallback = null
+  ) => {
     // Check if session is ready before starting inference
     if (!sessionReady.value) {
       errorString.value = "Inference session is not ready yet. Please wait.";

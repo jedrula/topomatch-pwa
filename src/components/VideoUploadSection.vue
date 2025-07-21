@@ -267,30 +267,6 @@
                   </button>
                 </div>
               </div>
-
-              <!-- Manual trigger button (when no analysis has run yet) -->
-              <div
-                v-else-if="
-                  selectedVideoFile && props.regionPhotos.length > 0 && !showManualSelection
-                "
-                class="text-center"
-              >
-                <button
-                  @click="runVideoFrameAnalysis(selectedVideoFile)"
-                  type="button"
-                  class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors space-x-2"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    ></path>
-                  </svg>
-                  <span>Auto-analyze video frame</span>
-                </button>
-              </div>
             </div>
 
             <!-- Selected Photo Display (when auto-analysis completed) -->
@@ -304,11 +280,11 @@
               class="mb-3"
             >
               <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div class="flex items-start space-x-4">
+                <div class="flex flex-col space-y-4">
                   <img
                     :src="currentPhoto.url"
                     :alt="currentPhoto.name"
-                    class="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                    class="w-full max-h-64 object-contain rounded-lg bg-gray-50"
                   />
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between mb-2">
@@ -369,12 +345,12 @@
               </div>
 
               <!-- Photo Carousel -->
-              <div class="relative bg-gray-100 rounded-lg overflow-hidden">
-                <div v-if="regionPhotos.length > 0" class="aspect-w-16 aspect-h-12">
+              <div class="relative bg-gray-50 rounded-lg overflow-hidden">
+                <div v-if="regionPhotos.length > 0" class="flex items-center justify-center min-h-[12rem]">
                   <img
                     :src="currentPhoto.url"
                     :alt="currentPhoto.name"
-                    class="w-full h-48 object-cover"
+                    class="max-w-full max-h-64 object-contain rounded-lg"
                   />
                 </div>
 
@@ -483,14 +459,14 @@
                 ></path>
               </svg>
               <p class="text-sm text-gray-600 mb-3">
-                Click the button above to automatically find the matching boulder photo
+                Video analysis will run automatically, or you can choose a photo manually
               </p>
               <button
                 @click="showManualSelection = true"
                 type="button"
                 class="text-sm text-blue-600 hover:text-blue-800 underline"
               >
-                or choose manually
+                Choose manually
               </button>
             </div>
           </div>
@@ -664,8 +640,8 @@ const runVideoFrameAnalysis = async (videoFile) => {
 
     // Use the enhanced store function with progress tracking
     await inferenceStore.runInferenceBatch(
-      frameFile, 
-      topoImagePaths, 
+      frameFile,
+      topoImagePaths,
       (bestMatch) => {
         if (bestMatch) {
           // Find the photo that matches the best result
