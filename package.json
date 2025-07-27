@@ -11,7 +11,10 @@
     "preview": "vite preview",
     "lint:oxlint": "oxlint . --fix -D correctness --ignore-path .gitignore",
     "lint:eslint": "eslint . --fix",
-    "lint": "run-s lint:*"
+    "lint": "run-s lint:*",
+    "emulators": "firebase emulators:start",
+    "server:build": "cd server && npm run build",
+    "server:dev": "cd server && npm run build:watch"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
