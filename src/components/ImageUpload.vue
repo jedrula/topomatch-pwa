@@ -224,12 +224,7 @@ const completedUploads = computed(
 // File handling
 const validateFile = (file) => {
   const maxSize = 10 * 1024 * 1024; // 10MB
-  const allowedTypes = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-  ];
+  const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
   // Disallow HEIC/HEIF by MIME type and extension
   const lowerName = file.name.toLowerCase();
