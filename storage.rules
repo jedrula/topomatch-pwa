@@ -10,7 +10,14 @@ service firebase.storage {
       allow read: if true;
     }
     
-    // Allow uploads to location-images folder
+    // Allow uploads to location-images folder with nested paths (for location-specific images)
+    match /location-images/{locationId}/{imageId} {
+      allow write: if true && 
+        request.resource.size < 25 * 1024 * 1024 && // 25MB limit
+        request.resource.contentType.matches('image/.*');
+    }
+    
+    // Allow uploads to location-images root (for hero images during location creation)
     match /location-images/{imageId} {
       allow write: if true && 
         request.resource.size < 25 * 1024 * 1024 && // 25MB limit

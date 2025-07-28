@@ -20,20 +20,6 @@ export default defineConfig({
   worker: {
     format: "es",
   },
-  server: {
-    cors: true,
-    headers: {
-      "Cross-Origin-Embedder-Policy": "unsafe-none",
-      "Cross-Origin-Opener-Policy": "same-origin"
-    },
-    proxy: {
-      '/api/storage': {
-        target: 'http://localhost:9199',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/storage/, '')
-      }
-    }
-  },
   // base: process.env.NODE_ENV === "production" ? "/topomatch-pwa/" : "/",
   plugins: [
     vue(),
@@ -114,12 +100,20 @@ export default defineConfig({
     },
   },
   server: {
+    cors: true,
     mimeTypes: {
       "application/wasm": ["wasm"],
     },
     headers: {
-      "Cross-Origin-Embedder-Policy": "require-corp",
+      "Cross-Origin-Embedder-Policy": "unsafe-none",
       "Cross-Origin-Opener-Policy": "same-origin",
+    },
+    proxy: {
+      "/api/storage": {
+        target: "http://localhost:9199",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/storage/, ""),
+      },
     },
   },
 });
