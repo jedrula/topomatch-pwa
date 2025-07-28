@@ -19,7 +19,10 @@
       "enabled": true,
       "port": 4000
     },
-    "singleProjectMode": true
+    "singleProjectMode": true,
+    "hub": {
+      "port": 4400
+    }
   },
   "firestore": {
     "rules": "firestore.rules",

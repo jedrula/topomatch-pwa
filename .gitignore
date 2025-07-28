@@ -15,6 +15,20 @@ dist-ssr
 coverage
 *.local
 
+# Firebase emulator data (keep structure but not the actual data)
+firebase-emulator-data/*
+!firebase-emulator-data/README.md
+
+# Firebase debug logs
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Firebase Functions compiled output
+server/lib/
+server/*.js
+server/*.js.map
+
 /cypress/videos/
 /cypress/screenshots/
 

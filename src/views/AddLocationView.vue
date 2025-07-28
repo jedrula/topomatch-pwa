@@ -151,15 +151,16 @@ const uploadImageToStorage = async (file) => {
   return new Promise((resolve, reject) => {
     const timestamp = Date.now();
     const fileName = `location-images/${timestamp}-${file.name}`;
-    
+
     // Create a storage reference
     const imageRef = storageRef(storage, fileName);
-    
+
     // Start the upload
     const uploadTask = uploadBytesResumable(imageRef, file);
-    
+
     // Monitor upload progress
-    uploadTask.on('state_changed',
+    uploadTask.on(
+      "state_changed",
       (snapshot) => {
         // Calculate progress percentage
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
@@ -167,7 +168,7 @@ const uploadImageToStorage = async (file) => {
       },
       (error) => {
         // Handle upload error
-        console.error('Upload failed:', error);
+        console.error("Upload failed:", error);
         reject(error);
       },
       async () => {
@@ -207,8 +208,12 @@ const handleSubmit = async () => {
     const newLocation = await locationService.createLocation(locationData);
 
     console.log("Location created successfully:", newLocation);
-    alert(`Location "${newLocation.name}" created successfully!`);
-    router.go(-1);
+
+    // Redirect to the location detail view
+    router.push({
+      name: "location-detail",
+      params: { locationId: newLocation.id },
+    });
   } catch (err) {
     console.error("Error creating location:", err);
     error.value = "Failed to create location. Please try again.";
