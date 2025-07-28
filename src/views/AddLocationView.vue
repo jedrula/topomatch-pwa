@@ -37,6 +37,48 @@
             ></textarea>
           </div>
 
+          <div>
+            <label for="heroImage" class="block text-sm font-medium text-gray-700 mb-2">
+              Hero Image
+            </label>
+            <div class="space-y-3">
+              <input
+                id="heroImage"
+                type="file"
+                @change="handleImageSelect"
+                accept="image/*"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+
+              <!-- Image preview -->
+              <div v-if="imagePreview" class="relative">
+                <img
+                  :src="imagePreview"
+                  alt="Hero image preview"
+                  class="w-full h-48 object-cover rounded-md border border-gray-200"
+                />
+                <button
+                  type="button"
+                  @click="removeImage"
+                  class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+
+              <!-- Upload progress -->
+              <div v-if="uploadProgress > 0 && uploadProgress < 100" class="w-full">
+                <div class="bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    :style="`width: ${uploadProgress}%`"
+                  ></div>
+                </div>
+                <p class="text-sm text-gray-600 mt-1">Uploading... {{ uploadProgress }}%</p>
+              </div>
+            </div>
+          </div>
+
           <div class="flex items-center justify-between pt-4">
             <button
               type="button"
@@ -50,7 +92,7 @@
               :disabled="isLoading"
               class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {{ isLoading ? 'Creating...' : 'Add Location' }}
+              {{ isLoading ? "Creating..." : "Add Location" }}
             </button>
           </div>
         </form>
@@ -63,6 +105,8 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
+import { storage } from "../services/firebase.js";
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 const router = useRouter();
 
@@ -71,8 +115,74 @@ const formData = ref({
   description: "",
 });
 
+const selectedImage = ref(null);
+const imagePreview = ref(null);
+const uploadProgress = ref(0);
 const isLoading = ref(false);
 const error = ref("");
+
+const handleImageSelect = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    selectedImage.value = file;
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      imagePreview.value = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+const removeImage = () => {
+  selectedImage.value = null;
+  imagePreview.value = null;
+  uploadProgress.value = 0;
+
+  // Clear file input
+  const fileInput = document.getElementById("heroImage");
+  if (fileInput) {
+    fileInput.value = "";
+  }
+};
+
+const uploadImageToStorage = async (file) => {
+  return new Promise((resolve, reject) => {
+    const timestamp = Date.now();
+    const fileName = `location-images/${timestamp}-${file.name}`;
+    
+    // Create a storage reference
+    const imageRef = storageRef(storage, fileName);
+    
+    // Start the upload
+    const uploadTask = uploadBytesResumable(imageRef, file);
+    
+    // Monitor upload progress
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        // Calculate progress percentage
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        uploadProgress.value = Math.round(progress);
+      },
+      (error) => {
+        // Handle upload error
+        console.error('Upload failed:', error);
+        reject(error);
+      },
+      async () => {
+        // Upload completed successfully
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          uploadProgress.value = 100;
+          resolve(downloadURL);
+        } catch (error) {
+          reject(error);
+        }
+      }
+    );
+  });
+};
 
 const handleSubmit = async () => {
   if (isLoading.value) return;
@@ -80,9 +190,22 @@ const handleSubmit = async () => {
   try {
     isLoading.value = true;
     error.value = "";
-    
-    const newLocation = await locationService.createLocation(formData.value);
-    
+
+    let heroImageUrl = null;
+
+    // Upload image if selected
+    if (selectedImage.value) {
+      heroImageUrl = await uploadImageToStorage(selectedImage.value);
+    }
+
+    // Create location with image URL
+    const locationData = {
+      ...formData.value,
+      heroImageUrl,
+    };
+
+    const newLocation = await locationService.createLocation(locationData);
+
     console.log("Location created successfully:", newLocation);
     alert(`Location "${newLocation.name}" created successfully!`);
     router.go(-1);

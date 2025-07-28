@@ -19,6 +19,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
     "bowser": "^2.11.0",
+    "firebase": "^12.0.0",
     "floating-vue": "^2.0.0",
     "onnxruntime-web": "^1.22.0",
     "pinia": "^3.0.3",
