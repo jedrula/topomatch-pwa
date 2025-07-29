@@ -114,6 +114,9 @@
                     v-for="(problemHold, index) in selectedProblemHolds"
                     :key="'problem-' + (problemHold.hold.id || index)"
                     class="absolute transition-all duration-200 group border-4"
+                    :class="{
+                      'pointer-events-none': detectionResults && boulderProblemsStore.activeProblem
+                    }"
                     :style="{
                       left: `${problemHold.hold.x * imageScale}px`,
                       top: `${problemHold.hold.y * imageScale}px`,
