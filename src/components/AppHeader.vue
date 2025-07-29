@@ -59,6 +59,13 @@
             Regions
           </router-link>
           <router-link
+            to="/browse-locations"
+            class="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            :class="{ 'text-blue-600 font-semibold': isLocationRoute }"
+          >
+            Locations
+          </router-link>
+          <router-link
             to="/hold-detection"
             class="text-gray-600 hover:text-gray-900 font-medium transition-colors"
             :class="{ 'text-blue-600 font-semibold': route.name === 'hold-detection' }"
@@ -84,7 +91,6 @@
 
         <!-- App Title -->
         <div class="flex items-center space-x-2">
-          <div class="text-lg font-bold text-gray-800">Topo Matcher</div>
           <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
         </div>
       </div>
@@ -103,6 +109,14 @@
           :class="{ 'text-blue-600 bg-blue-50 font-semibold': route.name === 'home' }"
         >
           Regions
+        </router-link>
+        <router-link
+          to="/browse-locations"
+          @click="closeMobileMenu"
+          class="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium transition-colors rounded-lg"
+          :class="{ 'text-blue-600 bg-blue-50 font-semibold': isLocationRoute }"
+        >
+          Locations
         </router-link>
         <router-link
           to="/hold-detection"
@@ -127,6 +141,13 @@ const showMobileMenu = ref(false);
 
 const isHome = computed(() => route.name === "home");
 const isHoldDetection = computed(() => route.name === "hold-detection");
+const isLocationRoute = computed(
+  () =>
+    route.name === "browse-locations" ||
+    route.name === "location-detail" ||
+    route.name === "location-edit" ||
+    route.name === "add-location"
+);
 
 const currentRegion = computed(() => {
   if (isHome.value || !route.params.regionId) return null;

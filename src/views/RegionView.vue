@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <AppHeader />
     <main class="max-w-6xl mx-auto px-4 py-6 pb-24">
       <!-- Error Message -->
       <div
@@ -89,7 +88,6 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
-import AppHeader from "@/components/AppHeader.vue";
 import FileUploadSection from "@/components/FileUploadSection.vue";
 import VideoUploadSection from "@/components/VideoUploadSection.vue";
 import GalleryTile from "@/components/GalleryTile.vue";

@@ -57,15 +57,15 @@ const router = createRouter({
 // Route guard to protect admin-only routes
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
-  
+
   // Check if route requires admin access
   if (to.meta.requiresAdmin && !userStore.canEditLocations) {
     // Redirect to browse locations or show error
-    console.warn('Access denied: Admin permissions required');
-    next('/browse-locations');
+    console.warn("Access denied: Admin permissions required");
+    next("/browse-locations");
     return;
   }
-  
+
   next();
 });
 

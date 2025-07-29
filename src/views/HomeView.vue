@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <AppHeader />
     <main class="max-w-6xl mx-auto px-4 py-8 pb-24">
       <!-- Hero Section -->
       <div class="text-center mb-8">
@@ -93,7 +92,6 @@
 
 <script setup>
 import { useRouter } from "vue-router";
-import AppHeader from "@/components/AppHeader.vue";
 import RegionPicker from "@/components/RegionPicker.vue";
 import MainFooter from "@/components/MainFooter.vue";
 import { useInferenceStore } from "@/stores/inferenceStore";

@@ -16,23 +16,8 @@
 
       <!-- Location content -->
       <div v-else-if="location" class="space-y-6">
-        <!-- Header with back button -->
-        <div class="flex items-center justify-between">
-          <button
-            @click="$router.go(-1)"
-            class="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back
-          </button>
-
+        <!-- Header with edit button -->
+        <div class="flex items-center justify-end">
           <!-- Edit button - only show for admins -->
           <button
             v-if="userStore.canEditLocations"

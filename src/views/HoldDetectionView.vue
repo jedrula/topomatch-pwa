@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <AppHeader />
     <main class="max-w-6xl mx-auto px-4 py-6 pb-24">
       <!-- Header -->
       <div class="mb-8">
@@ -417,7 +416,6 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import AppHeader from "@/components/AppHeader.vue";
 import MainFooter from "@/components/MainFooter.vue";
 import { useHoldDetectionStore } from "@/stores/holdDetectionStore";
 
