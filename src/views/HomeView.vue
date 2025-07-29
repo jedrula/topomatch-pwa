@@ -39,11 +39,14 @@
           </div>
         </router-link>
 
-        <div class="bg-white p-6 rounded-lg shadow border border-gray-200 opacity-75">
+        <router-link
+          to="/browse-locations"
+          class="block bg-white p-6 rounded-lg shadow border border-gray-200 hover:shadow-lg transition-shadow"
+        >
           <div class="flex items-center">
             <div class="flex-shrink-0">
               <svg
-                class="w-8 h-8 text-gray-400"
+                class="w-8 h-8 text-blue-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -57,11 +60,11 @@
               </svg>
             </div>
             <div class="ml-4">
-              <h3 class="text-lg font-semibold text-gray-500">Browse Locations</h3>
-              <p class="text-gray-500">View all locations (coming soon)</p>
+              <h3 class="text-lg font-semibold text-gray-900">Browse Locations</h3>
+              <p class="text-gray-600">View all locations</p>
             </div>
           </div>
-        </div>
+        </router-link>
       </div>
 
       <!-- Region Picker -->

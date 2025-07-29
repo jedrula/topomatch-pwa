@@ -12,7 +12,9 @@
     "logs": "firebase functions:log",
     "lint": "eslint --ext .js,.ts .",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "emulators:kill": "lsof -t -i:4000 -i:5001 -i:8085 -i:9000 -i:9090 -i:9099 -i:9199 | xargs kill -9"
+    "emulators:kill": "lsof -t -i:4000 -i:5001 -i:8085 -i:9000 -i:9090 -i:9099 -i:9199 -i:8080 | xargs kill -9",
+    "migrate": "MIGRATING_EMULATORS=true FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 fireway --require=ts-node/register migrate --projectId=demo-offline-vue-pwa",
+    "migrate:production": "fireway --require=ts-node/register migrate"
   },
   "engines": {
     "node": "18"
@@ -23,13 +25,15 @@
   "description": "",
   "dependencies": {
     "firebase-admin": "^13.4.0",
-    "firebase-functions": "^6.4.0"
+    "firebase-functions": "^6.4.0",
+    "fireway": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.1.0",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
     "eslint": "^9.32.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
 }

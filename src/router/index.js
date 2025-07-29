@@ -5,6 +5,7 @@ import HoldDetectionView from "../views/HoldDetectionView.vue";
 import AddLocationView from "../views/AddLocationView.vue";
 import LocationDetailView from "../views/LocationDetailView.vue";
 import EditLocationView from "../views/EditLocationView.vue";
+import BrowseLocationsView from "../views/BrowseLocationsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,6 +30,11 @@ const router = createRouter({
       path: "/add-location",
       name: "add-location",
       component: AddLocationView,
+    },
+    {
+      path: "/browse-locations",
+      name: "browse-locations",
+      component: BrowseLocationsView,
     },
     {
       path: "/location/:locationId",
