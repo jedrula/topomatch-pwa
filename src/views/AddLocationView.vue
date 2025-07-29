@@ -28,13 +28,14 @@ const error = ref("");
 const handleAddSubmit = async (form) => {
   try {
     // You may want to handle heroImageFile upload here
-    const locationId = await locationService.createLocation({
+    const location = await locationService.createLocation({
       name: form.name,
       description: form.description,
       heroImageUrl: form.heroImageUrl, // If uploaded
     });
-    router.push(`/location/${locationId}`);
+    router.push(`/location/${location.id}`);
   } catch (err) {
+    console.error("Failed to create location:", err);
     error.value = "Failed to create location.";
   }
 };

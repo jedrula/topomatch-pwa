@@ -148,6 +148,28 @@ export const updateLocation = onCall(async (request) => {
       throw new Error("Name is required");
     }
 
+    // Get the current location to check for existing hero image
+    const currentDoc = await db.collection("locations").doc(locationId).get();
+    if (!currentDoc.exists) {
+      throw new Error("Location not found");
+    }
+
+    const currentData = currentDoc.data() as Location;
+
+    // If hero image is being changed and there was an old one, delete the old file
+    if (currentData.heroImageUrl && heroImageUrl !== currentData.heroImageUrl) {
+      const oldHeroImagePath = getFilePathFromUrl(currentData.heroImageUrl);
+      if (oldHeroImagePath) {
+        try {
+          await bucket.file(oldHeroImagePath).delete();
+          logger.info("Deleted old hero image from storage:", oldHeroImagePath);
+        } catch (error) {
+          logger.warn("Failed to delete old hero image from storage:", oldHeroImagePath, error);
+          // Don't throw here - continue with update even if old file deletion fails
+        }
+      }
+    }
+
     const updateData: Partial<Location> = {
       name,
       description: description || "",
@@ -179,6 +201,14 @@ export const deleteLocation = onCall(async (request) => {
       throw new Error("Location ID is required");
     }
 
+    // Get the location document to check for hero image
+    const locationDoc = await db.collection("locations").doc(locationId).get();
+    if (!locationDoc.exists) {
+      throw new Error("Location not found");
+    }
+
+    const locationData = locationDoc.data() as Location;
+
     // Get all associated images before deleting them
     const imageSnapshot = await db
       .collection("locationImages")
@@ -200,6 +230,20 @@ export const deleteLocation = onCall(async (request) => {
         }
       }
     });
+
+    // Delete hero image if it exists and is a Firebase Storage URL
+    if (locationData.heroImageUrl) {
+      const heroImagePath = getFilePathFromUrl(locationData.heroImageUrl);
+      if (heroImagePath) {
+        try {
+          await bucket.file(heroImagePath).delete();
+          logger.info("Deleted hero image from storage:", heroImagePath);
+        } catch (error) {
+          logger.warn("Failed to delete hero image from storage:", heroImagePath, error);
+          // Don't throw here - continue with cleanup even if file deletion fails
+        }
+      }
+    }
 
     // Delete Firestore records
     const deleteDocPromises = imageSnapshot.docs.map((doc) => doc.ref.delete());

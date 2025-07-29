@@ -28,9 +28,11 @@
         type="file"
         accept="image/jpeg,image/png,image/webp"
         @change="onFileChange"
+        :disabled="isUploading"
         class="w-full border rounded px-4 py-2"
       />
-      <div v-if="form.heroImageUrl" class="mt-2">
+      <div v-if="isUploading" class="mt-2 text-blue-600">Uploading hero image...</div>
+      <div v-if="form.heroImageUrl && !isUploading" class="mt-2">
         <img :src="form.heroImageUrl" alt="Hero" class="h-24 rounded object-cover" />
       </div>
     </div>
@@ -60,7 +62,10 @@
 </template>
 
 <script setup>
-import { ref, watch, toRefs } from "vue";
+import { ref, watch } from "vue";
+import { storage } from "../services/firebase.js";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+
 const props = defineProps({
   initial: {
     type: Object,
@@ -71,8 +76,9 @@ const props = defineProps({
     default: "add", // or 'edit'
   },
 });
-const emit = defineEmits(["submit", "cancel"]);
+const emit = defineEmits(["submit", "cancel", "delete"]);
 const form = ref({ ...props.initial });
+const isUploading = ref(false);
 
 watch(
   () => props.initial,
@@ -81,20 +87,45 @@ watch(
   }
 );
 
-const onFileChange = (e) => {
+const onFileChange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
   // Only allow supported types
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
     alert("Only JPG, PNG, and WEBP images are supported.");
     return;
   }
-  // Show preview
-  form.value.heroImageUrl = URL.createObjectURL(file);
-  form.value.heroImageFile = file;
+
+  try {
+    isUploading.value = true;
+
+    // Create a unique filename
+    const timestamp = Date.now();
+    const fileName = `hero-images/${timestamp}-${file.name}`;
+
+    // Upload to Firebase Storage
+    const fileRef = storageRef(storage, fileName);
+    const snapshot = await uploadBytes(fileRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    // Update form with the Firebase Storage URL
+    form.value.heroImageUrl = downloadURL;
+
+    console.log("Hero image uploaded successfully:", downloadURL);
+  } catch (error) {
+    console.error("Error uploading hero image:", error);
+    alert("Failed to upload hero image. Please try again.");
+  } finally {
+    isUploading.value = false;
+  }
 };
 
 const handleSubmit = () => {
+  if (isUploading.value) {
+    alert("Please wait for the hero image to finish uploading.");
+    return;
+  }
   emit("submit", { ...form.value });
 };
 </script>
