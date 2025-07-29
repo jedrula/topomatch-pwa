@@ -33,8 +33,9 @@
             Back
           </button>
 
-          <!-- Edit button -->
+          <!-- Edit button - only show for admins -->
           <button
+            v-if="userStore.canEditLocations"
             @click="editLocation"
             class="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors"
           >
@@ -85,6 +86,7 @@
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-semibold text-gray-900">Images</h2>
             <button
+              v-if="userStore.canUploadImages"
               @click="showUploadModal = true"
               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
@@ -224,9 +226,11 @@ import { useRoute, useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
 import ImageUpload from "../components/ImageUpload.vue";
 import { formatDate, isSameDateTime } from "../utils/dateUtils.js";
+import { useUserStore } from "../stores/userStore.js";
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 
 const location = ref(null);
 const images = ref([]); // Placeholder for location images

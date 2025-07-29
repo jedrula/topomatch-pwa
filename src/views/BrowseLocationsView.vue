@@ -19,6 +19,7 @@
             <h1 class="text-2xl font-bold text-gray-900">Browse All Locations</h1>
           </div>
           <router-link
+            v-if="userStore.canCreateLocations"
             to="/add-location"
             class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -149,8 +150,10 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
 import { formatDateShort } from "../utils/dateUtils.js";
+import { useUserStore } from "../stores/userStore.js";
 
 const router = useRouter();
+const userStore = useUserStore();
 const locations = ref([]);
 const isLoading = ref(true);
 const error = ref("");

@@ -6,6 +6,7 @@ import AddLocationView from "../views/AddLocationView.vue";
 import LocationDetailView from "../views/LocationDetailView.vue";
 import EditLocationView from "../views/EditLocationView.vue";
 import BrowseLocationsView from "../views/BrowseLocationsView.vue";
+import { useUserStore } from "../stores/userStore.js";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,6 +31,7 @@ const router = createRouter({
       path: "/add-location",
       name: "add-location",
       component: AddLocationView,
+      meta: { requiresAdmin: true },
     },
     {
       path: "/browse-locations",
@@ -47,8 +49,24 @@ const router = createRouter({
       name: "location-edit",
       component: EditLocationView,
       props: true,
+      meta: { requiresAdmin: true },
     },
   ],
+});
+
+// Route guard to protect admin-only routes
+router.beforeEach((to, from, next) => {
+  const userStore = useUserStore();
+  
+  // Check if route requires admin access
+  if (to.meta.requiresAdmin && !userStore.canEditLocations) {
+    // Redirect to browse locations or show error
+    console.warn('Access denied: Admin permissions required');
+    next('/browse-locations');
+    return;
+  }
+  
+  next();
 });
 
 export default router;

@@ -40,7 +40,7 @@
       <div class="flex items-center justify-between gap-4 mt-6 w-full">
         <div>
           <button
-            v-if="mode === 'edit'"
+            v-if="mode === 'edit' && userStore.canDeleteLocations"
             type="button"
             @click="$emit('delete')"
             class="px-4 py-2 border border-red-500 text-red-600 rounded hover:bg-red-50 mr-auto"
@@ -65,6 +65,7 @@
 import { ref, watch } from "vue";
 import { storage } from "../services/firebase.js";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useUserStore } from "../stores/userStore.js";
 
 const props = defineProps({
   initial: {
@@ -77,6 +78,7 @@ const props = defineProps({
   },
 });
 const emit = defineEmits(["submit", "cancel", "delete"]);
+const userStore = useUserStore();
 const form = ref({ ...props.initial });
 const isUploading = ref(false);
 
