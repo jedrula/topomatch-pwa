@@ -9,13 +9,13 @@ import AppHeader from "./components/AppHeader.vue";
     <!-- Global header -->
     <AppHeader />
 
-    <!-- User role switcher for testing -->
-    <div class="max-w-7xl mx-auto px-4 pt-4">
-      <UserRoleSwitcher />
-    </div>
-
     <!-- Main content -->
     <RouterView />
+
+    <!-- User role switcher for testing - positioned at bottom -->
+    <div class="fixed bottom-4 right-4 z-40">
+      <UserRoleSwitcher />
+    </div>
   </div>
 </template>
 
