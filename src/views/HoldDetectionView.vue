@@ -77,10 +77,14 @@
                 />
 
                 <!-- Hold Detection Overlay -->
-                <div v-if="detectionResults && imageLoaded" class="absolute inset-0 opacity-70">
+                <div
+                  v-if="imageLoaded && (detectionResults || selectedProblemHolds.length > 0)"
+                  class="absolute inset-0 opacity-70"
+                >
+                  <!-- Detected Holds (when detection has been run) -->
                   <div
-                    v-for="(hold, index) in detectionResults.holds"
-                    :key="hold.id || index"
+                    v-for="(hold, index) in detectionResults?.holds || []"
+                    :key="'detected-' + (hold.id || index)"
                     class="absolute cursor-pointer hover:opacity-100 transition-all duration-200 group"
                     :style="{
                       left: `${hold.x * imageScale}px`,
@@ -102,6 +106,31 @@
                     >
                       <div>{{ hold.type }} ({{ Math.round(hold.confidence * 100) }}%)</div>
                       <div v-if="hold.color" class="text-gray-300">{{ hold.color.name }}</div>
+                    </div>
+                  </div>
+
+                  <!-- Selected Problem Holds (when viewing an existing problem) -->
+                  <div
+                    v-for="(problemHold, index) in selectedProblemHolds"
+                    :key="'problem-' + (problemHold.hold.id || index)"
+                    class="absolute transition-all duration-200 group border-4"
+                    :style="{
+                      left: `${problemHold.hold.x * imageScale}px`,
+                      top: `${problemHold.hold.y * imageScale}px`,
+                      width: `${problemHold.hold.width * imageScale}px`,
+                      height: `${problemHold.hold.height * imageScale}px`,
+                      backgroundColor: boulderProblemsStore.activeProblem?.color + '80', // Add transparency
+                      borderColor: boulderProblemsStore.activeProblem?.color,
+                    }"
+                  >
+                    <!-- Problem Hold Label -->
+                    <div
+                      class="absolute -top-8 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none"
+                    >
+                      <div>{{ boulderProblemsStore.activeProblem?.name }}</div>
+                      <div class="text-gray-300">
+                        {{ boulderProblemsStore.activeProblem?.grade }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -429,6 +458,15 @@ const detectionResults = computed(() => holdDetectionStore.detectionResults);
 const selectedHold = computed(() => {
   if (selectedHoldIndex.value === null || !detectionResults.value) return null;
   return detectionResults.value.holds[selectedHoldIndex.value];
+});
+
+// Computed property for holds from selected boulder problem
+const selectedProblemHolds = computed(() => {
+  const activeProblem = boulderProblemsStore.activeProblem;
+  if (!activeProblem || boulderProblemsStore.isCreatingProblem) {
+    return [];
+  }
+  return activeProblem.holds || [];
 });
 
 // Methods
