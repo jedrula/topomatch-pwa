@@ -3,25 +3,9 @@
     <main class="max-w-6xl mx-auto px-4 py-6 pb-24">
       <!-- Header -->
       <div class="mb-8">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">Hold Detection</h1>
-            <p class="text-gray-600 mt-2">AI-powered climbing hold identification and analysis</p>
-          </div>
-          <router-link
-            to="/"
-            class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            <span>Back to Home</span>
-          </router-link>
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">Hold Detection</h1>
+          <p class="text-gray-600 mt-2">AI-powered climbing hold identification and analysis</p>
         </div>
       </div>
 
@@ -64,8 +48,6 @@
                     @click="selectHold(hold, index)"
                     :class="{
                       'ring-4 ring-blue-500': selectedHoldIndex === index,
-                      'ring-2 ring-yellow-400 ring-offset-1': isHoldHighlighted(hold),
-                      'opacity-30': highlightedBoulderProblem && !isHoldHighlighted(hold),
                     }"
                   >
                     <!-- Hold Label -->
@@ -129,23 +111,6 @@
                   </svg>
                   <span>Clear Results</span>
                 </button>
-
-                <!-- Future: Image Upload Button -->
-                <button
-                  disabled
-                  class="px-6 py-3 border border-gray-300 text-gray-400 font-medium rounded-lg cursor-not-allowed flex items-center justify-center space-x-2"
-                  title="Image upload will be available in future version"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                    />
-                  </svg>
-                  <span>Upload Image (Soon)</span>
-                </button>
               </div>
 
               <!-- Scale Adjustment Input -->
@@ -205,54 +170,12 @@
                   </span>
                 </div>
 
-                <!-- Boulder Problems -->
-                <div
-                  v-if="holdDetectionStore.holdGroups.length > 0"
-                  class="flex items-center justify-between"
-                >
-                  <span class="text-gray-600">Boulder Problems</span>
-                  <span class="text-sm font-medium text-gray-900">
-                    {{ holdDetectionStore.holdGroups.length }} problems found
-                  </span>
-                </div>
-
                 <!-- Processing Time -->
                 <div v-if="detectionResults" class="flex items-center justify-between">
                   <span class="text-gray-600">Processing Time</span>
                   <span class="text-sm font-medium text-gray-900">
                     {{ detectionResults.processingTime }}ms
                   </span>
-                </div>
-              </div>
-
-              <!-- Boulder Problems Details -->
-              <div
-                v-if="holdDetectionStore.holdGroups.length > 0"
-                class="mt-6 pt-4 border-t border-gray-100"
-              >
-                <h4 class="text-sm font-medium text-gray-700 mb-3">Boulder Problems by Color</h4>
-                <div class="space-y-2">
-                  <div
-                    v-for="group in holdDetectionStore.holdGroups"
-                    :key="group.id"
-                    @click="selectBoulderProblem(group)"
-                    class="flex items-center justify-between p-2 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
-                    :class="{
-                      'bg-yellow-100 ring-2 ring-yellow-400':
-                        highlightedBoulderProblem?.id === group.id,
-                    }"
-                  >
-                    <div class="flex items-center space-x-3">
-                      <div
-                        class="w-3 h-3 rounded-full border border-gray-300"
-                        :style="{ backgroundColor: group.color.hex }"
-                      ></div>
-                      <span class="text-sm text-gray-900 capitalize">{{ group.color.name }}</span>
-                    </div>
-                    <span class="text-sm font-medium text-gray-900"
-                      >{{ group.holds.length }} holds</span
-                    >
-                  </div>
                 </div>
               </div>
             </div>
@@ -426,7 +349,6 @@ const climbingImage = ref(null);
 const imageLoaded = ref(false);
 const imageScale = ref(1);
 const selectedHoldIndex = ref(null);
-const highlightedBoulderProblem = ref(null);
 
 // Hardcoded image URL for now
 const imageUrl = "/topos/wibrem-23-may/WhatsApp Image 2025-05-24 at 00.15.17.jpeg";
@@ -437,14 +359,6 @@ const selectedHold = computed(() => {
   if (selectedHoldIndex.value === null || !detectionResults.value) return null;
   return detectionResults.value.holds[selectedHoldIndex.value];
 });
-
-// Check if a hold is part of the highlighted boulder problem
-const isHoldHighlighted = (hold) => {
-  if (!highlightedBoulderProblem.value) return false;
-  return highlightedBoulderProblem.value.holds.some(
-    (groupHold) => groupHold.id === hold.id || (groupHold.x === hold.x && groupHold.y === hold.y) // fallback comparison
-  );
-};
 
 // Methods
 const onImageLoad = () => {
@@ -537,19 +451,9 @@ const selectHold = (hold, index) => {
   selectedHoldIndex.value = selectedHoldIndex.value === index ? null : index;
 };
 
-const selectBoulderProblem = (group) => {
-  // Toggle selection - if same group is clicked again, deselect
-  if (highlightedBoulderProblem.value?.id === group.id) {
-    highlightedBoulderProblem.value = null;
-  } else {
-    highlightedBoulderProblem.value = group;
-  }
-};
-
 const clearResults = () => {
   holdDetectionStore.resetDetectionState();
   selectedHoldIndex.value = null;
-  highlightedBoulderProblem.value = null;
 };
 
 // Watch for changes in detectionResults and recalculate image scale
