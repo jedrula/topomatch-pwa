@@ -14,7 +14,12 @@
       class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
     >
       <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M6 18L18 6M6 6l12 12"
+        />
       </svg>
     </button>
 
@@ -61,7 +66,9 @@
     </div>
 
     <!-- Image info overlay -->
-    <div class="absolute bottom-4 left-4 right-4 text-white bg-black bg-opacity-50 px-4 py-2 rounded">
+    <div
+      class="absolute bottom-4 left-4 right-4 text-white bg-black bg-opacity-50 px-4 py-2 rounded"
+    >
       <div class="text-sm font-medium">{{ currentImage?.name }}</div>
       <div class="text-xs text-gray-300 mt-1">
         Click and drag to pan • Use arrow keys to navigate • Press ESC to close
@@ -78,115 +85,118 @@
         :key="image.id"
         @click="goToImage(index)"
         class="flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all"
-        :class="index === currentIndex ? 'border-white' : 'border-transparent opacity-60 hover:opacity-80'"
+        :class="
+          index === currentIndex ? 'border-white' : 'border-transparent opacity-60 hover:opacity-80'
+        "
       >
-        <img
-          :src="image.url"
-          :alt="image.name"
-          class="w-full h-full object-cover"
-        />
+        <img :src="image.url" :alt="image.name" class="w-full h-full object-cover" />
       </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, watch, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, watch, nextTick } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 const props = defineProps({
   images: {
     type: Array,
-    required: true
+    required: true,
   },
   initialIndex: {
     type: Number,
-    default: 0
+    default: 0,
   },
   isOpen: {
     type: Boolean,
-    default: false
+    default: false,
   },
   locationId: {
     type: String,
-    required: true
-  }
-})
+    required: true,
+  },
+});
 
-const emit = defineEmits(['close', 'navigate'])
+const emit = defineEmits(["close", "navigate"]);
 
-const route = useRoute()
-const router = useRouter()
+const route = useRoute();
+const router = useRouter();
 
 const currentIndex = computed(() => {
   // Get index from URL if available
-  const imageIndex = route.query.image
+  const imageIndex = route.query.image;
   if (imageIndex !== undefined) {
-    const index = parseInt(imageIndex)
-    return isNaN(index) ? props.initialIndex : Math.max(0, Math.min(index, props.images.length - 1))
+    const index = parseInt(imageIndex);
+    return isNaN(index)
+      ? props.initialIndex
+      : Math.max(0, Math.min(index, props.images.length - 1));
   }
-  return props.initialIndex
-})
+  return props.initialIndex;
+});
 
 const currentImage = computed(() => {
-  return props.images[currentIndex.value] || null
-})
+  return props.images[currentIndex.value] || null;
+});
 
 const closeGallery = () => {
   // Remove image query parameter to close gallery
-  const query = { ...route.query }
-  delete query.image
-  router.push({ query })
-  emit('close')
-}
+  const query = { ...route.query };
+  delete query.image;
+  router.push({ query });
+  emit("close");
+};
 
 const closeOnBackdrop = (event) => {
   if (event.target === event.currentTarget) {
-    closeGallery()
+    closeGallery();
   }
-}
+};
 
 const previousImage = () => {
   if (currentIndex.value > 0) {
-    navigateToImage(currentIndex.value - 1)
+    navigateToImage(currentIndex.value - 1);
   }
-}
+};
 
 const nextImage = () => {
   if (currentIndex.value < props.images.length - 1) {
-    navigateToImage(currentIndex.value + 1)
+    navigateToImage(currentIndex.value + 1);
   }
-}
+};
 
 const goToImage = (index) => {
-  navigateToImage(index)
-}
+  navigateToImage(index);
+};
 
 const navigateToImage = (index) => {
-  const clampedIndex = Math.max(0, Math.min(index, props.images.length - 1))
+  const clampedIndex = Math.max(0, Math.min(index, props.images.length - 1));
   router.push({
-    query: { ...route.query, image: clampedIndex }
-  })
-  emit('navigate', clampedIndex)
-}
+    query: { ...route.query, image: clampedIndex },
+  });
+  emit("navigate", clampedIndex);
+};
 
 const onImageLoad = () => {
   // Focus the gallery for keyboard navigation
   nextTick(() => {
-    const galleryEl = document.querySelector('[tabindex="0"]')
+    const galleryEl = document.querySelector('[tabindex="0"]');
     if (galleryEl) {
-      galleryEl.focus()
+      galleryEl.focus();
     }
-  })
-}
+  });
+};
 
 // Watch for route changes to update current image
-watch(() => route.query.image, (newImageIndex) => {
-  if (newImageIndex !== undefined && props.isOpen) {
-    const index = parseInt(newImageIndex)
-    if (!isNaN(index)) {
-      emit('navigate', index)
+watch(
+  () => route.query.image,
+  (newImageIndex) => {
+    if (newImageIndex !== undefined && props.isOpen) {
+      const index = parseInt(newImageIndex);
+      if (!isNaN(index)) {
+        emit("navigate", index);
+      }
     }
   }
-})
+);
 </script>

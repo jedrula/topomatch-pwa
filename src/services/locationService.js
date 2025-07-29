@@ -1,5 +1,6 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase.js";
+import { boulderProblemsService } from "./boulderProblemsService.js";
 
 // Initialize callable functions
 const createLocationFn = httpsCallable(functions, "createLocation");
@@ -54,6 +55,20 @@ class LocationService {
 
   async deleteLocation(id) {
     try {
+      // Note: Boulder problems are stored as subcollections and will be
+      // automatically deleted when the location document is deleted
+      // However, we can optionally clean them up explicitly for better error handling
+      try {
+        await boulderProblemsService.deleteAllBoulderProblemsForLocation(id);
+        console.log("Boulder problems cleaned up for location:", id);
+      } catch (boulderError) {
+        console.warn(
+          "Error cleaning up boulder problems (will be handled by cascade delete):",
+          boulderError
+        );
+        // Continue with location deletion even if boulder cleanup fails
+      }
+
       const result = await deleteLocationFn({ locationId: id });
       return result.data;
     } catch (error) {

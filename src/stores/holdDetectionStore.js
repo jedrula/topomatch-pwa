@@ -41,19 +41,19 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
           break;
 
         case "detectionComplete": {
-          // Enhanced detection results with segmentation and color analysis
-          const enhancedHolds = data.detections.map((hold) => {
-            // Keep the enhanced data from segmentation pipeline
+          // Simple hold detection results with basic bounding boxes
+          const holds = data.detections.map((hold, index) => {
             return {
               ...hold,
-              // Default type if not provided by pipeline
+              // Add unique ID for tracking
+              id: `hold_${index}_${Date.now()}`,
+              // Ensure type is set
               type: hold.type || "hold",
             };
           });
 
           detectionResults.value = {
-            holds: enhancedHolds,
-            holdGroups: data.holdGroups || [],
+            holds: holds,
             imageWidth: data.imageWidth,
             imageHeight: data.imageHeight,
             processingTime: data.processingTime,
@@ -62,7 +62,8 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
           currentlyProcessingImage.value = null;
           isLoading.value = false;
           loadingMessage.value = "";
-          console.log(`Enhanced hold detection completed in ${data.processingTime.toFixed(2)}ms`);
+          console.log(`Hold detection completed in ${data.processingTime.toFixed(2)}ms`);
+          console.log(`Found ${holds.length} holds`);
           if (data.pipelineInfo) {
             console.log("Pipeline info:", data.pipelineInfo);
           }

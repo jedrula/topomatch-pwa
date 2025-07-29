@@ -144,7 +144,7 @@
                 class="w-full h-full object-cover hover:opacity-75 transition-opacity cursor-pointer"
                 @click="openImageModal(image)"
               />
-              
+
               <!-- Admin Action Overlay (only for admins) -->
               <div
                 v-if="userStore.canEditLocations && !isHeicFile(image.name)"
@@ -309,11 +309,11 @@ const editLocation = () => {
 
 const openImageModal = (image) => {
   // Find the index of the clicked image
-  const imageIndex = images.value.findIndex(img => img.id === image.id);
+  const imageIndex = images.value.findIndex((img) => img.id === image.id);
   if (imageIndex !== -1) {
     // Navigate to the image gallery with the specific image
     router.push({
-      query: { ...route.query, image: imageIndex }
+      query: { ...route.query, image: imageIndex },
     });
   }
 };
@@ -321,12 +321,12 @@ const openImageModal = (image) => {
 const openHoldDetection = (image) => {
   // Navigate to hold detection page with image and location information
   router.push({
-    path: '/hold-detection',
+    path: "/hold-detection",
     query: {
       imageId: image.id,
       locationId: locationId,
-      imageName: image.name
-    }
+      imageName: image.name,
+    },
   });
 };
 

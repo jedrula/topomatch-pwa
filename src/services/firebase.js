@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -20,6 +21,9 @@ const storage = getStorage(app);
 
 // Initialize Firebase Functions
 const functions = getFunctions(app);
+
+// Initialize Firestore
+const db = getFirestore(app);
 
 // Connect to emulator if in development
 if (import.meta.env.DEV) {
@@ -42,6 +46,16 @@ if (import.meta.env.DEV) {
       console.warn("Functions emulator connection error:", error);
     }
   }
+
+  try {
+    connectFirestoreEmulator(db, "localhost", 8080);
+    console.log("Connected to Firestore emulator");
+  } catch (error) {
+    // Emulator might already be connected
+    if (error.code !== "firestore/emulator-config-failed") {
+      console.warn("Firestore emulator connection error:", error);
+    }
+  }
 }
 
-export { storage, functions };
+export { storage, functions, db };

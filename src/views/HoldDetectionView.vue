@@ -14,7 +14,12 @@
                 class="px-3 py-1 text-sm text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors flex items-center space-x-1"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 19l-7-7 7-7"
+                  />
                 </svg>
                 <span>Back to Location</span>
               </button>
@@ -37,7 +42,10 @@
                 <span v-else>Currently analyzing: {{ imageDisplayName }}</span>
               </p>
               <!-- Error message for image loading -->
-              <div v-if="imageLoadError" class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+              <div
+                v-if="imageLoadError"
+                class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm"
+              >
                 Error loading image: {{ imageLoadError }}
               </div>
             </div>
@@ -46,16 +54,18 @@
               <!-- Image Container -->
               <div class="relative bg-gray-100 rounded-lg overflow-hidden">
                 <!-- Loading state when no image is available -->
-                <div 
+                <div
                   v-if="route.query.imageId && !currentImage && !imageLoadError"
                   class="w-full h-64 flex items-center justify-center"
                 >
                   <div class="text-center">
-                    <div class="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <div
+                      class="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"
+                    ></div>
                     <p class="text-gray-600">Loading image...</p>
                   </div>
                 </div>
-                
+
                 <!-- Image -->
                 <img
                   v-else
@@ -513,7 +523,7 @@ const selectHold = (hold, index) => {
   if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
     boulderProblemsStore.addHoldToProblem(boulderProblemsStore.activeProblem.id, hold, index);
   }
-  
+
   // Always handle selection state
   selectedHoldIndex.value = selectedHoldIndex.value === index ? null : index;
 };
@@ -522,10 +532,10 @@ const selectHold = (hold, index) => {
 const getHoldBackgroundColor = (hold, index) => {
   // If this hold is in the active problem, use the problem's color
   if (boulderProblemsStore.isHoldInActiveProblem(index)) {
-    return boulderProblemsStore.activeProblemColor + '60'; // 60% opacity
+    return boulderProblemsStore.activeProblemColor + "60"; // 60% opacity
   }
   // Otherwise use the hold's natural color or default
-  return hold.color ? hold.color.hex + '40' : '#ef444440';
+  return hold.color ? hold.color.hex + "40" : "#ef444440";
 };
 
 const getHoldBorderColor = (index) => {
@@ -533,7 +543,7 @@ const getHoldBorderColor = (index) => {
   if (boulderProblemsStore.isHoldInActiveProblem(index)) {
     return boulderProblemsStore.activeProblemColor;
   }
-  return 'transparent';
+  return "transparent";
 };
 
 const isHoldInActiveProblem = (index) => {
@@ -547,10 +557,16 @@ const loadImageFromQuery = async () => {
 
   if (imageId && locationId) {
     try {
+      // Initialize boulder problems store for this location and image
+      boulderProblemsStore.initializeForLocation(locationId, imageId);
+
+      // Load existing boulder problems for this image
+      await boulderProblemsStore.loadBoulderProblems(locationId, imageId);
+
       // Load image data from the location service
       const imageRecords = await locationService.getLocationImages(locationId);
-      const imageRecord = imageRecords.find(record => record.id === imageId);
-      
+      const imageRecord = imageRecords.find((record) => record.id === imageId);
+
       if (imageRecord) {
         currentImage.value = {
           id: imageRecord.id,
@@ -570,6 +586,8 @@ const loadImageFromQuery = async () => {
   } else {
     // No query parameters, use default/hardcoded image
     currentImage.value = null;
+    // Reset boulder problems store
+    boulderProblemsStore.clearAllProblems();
   }
 };
 
@@ -599,15 +617,19 @@ watch(detectionResults, (newValue) => {
 });
 
 // Watch for route changes to load different images
-watch(() => route.query, () => {
-  loadImageFromQuery();
-}, { immediate: false });
+watch(
+  () => route.query,
+  () => {
+    loadImageFromQuery();
+  },
+  { immediate: false }
+);
 
 // Lifecycle
 onMounted(async () => {
   // Reset any previous state
   holdDetectionStore.resetDetectionState();
-  
+
   // Load image based on query parameters
   await loadImageFromQuery();
 });
