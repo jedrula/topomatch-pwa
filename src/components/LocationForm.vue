@@ -35,12 +35,26 @@
       </div>
     </div>
     <div class="flex gap-4 mt-6">
-      <button type="button" @click="$emit('cancel')" class="px-4 py-2 border rounded">
-        Cancel
-      </button>
-      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">
-        {{ mode === "edit" ? "Save Changes" : "Add Location" }}
-      </button>
+      <div class="flex items-center justify-between gap-4 mt-6 w-full">
+        <div>
+          <button
+            v-if="mode === 'edit'"
+            type="button"
+            @click="$emit('delete')"
+            class="px-4 py-2 border border-red-500 text-red-600 rounded hover:bg-red-50 mr-auto"
+          >
+            Delete
+          </button>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" @click="$emit('cancel')" class="px-4 py-2 border rounded">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">
+            {{ mode === "edit" ? "Save Changes" : "Add Location" }}
+          </button>
+        </div>
+      </div>
     </div>
   </form>
 </template>

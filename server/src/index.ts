@@ -1,11 +1,13 @@
-import { onRequest } from "firebase-functions/v2/https";
+import { onCall } from "firebase-functions/v2/https";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import * as logger from "firebase-functions/logger";
 
 initializeApp();
 
 const db = getFirestore();
+const bucket = getStorage().bucket();
 
 // Configure Firestore to use emulator if in development
 if (process.env.FUNCTIONS_EMULATOR === "true") {
@@ -14,6 +16,23 @@ if (process.env.FUNCTIONS_EMULATOR === "true") {
     ssl: false,
   });
 }
+
+// Helper function to extract file path from Firebase Storage URL
+const getFilePathFromUrl = (downloadUrl: string): string | null => {
+  try {
+    // Firebase Storage URLs have the format:
+    // https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media&token={token}
+    const url = new URL(downloadUrl);
+    const pathMatch = url.pathname.match(/\/o\/(.+)$/);
+    if (pathMatch) {
+      return decodeURIComponent(pathMatch[1]);
+    }
+    return null;
+  } catch (error) {
+    logger.error("Error parsing storage URL:", error);
+    return null;
+  }
+};
 
 // Interface for Location data
 interface Location {
@@ -35,18 +54,12 @@ interface LocationImage {
 }
 
 // Create a new location
-export const createLocation = onRequest({ cors: true }, async (request, response) => {
+export const createLocation = onCall(async (request) => {
   try {
-    if (request.method !== "POST") {
-      response.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    const { name, description, heroImageUrl } = request.body as Location;
+    const { name, description, heroImageUrl } = request.data as Location;
 
     if (!name) {
-      response.status(400).json({ error: "Name is required" });
-      return;
+      throw new Error("Name is required");
     }
 
     const locationData: Location = {
@@ -68,21 +81,16 @@ export const createLocation = onRequest({ cors: true }, async (request, response
     };
 
     logger.info("Location created:", locationWithId);
-    response.status(201).json(locationWithId);
+    return locationWithId;
   } catch (error) {
     logger.error("Error creating location:", error);
-    response.status(500).json({ error: "Failed to create location" });
+    throw new Error("Failed to create location");
   }
 });
 
 // Get all locations
-export const getLocations = onRequest({ cors: true }, async (request, response) => {
+export const getLocations = onCall(async (request) => {
   try {
-    if (request.method !== "GET") {
-      response.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
     const snapshot = await db.collection("locations").get();
     const locations: Location[] = [];
 
@@ -93,33 +101,26 @@ export const getLocations = onRequest({ cors: true }, async (request, response) 
       } as Location);
     });
 
-    response.status(200).json(locations);
+    return locations;
   } catch (error) {
     logger.error("Error getting locations:", error);
-    response.status(500).json({ error: "Failed to get locations" });
+    throw new Error("Failed to get locations");
   }
 });
 
 // Get a specific location
-export const getLocation = onRequest({ cors: true }, async (request, response) => {
+export const getLocation = onCall(async (request) => {
   try {
-    if (request.method !== "GET") {
-      response.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    const locationId = request.query.id as string;
+    const { locationId } = request.data;
 
     if (!locationId) {
-      response.status(400).json({ error: "Location ID is required" });
-      return;
+      throw new Error("Location ID is required");
     }
 
     const doc = await db.collection("locations").doc(locationId).get();
 
     if (!doc.exists) {
-      response.status(404).json({ error: "Location not found" });
-      return;
+      throw new Error("Location not found");
     }
 
     const location = {
@@ -127,32 +128,24 @@ export const getLocation = onRequest({ cors: true }, async (request, response) =
       ...doc.data(),
     } as Location;
 
-    response.status(200).json(location);
+    return location;
   } catch (error) {
     logger.error("Error getting location:", error);
-    response.status(500).json({ error: "Failed to get location" });
+    throw new Error("Failed to get location");
   }
 });
 
 // Update a location
-export const updateLocation = onRequest({ cors: true }, async (request, response) => {
+export const updateLocation = onCall(async (request) => {
   try {
-    if (request.method !== "PUT") {
-      response.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    const locationId = request.query.id as string;
-    const { name, description, heroImageUrl } = request.body as Location;
+    const { locationId, name, description, heroImageUrl } = request.data;
 
     if (!locationId) {
-      response.status(400).json({ error: "Location ID is required" });
-      return;
+      throw new Error("Location ID is required");
     }
 
     if (!name) {
-      response.status(400).json({ error: "Name is required" });
-      return;
+      throw new Error("Name is required");
     }
 
     const updateData: Partial<Location> = {
@@ -170,51 +163,68 @@ export const updateLocation = onRequest({ cors: true }, async (request, response
     } as Location;
 
     logger.info("Location updated:", updatedLocation);
-    response.status(200).json(updatedLocation);
+    return updatedLocation;
   } catch (error) {
     logger.error("Error updating location:", error);
-    response.status(500).json({ error: "Failed to update location" });
+    throw new Error("Failed to update location");
   }
 });
 
-// Delete a location
-export const deleteLocation = onRequest({ cors: true }, async (request, response) => {
+// Delete a location and all its related files
+export const deleteLocation = onCall(async (request) => {
   try {
-    if (request.method !== "DELETE") {
-      response.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    const locationId = request.query.id as string;
+    const { locationId } = request.data;
 
     if (!locationId) {
-      response.status(400).json({ error: "Location ID is required" });
-      return;
+      throw new Error("Location ID is required");
     }
 
+    // Get all associated images before deleting them
+    const imageSnapshot = await db
+      .collection("locationImages")
+      .where("locationId", "==", locationId)
+      .get();
+
+    // Delete files from Firebase Storage
+    const deleteFilePromises = imageSnapshot.docs.map(async (doc) => {
+      const imageData = doc.data() as LocationImage;
+      const filePath = getFilePathFromUrl(imageData.downloadUrl);
+
+      if (filePath) {
+        try {
+          await bucket.file(filePath).delete();
+          logger.info("Deleted file from storage:", filePath);
+        } catch (error) {
+          logger.warn("Failed to delete file from storage:", filePath, error);
+          // Don't throw here - continue with cleanup even if file deletion fails
+        }
+      }
+    });
+
+    // Delete Firestore records
+    const deleteDocPromises = imageSnapshot.docs.map((doc) => doc.ref.delete());
+
+    // Wait for all deletions to complete
+    await Promise.all([...deleteFilePromises, ...deleteDocPromises]);
+
+    // Delete the location document
     await db.collection("locations").doc(locationId).delete();
 
-    logger.info("Location deleted:", locationId);
-    response.status(200).json({ message: "Location deleted successfully" });
+    logger.info("Location and related data deleted:", locationId);
+    return { message: "Location deleted successfully" };
   } catch (error) {
     logger.error("Error deleting location:", error);
-    response.status(500).json({ error: "Failed to delete location" });
+    throw new Error("Failed to delete location");
   }
 });
 
 // Add an image to a location
-export const addLocationImage = onRequest({ cors: true }, async (request, response) => {
+export const addLocationImage = onCall(async (request) => {
   try {
-    if (request.method !== "POST") {
-      response.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    const { locationId, fileName, downloadUrl } = request.body as LocationImage;
+    const { locationId, fileName, downloadUrl } = request.data as LocationImage;
 
     if (!locationId || !fileName || !downloadUrl) {
-      response.status(400).json({ error: "locationId, fileName, and downloadUrl are required" });
-      return;
+      throw new Error("locationId, fileName, and downloadUrl are required");
     }
 
     const imageData: LocationImage = {
@@ -231,26 +241,20 @@ export const addLocationImage = onRequest({ cors: true }, async (request, respon
     };
 
     logger.info("Location image added:", imageWithId);
-    response.status(201).json(imageWithId);
+    return imageWithId;
   } catch (error) {
     logger.error("Error adding location image:", error);
-    response.status(500).json({ error: "Failed to add location image" });
+    throw new Error("Failed to add location image");
   }
 });
 
 // Get all images for a location
-export const getLocationImages = onRequest({ cors: true }, async (request, response) => {
+export const getLocationImages = onCall(async (request) => {
   try {
-    if (request.method !== "GET") {
-      response.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    const locationId = request.query.locationId as string;
+    const { locationId } = request.data;
 
     if (!locationId) {
-      response.status(400).json({ error: "locationId is required" });
-      return;
+      throw new Error("locationId is required");
     }
 
     const snapshot = await db
@@ -267,34 +271,50 @@ export const getLocationImages = onRequest({ cors: true }, async (request, respo
       } as LocationImage);
     });
 
-    response.status(200).json(images);
+    return images;
   } catch (error) {
     logger.error("Error getting location images:", error);
-    response.status(500).json({ error: "Failed to get location images" });
+    throw new Error("Failed to get location images");
   }
 });
 
 // Delete a location image
-export const deleteLocationImage = onRequest({ cors: true }, async (request, response) => {
+export const deleteLocationImage = onCall(async (request) => {
   try {
-    if (request.method !== "DELETE") {
-      response.status(405).json({ error: "Method not allowed" });
-      return;
-    }
-
-    const imageId = request.query.imageId as string;
+    const { imageId } = request.data;
 
     if (!imageId) {
-      response.status(400).json({ error: "imageId is required" });
-      return;
+      throw new Error("imageId is required");
     }
 
+    // Get the image document to retrieve the download URL
+    const imageDoc = await db.collection("locationImages").doc(imageId).get();
+
+    if (!imageDoc.exists) {
+      throw new Error("Image not found");
+    }
+
+    const imageData = imageDoc.data() as LocationImage;
+    const filePath = getFilePathFromUrl(imageData.downloadUrl);
+
+    // Delete file from Firebase Storage
+    if (filePath) {
+      try {
+        await bucket.file(filePath).delete();
+        logger.info("Deleted file from storage:", filePath);
+      } catch (error) {
+        logger.warn("Failed to delete file from storage:", filePath, error);
+        // Continue with document deletion even if file deletion fails
+      }
+    }
+
+    // Delete the Firestore document
     await db.collection("locationImages").doc(imageId).delete();
 
     logger.info("Location image deleted:", imageId);
-    response.status(200).json({ message: "Location image deleted successfully" });
+    return { message: "Location image deleted successfully" };
   } catch (error) {
     logger.error("Error deleting location image:", error);
-    response.status(500).json({ error: "Failed to delete location image" });
+    throw new Error("Failed to delete location image");
   }
 });

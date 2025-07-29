@@ -226,12 +226,6 @@ import { useRoute, useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
 import ImageUpload from "../components/ImageUpload.vue";
 
-// Firebase configuration for local development
-const FIREBASE_CONFIG = {
-  functionsEmulatorURL: "http://127.0.0.1:5001",
-  firestoreEmulatorURL: "http://127.0.0.1:8080",
-};
-
 const route = useRoute();
 const router = useRouter();
 
@@ -262,15 +256,7 @@ const loadLocation = async () => {
 
 const loadLocationImages = async () => {
   try {
-    const response = await fetch(
-      `${FIREBASE_CONFIG.functionsEmulatorURL}/your-project-id/us-central1/getLocationImages?locationId=${locationId}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const imageRecords = await response.json();
+    const imageRecords = await locationService.getLocationImages(locationId);
 
     // Transform the records to the format expected by the template
     images.value = imageRecords.map((record) => ({
@@ -320,26 +306,11 @@ const handleImageUploadComplete = async (uploadResult) => {
 
   try {
     // Save image metadata to Firestore via backend function
-    const response = await fetch(
-      `${FIREBASE_CONFIG.functionsEmulatorURL}/your-project-id/us-central1/addLocationImage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          locationId: uploadResult.locationId,
-          fileName: uploadResult.fileName,
-          downloadUrl: uploadResult.downloadUrl,
-        }),
-      }
+    const imageRecord = await locationService.addLocationImage(
+      uploadResult.locationId,
+      uploadResult.fileName,
+      uploadResult.downloadUrl
     );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const imageRecord = await response.json();
     console.log("Image metadata saved:", imageRecord);
 
     // Add the new image to the images array for immediate display

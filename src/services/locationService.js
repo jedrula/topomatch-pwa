@@ -1,30 +1,21 @@
-// Firebase configuration for local development
-const FIREBASE_CONFIG = {
-  functionsEmulatorURL: "http://127.0.0.1:5001",
-  firestoreEmulatorURL: "http://127.0.0.1:8080",
-};
+import { httpsCallable } from "firebase/functions";
+import { functions } from "./firebase.js";
+
+// Initialize callable functions
+const createLocationFn = httpsCallable(functions, "createLocation");
+const getLocationsFn = httpsCallable(functions, "getLocations");
+const getLocationFn = httpsCallable(functions, "getLocation");
+const updateLocationFn = httpsCallable(functions, "updateLocation");
+const deleteLocationFn = httpsCallable(functions, "deleteLocation");
+const addLocationImageFn = httpsCallable(functions, "addLocationImage");
+const getLocationImagesFn = httpsCallable(functions, "getLocationImages");
+const deleteLocationImageFn = httpsCallable(functions, "deleteLocationImage");
 
 class LocationService {
-  constructor() {
-    // Use emulator URL for development
-    this.baseURL = `${FIREBASE_CONFIG.functionsEmulatorURL}/your-project-id/us-central1`;
-  }
-
   async createLocation(location) {
     try {
-      const response = await fetch(`${this.baseURL}/createLocation`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(location),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      const result = await createLocationFn(location);
+      return result.data;
     } catch (error) {
       console.error("Error creating location:", error);
       throw error;
@@ -33,13 +24,8 @@ class LocationService {
 
   async getLocations() {
     try {
-      const response = await fetch(`${this.baseURL}/getLocations`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      const result = await getLocationsFn();
+      return result.data;
     } catch (error) {
       console.error("Error getting locations:", error);
       throw error;
@@ -48,13 +34,8 @@ class LocationService {
 
   async getLocation(id) {
     try {
-      const response = await fetch(`${this.baseURL}/getLocation?id=${id}`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      const result = await getLocationFn({ locationId: id });
+      return result.data;
     } catch (error) {
       console.error("Error getting location:", error);
       throw error;
@@ -63,19 +44,8 @@ class LocationService {
 
   async updateLocation(id, location) {
     try {
-      const response = await fetch(`${this.baseURL}/updateLocation?id=${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(location),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      const result = await updateLocationFn({ locationId: id, ...location });
+      return result.data;
     } catch (error) {
       console.error("Error updating location:", error);
       throw error;
@@ -84,15 +54,47 @@ class LocationService {
 
   async deleteLocation(id) {
     try {
-      const response = await fetch(`${this.baseURL}/deleteLocation?id=${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const result = await deleteLocationFn({ locationId: id });
+      return result.data;
     } catch (error) {
       console.error("Error deleting location:", error);
+      throw error;
+    }
+  }
+
+  // Add image metadata to a location
+  async addLocationImage(locationId, fileName, downloadUrl) {
+    try {
+      const result = await addLocationImageFn({
+        locationId,
+        fileName,
+        downloadUrl,
+      });
+      return result.data;
+    } catch (error) {
+      console.error("Error adding location image:", error);
+      throw error;
+    }
+  }
+
+  // Get all images for a location
+  async getLocationImages(locationId) {
+    try {
+      const result = await getLocationImagesFn({ locationId });
+      return result.data;
+    } catch (error) {
+      console.error("Error getting location images:", error);
+      throw error;
+    }
+  }
+
+  // Delete a location image
+  async deleteLocationImage(imageId) {
+    try {
+      const result = await deleteLocationImageFn({ imageId });
+      return result.data;
+    } catch (error) {
+      console.error("Error deleting location image:", error);
       throw error;
     }
   }

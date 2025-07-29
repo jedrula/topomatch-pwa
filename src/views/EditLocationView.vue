@@ -7,6 +7,7 @@
           mode="edit"
           @submit="handleEditSubmit"
           @cancel="handleCancel"
+          @delete="handleDelete"
         />
         <div v-if="error" class="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
           {{ error }}
@@ -37,6 +38,7 @@ const loadLocation = async () => {
       heroImageUrl: loc.heroImageUrl || "",
     };
   } catch (err) {
+    console.error("Failed to load location:", err);
     error.value = "Failed to load location.";
   }
 };
@@ -51,12 +53,23 @@ const handleEditSubmit = async (form) => {
     });
     router.push(`/location/${locationId}`);
   } catch (err) {
+    console.error("Failed to update location:", err);
     error.value = "Failed to update location.";
   }
 };
 
 const handleCancel = () => {
   router.push(`/location/${locationId}`);
+};
+
+const handleDelete = async () => {
+  try {
+    await locationService.deleteLocation(locationId);
+    router.push("/"); // Redirect to home or locations page
+  } catch (err) {
+    console.error("Failed to delete location:", err);
+    error.value = "Failed to delete location.";
+  }
 };
 
 onMounted(loadLocation);
