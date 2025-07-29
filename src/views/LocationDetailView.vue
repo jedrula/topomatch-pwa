@@ -116,7 +116,8 @@
               <!-- Check if it's a HEIC file -->
               <div
                 v-if="isHeicFile(image.name)"
-                class="w-full h-full flex items-center justify-center text-gray-500 bg-gray-200"
+                class="w-full h-full flex items-center justify-center text-gray-500 bg-gray-200 cursor-pointer hover:bg-gray-300 transition-colors"
+                @click="openImageModal(image)"
               >
                 <div class="text-center">
                   <svg
@@ -202,14 +203,25 @@
         </div>
       </div>
     </div>
+
+    <!-- Image Gallery Modal -->
+    <ImageGallery
+      :images="images"
+      :initial-index="0"
+      :is-open="isGalleryOpen"
+      :location-id="locationId"
+      @close="closeGallery"
+      @navigate="onGalleryNavigate"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
 import ImageUpload from "../components/ImageUpload.vue";
+import ImageGallery from "../components/ImageGallery.vue";
 import { formatDate, isSameDateTime } from "../utils/dateUtils.js";
 import { useUserStore } from "../stores/userStore.js";
 
@@ -224,6 +236,11 @@ const error = ref("");
 const showUploadModal = ref(false);
 
 const locationId = route.params.locationId;
+
+// Gallery state
+const isGalleryOpen = computed(() => {
+  return route.query.image !== undefined;
+});
 
 const loadLocation = async () => {
   try {
@@ -267,8 +284,26 @@ const editLocation = () => {
 };
 
 const openImageModal = (image) => {
-  // Open image in full-screen modal
-  console.log("Open image:", image);
+  // Find the index of the clicked image
+  const imageIndex = images.value.findIndex(img => img.id === image.id);
+  if (imageIndex !== -1) {
+    // Navigate to the image gallery with the specific image
+    router.push({
+      query: { ...route.query, image: imageIndex }
+    });
+  }
+};
+
+const closeGallery = () => {
+  // Remove image query parameter to close gallery
+  const query = { ...route.query };
+  delete query.image;
+  router.push({ query });
+};
+
+const onGalleryNavigate = () => {
+  // This is called when the gallery navigates to a different image
+  // The ImageGallery component handles the URL update
 };
 
 const isHeicFile = (fileName) => {
