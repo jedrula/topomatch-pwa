@@ -78,20 +78,6 @@
             {{ location.description }}
           </p>
           <p v-else class="text-gray-500 italic">No description provided</p>
-
-          <!-- Metadata -->
-          <div class="mt-6 pt-6 border-t border-gray-200">
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt class="font-medium text-gray-500">Created</dt>
-                <dd class="text-gray-900">{{ formatDate(location.createdAt) }}</dd>
-              </div>
-              <div v-if="location.updatedAt && location.updatedAt !== location.createdAt">
-                <dt class="font-medium text-gray-500">Last updated</dt>
-                <dd class="text-gray-900">{{ formatDate(location.updatedAt) }}</dd>
-              </div>
-            </dl>
-          </div>
         </div>
 
         <!-- Images section -->
@@ -173,6 +159,18 @@
             </div>
           </div>
         </div>
+
+        <!-- Subtle metadata at bottom -->
+        <div class="mt-8 pt-4 border-t border-gray-100">
+          <div class="text-xs text-gray-400 space-y-1">
+            <div>Created on {{ formatDate(location.createdAt) }}</div>
+            <div
+              v-if="location.updatedAt && !isSameDateTime(location.createdAt, location.updatedAt)"
+            >
+              Last updated on {{ formatDate(location.updatedAt) }}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -225,6 +223,7 @@ import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
 import ImageUpload from "../components/ImageUpload.vue";
+import { formatDate, isSameDateTime } from "../utils/dateUtils.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -271,18 +270,6 @@ const loadLocationImages = async () => {
     // Don't set error here, just keep images empty
     images.value = [];
   }
-};
-
-const formatDate = (date) => {
-  if (!date) return "";
-
-  // Handle both Date objects and Firestore timestamps
-  const dateObj = date.toDate ? date.toDate() : new Date(date);
-  return dateObj.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
 };
 
 const editLocation = () => {

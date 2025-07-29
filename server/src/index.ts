@@ -173,9 +173,14 @@ export const updateLocation = onCall(async (request) => {
     const updateData: Partial<Location> = {
       name,
       description: description || "",
-      heroImageUrl: heroImageUrl || undefined,
       updatedAt: new Date(),
     };
+
+    // Only include heroImageUrl if it's provided and not empty
+    if (heroImageUrl && heroImageUrl.trim() !== "") {
+      updateData.heroImageUrl = heroImageUrl;
+    }
+
     await db.collection("locations").doc(locationId).update(updateData);
 
     const updatedDoc = await db.collection("locations").doc(locationId).get();

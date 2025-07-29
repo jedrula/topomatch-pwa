@@ -123,7 +123,9 @@
               {{ location.description }}
             </p>
             <div class="flex items-center justify-between text-xs text-gray-500">
-              <span v-if="location.createdAt"> Added {{ formatDate(location.createdAt) }} </span>
+              <span v-if="location.createdAt">
+                Added {{ formatDateShort(location.createdAt) }}
+              </span>
               <div class="flex items-center space-x-1">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -146,6 +148,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
+import { formatDateShort } from "../utils/dateUtils.js";
 
 const router = useRouter();
 const locations = ref([]);
@@ -172,36 +175,6 @@ const goBack = () => {
 
 const goToLocation = (locationId) => {
   router.push(`/location/${locationId}`);
-};
-
-const formatDate = (date) => {
-  if (!date) return "";
-
-  let dateObj;
-  
-  // Handle different timestamp formats
-  if (date.toDate) {
-    // Firestore Timestamp with toDate method
-    dateObj = date.toDate();
-  } else if (date._seconds !== undefined) {
-    // Serialized Firestore Timestamp with _seconds and _nanoseconds
-    dateObj = new Date(date._seconds * 1000 + date._nanoseconds / 1000000);
-  } else {
-    // Regular date string or number
-    dateObj = new Date(date);
-  }
-
-  // Check if the date is valid
-  if (isNaN(dateObj.getTime())) {
-    console.warn('Invalid date received:', date);
-    return "Invalid date";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(dateObj);
 };
 
 onMounted(loadLocations);
