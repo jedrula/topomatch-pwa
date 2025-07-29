@@ -43,11 +43,13 @@
                       top: `${hold.y * imageScale}px`,
                       width: `${hold.width * imageScale}px`,
                       height: `${hold.height * imageScale}px`,
-                      backgroundColor: hold.color ? hold.color.hex + '40' : '#ef444440',
+                      backgroundColor: getHoldBackgroundColor(hold, index),
+                      borderColor: getHoldBorderColor(index),
                     }"
                     @click="selectHold(hold, index)"
                     :class="{
                       'ring-4 ring-blue-500': selectedHoldIndex === index,
+                      'ring-4': isHoldInActiveProblem(index),
                     }"
                   >
                     <!-- Hold Label -->
@@ -213,6 +215,9 @@
             </div>
           </div>
 
+          <!-- Boulder Problems Manager -->
+          <BoulderProblemsManager :hasDetectionResults="!!detectionResults" />
+
           <!-- Selected Hold Details -->
           <div v-if="selectedHold" class="bg-white rounded-lg shadow-sm border border-gray-200">
             <div class="p-6">
@@ -340,9 +345,12 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import MainFooter from "@/components/MainFooter.vue";
+import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
 import { useHoldDetectionStore } from "@/stores/holdDetectionStore";
+import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 
 const holdDetectionStore = useHoldDetectionStore();
+const boulderProblemsStore = useBoulderProblemsStore();
 
 // Reactive state
 const climbingImage = ref(null);
@@ -448,12 +456,42 @@ const runDetection = async () => {
 };
 
 const selectHold = (hold, index) => {
+  // If creating a boulder problem, add/remove hold from active problem
+  if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
+    boulderProblemsStore.addHoldToProblem(boulderProblemsStore.activeProblem.id, hold, index);
+  }
+  
+  // Always handle selection state
   selectedHoldIndex.value = selectedHoldIndex.value === index ? null : index;
+};
+
+// Helper methods for hold styling based on boulder problems
+const getHoldBackgroundColor = (hold, index) => {
+  // If this hold is in the active problem, use the problem's color
+  if (boulderProblemsStore.isHoldInActiveProblem(index)) {
+    return boulderProblemsStore.activeProblemColor + '60'; // 60% opacity
+  }
+  // Otherwise use the hold's natural color or default
+  return hold.color ? hold.color.hex + '40' : '#ef444440';
+};
+
+const getHoldBorderColor = (index) => {
+  // If this hold is in the active problem, use a stronger border
+  if (boulderProblemsStore.isHoldInActiveProblem(index)) {
+    return boulderProblemsStore.activeProblemColor;
+  }
+  return 'transparent';
+};
+
+const isHoldInActiveProblem = (index) => {
+  return boulderProblemsStore.isHoldInActiveProblem(index);
 };
 
 const clearResults = () => {
   holdDetectionStore.resetDetectionState();
   selectedHoldIndex.value = null;
+  // Also clear boulder problems when clearing detection results
+  boulderProblemsStore.clearAllProblems();
 };
 
 // Watch for changes in detectionResults and recalculate image scale
