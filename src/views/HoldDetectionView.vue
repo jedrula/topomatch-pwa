@@ -3,9 +3,24 @@
     <main class="max-w-6xl mx-auto px-4 py-6 pb-24">
       <!-- Header -->
       <div class="mb-8">
-        <div>
-          <h1 class="text-3xl font-bold text-gray-900">Hold Detection</h1>
-          <p class="text-gray-600 mt-2">AI-powered climbing hold identification and analysis</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="flex items-center space-x-4 mb-2">
+              <h1 class="text-3xl font-bold text-gray-900">Hold Detection</h1>
+              <!-- Back to Location Button (when coming from a location) -->
+              <button
+                v-if="route.query.locationId"
+                @click="goBackToLocation"
+                class="px-3 py-1 text-sm text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors flex items-center space-x-1"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Back to Location</span>
+              </button>
+            </div>
+            <p class="text-gray-600">AI-powered climbing hold identification and analysis</p>
+          </div>
         </div>
       </div>
 
@@ -17,14 +32,33 @@
             <div class="p-6 border-b border-gray-100">
               <h2 class="text-xl font-semibold text-gray-900">Climbing Wall Analysis</h2>
               <p class="text-gray-600 mt-1">
-                Currently using: WhatsApp Image 2025-05-24 at 00.15.17.jpeg
+                <span v-if="currentImage">Currently analyzing: {{ imageDisplayName }}</span>
+                <span v-else-if="route.query.imageId">Loading image...</span>
+                <span v-else>Currently analyzing: {{ imageDisplayName }}</span>
               </p>
+              <!-- Error message for image loading -->
+              <div v-if="imageLoadError" class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                Error loading image: {{ imageLoadError }}
+              </div>
             </div>
 
             <div class="p-6">
               <!-- Image Container -->
               <div class="relative bg-gray-100 rounded-lg overflow-hidden">
+                <!-- Loading state when no image is available -->
+                <div 
+                  v-if="route.query.imageId && !currentImage && !imageLoadError"
+                  class="w-full h-64 flex items-center justify-center"
+                >
+                  <div class="text-center">
+                    <div class="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p class="text-gray-600">Loading image...</p>
+                  </div>
+                </div>
+                
+                <!-- Image -->
                 <img
+                  v-else
                   ref="climbingImage"
                   :src="imageUrl"
                   alt="Climbing wall for hold detection"
@@ -344,11 +378,15 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import MainFooter from "@/components/MainFooter.vue";
 import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
 import { useHoldDetectionStore } from "@/stores/holdDetectionStore";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
+import { locationService } from "@/services/locationService";
 
+const route = useRoute();
+const router = useRouter();
 const holdDetectionStore = useHoldDetectionStore();
 const boulderProblemsStore = useBoulderProblemsStore();
 
@@ -357,9 +395,24 @@ const climbingImage = ref(null);
 const imageLoaded = ref(false);
 const imageScale = ref(1);
 const selectedHoldIndex = ref(null);
+const currentImage = ref(null);
+const imageLoadError = ref(null);
 
-// Hardcoded image URL for now
-const imageUrl = "/topos/wibrem-23-may/WhatsApp Image 2025-05-24 at 00.15.17.jpeg";
+// Dynamic image loading based on query parameters
+const imageUrl = computed(() => {
+  if (currentImage.value) {
+    return currentImage.value.url;
+  }
+  // Fallback to hardcoded image if no query parameter
+  return "/topos/wibrem-23-may/WhatsApp Image 2025-05-24 at 00.15.17.jpeg";
+});
+
+const imageDisplayName = computed(() => {
+  if (currentImage.value) {
+    return currentImage.value.name;
+  }
+  return "WhatsApp Image 2025-05-24 at 00.15.17.jpeg";
+});
 
 // Computed properties
 const detectionResults = computed(() => holdDetectionStore.detectionResults);
@@ -430,8 +483,8 @@ const calculateImageScale = () => {
 
 const runDetection = async () => {
   try {
-    // Fetch the hardcoded image and create a proper file-like object
-    const response = await fetch(imageUrl);
+    // Fetch the current image and create a proper file-like object
+    const response = await fetch(imageUrl.value);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
@@ -439,8 +492,8 @@ const runDetection = async () => {
     const blob = await response.blob();
 
     // Create a file-like object with the arrayBuffer method
-    const imageFile = new File([blob], "WhatsApp Image 2025-05-24 at 00.15.17.jpeg", {
-      type: "image/jpeg",
+    const imageFile = new File([blob], imageDisplayName.value, {
+      type: blob.type || "image/jpeg",
     });
 
     await holdDetectionStore.runHoldDetection(imageFile);
@@ -487,11 +540,54 @@ const isHoldInActiveProblem = (index) => {
   return boulderProblemsStore.isHoldInActiveProblem(index);
 };
 
+// Load image based on query parameters
+const loadImageFromQuery = async () => {
+  const imageId = route.query.imageId;
+  const locationId = route.query.locationId;
+
+  if (imageId && locationId) {
+    try {
+      // Load image data from the location service
+      const imageRecords = await locationService.getLocationImages(locationId);
+      const imageRecord = imageRecords.find(record => record.id === imageId);
+      
+      if (imageRecord) {
+        currentImage.value = {
+          id: imageRecord.id,
+          url: imageRecord.downloadUrl,
+          name: imageRecord.fileName,
+        };
+        console.log("Loaded image for hold detection:", currentImage.value);
+      } else {
+        console.warn(`Image with ID ${imageId} not found in location ${locationId}`);
+        currentImage.value = null;
+      }
+    } catch (error) {
+      console.error("Error loading image for hold detection:", error);
+      imageLoadError.value = error.message;
+      currentImage.value = null;
+    }
+  } else {
+    // No query parameters, use default/hardcoded image
+    currentImage.value = null;
+  }
+};
+
 const clearResults = () => {
   holdDetectionStore.resetDetectionState();
   selectedHoldIndex.value = null;
   // Also clear boulder problems when clearing detection results
   boulderProblemsStore.clearAllProblems();
+};
+
+const goBackToLocation = () => {
+  const locationId = route.query.locationId;
+  if (locationId) {
+    // Navigate back to the location detail page
+    // We need to find the region ID for the location
+    // For now, let's assume we can reconstruct the URL pattern
+    router.push(`/location/${locationId}`);
+  }
 };
 
 // Watch for changes in detectionResults and recalculate image scale
@@ -502,9 +598,17 @@ watch(detectionResults, (newValue) => {
   }
 });
 
+// Watch for route changes to load different images
+watch(() => route.query, () => {
+  loadImageFromQuery();
+}, { immediate: false });
+
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
   // Reset any previous state
   holdDetectionStore.resetDetectionState();
+  
+  // Load image based on query parameters
+  await loadImageFromQuery();
 });
 </script>

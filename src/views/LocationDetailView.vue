@@ -111,7 +111,7 @@
             <div
               v-for="image in images"
               :key="image.id"
-              class="aspect-square bg-gray-100 rounded-lg overflow-hidden"
+              class="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group"
             >
               <!-- Check if it's a HEIC file -->
               <div
@@ -144,6 +144,30 @@
                 class="w-full h-full object-cover hover:opacity-75 transition-opacity cursor-pointer"
                 @click="openImageModal(image)"
               />
+              
+              <!-- Admin Action Overlay (only for admins) -->
+              <div
+                v-if="userStore.canEditLocations && !isHeicFile(image.name)"
+                class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              >
+                <div class="flex space-x-2">
+                  <button
+                    @click.stop="openHoldDetection(image)"
+                    class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2"
+                    title="Analyze holds and create boulder problems"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    <span>Holds</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -292,6 +316,18 @@ const openImageModal = (image) => {
       query: { ...route.query, image: imageIndex }
     });
   }
+};
+
+const openHoldDetection = (image) => {
+  // Navigate to hold detection page with image and location information
+  router.push({
+    path: '/hold-detection',
+    query: {
+      imageId: image.id,
+      locationId: locationId,
+      imageName: image.name
+    }
+  });
 };
 
 const closeGallery = () => {
