@@ -12,6 +12,10 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
   const error = ref(null);
   const currentLocationId = ref(null);
   const currentImageId = ref(null);
+  
+  // Batch update state
+  const problemsWithUnsavedChanges = ref(new Set()); // Track which problems have unsaved changes
+  const isSaving = ref(false);
 
   // Boulder problem grades (V-Scale)
   const grades = [
@@ -240,11 +244,11 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     }
   };
 
-  const addHoldToProblem = async (problemId, hold, holdIndex) => {
+  const addHoldToProblem = (problemId, hold, holdIndex) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return;
 
-    // Update local state optimistically
+    // Update local state only - no server call
     const existingHoldIndex = problem.holds.findIndex((h) => h.holdIndex === holdIndex);
     if (existingHoldIndex !== -1) {
       // Remove hold if it's already added
@@ -258,62 +262,25 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
       });
     }
 
-    // Update backend if not local only
-    if (!problem.isLocalOnly && currentLocationId.value) {
-      try {
-        await boulderProblemsService.addHoldToProblem(
-          currentLocationId.value,
-          problemId,
-          hold,
-          holdIndex
-        );
-      } catch (err) {
-        // Revert optimistic update on error
-        if (existingHoldIndex !== -1) {
-          problem.holds.push({
-            holdIndex,
-            hold: { ...hold },
-            addedAt: new Date(),
-          });
-        } else {
-          const revertIndex = problem.holds.findIndex((h) => h.holdIndex === holdIndex);
-          if (revertIndex !== -1) {
-            problem.holds.splice(revertIndex, 1);
-          }
-        }
-        error.value = err.message;
-        console.error("Error updating hold in problem:", err);
-      }
+    // Mark problem as having unsaved changes (unless it's local only or being created)
+    if (!problem.isLocalOnly && !isCreatingProblem.value) {
+      problemsWithUnsavedChanges.value.add(problemId);
     }
   };
 
-  const removeHoldFromProblem = async (problemId, holdIndex) => {
+  const removeHoldFromProblem = (problemId, holdIndex) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return;
 
-    // Store the hold for potential revert
-    const holdToRemove = problem.holds.find((h) => h.holdIndex === holdIndex);
     const holdPosition = problem.holds.findIndex((h) => h.holdIndex === holdIndex);
-
     if (holdPosition === -1) return;
 
-    // Update local state optimistically
+    // Update local state only - no server call
     problem.holds.splice(holdPosition, 1);
 
-    // Update backend if not local only
-    if (!problem.isLocalOnly && currentLocationId.value) {
-      try {
-        await boulderProblemsService.removeHoldFromProblem(
-          currentLocationId.value,
-          problemId,
-          holdIndex
-        );
-      } catch (err) {
-        // Revert optimistic update on error
-        problem.holds.splice(holdPosition, 0, holdToRemove);
-        error.value = err.message;
-        console.error("Error removing hold from problem:", err);
-      }
+    // Mark problem as having unsaved changes (unless it's local only or being created)
+    if (!problem.isLocalOnly && !isCreatingProblem.value) {
+      problemsWithUnsavedChanges.value.add(problemId);
     }
   };
 
@@ -325,6 +292,9 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
 
     // Remove from local state optimistically
     boulderProblems.value.splice(problemIndex, 1);
+
+    // Clear any unsaved changes for this problem
+    problemsWithUnsavedChanges.value.delete(problemId);
 
     // If the deleted problem was active, deselect it
     if (activeProblem.value?.id === problemId) {
@@ -352,48 +322,96 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     return deletedProblem;
   };
 
-  const updateProblemName = async (problemId, newName) => {
+  const updateProblemName = (problemId, newName) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return;
 
-    const oldName = problem.name;
     problem.name = newName;
 
-    // Update backend if not local only
-    if (!problem.isLocalOnly && currentLocationId.value) {
-      try {
-        await boulderProblemsService.updateBoulderProblem(currentLocationId.value, problemId, {
-          name: newName,
-        });
-      } catch (err) {
-        // Revert on error
-        problem.name = oldName;
-        error.value = err.message;
-        console.error("Error updating problem name:", err);
-      }
+    // Mark problem as having unsaved changes (unless it's local only or being created)
+    if (!problem.isLocalOnly && !isCreatingProblem.value) {
+      problemsWithUnsavedChanges.value.add(problemId);
     }
   };
 
-  const updateProblemGrade = async (problemId, newGrade) => {
+  const updateProblemGrade = (problemId, newGrade) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return;
 
-    const oldGrade = problem.grade;
     problem.grade = newGrade;
 
-    // Update backend if not local only
-    if (!problem.isLocalOnly && currentLocationId.value) {
-      try {
-        await boulderProblemsService.updateBoulderProblem(currentLocationId.value, problemId, {
-          grade: newGrade,
-        });
-      } catch (err) {
-        // Revert on error
-        problem.grade = oldGrade;
-        error.value = err.message;
-        console.error("Error updating problem grade:", err);
-      }
+    // Mark problem as having unsaved changes (unless it's local only or being created)
+    if (!problem.isLocalOnly && !isCreatingProblem.value) {
+      problemsWithUnsavedChanges.value.add(problemId);
     }
+  };
+
+  // Batch save functionality
+  const saveProblemChanges = async (problemId) => {
+    const problem = boulderProblems.value.find((p) => p.id === problemId);
+    if (!problem || problem.isLocalOnly || !currentLocationId.value) return;
+
+    isSaving.value = true;
+    error.value = null;
+
+    try {
+      // Update the entire problem with current state
+      await boulderProblemsService.updateBoulderProblem(currentLocationId.value, problemId, {
+        name: problem.name,
+        grade: problem.grade,
+        holds: problem.holds,
+      });
+
+      // Remove from unsaved changes
+      problemsWithUnsavedChanges.value.delete(problemId);
+      console.log(`Saved changes for problem ${problemId}`);
+    } catch (err) {
+      error.value = err.message;
+      console.error("Error saving problem changes:", err);
+      throw err;
+    } finally {
+      isSaving.value = false;
+    }
+  };
+
+  const saveAllPendingChanges = async () => {
+    if (problemsWithUnsavedChanges.value.size === 0) return;
+
+    const problemIds = Array.from(problemsWithUnsavedChanges.value);
+    for (const problemId of problemIds) {
+      await saveProblemChanges(problemId);
+    }
+  };
+
+  const discardProblemChanges = async (problemId) => {
+    if (!currentLocationId.value) return;
+
+    try {
+      // Reload the problem from the server to discard local changes
+      const serverProblem = await boulderProblemsService.getBoulderProblem(
+        currentLocationId.value,
+        problemId
+      );
+
+      const problemIndex = boulderProblems.value.findIndex((p) => p.id === problemId);
+      if (problemIndex !== -1 && serverProblem) {
+        boulderProblems.value[problemIndex] = serverProblem;
+      }
+
+      // Remove from unsaved changes
+      problemsWithUnsavedChanges.value.delete(problemId);
+    } catch (err) {
+      console.error("Error discarding problem changes:", err);
+      throw err;
+    }
+  };
+
+  const hasUnsavedChanges = (problemId) => {
+    return problemsWithUnsavedChanges.value.has(problemId);
+  };
+
+  const getUnsavedChangesCount = () => {
+    return problemsWithUnsavedChanges.value.size;
   };
 
   const isHoldInProblem = (problemId, holdIndex) => {
@@ -413,6 +431,10 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     boulderProblems.value = [];
     activeProblem.value = null;
     isCreatingProblem.value = false;
+    
+    // Clear all unsaved changes
+    problemsWithUnsavedChanges.value.clear();
+    
     error.value = null;
   };
 
@@ -447,6 +469,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     currentImageId,
     grades,
     problemColors,
+    isSaving,
 
     // Computed
     sortedProblems,
@@ -470,5 +493,12 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     clearAllProblems,
     clearError,
     getProblemStats,
+    
+    // Batch operations
+    saveProblemChanges,
+    saveAllPendingChanges,
+    discardProblemChanges,
+    hasUnsavedChanges,
+    getUnsavedChangesCount,
   };
 });

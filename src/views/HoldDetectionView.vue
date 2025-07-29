@@ -557,8 +557,8 @@ const runDetection = async () => {
 };
 
 const selectHold = (hold, index) => {
-  // If creating a boulder problem, add/remove hold from active problem
-  if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
+  // If we have an active problem (either creating or editing), add/remove hold from it
+  if (boulderProblemsStore.activeProblem) {
     boulderProblemsStore.addHoldToProblem(boulderProblemsStore.activeProblem.id, hold, index);
   }
 
