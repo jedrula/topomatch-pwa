@@ -177,8 +177,25 @@ const goToLocation = (locationId) => {
 const formatDate = (date) => {
   if (!date) return "";
 
-  // Handle Firestore timestamp or regular date
-  const dateObj = date.toDate ? date.toDate() : new Date(date);
+  let dateObj;
+  
+  // Handle different timestamp formats
+  if (date.toDate) {
+    // Firestore Timestamp with toDate method
+    dateObj = date.toDate();
+  } else if (date._seconds !== undefined) {
+    // Serialized Firestore Timestamp with _seconds and _nanoseconds
+    dateObj = new Date(date._seconds * 1000 + date._nanoseconds / 1000000);
+  } else {
+    // Regular date string or number
+    dateObj = new Date(date);
+  }
+
+  // Check if the date is valid
+  if (isNaN(dateObj.getTime())) {
+    console.warn('Invalid date received:', date);
+    return "Invalid date";
+  }
 
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",

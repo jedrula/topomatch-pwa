@@ -1,27 +1,20 @@
+import { httpsCallable } from "firebase/functions";
+import { functions } from "./firebase.js";
+
+// Initialize callable functions for location images
+const addLocationImageFn = httpsCallable(functions, "addLocationImage");
+const getLocationImagesFn = httpsCallable(functions, "getLocationImages");
+const deleteLocationImageFn = httpsCallable(functions, "deleteLocationImage");
+
 // Service for managing location images
 class LocationImageService {
-  constructor() {
-    this.baseURL = "http://127.0.0.1:5001/your-project-id/us-central1";
-  }
-
   async addImageToLocation(locationId, imageData) {
     try {
-      const response = await fetch(`${this.baseURL}/addLocationImage`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          locationId,
-          ...imageData,
-        }),
+      const result = await addLocationImageFn({
+        locationId,
+        ...imageData,
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      return result.data;
     } catch (error) {
       console.error("Error adding image to location:", error);
       throw error;
@@ -30,13 +23,8 @@ class LocationImageService {
 
   async getLocationImages(locationId) {
     try {
-      const response = await fetch(`${this.baseURL}/getLocationImages?locationId=${locationId}`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      const result = await getLocationImagesFn({ locationId });
+      return result.data;
     } catch (error) {
       console.error("Error getting location images:", error);
       throw error;
@@ -45,15 +33,8 @@ class LocationImageService {
 
   async deleteLocationImage(imageId) {
     try {
-      const response = await fetch(`${this.baseURL}/deleteLocationImage?imageId=${imageId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      const result = await deleteLocationImageFn({ imageId });
+      return result.data;
     } catch (error) {
       console.error("Error deleting location image:", error);
       throw error;

@@ -5,9 +5,9 @@ import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "demo-api-key",
-  authDomain: "your-project-id.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project-id.appspot.com",
+  authDomain: "demo-offline-vue-pwa.firebaseapp.com",
+  projectId: "demo-offline-vue-pwa",
+  storageBucket: "demo-offline-vue-pwa.appspot.com",
   messagingSenderId: "123456789",
   appId: "demo-app-id",
 };
