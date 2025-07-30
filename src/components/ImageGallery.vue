@@ -76,17 +76,16 @@
             <div
               v-for="(problemHold, holdIndex) in problem.holds"
               :key="`${problem.id}-${holdIndex}`"
-              class="absolute transition-all duration-200 group border-2 pointer-events-auto cursor-pointer"
+              class="absolute transition-all duration-200 group pointer-events-auto cursor-pointer"
               :style="{
-                left: `${problemHold.hold.x * imageScale}px`,
-                top: `${problemHold.hold.y * imageScale}px`,
-                width: `${problemHold.hold.width * imageScale}px`,
-                height: `${problemHold.hold.height * imageScale}px`,
-                backgroundColor: problem.color + '40',
+                left: `${(problemHold.hold.x - holdPadding) * imageScale}px`,
+                top: `${(problemHold.hold.y - holdPadding) * imageScale}px`,
+                width: `${(problemHold.hold.width + holdPadding * 2) * imageScale}px`,
+                height: `${(problemHold.hold.height + holdPadding * 2) * imageScale}px`,
                 borderColor: problem.color,
               }"
               :class="{
-                'border-4 ring-2 ring-white': hoveredProblemId === problem.id,
+                'ring-1 ring-white rounded': hoveredProblemId === problem.id,
                 'opacity-30': hoveredProblemId && hoveredProblemId !== problem.id,
               }"
               @mouseenter="hoveredProblemId = problem.id"
@@ -129,7 +128,7 @@
         v-for="(image, index) in images"
         :key="image.id"
         @click="goToImage(index)"
-        class="flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all"
+        class="flex-shrink-0 w-16 h-16 rounded overflow-hidden transition-all"
         :class="
           index === currentIndex ? 'border-white' : 'border-transparent opacity-60 hover:opacity-80'
         "
@@ -175,6 +174,9 @@ const imageElement = ref(null);
 const imageLoaded = ref(false);
 const imageScale = ref(1);
 const hoveredProblemId = ref(null);
+
+// Padding for hold overlays (in original image pixels)
+const holdPadding = 5;
 
 const currentIndex = computed(() => {
   // Get index from URL if available
