@@ -141,6 +141,21 @@
             </div>
 
             <div v-if="ascent.notes" class="text-sm text-gray-700 mt-1">"{{ ascent.notes }}"</div>
+
+            <!-- Beta Video Display -->
+            <div v-if="ascent.betaVideo" class="mt-2">
+              <div class="bg-black rounded-lg overflow-hidden max-w-xs">
+                <video
+                  :src="ascent.betaVideo.downloadUrl"
+                  controls
+                  preload="metadata"
+                  class="w-full h-auto max-h-32 object-contain"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">Beta video</p>
+            </div>
           </div>
 
           <!-- Actions for current user's ascents -->
@@ -238,11 +253,26 @@
 <script setup>
 import { useAscentStore } from "@/stores/ascentStore";
 import { useUserStore } from "@/stores/userStore";
+import { watch } from "vue";
 
 const ascentStore = useAscentStore();
 const userStore = useUserStore();
 
 const emit = defineEmits(["edit-ascent"]);
+
+// Debug: Watch for changes in ascents
+watch(
+  () => ascentStore.ascents,
+  (newAscents) => {
+    console.log("AscentHistory: Ascents updated:", newAscents);
+    newAscents.forEach((ascent, index) => {
+      if (ascent.betaVideo) {
+        console.log(`Ascent ${index} has video:`, ascent.betaVideo);
+      }
+    });
+  },
+  { immediate: true, deep: true }
+);
 
 const editAscent = (ascent) => {
   emit("edit-ascent", ascent);

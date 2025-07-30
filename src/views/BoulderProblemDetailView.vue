@@ -97,7 +97,11 @@
 
               <!-- Ascent Logger -->
               <div v-if="showAscentLogger" class="mb-4">
-                <AscentLogger @ascent-logged="onAscentLogged" />
+                <AscentLogger
+                  :location-id="route.params.locationId"
+                  :problem-id="route.params.problemId"
+                  @ascent-logged="onAscentLogged"
+                />
               </div>
 
               <!-- Quick Status -->
@@ -353,6 +357,8 @@ const loadProblemData = async () => {
 
 const onAscentLogged = () => {
   showAscentLogger.value = false;
+  // Show the ascent history so the user can see their logged ascent with video
+  showAscentHistory.value = true;
   // The ascent store will automatically update with the new data
 };
 

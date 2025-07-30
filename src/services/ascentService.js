@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { getCurrentUser } from "./authService";
+import { videoService } from "./videoService";
 
 export const ascentService = {
   /**
@@ -52,6 +53,8 @@ export const ascentService = {
         notes: ascentData.notes || "",
         sessionId: ascentData.sessionId || null, // Optional session tracking
         date: ascentData.date || serverTimestamp(),
+        // Video metadata
+        betaVideo: ascentData.betaVideo || null, // { videoId, downloadUrl, metadata }
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -259,6 +262,17 @@ export const ascentService = {
       const ascentData = ascentSnap.data();
       if (ascentData.userId !== user.uid) {
         throw new Error("You can only delete your own ascents");
+      }
+
+      // Delete associated beta video if it exists
+      if (ascentData.betaVideo && ascentData.betaVideo.videoId) {
+        try {
+          await videoService.deleteBetaVideo(locationId, problemId, ascentData.betaVideo.videoId);
+          console.log("Beta video deleted with ascent");
+        } catch (videoError) {
+          console.warn("Error deleting beta video (continuing with ascent deletion):", videoError);
+          // Continue with ascent deletion even if video deletion fails
+        }
       }
 
       await deleteDoc(ascentRef);
