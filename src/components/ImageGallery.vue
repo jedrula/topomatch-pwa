@@ -90,6 +90,7 @@
               }"
               @mouseenter="hoveredProblemId = problem.id"
               @mouseleave="hoveredProblemId = null"
+              @click="goToProblemDetail(problem)"
             >
               <!-- Hold Tooltip -->
               <div
@@ -284,6 +285,16 @@ const onImageLoad = () => {
     }
     // Calculate image scale after image loads
     calculateImageScale();
+  });
+};
+
+const goToProblemDetail = (problem) => {
+  router.push({
+    name: "boulder-problem-detail",
+    params: {
+      locationId: props.locationId,
+      problemId: problem.id,
+    },
   });
 };
 

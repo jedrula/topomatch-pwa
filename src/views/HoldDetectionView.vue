@@ -9,7 +9,7 @@
               <h1 class="text-3xl font-bold text-gray-900">Hold Detection</h1>
               <!-- Back to Location Button (when coming from a location) -->
               <button
-                v-if="route.query.locationId"
+                v-if="route.params.locationId"
                 @click="goBackToLocation"
                 class="px-3 py-1 text-sm text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors flex items-center space-x-1"
               >
@@ -594,7 +594,7 @@ const isHoldInActiveProblem = (index) => {
 // Load image based on query parameters
 const loadImageFromQuery = async () => {
   const imageId = route.query.imageId;
-  const locationId = route.query.locationId;
+  const locationId = route.params.locationId; // Changed from route.query to route.params
 
   if (imageId && locationId) {
     try {
@@ -640,7 +640,7 @@ const clearResults = () => {
 };
 
 const goBackToLocation = () => {
-  const locationId = route.query.locationId;
+  const locationId = route.params.locationId; // Changed from route.query to route.params
   if (locationId) {
     // Navigate back to the location detail page
     // We need to find the region ID for the location

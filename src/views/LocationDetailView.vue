@@ -314,10 +314,9 @@ const openImageModal = (image) => {
 const openHoldDetection = (image) => {
   // Navigate to hold detection page with image and location information
   router.push({
-    path: "/hold-detection",
+    path: `/location/${locationId}/holds`,
     query: {
       imageId: image.id,
-      locationId: locationId,
       imageName: image.name,
     },
   });

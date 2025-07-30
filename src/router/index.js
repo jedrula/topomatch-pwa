@@ -6,6 +6,7 @@ import AddLocationView from "../views/AddLocationView.vue";
 import LocationDetailView from "../views/LocationDetailView.vue";
 import EditLocationView from "../views/EditLocationView.vue";
 import BrowseLocationsView from "../views/BrowseLocationsView.vue";
+import BoulderProblemDetailView from "../views/BoulderProblemDetailView.vue";
 import { useUserStore } from "../stores/userStore.js";
 
 const router = createRouter({
@@ -50,6 +51,18 @@ const router = createRouter({
       component: EditLocationView,
       props: true,
       meta: { requiresAdmin: true },
+    },
+    {
+      path: "/location/:locationId/holds",
+      name: "location-hold-detection",
+      component: HoldDetectionView,
+      props: true,
+    },
+    {
+      path: "/location/:locationId/problem/:problemId",
+      name: "boulder-problem-detail",
+      component: BoulderProblemDetailView,
+      props: true,
     },
   ],
 });
