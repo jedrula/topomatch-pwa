@@ -115,7 +115,7 @@
                     :key="'problem-' + (problemHold.hold.id || index)"
                     class="absolute transition-all duration-200 group border-4"
                     :class="{
-                      'pointer-events-none': detectionResults && boulderProblemsStore.activeProblem
+                      'pointer-events-none': detectionResults && boulderProblemsStore.activeProblem,
                     }"
                     :style="{
                       left: `${problemHold.hold.x * imageScale}px`,

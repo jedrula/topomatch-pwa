@@ -58,18 +58,33 @@
 
       <!-- Problem Creation/Edit Form -->
       <div
-        v-if="(boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) || editingProblem"
+        v-if="
+          (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) ||
+          editingProblem
+        "
         class="mb-6 p-4 rounded-lg"
-        :class="editingProblem ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200'"
+        :class="
+          editingProblem
+            ? 'bg-blue-50 border border-blue-200'
+            : 'bg-green-50 border border-green-200'
+        "
       >
         <div class="flex items-center justify-between mb-4">
           <h4 class="font-semibold" :class="editingProblem ? 'text-blue-800' : 'text-green-800'">
-            {{ editingProblem ? `Editing Problem #${editingProblem.id}` : `Creating Problem #${boulderProblemsStore.activeProblem.id}` }}
+            {{
+              editingProblem
+                ? `Editing Problem #${editingProblem.id}`
+                : `Creating Problem #${boulderProblemsStore.activeProblem.id}`
+            }}
           </h4>
           <div
             class="w-4 h-4 rounded-full border-2"
             :class="editingProblem ? 'border-blue-600' : 'border-green-600'"
-            :style="{ backgroundColor: editingProblem ? editingProblem.color : boulderProblemsStore.activeProblemColor }"
+            :style="{
+              backgroundColor: editingProblem
+                ? editingProblem.color
+                : boulderProblemsStore.activeProblemColor,
+            }"
           ></div>
         </div>
 
@@ -108,14 +123,26 @@
           <div class="flex items-center justify-between text-sm">
             <span class="text-gray-600">Holds added:</span>
             <span class="font-medium" :class="editingProblem ? 'text-blue-700' : 'text-green-700'">
-              {{ editingProblem ? editingProblem.holds.length : boulderProblemsStore.activeProblem.holds.length }}
+              {{
+                editingProblem
+                  ? editingProblem.holds.length
+                  : boulderProblemsStore.activeProblem.holds.length
+              }}
             </span>
           </div>
           <!-- Show unsaved changes indicator for editing -->
-          <div v-if="editingProblem && boulderProblemsStore.hasUnsavedChanges(editingProblem.id)" class="mt-2">
+          <div
+            v-if="editingProblem && boulderProblemsStore.hasUnsavedChanges(editingProblem.id)"
+            class="mt-2"
+          >
             <div class="flex items-center text-sm text-orange-600">
               <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"
+                />
               </svg>
               <span>Unsaved changes</span>
             </div>
@@ -133,7 +160,11 @@
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            {{ editingProblem ? 'Click on detected holds to adjust this problem.' : 'Click on the detected holds in the image to add them to this problem.' }}
+            {{
+              editingProblem
+                ? "Click on detected holds to adjust this problem."
+                : "Click on the detected holds in the image to add them to this problem."
+            }}
           </p>
         </div>
 
@@ -141,16 +172,39 @@
         <div class="flex space-x-3">
           <button
             @click="editingProblem ? saveEdit() : finishProblem()"
-            :disabled="editingProblem ? boulderProblemsStore.isSaving : boulderProblemsStore.activeProblem.holds.length === 0"
+            :disabled="
+              editingProblem
+                ? boulderProblemsStore.isSaving
+                : boulderProblemsStore.activeProblem.holds.length === 0
+            "
             class="flex-1 px-4 py-2 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-            :class="editingProblem ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300' : 'bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed'"
+            :class="
+              editingProblem
+                ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300'
+                : 'bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed'
+            "
           >
-            <div v-if="editingProblem && boulderProblemsStore.isSaving" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <div
+              v-if="editingProblem && boulderProblemsStore.isSaving"
+              class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+            ></div>
             <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path v-if="editingProblem" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              <path
+                v-if="editingProblem"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+              <path
+                v-else
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
-            <span>{{ editingProblem ? 'Save Changes' : 'Finish Problem' }}</span>
+            <span>{{ editingProblem ? "Save Changes" : "Finish Problem" }}</span>
           </button>
           <button
             @click="editingProblem ? cancelEdit() : cancelProblem()"
@@ -175,9 +229,9 @@
             :class="{
               'border-blue-500 bg-blue-50':
                 boulderProblemsStore.activeProblem?.id === problem.id &&
-                !boulderProblemsStore.isCreatingProblem && !editingProblem,
-              'opacity-50':
-                boulderProblemsStore.isCreatingProblem || editingProblem,
+                !boulderProblemsStore.isCreatingProblem &&
+                !editingProblem,
+              'opacity-50': boulderProblemsStore.isCreatingProblem || editingProblem,
             }"
           >
             <div class="flex items-center space-x-3 min-w-0 flex-1">
@@ -187,9 +241,14 @@
               ></div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center space-x-2 min-w-0">
-                  <div class="font-medium text-gray-900 truncate" :title="problem.name">{{ problem.name }}</div>
+                  <div class="font-medium text-gray-900 truncate" :title="problem.name">
+                    {{ problem.name }}
+                  </div>
                   <!-- Unsaved changes indicator -->
-                  <div v-if="boulderProblemsStore.hasUnsavedChanges(problem.id)" class="flex items-center flex-shrink-0">
+                  <div
+                    v-if="boulderProblemsStore.hasUnsavedChanges(problem.id)"
+                    class="flex items-center flex-shrink-0"
+                  >
                     <div class="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes"></div>
                   </div>
                 </div>
@@ -200,7 +259,11 @@
             </div>
 
             <div class="flex items-center space-x-2 flex-shrink-0">
-              <span class="text-sm font-medium text-gray-600 max-w-24 truncate" :title="`#${problem.id}`">#{{ problem.id }}</span>
+              <span
+                class="text-sm font-medium text-gray-600 max-w-24 truncate"
+                :title="`#${problem.id}`"
+                >#{{ problem.id }}</span
+              >
               <button
                 @click.stop="editProblem(problem)"
                 :disabled="boulderProblemsStore.isCreatingProblem || editingProblem"
@@ -239,7 +302,9 @@
       <!-- Clear All Button -->
       <div
         v-if="
-          boulderProblemsStore.sortedProblems.length > 0 && !boulderProblemsStore.isCreatingProblem && !editingProblem
+          boulderProblemsStore.sortedProblems.length > 0 &&
+          !boulderProblemsStore.isCreatingProblem &&
+          !editingProblem
         "
         class="mt-4 pt-4 border-t border-gray-200"
       >
@@ -259,18 +324,36 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center text-sm text-orange-800">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
-            <span>{{ boulderProblemsStore.getUnsavedChangesCount() }} problem{{ boulderProblemsStore.getUnsavedChangesCount() > 1 ? 's' : '' }} with unsaved changes</span>
+            <span
+              >{{ boulderProblemsStore.getUnsavedChangesCount() }} problem{{
+                boulderProblemsStore.getUnsavedChangesCount() > 1 ? "s" : ""
+              }}
+              with unsaved changes</span
+            >
           </div>
           <button
             @click="saveAllChanges"
             :disabled="boulderProblemsStore.isSaving"
             class="px-3 py-1 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white text-sm font-medium rounded transition-colors duration-200 flex items-center space-x-1"
           >
-            <div v-if="boulderProblemsStore.isSaving" class="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+            <div
+              v-if="boulderProblemsStore.isSaving"
+              class="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"
+            ></div>
             <svg v-else class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
             <span>Save All</span>
           </button>
@@ -348,7 +431,7 @@ const editProblem = (problem) => {
   // Set the problem as the editing problem and select it
   editingProblem.value = problem;
   boulderProblemsStore.selectProblem(problem);
-  
+
   // Pre-populate the form with existing values
   problemName.value = problem.name;
   selectedGrade.value = problem.grade;
@@ -356,15 +439,15 @@ const editProblem = (problem) => {
 
 const saveEdit = async () => {
   if (!editingProblem.value) return;
-  
+
   try {
     // Update the local problem data
     boulderProblemsStore.updateProblemName(editingProblem.value.id, problemName.value);
     boulderProblemsStore.updateProblemGrade(editingProblem.value.id, selectedGrade.value);
-    
+
     // Save all changes to server
     await boulderProblemsStore.saveProblemChanges(editingProblem.value.id);
-    
+
     cancelEdit();
   } catch (error) {
     console.error("Error saving boulder problem:", error);
@@ -374,13 +457,17 @@ const saveEdit = async () => {
 
 const cancelEdit = async () => {
   if (!editingProblem.value) return;
-  
+
   // If there are unsaved changes, ask for confirmation
   if (boulderProblemsStore.hasUnsavedChanges(editingProblem.value.id)) {
-    if (!confirm("You have unsaved changes. Are you sure you want to cancel? All changes will be lost.")) {
+    if (
+      !confirm(
+        "You have unsaved changes. Are you sure you want to cancel? All changes will be lost."
+      )
+    ) {
       return;
     }
-    
+
     try {
       // Discard changes by reloading from server
       await boulderProblemsStore.discardProblemChanges(editingProblem.value.id);
@@ -388,7 +475,7 @@ const cancelEdit = async () => {
       console.error("Error discarding changes:", error);
     }
   }
-  
+
   editingProblem.value = null;
   problemName.value = "";
   selectedGrade.value = "V0";

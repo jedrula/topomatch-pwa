@@ -12,7 +12,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
   const error = ref(null);
   const currentLocationId = ref(null);
   const currentImageId = ref(null);
-  
+
   // Batch update state
   const problemsWithUnsavedChanges = ref(new Set()); // Track which problems have unsaved changes
   const isSaving = ref(false);
@@ -431,10 +431,10 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     boulderProblems.value = [];
     activeProblem.value = null;
     isCreatingProblem.value = false;
-    
+
     // Clear all unsaved changes
     problemsWithUnsavedChanges.value.clear();
-    
+
     error.value = null;
   };
 
@@ -493,7 +493,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     clearAllProblems,
     clearError,
     getProblemStats,
-    
+
     // Batch operations
     saveProblemChanges,
     saveAllPendingChanges,
