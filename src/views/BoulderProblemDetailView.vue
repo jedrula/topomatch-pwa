@@ -84,9 +84,14 @@
                   class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    ></path>
                   </svg>
-                  <span>{{ showAscentLogger ? 'Cancel' : 'Log Send' }}</span>
+                  <span>{{ showAscentLogger ? "Cancel" : "Log Send" }}</span>
                 </button>
               </div>
 
@@ -96,10 +101,23 @@
               </div>
 
               <!-- Quick Status -->
-              <div v-if="ascentStore.hasUserSent && !showAscentLogger" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div
+                v-if="ascentStore.hasUserSent && !showAscentLogger"
+                class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"
+              >
                 <div class="flex items-center space-x-2">
-                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  <svg
+                    class="w-5 h-5 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    ></path>
                   </svg>
                   <span class="font-medium text-green-800">You've sent this problem!</span>
                 </div>
@@ -115,9 +133,14 @@
                   class="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    ></path>
                   </svg>
-                  <span>{{ showAscentHistory ? 'Hide' : 'View' }} Ascent History</span>
+                  <span>{{ showAscentHistory ? "Hide" : "View" }} Ascent History</span>
                 </button>
               </div>
             </div>
@@ -125,7 +148,10 @@
         </div>
 
         <!-- Ascent History Panel -->
-        <div v-if="showAscentHistory" class="mt-6 bg-white bg-opacity-90 rounded-lg shadow-lg p-6 max-w-2xl w-full">
+        <div
+          v-if="showAscentHistory"
+          class="mt-6 bg-white bg-opacity-90 rounded-lg shadow-lg p-6 max-w-2xl w-full"
+        >
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-xl font-semibold text-gray-900">Ascent History</h3>
             <button
@@ -133,7 +159,12 @@
               class="text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
               </svg>
             </button>
           </div>
@@ -329,7 +360,7 @@ const editAscent = (ascent) => {
   // For now, just show the logger with the ascent data
   // In a more complex implementation, you could pre-populate the form
   showAscentLogger.value = true;
-  console.log('Edit ascent:', ascent);
+  console.log("Edit ascent:", ascent);
 };
 
 onMounted(() => {

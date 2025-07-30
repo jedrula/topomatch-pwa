@@ -38,9 +38,9 @@ export const useAscentStore = defineStore("ascent", () => {
 
   // Attempt types
   const attemptTypes = [
-    { value: 'flash', label: 'Flash (1st attempt)', description: 'Sent on first try' },
-    { value: 'second', label: '2nd attempt', description: 'Sent on second try' },
-    { value: 'multiple', label: '3rd+ attempts', description: 'Sent after multiple attempts' },
+    { value: "flash", label: "Flash (1st attempt)", description: "Sent on first try" },
+    { value: "second", label: "2nd attempt", description: "Sent on second try" },
+    { value: "multiple", label: "3rd+ attempts", description: "Sent after multiple attempts" },
   ];
 
   // Computed
@@ -89,7 +89,6 @@ export const useAscentStore = defineStore("ascent", () => {
       // Load statistics
       const stats = await ascentService.getBoulderAscentStats(locationId, problemId);
       ascentStats.value = stats;
-
     } catch (err) {
       console.error("Error loading ascents:", err);
       error.value = err.message;
@@ -162,11 +161,7 @@ export const useAscentStore = defineStore("ascent", () => {
     error.value = null;
 
     try {
-      await ascentService.deleteAscent(
-        currentLocationId.value,
-        currentProblemId.value,
-        ascentId
-      );
+      await ascentService.deleteAscent(currentLocationId.value, currentProblemId.value, ascentId);
 
       // Reload ascents to get the updated data
       await loadAscents(currentLocationId.value, currentProblemId.value);
@@ -202,13 +197,13 @@ export const useAscentStore = defineStore("ascent", () => {
   };
 
   const getAttemptTypeLabel = (attemptType) => {
-    const type = attemptTypes.find(t => t.value === attemptType);
+    const type = attemptTypes.find((t) => t.value === attemptType);
     return type ? type.label : attemptType;
   };
 
   const getAttemptTypeDescription = (attemptType) => {
-    const type = attemptTypes.find(t => t.value === attemptType);
-    return type ? type.description : '';
+    const type = attemptTypes.find((t) => t.value === attemptType);
+    return type ? type.description : "";
   };
 
   return {

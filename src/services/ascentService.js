@@ -34,7 +34,14 @@ export const ascentService = {
         throw new Error("Attempt type is required");
       }
 
-      const ascentsRef = collection(db, "locations", locationId, "boulderProblems", problemId, "ascents");
+      const ascentsRef = collection(
+        db,
+        "locations",
+        locationId,
+        "boulderProblems",
+        problemId,
+        "ascents"
+      );
 
       const newAscent = {
         userId: user.uid,
@@ -67,9 +74,16 @@ export const ascentService = {
    */
   async getBoulderAscents(locationId, problemId) {
     try {
-      const ascentsRef = collection(db, "locations", locationId, "boulderProblems", problemId, "ascents");
+      const ascentsRef = collection(
+        db,
+        "locations",
+        locationId,
+        "boulderProblems",
+        problemId,
+        "ascents"
+      );
       const q = query(ascentsRef, orderBy("createdAt", "desc"));
-      
+
       const querySnapshot = await getDocs(q);
       const ascents = [];
 
@@ -96,7 +110,7 @@ export const ascentService = {
     try {
       const user = getCurrentUser();
       const targetUserId = userId || user?.uid;
-      
+
       if (!targetUserId) {
         throw new Error("User ID is required");
       }
@@ -104,11 +118,11 @@ export const ascentService = {
       // Note: This requires a compound query across multiple collections
       // For now, we'll implement a simpler version that fetches from a specific location
       // In a production app, you might want to denormalize this data or use cloud functions
-      
+
       const ascents = [];
       // This is a simplified implementation - in practice you'd need to query across all locations
       // or maintain a separate user ascents collection for better performance
-      
+
       return ascents;
     } catch (error) {
       console.error("Error fetching user ascents:", error);
@@ -127,18 +141,25 @@ export const ascentService = {
     try {
       const user = getCurrentUser();
       const targetUserId = userId || user?.uid;
-      
+
       if (!targetUserId) {
         throw new Error("User ID is required");
       }
 
-      const ascentsRef = collection(db, "locations", locationId, "boulderProblems", problemId, "ascents");
+      const ascentsRef = collection(
+        db,
+        "locations",
+        locationId,
+        "boulderProblems",
+        problemId,
+        "ascents"
+      );
       const q = query(
-        ascentsRef, 
+        ascentsRef,
         where("userId", "==", targetUserId),
         orderBy("createdAt", "desc")
       );
-      
+
       const querySnapshot = await getDocs(q);
       const ascents = [];
 
@@ -171,7 +192,15 @@ export const ascentService = {
         throw new Error("User must be authenticated to update ascents");
       }
 
-      const ascentRef = doc(db, "locations", locationId, "boulderProblems", problemId, "ascents", ascentId);
+      const ascentRef = doc(
+        db,
+        "locations",
+        locationId,
+        "boulderProblems",
+        problemId,
+        "ascents",
+        ascentId
+      );
 
       // Check if the ascent exists and belongs to the current user
       const ascentSnap = await getDoc(ascentRef);
@@ -211,7 +240,15 @@ export const ascentService = {
         throw new Error("User must be authenticated to delete ascents");
       }
 
-      const ascentRef = doc(db, "locations", locationId, "boulderProblems", problemId, "ascents", ascentId);
+      const ascentRef = doc(
+        db,
+        "locations",
+        locationId,
+        "boulderProblems",
+        problemId,
+        "ascents",
+        ascentId
+      );
 
       // Check if the ascent exists and belongs to the current user
       const ascentSnap = await getDoc(ascentRef);
@@ -241,17 +278,17 @@ export const ascentService = {
   async getBoulderAscentStats(locationId, problemId) {
     try {
       const ascents = await this.getBoulderAscents(locationId, problemId);
-      
+
       const stats = {
         totalAscents: ascents.length,
-        uniqueClimbers: new Set(ascents.map(a => a.userId)).size,
+        uniqueClimbers: new Set(ascents.map((a) => a.userId)).size,
         attemptTypes: {
-          flash: ascents.filter(a => a.attemptType === 'flash').length,
-          second: ascents.filter(a => a.attemptType === 'second').length,
-          multiple: ascents.filter(a => a.attemptType === 'multiple').length,
+          flash: ascents.filter((a) => a.attemptType === "flash").length,
+          second: ascents.filter((a) => a.attemptType === "second").length,
+          multiple: ascents.filter((a) => a.attemptType === "multiple").length,
         },
         averageUserGrade: null,
-        userGrades: ascents.filter(a => a.userGrade).map(a => a.userGrade),
+        userGrades: ascents.filter((a) => a.userGrade).map((a) => a.userGrade),
       };
 
       // Calculate average user grade if we have enough data

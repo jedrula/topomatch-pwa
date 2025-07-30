@@ -3,16 +3,28 @@
     <h3 class="text-lg font-semibold text-gray-900 mb-4">Log Ascent</h3>
 
     <!-- User's Previous Ascents Summary -->
-    <div v-if="ascentStore.hasUserSent" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+    <div
+      v-if="ascentStore.hasUserSent"
+      class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"
+    >
       <div class="flex items-center space-x-2 mb-2">
         <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          ></path>
         </svg>
         <span class="font-medium text-green-800">You've sent this problem!</span>
       </div>
       <div class="text-sm text-green-700">
-        <div>Latest send: {{ ascentStore.formatDateTime(ascentStore.latestUserAscent.createdAt) }}</div>
-        <div>Type: {{ ascentStore.getAttemptTypeLabel(ascentStore.latestUserAscent.attemptType) }}</div>
+        <div>
+          Latest send: {{ ascentStore.formatDateTime(ascentStore.latestUserAscent.createdAt) }}
+        </div>
+        <div>
+          Type: {{ ascentStore.getAttemptTypeLabel(ascentStore.latestUserAscent.attemptType) }}
+        </div>
         <div v-if="ascentStore.latestUserAscent.userGrade">
           Your grade: {{ ascentStore.latestUserAscent.userGrade }}
         </div>
@@ -24,15 +36,9 @@
     <form @submit.prevent="submitAscent" class="space-y-4">
       <!-- Attempt Type -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          How did you send it?
-        </label>
+        <label class="block text-sm font-medium text-gray-700 mb-2"> How did you send it? </label>
         <div class="space-y-2">
-          <div
-            v-for="type in ascentStore.attemptTypes"
-            :key="type.value"
-            class="flex items-center"
-          >
+          <div v-for="type in ascentStore.attemptTypes" :key="type.value" class="flex items-center">
             <input
               :id="`attempt-${type.value}`"
               v-model="formData.attemptType"
@@ -65,9 +71,7 @@
             {{ grade }}
           </option>
         </select>
-        <p class="text-xs text-gray-500 mt-1">
-          Rate what you think this problem is graded
-        </p>
+        <p class="text-xs text-gray-500 mt-1">Rate what you think this problem is graded</p>
       </div>
 
       <!-- Notes -->
@@ -86,9 +90,7 @@
 
       <!-- Date -->
       <div>
-        <label for="date" class="block text-sm font-medium text-gray-700 mb-1">
-          Date
-        </label>
+        <label for="date" class="block text-sm font-medium text-gray-700 mb-1"> Date </label>
         <input
           id="date"
           v-model="formData.date"
@@ -102,8 +104,18 @@
       <!-- Error Message -->
       <div v-if="ascentStore.error" class="bg-red-50 border border-red-200 rounded-md p-3">
         <div class="flex items-center">
-          <svg class="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <svg
+            class="w-5 h-5 text-red-400 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
           </svg>
           <p class="text-red-700 text-sm">{{ ascentStore.error }}</p>
         </div>
@@ -120,34 +132,39 @@
           class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
         ></div>
         <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          ></path>
         </svg>
-        <span>{{ ascentStore.isLoading ? 'Logging...' : 'Log Send' }}</span>
+        <span>{{ ascentStore.isLoading ? "Logging..." : "Log Send" }}</span>
       </button>
     </form>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { useAscentStore } from '@/stores/ascentStore';
+import { ref, computed } from "vue";
+import { useAscentStore } from "@/stores/ascentStore";
 
 const ascentStore = useAscentStore();
 
 // Form data
 const formData = ref({
-  attemptType: '',
-  userGrade: '',
-  notes: '',
-  date: new Date().toISOString().split('T')[0], // Today's date
+  attemptType: "",
+  userGrade: "",
+  notes: "",
+  date: new Date().toISOString().split("T")[0], // Today's date
 });
 
 // Get today's date for max date validation
 const today = computed(() => {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toISOString().split("T")[0];
 });
 
-const emit = defineEmits(['ascent-logged']);
+const emit = defineEmits(["ascent-logged"]);
 
 const submitAscent = async () => {
   try {
@@ -166,19 +183,19 @@ const submitAscent = async () => {
     }
 
     await ascentStore.logAscent(ascentData);
-    
+
     // Reset form
     formData.value = {
-      attemptType: '',
-      userGrade: '',
-      notes: '',
-      date: new Date().toISOString().split('T')[0],
+      attemptType: "",
+      userGrade: "",
+      notes: "",
+      date: new Date().toISOString().split("T")[0],
     };
 
     // Emit success event
-    emit('ascent-logged');
+    emit("ascent-logged");
   } catch (error) {
-    console.error('Error logging ascent:', error);
+    console.error("Error logging ascent:", error);
     // Error is already handled by the store
   }
 };
