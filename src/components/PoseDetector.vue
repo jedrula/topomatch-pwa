@@ -260,13 +260,17 @@ const runPoseDetection = async () => {
 };
 
 // Watch for poseResults changes and draw automatically
-watch(poseResults, async (newResults) => {
-  if (newResults && newResults.length > 0) {
-    console.log("🎯 poseResults changed, triggering draw");
-    await nextTick();
-    drawResults();
-  }
-}, { immediate: false });
+watch(
+  poseResults,
+  async (newResults) => {
+    if (newResults && newResults.length > 0) {
+      console.log("🎯 poseResults changed, triggering draw");
+      await nextTick();
+      drawResults();
+    }
+  },
+  { immediate: false }
+);
 
 // Draw results on canvas
 const drawResults = () => {

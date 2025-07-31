@@ -195,7 +195,7 @@ function preprocessImageYOLOv8(imageBitmap) {
   const maxSize = Math.max(imageBitmap.width, imageBitmap.height);
   const xPad = maxSize - imageBitmap.width;
   const yPad = maxSize - imageBitmap.height;
-  
+
   // These ratios will be used to convert model output back to original coordinates
   const xRatio = maxSize / imageBitmap.width;
   const yRatio = maxSize / imageBitmap.height;
@@ -213,7 +213,8 @@ function preprocessImageYOLOv8(imageBitmap) {
   // Draw image with proper padding
   // For vertical image (height > width): pad on sides
   // For horizontal image (width > height): pad on top/bottom
-  let xOffset = 0, yOffset = 0;
+  let xOffset = 0,
+    yOffset = 0;
   if (imageBitmap.height > imageBitmap.width) {
     // Tall image - pad horizontally (center horizontally)
     xOffset = xPad / 2;
@@ -258,7 +259,15 @@ function preprocessImageYOLOv8(imageBitmap) {
 /**
  * Process YOLOv8 results (after NMS) into pose data
  */
-function processYOLOv8Results(selected, xRatio, yRatio, xOffset, yOffset, originalWidth, originalHeight) {
+function processYOLOv8Results(
+  selected,
+  xRatio,
+  yRatio,
+  xOffset,
+  yOffset,
+  originalWidth,
+  originalHeight
+) {
   console.log("Processing YOLOv8 results:", {
     selectedDims: selected.dims,
     xRatio,
@@ -281,10 +290,10 @@ function processYOLOv8Results(selected, xRatio, yRatio, xOffset, yOffset, origin
     // Calculate padding offsets and scaling
     const maxSize = Math.max(originalWidth, originalHeight);
     const modelToOriginalScale = maxSize / 640;
-    
+
     const [x, y, w, h] = [
-      (box[0] * modelToOriginalScale - xOffset), // left (subtract x offset)
-      (box[1] * modelToOriginalScale - yOffset), // top (subtract y offset)
+      box[0] * modelToOriginalScale - xOffset, // left (subtract x offset)
+      box[1] * modelToOriginalScale - yOffset, // top (subtract y offset)
       box[2] * modelToOriginalScale, // width
       box[3] * modelToOriginalScale, // height
     ];
