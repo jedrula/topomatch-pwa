@@ -123,6 +123,101 @@ export const videoService = {
   },
 
   /**
+   * Upload a beta video at location level (for AI processing)
+   * @param {string} locationId - The location ID
+   * @param {File} videoFile - The video file to upload
+   * @param {Function} onProgress - Progress callback function
+   * @returns {Promise<{videoId: string, downloadUrl: string, metadata: Object}>}
+   */
+  async uploadLocationVideo(locationId, videoFile, onProgress = null) {
+    try {
+      const user = getCurrentUser();
+      if (!user) {
+        throw new Error("User must be authenticated to upload videos");
+      }
+
+      // Validate file type
+      if (!videoFile.type.startsWith("video/")) {
+        throw new Error("File must be a video");
+      }
+
+      // Validate file size (limit to 100MB for beta videos)
+      const maxSize = 100 * 1024 * 1024; // 100MB
+      if (videoFile.size > maxSize) {
+        throw new Error("Video file size must be less than 100MB");
+      }
+
+      // Generate unique video ID
+      const videoId = `location-video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Create storage path for location-level videos: locations/{locationId}/location-videos/{videoId}
+      const videoPath = `locations/${locationId}/location-videos/${videoId}`;
+      const storageRef = ref(storage, videoPath);
+
+      // Create metadata
+      const metadata = {
+        customMetadata: {
+          locationId,
+          userId: user.uid,
+          uploadedBy: user.email || user.uid,
+          originalName: videoFile.name,
+          fileSize: videoFile.size.toString(),
+          uploadedAt: new Date().toISOString(),
+          videoType: "location-beta", // Distinguish from problem-specific videos
+        },
+      };
+
+      return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, videoFile, metadata);
+
+        uploadTask.on(
+          "state_changed",
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            if (onProgress) {
+              onProgress(progress);
+            }
+          },
+          (error) => {
+            console.error("Upload failed:", error);
+            reject(error);
+          },
+          async () => {
+            try {
+              const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+
+              const result = {
+                videoId,
+                downloadUrl,
+                metadata: {
+                  locationId,
+                  userId: user.uid,
+                  uploadedBy: user.email || user.uid,
+                  originalName: videoFile.name,
+                  fileSize: videoFile.size,
+                  uploadedAt: new Date().toISOString(),
+                  videoType: "location-beta",
+                  contentType: videoFile.type,
+                  path: videoPath,
+                },
+              };
+
+              console.log("Location video uploaded successfully:", result);
+              resolve(result);
+            } catch (error) {
+              console.error("Error getting download URL:", error);
+              reject(error);
+            }
+          }
+        );
+      });
+    } catch (error) {
+      console.error("Error in uploadLocationVideo:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Get video metadata from download URL
    * @param {string} downloadUrl - The video download URL
    * @returns {Object} Parsed metadata from URL

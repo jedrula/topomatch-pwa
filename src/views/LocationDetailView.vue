@@ -60,10 +60,37 @@
         <!-- Location info -->
         <div class="bg-white rounded-lg shadow p-6">
           <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ location.name }}</h1>
-          <p v-if="location.description" class="text-gray-700 text-lg leading-relaxed">
+          <p v-if="location.description" class="text-gray-700 text-lg leading-relaxed mb-6">
             {{ location.description }}
           </p>
-          <p v-else class="text-gray-500 italic">No description provided</p>
+          <p v-else class="text-gray-500 italic mb-6">No description provided</p>
+
+          <!-- Upload Beta Video CTA -->
+          <div class="border-t pt-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Share Your Beta</h3>
+                <p class="text-sm text-gray-600">
+                  Upload a climbing video and let AI identify the problem automatically
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="showBetaUploadModal = true"
+                class="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  />
+                </svg>
+                Upload Beta Video
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Images section -->
@@ -205,9 +232,6 @@
             @uploaded="handleImageUploadComplete"
             @error="handleImageUploadError"
           />
-          <div class="text-xs text-gray-500 mt-2">
-            Debug: locationId = {{ route.params.locationId }}
-          </div>
         </div>
 
         <div class="flex gap-2 p-6 pt-4 flex-shrink-0 border-t">
@@ -217,6 +241,46 @@
           >
             Close
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Beta Video Upload Modal -->
+    <div
+      v-if="showBetaUploadModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+    >
+      <div class="bg-white rounded-lg max-w-lg w-full max-h-[90vh] flex flex-col py-4">
+        <div class="flex items-center justify-between px-6 pb-4 flex-shrink-0">
+          <div>
+            <h3 class="text-lg font-semibold">Upload Beta Video</h3>
+            <p class="text-sm text-gray-600 mt-1">
+              Upload a climbing video and let AI identify the problem automatically
+            </p>
+          </div>
+          <button
+            type="button"
+            @click="showBetaUploadModal = false"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="px-6 flex-1 overflow-y-auto">
+          <VideoUpload
+            :location-id="route.params.locationId"
+            :problem-id="null"
+            @uploaded="handleBetaVideoUploadComplete"
+            @error="handleBetaVideoUploadError"
+          />
         </div>
       </div>
     </div>
@@ -239,6 +303,7 @@ import { useRoute, useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
 import ImageUpload from "../components/ImageUpload.vue";
 import ImageGallery from "../components/ImageGallery.vue";
+import VideoUpload from "../components/VideoUpload.vue";
 import { formatDate, isSameDateTime } from "../utils/dateUtils.js";
 import { useUserStore } from "../stores/userStore.js";
 
@@ -251,6 +316,7 @@ const images = ref([]); // Placeholder for location images
 const isLoading = ref(true);
 const error = ref("");
 const showUploadModal = ref(false);
+const showBetaUploadModal = ref(false);
 
 const locationId = route.params.locationId;
 
@@ -369,6 +435,19 @@ const handleImageUploadComplete = async (uploadResult) => {
 
 const handleImageUploadError = (error) => {
   console.error("Image upload failed:", error);
+  // Handle upload error (show notification, etc.)
+};
+
+const handleBetaVideoUploadComplete = async (uploadResult) => {
+  console.log("Beta video uploaded successfully:", uploadResult);
+
+  // For now, just close the modal
+  // TODO: In the future, this will trigger AI analysis to identify the problem
+  showBetaUploadModal.value = false;
+};
+
+const handleBetaVideoUploadError = (error) => {
+  console.error("Beta video upload failed:", error);
   // Handle upload error (show notification, etc.)
 };
 

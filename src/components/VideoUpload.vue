@@ -193,7 +193,8 @@ const props = defineProps({
   },
   problemId: {
     type: String,
-    required: true,
+    required: false,
+    default: null,
   },
   ascentId: {
     type: String,
@@ -261,8 +262,8 @@ const handleFileSelect = async (event) => {
     return;
   }
 
-  // Auto-upload if we have required IDs
-  if (props.locationId && props.problemId) {
+  // Auto-upload if we have locationId (problemId is optional for location-level uploads)
+  if (props.locationId) {
     await uploadVideo();
   }
 };
@@ -278,18 +279,32 @@ const uploadVideo = async () => {
     // Emit upload start event
     emit("upload-start");
 
-    // Generate temporary ascent ID if not provided
-    const ascentId = props.ascentId || `temp-${Date.now()}`;
+    let result;
 
-    const result = await videoService.uploadBetaVideo(
-      props.locationId,
-      props.problemId,
-      ascentId,
-      selectedFile.value,
-      (progress) => {
-        uploadProgress.value = progress;
-      }
-    );
+    if (props.problemId) {
+      // Problem-specific upload (existing flow)
+      const ascentId = props.ascentId || `temp-${Date.now()}`;
+      result = await videoService.uploadBetaVideo(
+        props.locationId,
+        props.problemId,
+        ascentId,
+        selectedFile.value,
+        (progress) => {
+          uploadProgress.value = progress;
+        }
+      );
+    } else {
+      // Location-level upload (new flow)
+      // For now, we'll create a simple upload without problem association
+      // TODO: This will be enhanced with AI problem detection
+      result = await videoService.uploadLocationVideo(
+        props.locationId,
+        selectedFile.value,
+        (progress) => {
+          uploadProgress.value = progress;
+        }
+      );
+    }
 
     videoData.value = result;
     selectedFile.value = null;

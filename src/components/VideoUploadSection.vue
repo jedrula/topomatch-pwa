@@ -1,38 +1,21 @@
 <template>
-  <!-- Video Upload Section -->
+  <!-- Video Frame Matcher Section -->
   <div
     class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 transition-all duration-300 p-4"
   >
-    <div class="flex flex-col items-center text-center space-y-3">
-      <h3 class="text-lg font-semibold text-gray-900">Upload Climbing Video</h3>
-      <p class="text-sm text-gray-600">
-        Share your climbing videos and link them to boulder problems
-      </p>
-
-      <!-- Video Upload Button -->
-      <div class="relative">
-        <input
-          id="video-upload"
-          type="file"
-          accept="video/*"
-          @change="onVideoChange"
-          class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        />
-        <button
-          class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 flex items-center space-x-2"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-            />
-          </svg>
-          <span>Upload Video</span>
-        </button>
-      </div>
-    </div>
+    <VideoFrameMatcher
+      :comparison-images="regionPhotos"
+      title="Upload Climbing Video"
+      subtitle="Share your climbing videos and link them to boulder problems"
+      :frame-extraction-time="5"
+      :auto-start-matching="true"
+      @video-selected="handleVideoSelected"
+      @frame-extracted="handleFrameExtracted"
+      @match-found="handleMatchFound"
+      @analysis-complete="handleAnalysisComplete"
+      @processing-error="handleProcessingError"
+      @video-cleared="handleVideoCleared"
+    />
   </div>
 
   <!-- Video Upload Metadata Modal -->
@@ -593,8 +576,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from "vue";
-import { useInferenceStore } from "@/stores/inferenceStore";
+import { ref, reactive, computed } from "vue";
+import VideoFrameMatcher from "./VideoFrameMatcher.vue";
 
 const props = defineProps({
   regionPhotos: {
@@ -605,12 +588,11 @@ const props = defineProps({
 
 const emit = defineEmits(["video-uploaded"]);
 
-// Get inference store for video frame analysis
-const inferenceStore = useInferenceStore();
-
 // Video upload modal state
 const showVideoModal = ref(false);
 const selectedVideoFile = ref(null);
+const extractedFrame = ref(null);
+const matchedBoulderProblem = ref(null);
 const uploadProgress = ref(0);
 const uploadStatus = ref("");
 let uploadController = null;
@@ -624,15 +606,75 @@ const videoMetadata = reactive({
   ascentStyle: null, // "flash", "onsite", "RP" (redpoint)
 });
 
-// Clear ascent style when wasSent is unchecked
-watch(
-  () => videoMetadata.wasSent,
-  (newValue) => {
-    if (!newValue) {
-      videoMetadata.ascentStyle = null;
-    }
+// Event handlers for VideoFrameMatcher
+const handleVideoSelected = (videoFile) => {
+  console.log("Video selected:", videoFile.name);
+  selectedVideoFile.value = videoFile;
+
+  // Pre-populate title with filename (without extension)
+  const fileName = videoFile.name.substring(0, videoFile.name.lastIndexOf(".")) || videoFile.name;
+  videoMetadata.title = fileName.replace(/[_-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+};
+
+const handleFrameExtracted = (frameData) => {
+  console.log("Frame extracted:", frameData);
+  extractedFrame.value = frameData;
+};
+
+const handleMatchFound = (matchData) => {
+  console.log("Match found:", matchData);
+  matchedBoulderProblem.value = matchData.match;
+  videoMetadata.boulderProblemId = matchData.match.id;
+
+  // Show the modal to complete the upload metadata
+  showVideoModal.value = true;
+  uploadProgress.value = 0;
+  uploadStatus.value = "Ready to upload";
+
+  // Start the simulated upload
+  startVideoUpload(selectedVideoFile.value);
+};
+
+const handleAnalysisComplete = (result) => {
+  console.log("Analysis complete:", result);
+
+  if (result.match) {
+    // Match was found, handled by handleMatchFound
+    return;
   }
-);
+
+  // No match found, but still show modal for manual selection
+  showVideoModal.value = true;
+  uploadProgress.value = 0;
+  uploadStatus.value = "Ready to upload";
+
+  // Start the simulated upload
+  startVideoUpload(selectedVideoFile.value);
+};
+
+const handleProcessingError = (error) => {
+  console.error("Processing error:", error);
+  // Could show a toast notification here
+};
+
+const handleVideoCleared = () => {
+  console.log("Video cleared");
+  selectedVideoFile.value = null;
+  extractedFrame.value = null;
+  matchedBoulderProblem.value = null;
+  resetVideoMetadata();
+};
+
+// Clear ascent style when wasSent is unchecked
+const resetVideoMetadata = () => {
+  Object.assign(videoMetadata, {
+    title: "",
+    description: "",
+    boulderProblemId: null,
+    wasSent: false,
+    ascentStyle: null,
+  });
+};
 
 // Photo carousel state
 const currentPhotoIndex = ref(0);
@@ -655,124 +697,6 @@ const analysisPercentage = computed(() => {
   return Math.round((analysisImageCount.value / analysisImageTotal.value) * 100);
 });
 
-// Extract a frame from video file at specified time (default: 5 seconds)
-const extractVideoFrame = (videoFile, timeInSeconds = 5) => {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    video.onloadedmetadata = () => {
-      // Set canvas dimensions to match video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      // Seek to the specified time (or middle of video if shorter)
-      const seekTime = Math.min(timeInSeconds, video.duration / 2);
-      video.currentTime = seekTime;
-    };
-
-    video.onseeked = () => {
-      // Draw the current frame to canvas
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Convert canvas to blob
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            // Create a File object from the blob
-            const frameFile = new File([blob], `frame_${timeInSeconds}s.jpg`, {
-              type: "image/jpeg",
-            });
-
-            // Store the frame URL for display
-            extractedFrameUrl.value = URL.createObjectURL(blob);
-
-            resolve(frameFile);
-          } else {
-            reject(new Error("Failed to extract frame"));
-          }
-        },
-        "image/jpeg",
-        0.8
-      );
-    };
-
-    video.onerror = (error) => {
-      reject(new Error("Failed to load video: " + error.message));
-    };
-
-    // Load the video file
-    const url = URL.createObjectURL(videoFile);
-    video.src = url;
-  });
-};
-
-// Run automatic matching on video frame
-const runVideoFrameAnalysis = async (videoFile) => {
-  if (!props.regionPhotos.length || !inferenceStore.sessionReady) {
-    console.log("Cannot analyze video: no photos or session not ready");
-    return;
-  }
-
-  try {
-    isAnalyzingVideo.value = true;
-    analysisProgress.value = "Extracting frame from video...";
-    analysisImageCount.value = 0;
-    analysisImageTotal.value = 0;
-
-    // Extract frame from video
-    const frameFile = await extractVideoFrame(videoFile);
-
-    analysisProgress.value = "Analyzing frame against region photos...";
-    analysisImageTotal.value = props.regionPhotos.length;
-    analysisImageCount.value = 0;
-
-    // Convert region photos to the format expected by inference
-    const topoImagePaths = props.regionPhotos.map((photo) => photo.url);
-
-    // Use the enhanced store function with progress tracking
-    await inferenceStore.runInferenceBatch(
-      frameFile,
-      topoImagePaths,
-      (bestMatch) => {
-        if (bestMatch) {
-          // Find the photo that matches the best result
-          const bestPhotoIndex = props.regionPhotos.findIndex((photo) => photo.url === bestMatch);
-          if (bestPhotoIndex !== -1) {
-            currentPhotoIndex.value = bestPhotoIndex;
-            videoMetadata.boulderProblemId = props.regionPhotos[bestPhotoIndex].id;
-            analysisProgress.value = `Auto-selected: ${props.regionPhotos[bestPhotoIndex].name}`;
-
-            setTimeout(() => {
-              analysisProgress.value = "";
-              isAnalyzingVideo.value = false;
-            }, 2000);
-          }
-        } else {
-          analysisProgress.value = "No clear match found";
-          setTimeout(() => {
-            analysisProgress.value = "";
-            isAnalyzingVideo.value = false;
-          }, 2000);
-        }
-      },
-      (currentIndex, totalImages) => {
-        // Progress callback - update our tracking variables
-        analysisImageCount.value = currentIndex + 1;
-        analysisImageTotal.value = totalImages;
-      }
-    );
-  } catch (error) {
-    console.error("Video analysis error:", error);
-    analysisProgress.value = "Analysis failed";
-    setTimeout(() => {
-      analysisProgress.value = "";
-      isAnalyzingVideo.value = false;
-    }, 2000);
-  }
-};
-
 // Photo carousel navigation
 const nextPhoto = () => {
   if (props.regionPhotos.length > 1) {
@@ -789,106 +713,31 @@ const previousPhoto = () => {
   }
 };
 
-async function onVideoChange(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  // Validate file type
-  if (!file.type.startsWith("video/")) {
-    alert("Please select a valid video file.");
-    return;
-  }
-
-  // Set the selected file and show modal
-  selectedVideoFile.value = file;
-  showVideoModal.value = true;
-  uploadProgress.value = 0;
-  uploadStatus.value = "Preparing upload...";
-
-  // Initialize carousel
-  currentPhotoIndex.value = 0;
-
-  // Pre-populate title with filename (without extension)
-  const fileName = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
-  videoMetadata.title = fileName.replace(/[_-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-
-  // Set initial boulder problem if photos are available
-  if (currentPhoto.value) {
-    videoMetadata.boulderProblemId = currentPhoto.value.id;
-  }
-
-  // Start upload immediately in background
-  startVideoUpload(file);
-
-  // Start automatic video frame analysis
-  if (props.regionPhotos.length > 0) {
-    runVideoFrameAnalysis(file);
-  }
-
-  // Clear the input so the same file can be selected again
-  event.target.value = "";
-}
-
+// Simulate video upload (since actual upload isn't implemented)
 async function startVideoUpload(file) {
   try {
-    // Create FormData for video upload
-    const formData = new FormData();
-    formData.append("video", file);
-
-    console.log(`Uploading video: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
-
+    console.log(`Simulating upload: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
     uploadStatus.value = "Uploading...";
 
-    // Create AbortController for cancellation
-    uploadController = new AbortController();
-
-    // Simulate upload progress (replace with actual XMLHttpRequest for real progress)
+    // Simulate upload progress
     const uploadSimulation = setInterval(() => {
       if (uploadProgress.value < 95) {
         uploadProgress.value += Math.random() * 10;
         if (uploadProgress.value > 95) uploadProgress.value = 95;
       }
-    }, 500);
+    }, 300);
 
-    try {
-      // Upload to /video endpoint (will fail until server is implemented)
-      const response = await fetch("/video", {
-        method: "POST",
-        body: formData,
-        signal: uploadController.signal,
-      });
+    // Simulate upload delay
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      clearInterval(uploadSimulation);
+    clearInterval(uploadSimulation);
+    uploadProgress.value = 100;
+    uploadStatus.value = "Upload complete! (Demo mode)";
 
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
-
-      uploadProgress.value = 100;
-      uploadStatus.value = "Upload complete!";
-
-      const result = await response.json();
-      console.log("Video upload successful:", result);
-    } catch (error) {
-      clearInterval(uploadSimulation);
-      if (error.name === "AbortError") {
-        uploadStatus.value = "Upload cancelled";
-        uploadProgress.value = 0;
-      } else {
-        console.error("Error uploading video:", error);
-        uploadStatus.value = "Upload failed - server endpoint not available";
-        uploadProgress.value = 0;
-
-        // For demo purposes, simulate successful upload after a delay
-        setTimeout(() => {
-          uploadProgress.value = 100;
-          uploadStatus.value = "Upload complete! (Demo mode)";
-        }, 2000);
-      }
-    }
+    console.log("Video upload simulation complete");
   } catch (error) {
-    console.error("Unexpected error:", error);
-    uploadStatus.value = "An unexpected error occurred";
+    console.error("Upload simulation error:", error);
+    uploadStatus.value = "Upload simulation failed";
     uploadProgress.value = 0;
   }
 }
@@ -907,23 +756,6 @@ function closeVideoModal() {
   uploadStatus.value = "";
   uploadController = null;
   resetVideoMetadata();
-}
-
-function resetVideoMetadata() {
-  Object.assign(videoMetadata, {
-    title: "",
-    description: "",
-    boulderProblemId: null,
-    wasSent: false,
-    ascentStyle: null,
-  });
-  currentPhotoIndex.value = 0;
-  isAnalyzingVideo.value = false;
-  analysisProgress.value = "";
-  showManualSelection.value = false;
-  analysisImageCount.value = 0;
-  analysisImageTotal.value = 0;
-  extractedFrameUrl.value = null;
 }
 
 async function submitVideoMetadata() {

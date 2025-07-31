@@ -154,10 +154,12 @@
           ></path>
         </svg>
         <span>
-          {{ 
-            isVideoUploading ? "Uploading video..." : 
-            ascentStore.isLoading ? "Logging..." : 
-            "Log Send" 
+          {{
+            isVideoUploading
+              ? "Uploading video..."
+              : ascentStore.isLoading
+              ? "Logging..."
+              : "Log Send"
           }}
         </span>
       </button>
