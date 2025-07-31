@@ -11,3 +11,9 @@ const onnxCode = readFileSync("src/workers/inferenceWorkerOnnxCode.js", "utf-8")
 const holdDetectionWorker = readFileSync("src/workers/holdDetectionWorker.js", "utf-8");
 
 writeFileSync("public/holdDetectionWorker.combined.js", onnxCode + "\n" + holdDetectionWorker);
+
+// Build pose detection worker
+const onnxCodeFixed = readFileSync("src/workers/inferenceWorkerOnnxCodeFixed2.js", "utf-8");
+const poseDetectionWorker = readFileSync("src/workers/poseDetectionWorker.js", "utf-8");
+
+writeFileSync("public/poseDetectionWorker.combined.js", onnxCodeFixed + "\n" + poseDetectionWorker);
