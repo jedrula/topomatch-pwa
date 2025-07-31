@@ -128,7 +128,12 @@ const problems = await boulderProblemsService.getBoulderProblemsByImage(
 
 ## Authentication
 
-Currently uses a mock authentication service (`authService.js`) that returns a development user. This should be replaced with proper Firebase Auth or your authentication system.
+Uses Firebase Authentication with email/password sign-in. Admin users are determined by email address checking in the auth service. The system includes:
+
+- **Firebase Auth Integration**: Real user authentication with Firebase Auth emulator support
+- **Role-based Access**: Admin permissions based on email verification
+- **Session Management**: Automatic auth state persistence and restoration
+- **User Interface**: Login/registration modal with form validation and error handling
 
 ## Firestore Security Rules
 

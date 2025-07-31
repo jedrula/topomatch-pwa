@@ -1,7 +1,38 @@
 <script setup>
+import { onMounted, ref } from "vue";
 import { RouterView } from "vue-router";
-import UserRoleSwitcher from "./components/UserRoleSwitcher.vue";
+import { useUserStore } from "./stores/userStore.js";
 import AppHeader from "./components/AppHeader.vue";
+import AuthModal from "./components/AuthModal.vue";
+
+const userStore = useUserStore();
+const showAuthModal = ref(false);
+
+// Initialize authentication when app starts
+onMounted(() => {
+  userStore.initAuth();
+});
+
+// Global auth modal handlers
+const openAuthModal = () => {
+  showAuthModal.value = true;
+};
+
+const closeAuthModal = () => {
+  showAuthModal.value = false;
+};
+
+const onAuthSuccess = () => {
+  console.log("Authentication successful!");
+  closeAuthModal();
+};
+
+// Provide the auth modal methods globally
+import { provide } from "vue";
+provide('authModal', {
+  open: openAuthModal,
+  close: closeAuthModal
+});
 </script>
 
 <template>
@@ -12,10 +43,12 @@ import AppHeader from "./components/AppHeader.vue";
     <!-- Main content -->
     <RouterView />
 
-    <!-- User role switcher for testing - positioned at bottom -->
-    <div class="fixed bottom-4 right-4 z-40">
-      <UserRoleSwitcher />
-    </div>
+    <!-- Global Auth Modal - direct child of app root -->
+    <AuthModal 
+      :is-open="showAuthModal" 
+      @close="closeAuthModal" 
+      @success="onAuthSuccess"
+    />
   </div>
 </template>
 

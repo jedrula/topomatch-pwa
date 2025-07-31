@@ -2,12 +2,14 @@ import { onCall } from "firebase-functions/v2/https";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { getAuth } from "firebase-admin/auth";
 import * as logger from "firebase-functions/logger";
 
 initializeApp();
 
 const db = getFirestore();
 const bucket = getStorage().bucket();
+const auth = getAuth();
 
 // Configure Firestore to use emulator if in development
 if (process.env.FUNCTIONS_EMULATOR === "true") {
@@ -16,6 +18,76 @@ if (process.env.FUNCTIONS_EMULATOR === "true") {
     ssl: false,
   });
 }
+
+// Admin management functions
+export const setAdminRole = onCall(async (request) => {
+  // Only allow existing admins to create new admins
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new Error("Authentication required");
+  }
+
+  const callerRecord = await auth.getUser(callerUid);
+  const callerClaims = callerRecord.customClaims || {};
+  
+  if (!callerClaims.admin) {
+    throw new Error("Only admins can grant admin privileges");
+  }
+
+  const { uid, isAdmin } = request.data;
+  
+  try {
+    // Set custom claims
+    await auth.setCustomUserClaims(uid, { admin: isAdmin });
+    
+    // Also store in Firestore for easy querying
+    await db.collection('users').doc(uid).set({
+      isAdmin,
+      updatedAt: new Date(),
+      updatedBy: callerUid
+    }, { merge: true });
+
+    logger.info(`Admin role ${isAdmin ? 'granted to' : 'removed from'} user ${uid} by ${callerUid}`);
+    
+    return { success: true, message: `Admin role ${isAdmin ? 'granted' : 'removed'} successfully` };
+  } catch (error) {
+    logger.error("Error setting admin role:", error);
+    throw new Error("Failed to update admin role");
+  }
+});
+
+// Initialize admin function - can be called once to set initial admin
+export const initializeAdmin = onCall(async (request) => {
+  const { email } = request.data;
+  
+  try {
+    // Check if any admins exist
+    const adminQuery = await db.collection('users').where('isAdmin', '==', true).limit(1).get();
+    
+    if (!adminQuery.empty) {
+      throw new Error("Admin already exists. Use setAdminRole function instead.");
+    }
+
+    // Find user by email
+    const userRecord = await auth.getUserByEmail(email);
+    
+    // Set as admin
+    await auth.setCustomUserClaims(userRecord.uid, { admin: true });
+    await db.collection('users').doc(userRecord.uid).set({
+      isAdmin: true,
+      email: userRecord.email,
+      createdAt: new Date(),
+      role: 'admin'
+    }, { merge: true });
+
+    logger.info(`Initial admin privileges granted to ${email}`);
+    
+    return { success: true, message: `Admin privileges granted to ${email}` };
+  } catch (error) {
+    logger.error("Error initializing admin:", error);
+    throw new Error("Failed to initialize admin");
+  }
+});
 
 // Helper function to extract file path from Firebase Storage URL
 const getFilePathFromUrl = (downloadUrl: string): string | null => {

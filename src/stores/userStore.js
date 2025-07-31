@@ -1,50 +1,105 @@
 import { defineStore } from "pinia";
+import { authService } from "../services/authService.js";
 
 export const useUserStore = defineStore("user", {
   state: () => ({
-    user: {
-      id: "user-123",
-      name: "John Doe",
-      email: "john.doe@example.com",
-      role: "admin", // Change this to 'user' to test different perspectives
-    },
-    isLoggedIn: true,
+    user: null,
+    isLoggedIn: false,
+    isLoading: true, // Loading state for auth initialization
   }),
 
   getters: {
-    isAdmin: (state) => state.user?.role === "admin",
-    isUser: (state) => state.user?.role === "user",
-    canEditLocations: (state) => state.user?.role === "admin",
-    canDeleteLocations: (state) => state.user?.role === "admin",
-    canCreateLocations: (state) => state.user?.role === "admin",
+    isAdmin: (state) => {
+      if (!state.user) return false;
+      // Check custom claims for admin role
+      return state.user.customClaims?.admin === true;
+    },
+    isUser() {
+      return this.isLoggedIn && !this.isAdmin;
+    },
+    canEditLocations() {
+      return this.isAdmin;
+    },
+    canDeleteLocations() {
+      return this.isAdmin;
+    },
+    canCreateLocations() {
+      return this.isAdmin;
+    },
     canViewLocations: (state) => state.isLoggedIn, // All logged-in users can view
-    canUploadImages: (state) => state.user?.role === "admin",
+    canUploadImages() {
+      return this.isAdmin;
+    },
+    userDisplayName: (state) => {
+      if (!state.user) return '';
+      return state.user.displayName || state.user.email?.split('@')[0] || 'User';
+    },
   },
 
   actions: {
-    // Simulate switching user role for testing
-    switchToAdmin() {
-      this.user.role = "admin";
+    // Initialize auth listener
+    initAuth() {
+      return new Promise((resolve) => {
+        authService.onAuthStateChanged((user) => {
+          this.user = user;
+          this.isLoggedIn = !!user;
+          this.isLoading = false;
+          resolve(user);
+        });
+      });
     },
 
-    switchToUser() {
-      this.user.role = "user";
+    // Sign in
+    async signIn(email, password) {
+      try {
+        const user = await authService.signIn(email, password);
+        this.user = user;
+        this.isLoggedIn = true;
+        return user;
+      } catch (error) {
+        console.error("Sign in failed:", error);
+        throw error;
+      }
     },
 
-    // Simulate login/logout
-    login(userData) {
-      this.user = userData;
-      this.isLoggedIn = true;
+    // Sign up
+    async signUp(email, password, displayName = null) {
+      try {
+        const user = await authService.signUp(email, password, displayName);
+        this.user = user;
+        this.isLoggedIn = true;
+        return user;
+      } catch (error) {
+        console.error("Sign up failed:", error);
+        throw error;
+      }
     },
 
-    logout() {
-      this.user = null;
-      this.isLoggedIn = false;
+    // Sign out
+    async signOut() {
+      try {
+        await authService.signOut();
+        this.user = null;
+        this.isLoggedIn = false;
+      } catch (error) {
+        console.error("Sign out failed:", error);
+        throw error;
+      }
     },
 
-    // Helper method for testing - toggle between admin and user
-    toggleRole() {
-      this.user.role = this.user.role === "admin" ? "user" : "admin";
+    // Refresh user claims (useful after admin role changes)
+    async refreshUserClaims() {
+      try {
+        const claims = await authService.refreshUserToken();
+        if (this.user && claims) {
+          // Update the user object with fresh claims
+          this.user = { ...this.user, customClaims: claims };
+        }
+        return claims;
+      } catch (error) {
+        console.error("Failed to refresh user claims:", error);
+        throw error;
+      }
     },
   },
 });
