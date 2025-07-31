@@ -275,11 +275,18 @@
         </div>
 
         <div class="px-6 flex-1 overflow-y-auto">
-          <VideoUpload
-            :location-id="route.params.locationId"
-            :problem-id="null"
-            @uploaded="handleBetaVideoUploadComplete"
-            @error="handleBetaVideoUploadError"
+          <VideoFrameMatcher
+            :comparison-images="images"
+            title="Upload Beta Video"
+            subtitle="Upload a climbing video and let AI identify the boulder problem automatically"
+            :frame-extraction-time="5"
+            :auto-start-matching="true"
+            @video-selected="handleBetaVideoSelected"
+            @frame-extracted="handleBetaFrameExtracted"
+            @match-found="handleBetaMatchFound"
+            @analysis-complete="handleBetaAnalysisComplete"
+            @processing-error="handleBetaProcessingError"
+            @video-cleared="handleBetaVideoCleared"
           />
         </div>
       </div>
@@ -303,7 +310,7 @@ import { useRoute, useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
 import ImageUpload from "../components/ImageUpload.vue";
 import ImageGallery from "../components/ImageGallery.vue";
-import VideoUpload from "../components/VideoUpload.vue";
+import VideoFrameMatcher from "../components/VideoFrameMatcher.vue";
 import { formatDate, isSameDateTime } from "../utils/dateUtils.js";
 import { useUserStore } from "../stores/userStore.js";
 
@@ -438,20 +445,36 @@ const handleImageUploadError = (error) => {
   // Handle upload error (show notification, etc.)
 };
 
-const handleBetaVideoUploadComplete = async (uploadResult) => {
-  console.log("Beta video uploaded successfully:", uploadResult);
-
-  // For now, just close the modal
-  // TODO: In the future, this will trigger AI analysis to identify the problem
-  showBetaUploadModal.value = false;
+const handleBetaVideoSelected = (videoFile) => {
+  console.log("Beta video selected:", videoFile.name);
 };
 
-const handleBetaVideoUploadError = (error) => {
-  console.error("Beta video upload failed:", error);
-  // Handle upload error (show notification, etc.)
+const handleBetaFrameExtracted = (frameData) => {
+  console.log("Beta frame extracted:", frameData);
 };
 
-onMounted(() => {
+const handleBetaMatchFound = (matchData) => {
+  console.log("Beta match found:", matchData);
+  // Could show a success notification or navigate to the matched image
+  alert(`Match found! Best match: ${matchData.match.name || 'Found a matching boulder problem'}`);
+};
+
+const handleBetaAnalysisComplete = (result) => {
+  console.log("Beta analysis complete:", result);
+  if (!result.match) {
+    // No match found
+    alert("No clear match found. You may need to manually identify the boulder problem.");
+  }
+};
+
+const handleBetaProcessingError = (error) => {
+  console.error("Beta processing error:", error);
+  alert("Error processing video: " + error.message);
+};
+
+const handleBetaVideoCleared = () => {
+  console.log("Beta video cleared");
+};onMounted(() => {
   loadLocation();
 });
 </script>
