@@ -171,7 +171,7 @@ class BackupSystem {
       console.log('Starting emulators with seed data...');
       console.log('Use Ctrl+C to stop when ready, then run your app normally');
       
-      execSync(`firebase emulators:start --import="${SEED_DATA_DIR}" --only firestore,storage`, {
+      execSync(`firebase emulators:start --import="${SEED_DATA_DIR}" --only firestore,storage --export-on-exit=./firebase-emulator-data`, {
         stdio: 'inherit',
         cwd: path.join(__dirname, '..')
       });
