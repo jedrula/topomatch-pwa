@@ -207,20 +207,55 @@ const prepareSourceImage = async () => {
   return null;
 };
 
+// Helper function to wait for inference session to be ready
+const waitForInferenceSession = async (maxWaitTime = 10000) => {
+  const checkInterval = 100; // Check every 100ms
+  const maxAttempts = maxWaitTime / checkInterval;
+  let attempts = 0;
+
+  return new Promise((resolve, reject) => {
+    const checkSession = () => {
+      if (inferenceStore.sessionReady) {
+        resolve();
+      } else if (attempts >= maxAttempts) {
+        reject(new Error("Timeout waiting for AI session to initialize"));
+      } else {
+        attempts++;
+        setTimeout(checkSession, checkInterval);
+      }
+    };
+
+    checkSession();
+  });
+};
+
 const startAnalysis = async () => {
   if (!props.sourceImage || props.comparisonImages.length === 0) {
     error.value = "Missing source image or comparison images";
     return;
   }
 
+  // Wait for inference session to be ready
   if (!inferenceStore.sessionReady) {
-    error.value = "AI inference session not ready";
-    return;
+    try {
+      resetAnalysis();
+      isAnalyzing.value = true;
+      analysisStatus.value = "Initializing AI session...";
+
+      // Wait for session to be ready with timeout
+      await waitForInferenceSession();
+    } catch (sessionError) {
+      error.value = "Failed to initialize AI session: " + sessionError.message;
+      isAnalyzing.value = false;
+      return;
+    }
   }
 
   try {
-    resetAnalysis();
-    isAnalyzing.value = true;
+    if (!isAnalyzing.value) {
+      resetAnalysis();
+      isAnalyzing.value = true;
+    }
     analysisStatus.value = "Preparing source image...";
 
     // Prepare source image
@@ -282,10 +317,16 @@ const startAnalysis = async () => {
 // Watch for changes in source image or comparison images
 watch(
   () => [props.sourceImage, props.comparisonImages],
-  () => {
+  async () => {
     resetAnalysis();
     if (props.autoStart && props.sourceImage && props.comparisonImages.length > 0) {
-      startAnalysis();
+      // Use setTimeout to avoid blocking the watcher
+      setTimeout(() => {
+        startAnalysis().catch((err) => {
+          console.error("Auto-analysis failed:", err);
+          error.value = "Auto-analysis failed: " + err.message;
+        });
+      }, 100);
     }
   },
   { immediate: true }

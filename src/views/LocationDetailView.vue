@@ -456,7 +456,6 @@ const handleBetaFrameExtracted = (frameData) => {
 const handleBetaMatchFound = (matchData) => {
   console.log("Beta match found:", matchData);
   // Could show a success notification or navigate to the matched image
-  alert(`Match found! Best match: ${matchData.match.name || 'Found a matching boulder problem'}`);
 };
 
 const handleBetaAnalysisComplete = (result) => {
@@ -474,7 +473,8 @@ const handleBetaProcessingError = (error) => {
 
 const handleBetaVideoCleared = () => {
   console.log("Beta video cleared");
-};onMounted(() => {
+};
+onMounted(() => {
   loadLocation();
 });
 </script>

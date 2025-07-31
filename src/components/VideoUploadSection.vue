@@ -799,7 +799,7 @@ async function submitVideoMetadata() {
     //   body: JSON.stringify(metadataPayload)
     // });
 
-    alert("Video published successfully!");
+    console.log("Video published successfully!");
     emit("video-uploaded", metadataPayload);
     closeVideoModal();
   } catch (error) {
