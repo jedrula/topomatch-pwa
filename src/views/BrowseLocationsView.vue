@@ -1,20 +1,5 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow-sm border-b">
-      <div class="max-w-7xl mx-auto px-4 py-4">
-        <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-bold text-gray-900">All Locations</h1>
-          <router-link
-            v-if="userStore.canCreateLocations"
-            to="/add-location"
-            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Add Location
-          </router-link>
-        </div>
-      </div>
-    </div>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="flex justify-center items-center py-12">
