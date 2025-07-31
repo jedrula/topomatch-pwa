@@ -1,0 +1,27 @@
+{
+  "name": "locations/YIYwNAjQ0uycov4oGy7Z/location-videos/location-video-1753946066813-csx8puvaj",
+  "bucket": "demo-offline-vue-pwa.appspot.com",
+  "metageneration": 1,
+  "generation": 1753946066930,
+  "contentType": "video/quicktime",
+  "storageClass": "STANDARD",
+  "contentDisposition": "inline",
+  "downloadTokens": [
+    "a7f93777-0f35-4a83-95c6-a653244e0d4f"
+  ],
+  "etag": "mtT+DahC048CsK/K5BzCMuF8lRI",
+  "customMetadata": {
+    "locationId": "YIYwNAjQ0uycov4oGy7Z",
+    "userId": "dev-user-123",
+    "uploadedBy": "dev@example.com",
+    "originalName": "IMG_8013.mov",
+    "fileSize": "28324330",
+    "uploadedAt": "2025-07-31T07:14:26.814Z",
+    "videoType": "location-beta"
+  },
+  "timeCreated": "2025-07-31T07:14:26.930Z",
+  "updated": "2025-07-31T07:14:26.930Z",
+  "size": 28324330,
+  "md5Hash": "Tx9fGxYJBJRtxC6MJpMEow==",
+  "crc32c": "3159205580"
+}

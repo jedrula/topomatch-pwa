@@ -19,6 +19,12 @@ coverage
 firebase-emulator-data/*
 !firebase-emulator-data/README.md
 
+# Backup system
+backups/dev-exports/
+backups/prod-exports/
+# Keep seed-data/ for team distribution
+!backups/seed-data/
+
 # Firebase debug logs
 firebase-debug.log
 firestore-debug.log

@@ -16,7 +16,14 @@
     "emulators:reset": "rm -rf ./firebase-emulator-data && firebase emulators:start --export-on-exit=./firebase-emulator-data",
     "emulators:export": "firebase emulators:export ./firebase-emulator-data",
     "server:build": "cd server && npm run build",
-    "server:dev": "cd server && npm run build:watch"
+    "server:dev": "cd server && npm run build:watch",
+    "backup:export": "node scripts/backup.cjs export",
+    "backup:import": "node scripts/backup.cjs import",
+    "backup:export:prod": "node scripts/backup.cjs export-prod",
+    "backup:import:prod": "node scripts/backup.cjs import-prod",
+    "backup:package": "node scripts/backup.cjs package",
+    "backup:import:seed": "node scripts/backup.cjs import-seed",
+    "backup:list": "node scripts/backup.cjs list"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",

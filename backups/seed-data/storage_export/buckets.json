@@ -1,0 +1,10 @@
+{
+  "buckets": [
+    {
+      "id": "your-project-id.appspot.com"
+    },
+    {
+      "id": "demo-offline-vue-pwa.appspot.com"
+    }
+  ]
+}
