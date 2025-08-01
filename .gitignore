@@ -51,3 +51,4 @@ server/*.js.map
 *.tsbuildinfo
 public/inferenceWorker.combined.js
 public/holdDetectionWorker.combined.js
+public/poseDetectionWorker.combined.js

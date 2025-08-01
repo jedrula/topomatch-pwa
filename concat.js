@@ -1,19 +1,18 @@
 import { readFileSync, writeFileSync } from "fs";
 
-// Build inference worker
-const part1 = readFileSync("src/workers/inferenceWorkerOnnxCode.js", "utf-8");
-const part2 = readFileSync("src/workers/inferenceWorker.js", "utf-8");
+// Read the shared ONNX runtime once
+const onnxCode = readFileSync("src/workers/inferenceWorkerOnnxCode.js", "utf-8");
 
-writeFileSync("public/inferenceWorker.combined.js", part1 + "\n" + part2);
+// Build inference worker
+const inferenceWorker = readFileSync("src/workers/inferenceWorker.js", "utf-8");
+writeFileSync("public/inferenceWorker.combined.js", onnxCode + "\n" + inferenceWorker);
 
 // Build hold detection worker
-const onnxCode = readFileSync("src/workers/inferenceWorkerOnnxCode.js", "utf-8");
 const holdDetectionWorker = readFileSync("src/workers/holdDetectionWorker.js", "utf-8");
-
 writeFileSync("public/holdDetectionWorker.combined.js", onnxCode + "\n" + holdDetectionWorker);
 
-// Build pose detection worker
-const onnxCodeFixed = readFileSync("src/workers/inferenceWorkerOnnxCodeFixed2.js", "utf-8");
+// Build pose detection worker (use the fixed version to avoid variable conflicts)
 const poseDetectionWorker = readFileSync("src/workers/poseDetectionWorker.js", "utf-8");
+writeFileSync("public/poseDetectionWorker.combined.js", onnxCode + "\n" + poseDetectionWorker);
 
-writeFileSync("public/poseDetectionWorker.combined.js", onnxCodeFixed + "\n" + poseDetectionWorker);
+console.log("✅ All workers built successfully with appropriate ONNX runtime versions");
