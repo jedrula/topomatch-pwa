@@ -3,6 +3,7 @@ import HomeView from "../views/HomeView.vue";
 import RegionView from "../views/RegionView.vue";
 import HoldDetectionView from "../views/HoldDetectionView.vue";
 import PoseDetectionView from "../views/PoseDetectionView.vue";
+import PlaygroundView from "../views/PlaygroundView.vue";
 import AddLocationView from "../views/AddLocationView.vue";
 import LocationDetailView from "../views/LocationDetailView.vue";
 import EditLocationView from "../views/EditLocationView.vue";
@@ -33,6 +34,11 @@ const router = createRouter({
       path: "/pose-detection",
       name: "pose-detection",
       component: PoseDetectionView,
+    },
+    {
+      path: "/playground",
+      name: "playground",
+      component: PlaygroundView,
     },
     {
       path: "/add-location",
