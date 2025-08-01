@@ -129,16 +129,25 @@
         </div>
 
         <!-- Homography Results -->
-        <div v-if="homographyMatrix" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div
+          v-if="homographyMatrix"
+          class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg"
+        >
           <h3 class="font-medium text-green-800 mb-2">✅ Homography Matrix Calculated</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <p class="text-green-700 mb-1">Inliers: {{ homographyInliers }}/{{ matchResults.matchCount }}</p>
-              <p class="text-green-700">Success Rate: {{ Math.round((homographyInliers / matchResults.matchCount) * 100) }}%</p>
+              <p class="text-green-700 mb-1">
+                Inliers: {{ homographyInliers }}/{{ matchResults.matchCount }}
+              </p>
+              <p class="text-green-700">
+                Success Rate: {{ Math.round((homographyInliers / matchResults.matchCount) * 100) }}%
+              </p>
             </div>
             <div>
               <p class="text-green-700 mb-1">Click Mode Active</p>
-              <p class="text-green-700 text-xs">Click on either image to see corresponding points</p>
+              <p class="text-green-700 text-xs">
+                Click on either image to see corresponding points
+              </p>
             </div>
           </div>
         </div>
@@ -151,12 +160,15 @@
             :style="{ cursor: homographyMatrix ? 'crosshair' : 'default' }"
             class="max-w-full border border-gray-300 rounded-lg shadow-lg"
           ></canvas>
-          
+
           <!-- Click instructions -->
-          <div v-if="homographyMatrix && !clickedPoints.length" class="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+          <div
+            v-if="homographyMatrix && !clickedPoints.length"
+            class="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded"
+          >
             Click anywhere on either image to see corresponding points
           </div>
-          
+
           <!-- Clear points button -->
           <button
             v-if="clickedPoints.length > 0"
@@ -168,16 +180,24 @@
         </div>
 
         <!-- Point Transformation Results -->
-        <div v-if="clickedPoints.length > 0" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div
+          v-if="clickedPoints.length > 0"
+          class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+        >
           <h3 class="font-medium text-blue-800 mb-2">Point Transformations</h3>
           <div class="space-y-2 text-sm">
-            <div v-for="(point, index) in clickedPoints" :key="index" class="flex justify-between items-center">
+            <div
+              v-for="(point, index) in clickedPoints"
+              :key="index"
+              class="flex justify-between items-center"
+            >
               <span class="text-blue-700">
-                Point {{ index + 1 }}: ({{ Math.round(point.source.x) }}, {{ Math.round(point.source.y) }})
-                → ({{ Math.round(point.transformed.x) }}, {{ Math.round(point.transformed.y) }})
+                Point {{ index + 1 }}: ({{ Math.round(point.source.x) }},
+                {{ Math.round(point.source.y) }}) → ({{ Math.round(point.transformed.x) }},
+                {{ Math.round(point.transformed.y) }})
               </span>
               <span class="text-xs text-blue-600">
-                {{ point.sourceImage === 1 ? 'Source → Target' : 'Target → Source' }}
+                {{ point.sourceImage === 1 ? "Source → Target" : "Target → Source" }}
               </span>
             </div>
           </div>
@@ -191,7 +211,11 @@
             </summary>
             <div class="p-4 border-t border-gray-200">
               <div class="grid grid-cols-3 gap-2 text-sm font-mono bg-white p-3 rounded border">
-                <div v-for="(value, index) in homographyMatrix" :key="index" class="text-center p-1">
+                <div
+                  v-for="(value, index) in homographyMatrix"
+                  :key="index"
+                  class="text-center p-1"
+                >
                   {{ value.toFixed(6) }}
                 </div>
               </div>
@@ -299,9 +323,9 @@ onMounted(async () => {
     // Import OpenCV.js - version >=4.11 returns a Promise
     const cvReadyPromise = await import("@techstark/opencv-js");
     cv = await cvReadyPromise.default;
-    
+
     console.log("✅ OpenCV.js loaded successfully", cv);
-    console.log("Available OpenCV methods:", Object.keys(cv).slice(0, 20).join(', '));
+    console.log("Available OpenCV methods:", Object.keys(cv).slice(0, 20).join(", "));
   } catch (err) {
     console.error("❌ Failed to load OpenCV.js:", err);
     error.value = "Failed to load OpenCV.js library";
@@ -330,7 +354,7 @@ const onSourceImageSelected = async (file) => {
   }
   sourceImageUrl.value = URL.createObjectURL(file);
   sourceImageInfo.value = await getImageInfo(file);
-  
+
   // Clear previous results
   resetResults();
 };
@@ -342,7 +366,7 @@ const onTargetImageSelected = async (file) => {
   }
   targetImageUrl.value = URL.createObjectURL(file);
   targetImageInfo.value = await getImageInfo(file);
-  
+
   // Clear previous results
   resetResults();
 };
@@ -417,7 +441,7 @@ const runImageMatching = async () => {
         const { type, data } = event.data;
         if (type === "inferenceComplete") {
           const endTime = performance.now();
-          
+
           const result = {
             matchCount: data.results.matches?.dims?.[0] ?? 0,
             processingTime: Math.round(endTime - startTime),
@@ -448,7 +472,6 @@ const runImageMatching = async () => {
 
     matchResults.value = result;
     analysisStatus.value = `Analysis complete! Found ${result.matchCount} matches in ${result.processingTime}ms`;
-
   } catch (err) {
     console.error("Image matching error:", err);
     error.value = err.message || "Image matching analysis failed";
@@ -463,38 +486,38 @@ const calculateHomography = async () => {
     error.value = "OpenCV.js not loaded yet";
     return;
   }
-  
+
   if (!matchResults.value || matchResults.value.matchCount < 4) {
     error.value = "Need at least 4 matches to calculate homography";
     return;
   }
 
   homographyCalculating.value = true;
-  
+
   try {
     console.log("Starting homography calculation with cv:", typeof cv);
     console.log("cv.Mat available:", typeof cv.Mat);
     console.log("cv.findHomography available:", typeof cv.findHomography);
-    
+
     const { rawData } = matchResults.value;
-    
+
     // Extract matching points
     const matches = [];
     const maxMatches = Math.min(rawData.matches.dims[0], 100); // Limit for performance
-    
+
     for (let i = 0; i < maxMatches; i++) {
       const matchBaseIndex = i * rawData.matches.dims[1];
       const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
       const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
-      
+
       const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]);
       const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
       const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]);
       const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
-      
+
       matches.push({
         point1: { x: x0, y: y0 },
-        point2: { x: x1, y: y1 }
+        point2: { x: x1, y: y1 },
       });
     }
 
@@ -503,9 +526,9 @@ const calculateHomography = async () => {
     // Create OpenCV point arrays using the correct API
     const srcMat = new cv.Mat(matches.length, 1, cv.CV_32FC2);
     const dstMat = new cv.Mat(matches.length, 1, cv.CV_32FC2);
-    
+
     console.log("Created matrices:", srcMat.rows, "x", srcMat.cols);
-    
+
     // Fill the matrices with point data
     for (let i = 0; i < matches.length; i++) {
       srcMat.data32F[i * 2] = matches[i].point1.x;
@@ -513,35 +536,35 @@ const calculateHomography = async () => {
       dstMat.data32F[i * 2] = matches[i].point2.x;
       dstMat.data32F[i * 2 + 1] = matches[i].point2.y;
     }
-    
+
     const mask = new cv.Mat();
-    
+
     console.log("Calling cv.findHomography...");
-    
+
     // Calculate homography using RANSAC
     const homography = cv.findHomography(srcMat, dstMat, cv.RANSAC, 5.0, mask);
-    
+
     console.log("Homography calculated:", homography.rows, "x", homography.cols);
-    
+
     // Count inliers
     let inlierCount = 0;
     for (let i = 0; i < mask.rows; i++) {
       if (mask.ucharPtr(i, 0)[0] === 1) inlierCount++;
     }
-    
+
     // Store homography matrix as flat array
     const matrixData = [];
     for (let i = 0; i < 9; i++) {
       matrixData.push(homography.data64F[i]);
     }
-    
+
     homographyMatrix.value = matrixData;
     homographyInliers.value = inlierCount;
-    
+
     console.log("✅ Homography calculated:", {
       inliers: inlierCount,
       total: matches.length,
-      matrix: matrixData.slice(0, 6).map(v => v.toFixed(4))
+      matrix: matrixData.slice(0, 6).map((v) => v.toFixed(4)),
     });
 
     // Clean up OpenCV matrices
@@ -549,14 +572,13 @@ const calculateHomography = async () => {
     dstMat.delete();
     mask.delete();
     homography.delete();
-    
+
     // Auto-show visualization
     if (!showVisualization.value) {
       showVisualization.value = true;
       await nextTick();
     }
     drawInteractiveCanvas();
-    
   } catch (err) {
     console.error("Homography calculation error:", err);
     error.value = "Failed to calculate homography: " + err.message;
@@ -571,38 +593,38 @@ const transformPoint = (x, y, inverse = false) => {
     console.log("Transform point failed: cv or homography not available");
     return null;
   }
-  
+
   try {
     // Create homography matrix from stored data
     const H = new cv.Mat(3, 3, cv.CV_64F);
     for (let i = 0; i < 9; i++) {
       H.data64F[i] = homographyMatrix.value[i];
     }
-    
+
     // Invert if needed
     const transformMatrix = inverse ? H.inv() : H;
-    
+
     // Create point matrix
     const pointMat = new cv.Mat(1, 1, cv.CV_64FC2);
     pointMat.data64F[0] = x;
     pointMat.data64F[1] = y;
-    
+
     const resultMat = new cv.Mat();
-    
+
     // Apply perspective transform
     cv.perspectiveTransform(pointMat, resultMat, transformMatrix);
-    
+
     const result = {
       x: resultMat.data64F[0],
-      y: resultMat.data64F[1]
+      y: resultMat.data64F[1],
     };
-    
+
     // Clean up
     H.delete();
     if (inverse) transformMatrix.delete();
     pointMat.delete();
     resultMat.delete();
-    
+
     return result;
   } catch (err) {
     console.error("Point transformation error:", err);
@@ -613,35 +635,35 @@ const transformPoint = (x, y, inverse = false) => {
 // Canvas interaction
 const onCanvasClick = (event) => {
   if (!homographyMatrix.value || !interactiveCanvas.value) return;
-  
+
   const canvas = interactiveCanvas.value;
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
-  
+
   const x = (event.clientX - rect.left) * scaleX;
   const y = (event.clientY - rect.top) * scaleY;
-  
+
   // Determine which image was clicked
   const { imgWidth } = matchResults.value;
   const sourceImage = x < imgWidth;
-  
+
   // Calculate relative coordinates
   const relativeX = sourceImage ? x : x - imgWidth;
   const relativeY = y;
-  
+
   // Transform point to other image
   const transformed = transformPoint(relativeX, relativeY, !sourceImage);
-  
+
   if (transformed) {
     clickedPoints.value.push({
       source: { x: relativeX, y: relativeY },
       transformed: transformed,
       sourceImage: sourceImage ? 1 : 2,
       canvasX: x,
-      canvasY: y
+      canvasY: y,
     });
-    
+
     // Redraw canvas to show new points
     drawInteractiveCanvas();
   }
@@ -683,7 +705,7 @@ const drawInteractiveCanvas = () => {
   // Draw match lines if requested (limit to first 20 for clarity)
   if (showVisualization.value) {
     const maxMatches = Math.min(20, rawData.matches.dims[0]);
-    
+
     for (let i = 0; i < maxMatches; i++) {
       const matchBaseIndex = i * rawData.matches.dims[1];
       const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
@@ -692,7 +714,8 @@ const drawInteractiveCanvas = () => {
       // Get keypoint coordinates
       const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]);
       const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
-      const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) + imgWidth;
+      const x1 =
+        Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) + imgWidth;
       const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
 
       // Draw match line with color based on index
@@ -717,38 +740,38 @@ const drawInteractiveCanvas = () => {
   // Draw clicked points and their transformations
   clickedPoints.value.forEach((point, index) => {
     const color = `hsl(${(index * 60) % 360}, 80%, 60%)`;
-    
+
     // Draw source point
     ctx.fillStyle = color;
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 2;
-    
+
     const sourceX = point.sourceImage === 1 ? point.source.x : point.source.x + imgWidth;
     const sourceY = point.source.y;
-    
+
     ctx.beginPath();
     ctx.arc(sourceX, sourceY, 8, 0, 2 * Math.PI);
     ctx.fill();
     ctx.stroke();
-    
+
     // Draw number label
     ctx.fillStyle = "#000";
     ctx.font = "12px Arial";
     ctx.fillText((index + 1).toString(), sourceX + 12, sourceY - 8);
-    
+
     // Draw transformed point
     ctx.fillStyle = color;
     const targetX = point.sourceImage === 1 ? point.transformed.x + imgWidth : point.transformed.x;
     const targetY = point.transformed.y;
-    
+
     ctx.beginPath();
     ctx.arc(targetX, targetY, 8, 0, 2 * Math.PI);
     ctx.fill();
     ctx.stroke();
-    
+
     ctx.fillStyle = "#000";
     ctx.fillText((index + 1).toString(), targetX + 12, targetY - 8);
-    
+
     // Draw connection line
     ctx.strokeStyle = color;
     ctx.lineWidth = 3;

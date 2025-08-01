@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>OpenCV.js Test</title>
+  </head>
+  <body>
+    <h1>OpenCV.js API Test</h1>
+    <div id="output"></div>
+
+    <script type="module">
+      async function testOpenCV() {
+        const output = document.getElementById("output");
+
+        try {
+          output.innerHTML += "<p>Loading OpenCV.js...</p>";
+
+          // Try dynamic import - version >=4.11 returns Promise
+          const cvReadyPromise = await import("@techstark/opencv-js");
+          cv = await cvReadyPromise.default;
+
+          output.innerHTML += `<p>CV object loaded, type: ${typeof cv}</p>`;
+          output.innerHTML += `<p>CV keys: ${Object.keys(cv)
+            .slice(0, 10)
+            .join(", ")}...</p>`;
+
+          // Test Mat constructor
+          if (cv.Mat) {
+            output.innerHTML += `<p>cv.Mat type: ${typeof cv.Mat}</p>`;
+
+            // Try creating a simple matrix
+            const mat = new cv.Mat(3, 3, cv.CV_64F);
+            output.innerHTML += `<p>Created Mat: ${mat.rows}x${mat.cols}</p>`;
+
+            // Test matFromArray if it exists
+            if (cv.matFromArray) {
+              output.innerHTML += "<p>cv.matFromArray exists!</p>";
+              const arrayMat = cv.matFromArray(2, 2, cv.CV_32F, [1, 2, 3, 4]);
+              output.innerHTML += `<p>Created array Mat: ${arrayMat.rows}x${arrayMat.cols}</p>`;
+              arrayMat.delete();
+            } else {
+              output.innerHTML += "<p>cv.matFromArray not available</p>";
+            }
+
+            // Test homography functions
+            if (cv.findHomography) {
+              output.innerHTML += "<p>cv.findHomography available</p>";
+            } else {
+              output.innerHTML += "<p>cv.findHomography not available</p>";
+            }
+
+            if (cv.perspectiveTransform) {
+              output.innerHTML += "<p>cv.perspectiveTransform available</p>";
+            } else {
+              output.innerHTML +=
+                "<p>cv.perspectiveTransform not available</p>";
+            }
+
+            mat.delete();
+          } else {
+            output.innerHTML += "<p>cv.Mat not available</p>";
+          }
+        } catch (err) {
+          output.innerHTML += `<p>Error: ${err.message}</p>`;
+          console.error("Full error:", err);
+        }
+      }
+
+      // Wait for page load
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", testOpenCV);
+      } else {
+        testOpenCV();
+      }
+    </script>
+  </body>
+</html>

@@ -14,13 +14,13 @@
       @change="onFileSelect"
       style="display: none"
     />
-    
+
     <div v-if="!imageUrl" class="upload-prompt">
       <div class="upload-icon">📷</div>
       <p>{{ placeholder }}</p>
       <p class="upload-hint">{{ label }}</p>
     </div>
-    
+
     <div v-else class="image-preview">
       <img :src="imageUrl" :alt="label" />
       <div class="image-overlay">
@@ -31,100 +31,106 @@
 </template>
 
 <script setup>
-import { ref, defineEmits, defineProps } from 'vue'
+import { ref, defineEmits, defineProps } from "vue";
 
 const props = defineProps({
   label: {
     type: String,
-    default: 'Upload Image'
+    default: "Upload Image",
   },
   modelValue: {
     type: String,
-    default: ''
+    default: "",
   },
   previewUrl: {
     type: String,
-    default: ''
+    default: "",
   },
   placeholder: {
     type: String,
-    default: 'Click or drag image here'
-  }
-})
+    default: "Click or drag image here",
+  },
+});
 
-const emit = defineEmits(['update:modelValue', 'image-selected', 'file-selected', 'clear'])
+const emit = defineEmits(["update:modelValue", "image-selected", "file-selected", "clear"]);
 
-const fileInput = ref(null)
-const isDragOver = ref(false)
-const imageUrl = ref(props.modelValue || props.previewUrl)
+const fileInput = ref(null);
+const isDragOver = ref(false);
+const imageUrl = ref(props.modelValue || props.previewUrl);
 
 const triggerFileInput = () => {
-  fileInput.value.click()
-}
+  fileInput.value.click();
+};
 
 const onFileSelect = (event) => {
-  const file = event.target.files[0]
+  const file = event.target.files[0];
   if (file) {
-    handleFile(file)
+    handleFile(file);
   }
-}
+};
 
 const onDrop = (event) => {
-  event.preventDefault()
-  isDragOver.value = false
-  
-  const files = event.dataTransfer.files
+  event.preventDefault();
+  isDragOver.value = false;
+
+  const files = event.dataTransfer.files;
   if (files.length > 0) {
-    handleFile(files[0])
+    handleFile(files[0]);
   }
-}
+};
 
 const onDragOver = (event) => {
-  event.preventDefault()
-  isDragOver.value = true
-}
+  event.preventDefault();
+  isDragOver.value = true;
+};
 
 const onDragLeave = () => {
-  isDragOver.value = false
-}
+  isDragOver.value = false;
+};
 
 const handleFile = (file) => {
-  if (!file.type.startsWith('image/')) {
-    alert('Please select an image file')
-    return
+  if (!file.type.startsWith("image/")) {
+    alert("Please select an image file");
+    return;
   }
-  
-  const url = URL.createObjectURL(file)
-  imageUrl.value = url
-  emit('update:modelValue', url)
-  emit('image-selected', { file, url })
-  emit('file-selected', file)
-}
+
+  const url = URL.createObjectURL(file);
+  imageUrl.value = url;
+  emit("update:modelValue", url);
+  emit("image-selected", { file, url });
+  emit("file-selected", file);
+};
 
 const clearImage = () => {
   if (imageUrl.value) {
-    URL.revokeObjectURL(imageUrl.value)
+    URL.revokeObjectURL(imageUrl.value);
   }
-  imageUrl.value = ''
-  emit('update:modelValue', '')
-  emit('image-selected', null)
-  emit('file-selected', null)
-  emit('clear')
+  imageUrl.value = "";
+  emit("update:modelValue", "");
+  emit("image-selected", null);
+  emit("file-selected", null);
+  emit("clear");
   if (fileInput.value) {
-    fileInput.value.value = ''
+    fileInput.value.value = "";
   }
-}
+};
 
 // Watch for external changes to modelValue and previewUrl
-import { watch } from 'vue'
-watch(() => props.modelValue, (newValue) => {
-  imageUrl.value = newValue
-})
-watch(() => props.previewUrl, (newValue) => {
-  if (newValue && !props.modelValue) {
-    imageUrl.value = newValue
+import { watch } from "vue";
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    imageUrl.value = newValue;
   }
-})
+);
+watch(
+  () => props.previewUrl,
+  (newValue) => {
+    if (newValue && !props.modelValue) {
+      imageUrl.value = newValue;
+    }
+  }
+);
 </script>
 
 <style scoped>
