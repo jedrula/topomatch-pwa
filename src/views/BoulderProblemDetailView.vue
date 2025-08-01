@@ -174,10 +174,6 @@
           </div>
           <AscentHistory @edit-ascent="editAscent" />
         </div>
-
-        <div v-else class="text-center">
-          <p class="text-gray-500">Boulder problem not found</p>
-        </div>
       </div>
     </div>
   </div>
@@ -316,6 +312,12 @@ const loadProblemData = async () => {
     // Load boulder problems if not already loaded
     if (!boulderProblemsStore.boulderProblems.length) {
       await boulderProblemsStore.loadBoulderProblems(locationId);
+    }
+
+    // Check if the store encountered an error
+    if (boulderProblemsStore.error) {
+      error.value = boulderProblemsStore.error;
+      return;
     }
 
     // Find the specific problem
