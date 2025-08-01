@@ -9,6 +9,9 @@
         </p>
       </div>
 
+      <!-- Admin Panel (only visible to admins) -->
+      <AdminPanel />
+
       <!-- Quick Actions -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <router-link
@@ -94,6 +97,7 @@
 import { useRouter } from "vue-router";
 import RegionPicker from "@/components/RegionPicker.vue";
 import MainFooter from "@/components/MainFooter.vue";
+import AdminPanel from "@/components/AdminPanel.vue";
 import { useInferenceStore } from "@/stores/inferenceStore";
 
 const router = useRouter();

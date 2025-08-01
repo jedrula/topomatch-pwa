@@ -76,7 +76,7 @@
               </div>
               <button
                 type="button"
-                @click="showBetaUploadModal = true"
+                @click="handleBetaUploadClick"
                 class="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,7 +305,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, inject } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
 import ImageUpload from "../components/ImageUpload.vue";
@@ -317,6 +317,9 @@ import { useUserStore } from "../stores/userStore.js";
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+
+// Inject auth modal controls
+const authModal = inject('authModal');
 
 const location = ref(null);
 const images = ref([]); // Placeholder for location images
@@ -366,6 +369,17 @@ const loadLocationImages = async () => {
     // Don't set error here, just keep images empty
     images.value = [];
   }
+};
+
+const handleBetaUploadClick = () => {
+  if (!userStore.user) {
+    // User is not authenticated, trigger sign-in
+    authModal.open();
+    return;
+  }
+  
+  // User is authenticated, show the upload modal
+  showBetaUploadModal.value = true;
 };
 
 const editLocation = () => {

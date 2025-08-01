@@ -76,11 +76,11 @@
               </button>
             </div>
 
-            <!-- Ascent Section -->
-            <div v-if="userStore.isLoggedIn" class="border-t pt-4">
+            <!-- Ascent Section - Always show but require login for functionality -->
+            <div class="border-t pt-4">
               <div class="mb-4">
                 <button
-                  @click="showAscentLogger = !showAscentLogger"
+                  @click="handleLogSendClick"
                   class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,12 +91,12 @@
                       d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                     ></path>
                   </svg>
-                  <span>{{ showAscentLogger ? "Cancel" : "Log Send" }}</span>
+                  <span>{{ userStore.isLoggedIn && showAscentLogger ? "Cancel" : "Log Send" }}</span>
                 </button>
               </div>
 
-              <!-- Ascent Logger -->
-              <div v-if="showAscentLogger" class="mb-4">
+              <!-- Ascent Logger - Only show if logged in -->
+              <div v-if="userStore.isLoggedIn && showAscentLogger" class="mb-4">
                 <AscentLogger
                   :location-id="route.params.locationId"
                   :problem-id="route.params.problemId"
@@ -104,9 +104,9 @@
                 />
               </div>
 
-              <!-- Quick Status -->
+              <!-- Quick Status - Only show for logged in users -->
               <div
-                v-if="ascentStore.hasUserSent && !showAscentLogger"
+                v-if="userStore.isLoggedIn && ascentStore.hasUserSent && !showAscentLogger"
                 class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"
               >
                 <div class="flex items-center space-x-2">
@@ -130,8 +130,8 @@
                 </div>
               </div>
 
-              <!-- View Ascent History Button -->
-              <div class="mt-3">
+              <!-- View Ascent History Button - Only show for logged in users -->
+              <div v-if="userStore.isLoggedIn" class="mt-3">
                 <button
                   @click="showAscentHistory = !showAscentHistory"
                   class="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2"
@@ -184,7 +184,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, inject } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 import { useAscentStore } from "@/stores/ascentStore";
@@ -198,6 +198,9 @@ const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
 const ascentStore = useAscentStore();
 const userStore = useUserStore();
+
+// Inject auth modal controls
+const authModal = inject('authModal');
 
 const loading = ref(true);
 const error = ref(null);
@@ -286,6 +289,17 @@ const editProblem = () => {
     path: `/location/${route.params.locationId}/holds`,
     query: queryParams,
   });
+};
+
+// Handle Log Send button click - show auth modal if not logged in
+const handleLogSendClick = () => {
+  if (!userStore.isLoggedIn) {
+    // User not logged in, show auth modal
+    authModal.open();
+  } else {
+    // User is logged in, toggle ascent logger
+    showAscentLogger.value = !showAscentLogger.value;
+  }
 };
 
 const loadProblemData = async () => {
