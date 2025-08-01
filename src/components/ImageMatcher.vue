@@ -134,6 +134,7 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { useInferenceStore } from "@/stores/inferenceStore";
+import { calculateHomographyMatrix } from "@/utils/homographyUtils";
 
 const props = defineProps({
   sourceImage: {

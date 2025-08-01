@@ -4,6 +4,7 @@ import RegionView from "../views/RegionView.vue";
 import HoldDetectionView from "../views/HoldDetectionView.vue";
 import PoseDetectionView from "../views/PoseDetectionView.vue";
 import PlaygroundView from "../views/PlaygroundView.vue";
+import VideoPoseTestView from "../views/VideoPoseTestView.vue";
 import AddLocationView from "../views/AddLocationView.vue";
 import LocationDetailView from "../views/LocationDetailView.vue";
 import EditLocationView from "../views/EditLocationView.vue";
@@ -39,6 +40,11 @@ const router = createRouter({
       path: "/playground",
       name: "playground",
       component: PlaygroundView,
+    },
+    {
+      path: "/video-pose-test",
+      name: "video-pose-test",
+      component: VideoPoseTestView,
     },
     {
       path: "/add-location",

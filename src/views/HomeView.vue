@@ -74,6 +74,63 @@
         <RegionPicker @regionChange="onRegionChange" />
       </div>
 
+      <!-- Developer Section -->
+      <div class="mb-8">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Development & Testing</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <router-link
+            to="/hold-detection"
+            class="bg-white p-4 rounded-lg shadow border border-gray-200 hover:shadow-lg transition-shadow"
+          >
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-semibold text-gray-900">Hold Detection</h3>
+                <p class="text-xs text-gray-600">Test hold detection system</p>
+              </div>
+            </div>
+          </router-link>
+
+          <router-link
+            to="/pose-detection"
+            class="bg-white p-4 rounded-lg shadow border border-gray-200 hover:shadow-lg transition-shadow"
+          >
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-semibold text-gray-900">Pose Detection</h3>
+                <p class="text-xs text-gray-600">Test pose detection system</p>
+              </div>
+            </div>
+          </router-link>
+
+          <router-link
+            to="/video-pose-test"
+            class="bg-white p-4 rounded-lg shadow border border-gray-200 hover:shadow-lg transition-shadow"
+          >
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-semibold text-gray-900">Video Pose Test</h3>
+                <p class="text-xs text-gray-600">Test video pose analysis</p>
+              </div>
+            </div>
+          </router-link>
+        </div>
+      </div>
+
       <!-- Global session loading state -->
       <div
         v-if="inferenceStore.isLoading && !inferenceStore.sessionReady"
