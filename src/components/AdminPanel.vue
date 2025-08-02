@@ -1,24 +1,8 @@
 <template>
+  <!-- Show full admin panel to existing admins only -->
   <div class="admin-panel" v-if="userStore.isAdmin">
     <h3>Admin Management</h3>
     
-    <!-- Initialize First Admin Section -->
-    <div class="section" v-if="showInitializeSection">
-      <h4>Initialize First Admin</h4>
-      <p>No admin users exist yet. Set up the first admin:</p>
-      <div class="form-group">
-        <input 
-          v-model="initializeEmail" 
-          type="email" 
-          placeholder="Admin email address"
-          :disabled="loading"
-        />
-        <button @click="initializeFirstAdmin" :disabled="loading || !initializeEmail">
-          Initialize Admin
-        </button>
-      </div>
-    </div>
-
     <!-- Admin Role Management -->
     <div class="section">
       <h4>Manage Admin Roles</h4>
@@ -43,14 +27,10 @@
       {{ message }}
     </div>
   </div>
-  
-  <div v-else-if="userStore.user" class="no-access">
-    You don't have admin privileges.
-  </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useUserStore } from '../stores/userStore.js';
 import { adminService } from '../services/adminService.js';
 
@@ -61,9 +41,7 @@ export default {
     const loading = ref(false);
     const message = ref('');
     const messageType = ref('');
-    const initializeEmail = ref('');
     const targetUid = ref('');
-    const showInitializeSection = ref(false);
 
     const clearMessage = () => {
       setTimeout(() => {
@@ -76,25 +54,6 @@ export default {
       message.value = text;
       messageType.value = type;
       clearMessage();
-    };
-
-    const initializeFirstAdmin = async () => {
-      if (!initializeEmail.value) return;
-      
-      loading.value = true;
-      try {
-        await adminService.initializeFirstAdmin(initializeEmail.value);
-        showMessage('First admin initialized successfully!', 'success');
-        initializeEmail.value = '';
-        showInitializeSection.value = false;
-        
-        // Refresh user claims to reflect the change
-        await userStore.refreshUserClaims();
-      } catch (error) {
-        showMessage(`Error: ${error.message}`, 'error');
-      } finally {
-        loading.value = false;
-      }
     };
 
     const grantAdmin = async () => {
@@ -127,20 +86,12 @@ export default {
       }
     };
 
-    onMounted(() => {
-      // For now, show the initialize section - in production you'd check if any admins exist
-      showInitializeSection.value = true;
-    });
-
     return {
       userStore,
       loading,
       message,
       messageType,
-      initializeEmail,
       targetUid,
-      showInitializeSection,
-      initializeFirstAdmin,
       grantAdmin,
       revokeAdmin
     };

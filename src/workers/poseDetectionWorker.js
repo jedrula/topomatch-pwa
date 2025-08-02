@@ -289,7 +289,15 @@ function processYOLOv8Results(
 
     // Calculate padding offsets and scaling
     const maxSize = Math.max(originalWidth, originalHeight);
-    const modelToOriginalScale = maxSize / 640;
+    const modelToOriginalScale = maxSize / INPUT_SIZE;
+
+    console.log("Coordinate transformation debug:", {
+      originalSize: `${originalWidth}x${originalHeight}`,
+      maxSize,
+      modelToOriginalScale,
+      xOffset,
+      yOffset,
+    });
 
     const [x, y, w, h] = [
       box[0] * modelToOriginalScale - xOffset, // left (subtract x offset)
@@ -309,6 +317,16 @@ function processYOLOv8Results(
       // Convert from model space (640x640) to padded space, then to original image space
       let kpX = modelKpX * modelToOriginalScale - xOffset;
       let kpY = modelKpY * modelToOriginalScale - yOffset;
+
+      if (k < 3) {
+        // Log first 3 keypoints for debugging
+        console.log(`Keypoint ${k} transformation:`, {
+          modelCoords: { x: modelKpX, y: modelKpY },
+          afterScale: { x: modelKpX * modelToOriginalScale, y: modelKpY * modelToOriginalScale },
+          afterOffset: { x: kpX, y: kpY },
+          confidence: kpConf,
+        });
+      }
 
       keypoints.push({
         x: Math.max(0, Math.min(originalWidth, kpX)),
