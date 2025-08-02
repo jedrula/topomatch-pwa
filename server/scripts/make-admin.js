@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-const { initializeApp } = require('firebase-admin/app');
-const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
+const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
+const { getFirestore } = require("firebase-admin/firestore");
 
 // Initialize Firebase Admin with project ID
 initializeApp({
-  projectId: 'demo-offline-vue-pwa'
+  projectId: "demo-offline-vue-pwa",
 });
 
 const auth = getAuth();
@@ -23,26 +23,28 @@ if (process.env.FIRESTORE_EMULATOR_HOST) {
 async function makeUserAdmin(email) {
   try {
     console.log(`🔍 Looking up user with email: ${email}`);
-    
+
     // Find user by email
     const userRecord = await auth.getUserByEmail(email);
     console.log(`✅ Found user: ${userRecord.uid}`);
-    
+
     // Set custom claims
     await auth.setCustomUserClaims(userRecord.uid, { admin: true });
     console.log(`🔧 Set admin custom claims for user: ${userRecord.uid}`);
-    
+
     // Also store in Firestore for easy querying
-    await db.collection('users').doc(userRecord.uid).set({
-      isAdmin: true,
-      email: userRecord.email,
-      updatedAt: new Date(),
-      role: 'admin'
-    }, { merge: true });
+    await db.collection("users").doc(userRecord.uid).set(
+      {
+        isAdmin: true,
+        email: userRecord.email,
+        updatedAt: new Date(),
+        role: "admin",
+      },
+      { merge: true }
+    );
     console.log(`💾 Updated Firestore user document`);
-    
+
     console.log(`🎉 Successfully granted admin privileges to: ${email}`);
-    
   } catch (error) {
     console.error(`❌ Error making user admin:`, error.message);
     process.exit(1);
@@ -65,10 +67,12 @@ if (!emailRegex.test(email)) {
   process.exit(1);
 }
 
-makeUserAdmin(email).then(() => {
-  console.log(`✨ Script completed successfully`);
-  process.exit(0);
-}).catch((error) => {
-  console.error(`💥 Script failed:`, error);
-  process.exit(1);
-});
+makeUserAdmin(email)
+  .then(() => {
+    console.log(`✨ Script completed successfully`);
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error(`💥 Script failed:`, error);
+    process.exit(1);
+  });

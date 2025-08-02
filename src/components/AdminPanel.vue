@@ -2,23 +2,14 @@
   <!-- Show full admin panel to existing admins only -->
   <div class="admin-panel" v-if="userStore.isAdmin">
     <h3>Admin Management</h3>
-    
+
     <!-- Admin Role Management -->
     <div class="section">
       <h4>Manage Admin Roles</h4>
       <div class="form-group">
-        <input 
-          v-model="targetUid" 
-          type="text" 
-          placeholder="User UID"
-          :disabled="loading"
-        />
-        <button @click="grantAdmin" :disabled="loading || !targetUid">
-          Grant Admin
-        </button>
-        <button @click="revokeAdmin" :disabled="loading || !targetUid">
-          Revoke Admin
-        </button>
+        <input v-model="targetUid" type="text" placeholder="User UID" :disabled="loading" />
+        <button @click="grantAdmin" :disabled="loading || !targetUid">Grant Admin</button>
+        <button @click="revokeAdmin" :disabled="loading || !targetUid">Revoke Admin</button>
       </div>
     </div>
 
@@ -30,27 +21,27 @@
 </template>
 
 <script>
-import { ref } from 'vue';
-import { useUserStore } from '../stores/userStore.js';
-import { adminService } from '../services/adminService.js';
+import { ref } from "vue";
+import { useUserStore } from "../stores/userStore.js";
+import { adminService } from "../services/adminService.js";
 
 export default {
-  name: 'AdminPanel',
+  name: "AdminPanel",
   setup() {
     const userStore = useUserStore();
     const loading = ref(false);
-    const message = ref('');
-    const messageType = ref('');
-    const targetUid = ref('');
+    const message = ref("");
+    const messageType = ref("");
+    const targetUid = ref("");
 
     const clearMessage = () => {
       setTimeout(() => {
-        message.value = '';
-        messageType.value = '';
+        message.value = "";
+        messageType.value = "";
       }, 5000);
     };
 
-    const showMessage = (text, type = 'info') => {
+    const showMessage = (text, type = "info") => {
       message.value = text;
       messageType.value = type;
       clearMessage();
@@ -58,14 +49,14 @@ export default {
 
     const grantAdmin = async () => {
       if (!targetUid.value) return;
-      
+
       loading.value = true;
       try {
         await adminService.setAdminRole(targetUid.value, true);
-        showMessage('Admin role granted successfully!', 'success');
-        targetUid.value = '';
+        showMessage("Admin role granted successfully!", "success");
+        targetUid.value = "";
       } catch (error) {
-        showMessage(`Error: ${error.message}`, 'error');
+        showMessage(`Error: ${error.message}`, "error");
       } finally {
         loading.value = false;
       }
@@ -73,14 +64,14 @@ export default {
 
     const revokeAdmin = async () => {
       if (!targetUid.value) return;
-      
+
       loading.value = true;
       try {
         await adminService.setAdminRole(targetUid.value, false);
-        showMessage('Admin role revoked successfully!', 'success');
-        targetUid.value = '';
+        showMessage("Admin role revoked successfully!", "success");
+        targetUid.value = "";
       } catch (error) {
-        showMessage(`Error: ${error.message}`, 'error');
+        showMessage(`Error: ${error.message}`, "error");
       } finally {
         loading.value = false;
       }
@@ -93,9 +84,9 @@ export default {
       messageType,
       targetUid,
       grantAdmin,
-      revokeAdmin
+      revokeAdmin,
     };
-  }
+  },
 };
 </script>
 
@@ -184,7 +175,8 @@ button:disabled {
   color: #666;
 }
 
-h3, h4 {
+h3,
+h4 {
   margin-top: 0;
   color: #333;
 }
