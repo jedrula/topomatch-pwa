@@ -113,6 +113,8 @@ export const useInferenceStore = defineStore("inference", () => {
               images: data.images,
               imgWidth: data.imgWidth,
               imgHeight: data.imgHeight,
+              userImageDims: data.userImageDims,
+              topoImageDims: data.topoImageDims,
             };
 
             // Store result if it meets threshold or is the best so far

@@ -11,6 +11,7 @@ export const useUserStore = defineStore("user", {
   getters: {
     isAdmin: (state) => {
       if (!state.user) return false;
+      console.log("state.user.customClaims", state.user.customClaims);
       // Check custom claims for admin role
       return state.user.customClaims?.admin === true;
     },
@@ -31,8 +32,8 @@ export const useUserStore = defineStore("user", {
       return this.isAdmin;
     },
     userDisplayName: (state) => {
-      if (!state.user) return '';
-      return state.user.displayName || state.user.email?.split('@')[0] || 'User';
+      if (!state.user) return "";
+      return state.user.displayName || state.user.email?.split("@")[0] || "User";
     },
   },
 
@@ -94,6 +95,7 @@ export const useUserStore = defineStore("user", {
         if (this.user && claims) {
           // Update the user object with fresh claims
           this.user = { ...this.user, customClaims: claims };
+          console.log("🔄 Refreshed user claims:", claims);
         }
         return claims;
       } catch (error) {

@@ -74,6 +74,14 @@
           >
             Hold Detection
           </router-link>
+          <router-link
+            v-if="userStore.isAdmin"
+            to="/admin"
+            class="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            :class="{ 'text-blue-600 font-semibold': route.name === 'admin' }"
+          >
+            Admin
+          </router-link>
         </nav>
 
         <!-- Auth Section (Desktop) -->
@@ -87,7 +95,10 @@
                 </span>
               </div>
               <span class="text-gray-700 font-medium">{{ userStore.userDisplayName }}</span>
-              <span v-if="userStore.isAdmin" class="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium">
+              <span
+                v-if="userStore.isAdmin"
+                class="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium"
+              >
                 Admin
               </span>
             </div>
@@ -98,7 +109,7 @@
               Sign Out
             </button>
           </div>
-          
+
           <!-- Not Signed In -->
           <button
             v-else
@@ -163,7 +174,16 @@
         >
           Hold Detection
         </router-link>
-        
+        <router-link
+          v-if="userStore.isAdmin"
+          to="/admin"
+          @click="closeMobileMenu"
+          class="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium transition-colors rounded-lg"
+          :class="{ 'text-blue-600 bg-blue-50 font-semibold': route.name === 'admin' }"
+        >
+          Admin
+        </router-link>
+
         <!-- Mobile Auth Section -->
         <div class="border-t border-gray-200 pt-4 mt-4">
           <div v-if="userStore.isLoggedIn" class="space-y-2">
@@ -187,7 +207,7 @@
               Sign Out
             </button>
           </div>
-          
+
           <button
             v-else
             @click="openAuthModal"
@@ -212,7 +232,7 @@ const userStore = useUserStore();
 const showMobileMenu = ref(false);
 
 // Inject auth modal methods from App.vue
-const authModal = inject('authModal');
+const authModal = inject("authModal");
 
 const isHome = computed(() => route.name === "home");
 const isHoldDetection = computed(() => route.name === "hold-detection");

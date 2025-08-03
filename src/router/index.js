@@ -10,6 +10,7 @@ import LocationDetailView from "../views/LocationDetailView.vue";
 import EditLocationView from "../views/EditLocationView.vue";
 import BrowseLocationsView from "../views/BrowseLocationsView.vue";
 import BoulderProblemDetailView from "../views/BoulderProblemDetailView.vue";
+import AdminView from "../views/AdminView.vue";
 import { useUserStore } from "../stores/userStore.js";
 
 const router = createRouter({
@@ -50,6 +51,12 @@ const router = createRouter({
       path: "/add-location",
       name: "add-location",
       component: AddLocationView,
+      meta: { requiresAdmin: true },
+    },
+    {
+      path: "/admin",
+      name: "admin",
+      component: AdminView,
       meta: { requiresAdmin: true },
     },
     {

@@ -938,12 +938,65 @@ const onSourceImageClick = (event) => {
   const x = (event.clientX - rect.left) * scaleX;
   const y = (event.clientY - rect.top) * scaleY;
 
-  console.log("Source click:", { x, y, natural: `${img.naturalWidth}x${img.naturalHeight}` });
+  // 🐛 ENHANCED DEBUG INFO
+  console.log("🖱️ SOURCE CLICK DEBUG:", {
+    event: {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      offsetX: event.offsetX,
+      offsetY: event.offsetY,
+    },
+    element: {
+      boundingRect: {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      },
+      naturalSize: {
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      },
+      displaySize: {
+        width: img.width,
+        height: img.height,
+        offsetWidth: img.offsetWidth,
+        offsetHeight: img.offsetHeight,
+      },
+    },
+    frameData: results.value.frames.length > 0 ? {
+      frameWidth: results.value.frames[0].imageData?.width,
+      frameHeight: results.value.frames[0].imageData?.height,
+    } : null,
+    scales: {
+      scaleX: scaleX,
+      scaleY: scaleY,
+    },
+    coordinates: {
+      clickRaw: {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      },
+      clickScaled: { x, y },
+      bounds: {
+        maxX: img.naturalWidth,
+        maxY: img.naturalHeight,
+        inBounds: x >= 0 && x <= img.naturalWidth && y >= 0 && y <= img.naturalHeight,
+      },
+    },
+  });
 
   // Transform point to matched image space
   const transformed = transformPointWithHomography(x, y, results.value.match.homographyMatrix);
 
   if (transformed) {
+    const pointIndex = clickedPoints.value.length + 1;
+    console.log(`🔄 HOMOGRAPHY TRANSFORM ${pointIndex}:`, {
+      input: { x, y },
+      output: transformed,
+      homographyMatrix: results.value.match.homographyMatrix,
+    });
+
     clickedPoints.value.push({
       source: { x, y },
       transformed: transformed,
@@ -952,6 +1005,8 @@ const onSourceImageClick = (event) => {
 
     // Draw the points
     drawInteractivePoints();
+  } else {
+    console.error("❌ Homography transformation failed");
   }
 };
 
@@ -987,6 +1042,17 @@ const clearClickedPoints = () => {
 };
 
 const drawInteractivePoints = () => {
+  console.log("🎨 DRAW INTERACTIVE POINTS - START");
+  console.log("🔧 OVERALL STATE CHECK:", JSON.stringify({
+    clickedPoints: clickedPoints.value.length,
+    match: !!results.value.match,
+    homographyMatrix: !!results.value.match?.homographyMatrix,
+    sourceFrameCanvas: !!sourceFrameCanvas.value,
+    sourceFrameImage: !!sourceFrameImage.value,
+    targetMatchCanvas: !!targetMatchCanvas.value,
+    targetMatchImage: !!targetMatchImage.value,
+  }, null, 2));
+
   // Clear both canvases
   if (sourceFrameCanvas.value && sourceFrameImage.value) {
     const canvas = sourceFrameCanvas.value;
@@ -1001,10 +1067,34 @@ const drawInteractivePoints = () => {
     const scaleX = canvas.width / img.naturalWidth;
     const scaleY = canvas.height / img.naturalHeight;
 
+    console.log("📍 SOURCE CANVAS DEBUG:", JSON.stringify({
+      canvas: {
+        width: canvas.width,
+        height: canvas.height,
+      },
+      image: {
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+        offsetWidth: img.offsetWidth,
+        offsetHeight: img.offsetHeight,
+        displayWidth: img.width,
+        displayHeight: img.height,
+      },
+      scales: { scaleX, scaleY },
+      totalPoints: clickedPoints.value.length,
+      framePoints: clickedPoints.value.filter((p) => p.sourceImage === "frame").length,
+    }, null, 2));
+
     clickedPoints.value.forEach((point, index) => {
       if (point.sourceImage === "frame") {
         const x = point.source.x * scaleX;
         const y = point.source.y * scaleY;
+
+        console.log(`🔵 SOURCE Point ${index + 1}:`, JSON.stringify({
+          original: point.source,
+          canvasCoords: { x, y },
+          inBounds: x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height,
+        }, null, 2));
 
         ctx.beginPath();
         ctx.arc(x, y, 8, 0, 2 * Math.PI);
@@ -1021,6 +1111,18 @@ const drawInteractivePoints = () => {
       }
     });
   }
+
+  console.log("🔍 TARGET CANVAS CHECK:", JSON.stringify({
+    targetMatchCanvas: {
+      exists: !!targetMatchCanvas.value,
+      element: targetMatchCanvas.value ? "Found" : "Missing",
+    },
+    targetMatchImage: {
+      exists: !!targetMatchImage.value,
+      element: targetMatchImage.value ? "Found" : "Missing",
+    },
+    condition: !!(targetMatchCanvas.value && targetMatchImage.value),
+  }, null, 2));
 
   if (targetMatchCanvas.value && targetMatchImage.value) {
     const canvas = targetMatchCanvas.value;
@@ -1035,12 +1137,25 @@ const drawInteractivePoints = () => {
     const scaleX = canvas.width / img.naturalWidth;
     const scaleY = canvas.height / img.naturalHeight;
 
-    console.log("Target canvas scaling debug:", {
-      canvasSize: `${canvas.width}x${canvas.height}`,
-      imageNaturalSize: `${img.naturalWidth}x${img.naturalHeight}`,
-      imageOffsetSize: `${img.offsetWidth}x${img.offsetHeight}`,
-      scaleFactors: { scaleX, scaleY },
-    });
+    console.log("🎯 TARGET CANVAS DEBUG:", JSON.stringify({
+      canvas: {
+        width: canvas.width,
+        height: canvas.height,
+      },
+      image: {
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+        offsetWidth: img.offsetWidth,
+        offsetHeight: img.offsetHeight,
+        displayWidth: img.width,
+        displayHeight: img.height,
+      },
+      scales: { scaleX, scaleY },
+      totalPoints: clickedPoints.value.length,
+      transformedPoints: clickedPoints.value.filter(
+        (p) => p.sourceImage === "frame" && p.transformed
+      ).length,
+    }, null, 2));
 
     clickedPoints.value.forEach((point, index) => {
       if (point.sourceImage === "frame" && point.transformed) {
@@ -1048,15 +1163,21 @@ const drawInteractivePoints = () => {
         const x = point.transformed.x;
         const y = point.transformed.y;
 
-        console.log(`Point ${index + 1} drawing:`, {
-          transformed: point.transformed,
-          scaled: { x, y },
-          canvasBounds: `${canvas.width}x${canvas.height}`,
-          inBounds: x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height,
-        });
+        // Transform coordinates from natural image space to canvas display space
+        const canvasX = x * scaleX;
+        const canvasY = y * scaleY;
 
+        console.log(`🟡 TARGET Point ${index + 1}:`, JSON.stringify({
+          transformed: point.transformed,
+          naturalCoords: { x, y },
+          canvasCoords: { x: canvasX, y: canvasY },
+          inBounds: canvasX >= 0 && canvasX <= canvas.width && canvasY >= 0 && canvasY <= canvas.height,
+          scales: { scaleX, scaleY },
+        }, null, 2));
+
+        // Draw the point using canvas coordinates
         ctx.beginPath();
-        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.arc(canvasX, canvasY, 8, 0, 2 * Math.PI);
         ctx.fillStyle = `hsl(${(index * 60) % 360}, 80%, 60%)`;
         ctx.fill();
         ctx.strokeStyle = "#000";
@@ -1066,10 +1187,12 @@ const drawInteractivePoints = () => {
         // Label
         ctx.fillStyle = "#000";
         ctx.font = "12px Arial";
-        ctx.fillText((index + 1).toString(), x + 12, y - 8);
+        ctx.fillText((index + 1).toString(), canvasX + 12, canvasY - 8);
       }
     });
   }
+
+  console.log("🎨 DRAW INTERACTIVE POINTS - END");
 };
 
 // Event handlers

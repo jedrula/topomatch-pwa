@@ -16,7 +16,9 @@
     "migrate": "MIGRATING_EMULATORS=true FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 fireway --require=ts-node/register migrate --projectId=demo-offline-vue-pwa",
     "migrate:production": "fireway --require=ts-node/register migrate",
     "make-admin": "node scripts/make-admin.js",
-    "make-admin:emulator": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/make-admin.js"
+    "make-admin:emulator": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/make-admin.js",
+    "check-admin": "node scripts/check-admin.js",
+    "check-admin:emulator": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/check-admin.js"
   },
   "engines": {
     "node": "18"

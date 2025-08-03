@@ -65,6 +65,10 @@ self.onmessage = async (event) => {
       topoBitmap = await createImageBitmap(topoBlob);
       const images = [userBitmap, topoBitmap];
 
+      // Store original image dimensions for coordinate space conversion
+      const userImageDims = { width: userBitmap.width, height: userBitmap.height };
+      const topoImageDims = { width: topoBitmap.width, height: topoBitmap.height };
+
       const imgWidth = 256;
       const imgHeight = 256;
       const tensors = images.map((image, index) =>
@@ -86,6 +90,8 @@ self.onmessage = async (event) => {
           images,
           imgWidth,
           imgHeight,
+          userImageDims,
+          topoImageDims,
         },
       });
     } catch (error) {

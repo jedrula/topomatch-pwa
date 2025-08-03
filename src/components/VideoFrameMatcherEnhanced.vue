@@ -525,15 +525,43 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       const rawData = inferenceResult.rawData;
       const maxMatches = Math.min(rawData.matches.dims[0], 100); // Limit for performance
 
+      // SuperPoint/LightGlue uses 256x256 inference size - need to scale keypoints back to original image coordinates
+      const inferenceSize = 256; // From inferenceWorker.js: imgWidth = imgHeight = 256
+      
+      // Get original image dimensions from inference result
+      const userImageDims = inferenceResult.userImageDims || { width: inferenceSize, height: inferenceSize };
+      const topoImageDims = inferenceResult.topoImageDims || { width: inferenceSize, height: inferenceSize };
+      
+      // Calculate scaling factors
+      const userScaleX = userImageDims.width / inferenceSize;
+      const userScaleY = userImageDims.height / inferenceSize;
+      const topoScaleX = topoImageDims.width / inferenceSize;
+      const topoScaleY = topoImageDims.height / inferenceSize;
+
+      console.log('🔍 Coordinate space scaling:', {
+        inferenceSize,
+        userImageDims,
+        topoImageDims,
+        userScale: { x: userScaleX, y: userScaleY },
+        topoScale: { x: topoScaleX, y: topoScaleY }
+      });
+
       for (let i = 0; i < maxMatches; i++) {
         const matchBaseIndex = i * rawData.matches.dims[1];
         const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
         const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
 
-        const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]);
-        const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
-        const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]);
-        const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
+        // Raw keypoints in 256x256 inference coordinate space
+        const x0_raw = Number(rawData.keypoints.cpuData[img0Idx * 2]);
+        const y0_raw = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
+        const x1_raw = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]);
+        const y1_raw = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
+
+        // Scale keypoints back to original image coordinate space
+        const x0 = x0_raw * userScaleX;
+        const y0 = y0_raw * userScaleY;
+        const x1 = x1_raw * topoScaleX;
+        const y1 = y1_raw * topoScaleY;
 
         matches.push({
           point1: { x: x0, y: y0 },
