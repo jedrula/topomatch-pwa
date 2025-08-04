@@ -138,6 +138,31 @@
         <button id="resetModel">Reset Model</button>
       </div>
 
+      <div class="controls">
+        <h3 style="margin: 0 0 10px 0; color: #495057;">🔧 Segmentation Settings</h3>
+        <label style="display: inline-block; margin-right: 15px;">
+          Threshold: 
+          <select id="thresholdSelect" style="margin-left: 5px;">
+            <option value="0.0">0.0 (Full Hold - Recommended)</option>
+            <option value="0.1">0.1 (Slightly Selective)</option>
+            <option value="0.3">0.3 (More Selective)</option>
+            <option value="0.5">0.5 (Original - Often Incomplete)</option>
+          </select>
+        </label>
+        <label style="display: inline-block; margin-right: 15px;">
+          Strategy: 
+          <select id="strategySelect" style="margin-left: 5px;">
+            <option value="best_iou">Best IoU Score</option>
+            <option value="largest">Largest Mask</option>
+            <option value="medium">Medium-Sized Mask</option>
+          </select>
+        </label>
+        <label style="display: inline-block;">
+          <input type="checkbox" id="connectedComponents" style="margin-right: 5px;"> 
+          Use Connected Components (slower)
+        </label>
+      </div>
+
       <div id="status" class="status loading">Loading SAM model...</div>
 
       <div class="metrics">
@@ -178,6 +203,28 @@
 
       // Configuration
       env.allowLocalModels = false;
+
+      // ====== SAM SEGMENTATION CONFIGURATION ======
+      const SAM_CONFIG = {
+        // Threshold for including pixels in the final mask
+        // 0.0 = include ALL pixels from SAM (full hold, nothing less, nothing more)
+        // 0.1 = slightly more selective (may miss some edge pixels)
+        // 0.5 = original strict threshold (often incomplete)
+        MASK_THRESHOLD: 0.0,
+        
+        // Use connected components analysis (slower, but more precise)
+        // false = show full mask (recommended for holds)
+        // true = only show connected region around click point
+        USE_CONNECTED_COMPONENTS: false,
+        
+        // Mask selection strategy
+        // 'best_iou' = use mask with highest IoU score (default)
+        // 'largest' = use mask with most pixels
+        // 'medium' = use middle-sized mask (good for holds)
+        MASK_SELECTION: 'best_iou'
+      };
+
+      console.log('🔧 SAM Configuration:', SAM_CONFIG);
 
       // SAM Singleton
       class SegmentAnythingSingleton {
@@ -687,9 +734,9 @@
         const data = imageData.data;
 
         let maskedPixels = 0;
-        const threshold = 0.5; // Lower threshold since masks are binary (0 or 1)
+        const maskThreshold = SAM_CONFIG.MASK_THRESHOLD; // Use configurable threshold
 
-        // Get the click point in mask coordinates
+        // Get the click point in mask coordinates for visualization only
         const maskClickX = Math.round(clickX * maskImage.width);
         const maskClickY = Math.round(clickY * maskImage.height);
 
@@ -697,153 +744,24 @@
           `🎨 Click point in mask coordinates: (${maskClickX}, ${maskClickY})`
         );
         log(
-          `🎨 Starting connected component analysis with threshold: ${threshold}`
+          `🎨 Using threshold approach: ${maskThreshold} (${SAM_CONFIG.USE_CONNECTED_COMPONENTS ? 'connected components' : 'full mask'})`
         );
 
-        // Check the value at click point
+        // Check the value at click point for debugging
         const clickIndex = maskClickY * maskImage.width + maskClickX;
         const clickValue = maskImage.data[clickIndex];
         log(
           `🎨 Value at click point: ${clickValue.toFixed(
             3
-          )} (above threshold: ${clickValue > threshold})`
+          )} (above threshold: ${clickValue > maskThreshold})`
         );
 
-        // If click point has no value, find the nearest high-confidence region
-        let startPoints = [[maskClickX, maskClickY]];
-
-        if (clickValue <= threshold) {
-          log(
-            `🎨 Click point has low confidence, searching for nearby high-confidence regions...`
-          );
-
-          // Search in expanding radius for high-confidence pixels
-          const searchRadius = 50;
-          const nearbyHighConfidence = [];
-
-          for (
-            let radius = 1;
-            radius <= searchRadius && nearbyHighConfidence.length < 5;
-            radius += 2
-          ) {
-            for (let angle = 0; angle < 360; angle += 45) {
-              const searchX = Math.round(
-                maskClickX + radius * Math.cos((angle * Math.PI) / 180)
-              );
-              const searchY = Math.round(
-                maskClickY + radius * Math.sin((angle * Math.PI) / 180)
-              );
-
-              if (
-                searchX >= 0 &&
-                searchX < maskImage.width &&
-                searchY >= 0 &&
-                searchY < maskImage.height
-              ) {
-                const searchIndex = searchY * maskImage.width + searchX;
-                const searchValue = maskImage.data[searchIndex];
-
-                if (searchValue > threshold) {
-                  nearbyHighConfidence.push([searchX, searchY]);
-                  log(
-                    `🎨 Found high-confidence pixel at (${searchX}, ${searchY}) with value ${searchValue.toFixed(
-                      3
-                    )}`
-                  );
-                }
-              }
-            }
-          }
-
-          if (nearbyHighConfidence.length > 0) {
-            startPoints = nearbyHighConfidence;
-            log(
-              `🎨 Using ${startPoints.length} nearby high-confidence points as starting points`
-            );
-          } else {
-            log(
-              `🎨 No nearby high-confidence regions found, will show minimal result`
-            );
-          }
-        }
-
-        // Find connected components around the starting points
-        const visited = new Set();
-        const toVisit = [...startPoints];
-        const connectedPixels = new Set();
-
-        let iterations = 0;
-        // BFS to find connected high-confidence pixels
-        while (toVisit.length > 0 && iterations < 10000) {
-          // Safety limit
-          iterations++;
-          const [x, y] = toVisit.pop();
-
-          if (x < 0 || x >= maskImage.width || y < 0 || y >= maskImage.height)
-            continue;
-
-          const key = `${x},${y}`;
-          if (visited.has(key)) continue;
-          visited.add(key);
-
-          const idx = y * maskImage.width + x;
-          const pixelValue = maskImage.data[idx];
-
-          if (pixelValue > threshold) {
-            connectedPixels.add(idx);
-
-            // Add neighbors to visit (only if we haven't visited too many pixels)
-            if (connectedPixels.size < 50000) {
-              // Another safety limit
-              for (let dx = -1; dx <= 1; dx++) {
-                for (let dy = -1; dy <= 1; dy++) {
-                  if (dx === 0 && dy === 0) continue;
-                  toVisit.push([x + dx, y + dy]);
-                }
-              }
-            }
-          }
-
-          // Log progress every 1000 iterations
-          if (iterations % 1000 === 0) {
-            log(
-              `🎨 BFS progress: ${iterations} iterations, ${connectedPixels.size} pixels found, ${toVisit.length} in queue`
-            );
-          }
-        }
-
-        log(`🔍 Connected component analysis complete:`);
-        log(`   - BFS iterations: ${iterations}`);
-        log(`   - Connected pixels found: ${connectedPixels.size}`);
-        log(`   - Total mask pixels: ${maskImage.data.length}`);
-        log(
-          `   - Percentage: ${(
-            (connectedPixels.size / maskImage.data.length) *
-            100
-          ).toFixed(2)}%`
-        );
-
-        // Sample some connected pixels for debugging
-        const samplePixels = Array.from(connectedPixels).slice(0, 10);
-        log(`🎨 Sample connected pixel indices: ${samplePixels.join(", ")}`);
-
-        // Convert indices to coordinates for a few samples
-        samplePixels.slice(0, 3).forEach((pixelIdx, i) => {
-          const x = pixelIdx % maskImage.width;
-          const y = Math.floor(pixelIdx / maskImage.width);
-          const value = maskImage.data[pixelIdx];
-          log(
-            `🎨 Sample pixel ${i}: index=${pixelIdx}, coords=(${x},${y}), value=${value.toFixed(
-              3
-            )}`
-          );
-        });
-
-        // Create the colored mask data
+        // Create the colored mask data - FULL HOLD APPROACH
         for (let i = 0; i < maskImage.data.length; i++) {
           const idx = i * 4; // RGBA index
+          const pixelValue = maskImage.data[i];
 
-          if (connectedPixels.has(i)) {
+          if (pixelValue > maskThreshold) {
             maskedPixels++;
             // Bright cyan for segmented area
             data[idx] = 0; // R
@@ -896,8 +814,8 @@
         ctx.fillStyle = "white";
         ctx.font = "14px Arial";
         ctx.fillText(`IoU Score: ${score.toFixed(3)}`, 20, 30);
-        ctx.fillText(`Connected Pixels: ${maskedPixels}`, 20, 50);
-        ctx.fillText(`Threshold: ${threshold}`, 20, 70);
+        ctx.fillText(`Total Mask Pixels: ${maskedPixels}`, 20, 50);
+        ctx.fillText(`Threshold: ${maskThreshold} (${SAM_CONFIG.USE_CONNECTED_COMPONENTS ? 'connected' : 'full mask'})`, 20, 70);
         ctx.fillText(
           `Click Point: (${clickX.toFixed(3)}, ${clickY.toFixed(3)})`,
           20,
@@ -912,7 +830,7 @@
         );
 
         log(
-          `🎨 Final result: ${maskedPixels} connected pixels visualized above threshold ${threshold}`
+          `🎨 Final result: ${maskedPixels} mask pixels visualized (${SAM_CONFIG.USE_CONNECTED_COMPONENTS ? 'connected components' : 'full hold'})`
         );
         log(`🎨 === MASK DRAWING DEBUG END ===`);
       }
@@ -954,6 +872,27 @@
       document.getElementById("resetModel").addEventListener("click", () => {
         location.reload();
       });
+
+      // Configuration controls
+      document.getElementById("thresholdSelect").addEventListener("change", (e) => {
+        SAM_CONFIG.MASK_THRESHOLD = parseFloat(e.target.value);
+        log(`🔧 Updated threshold to: ${SAM_CONFIG.MASK_THRESHOLD}`);
+      });
+
+      document.getElementById("strategySelect").addEventListener("change", (e) => {
+        SAM_CONFIG.MASK_SELECTION = e.target.value;
+        log(`🔧 Updated selection strategy to: ${SAM_CONFIG.MASK_SELECTION}`);
+      });
+
+      document.getElementById("connectedComponents").addEventListener("change", (e) => {
+        SAM_CONFIG.USE_CONNECTED_COMPONENTS = e.target.checked;
+        log(`🔧 Updated connected components to: ${SAM_CONFIG.USE_CONNECTED_COMPONENTS}`);
+      });
+
+      // Initialize controls to match config
+      document.getElementById("thresholdSelect").value = SAM_CONFIG.MASK_THRESHOLD.toString();
+      document.getElementById("strategySelect").value = SAM_CONFIG.MASK_SELECTION;
+      document.getElementById("connectedComponents").checked = SAM_CONFIG.USE_CONNECTED_COMPONENTS;
 
       // Initialize
       updateMetrics();
