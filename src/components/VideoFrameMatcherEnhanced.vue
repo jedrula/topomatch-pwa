@@ -57,8 +57,18 @@
       <div class="bg-gray-50 rounded-lg p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            <svg
+              class="w-8 h-8 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              ></path>
             </svg>
             <div>
               <h3 class="text-sm font-medium text-gray-900">{{ selectedVideo.name }}</h3>
@@ -67,7 +77,12 @@
           </div>
           <button @click="clearVideo" class="text-gray-400 hover:text-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
             </svg>
           </button>
         </div>
@@ -88,7 +103,12 @@
       <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
         <div class="flex items-start space-x-3">
           <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
+            ></path>
           </svg>
           <div>
             <h4 class="text-sm font-medium text-red-900">Processing Error</h4>
@@ -101,7 +121,11 @@
       <div v-if="extractedFrames.length > 0" class="space-y-4">
         <h3 class="text-lg font-medium text-gray-900">Extracted Frames with Pose Data</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div v-for="(frame, index) in extractedFrames" :key="index" class="bg-white border rounded-lg p-3">
+          <div
+            v-for="(frame, index) in extractedFrames"
+            :key="index"
+            class="bg-white border rounded-lg p-3"
+          >
             <div class="flex items-center space-x-3">
               <img
                 :src="frame.url"
@@ -110,7 +134,9 @@
               />
               <div class="flex-1">
                 <h4 class="text-sm font-medium text-gray-900">Frame {{ index + 1 }}</h4>
-                <p class="text-xs text-gray-500">{{ Math.round(frame.percentage * 100) }}% through video</p>
+                <p class="text-xs text-gray-500">
+                  {{ Math.round(frame.percentage * 100) }}% through video
+                </p>
                 <p class="text-xs text-gray-500" v-if="frame.poseData">
                   Pose detected ({{ frame.poseData.confidence.toFixed(2) }} confidence)
                 </p>
@@ -133,8 +159,12 @@
             />
             <div>
               <h4 class="text-sm font-medium text-gray-900">{{ bestMatch.name }}</h4>
-              <p class="text-xs text-gray-500">{{ bestMatch.locationName || 'Unknown location' }}</p>
-              <p class="text-xs text-gray-500">{{ bestMatch.boulderProblems || 0 }} boulder problems</p>
+              <p class="text-xs text-gray-500">
+                {{ bestMatch.locationName || "Unknown location" }}
+              </p>
+              <p class="text-xs text-gray-500">
+                {{ bestMatch.boulderProblems || 0 }} boulder problems
+              </p>
             </div>
           </div>
 
@@ -210,8 +240,8 @@
           <div>
             <h4 class="text-sm font-medium text-yellow-900">No Comparison Images</h4>
             <p class="text-sm text-yellow-700 mt-1">
-              No images available for comparison. Add some boulder problem images to enable
-              matching analysis.
+              No images available for comparison. Add some boulder problem images to enable matching
+              analysis.
             </p>
           </div>
         </div>
@@ -224,7 +254,11 @@
 import { ref, computed, nextTick } from "vue";
 import ImageMatcher from "./ImageMatcher.vue";
 import { validateVideoFile } from "@/utils/videoFrameUtils";
-import { extractVideoFrames, calculateHomographyMatrix, transformPoints } from "@/utils/homographyUtils";
+import {
+  extractVideoFrames,
+  calculateHomographyMatrix,
+  transformPoints,
+} from "@/utils/homographyUtils";
 import { usePoseDetection } from "@/composables/usePoseDetection";
 import { useInferenceStore } from "@/stores/inferenceStore";
 
@@ -251,7 +285,7 @@ const props = defineProps({
 const emit = defineEmits([
   "video-selected",
   "frames-extracted",
-  "pose-detected", 
+  "pose-detected",
   "match-found",
   "analysis-complete",
   "processing-error",
@@ -273,13 +307,14 @@ const poseCanvas = ref(null);
 const visualizationDimensions = ref({ width: 0, height: 0 });
 
 // Use the working pose detection composable
-const { runPoseDetection, poseResults, sessionReady, isAnalyzing, analysisStatus } = usePoseDetection();
+const { runPoseDetection, poseResults, sessionReady, isAnalyzing, analysisStatus } =
+  usePoseDetection();
 
 // Frame timestamps for extraction (25%, 50%, 75%)
 const FRAME_TIMESTAMPS = [0.25, 0.5, 0.75];
 
 // Colors for different frames
-const FRAME_COLORS = ['#ef4444', '#3b82f6', '#22c55e']; // red, blue, green
+const FRAME_COLORS = ["#ef4444", "#3b82f6", "#22c55e"]; // red, blue, green
 
 // Methods
 const handleVideoSelect = async (event) => {
@@ -314,44 +349,50 @@ const processVideo = async () => {
 
     // Step 1: Extract frames
     processingStatus.value = "Extracting video frames...";
-    processingDetails.value = `Extracting frames at ${FRAME_TIMESTAMPS.map(t => t*100 + '%').join(', ')}`;
-    
+    processingDetails.value = `Extracting frames at ${FRAME_TIMESTAMPS.map(
+      (t) => t * 100 + "%"
+    ).join(", ")}`;
+
     const frames = await extractVideoFrames(selectedVideo.value, FRAME_TIMESTAMPS);
-    
+
     // Convert frames to display format
     const processedFrames = [];
     for (let i = 0; i < frames.length; i++) {
       const frame = frames[i];
       const file = await createFileFromImageData(frame.imageData, `frame_${i + 1}.jpg`);
       const url = createImageUrlFromImageData(frame.imageData);
-      
+
       processedFrames.push({
         ...frame,
         file,
-        url
+        url,
       });
     }
-    
+
     extractedFrames.value = processedFrames;
 
     emit("frames-extracted", extractedFrames.value);
 
     // Step 2: Run pose detection on each frame
     processingStatus.value = "Detecting poses...";
-    
+
     for (let i = 0; i < extractedFrames.value.length; i++) {
-      processingDetails.value = `Analyzing pose in frame ${i + 1} of ${extractedFrames.value.length}`;
-      
+      processingDetails.value = `Analyzing pose in frame ${i + 1} of ${
+        extractedFrames.value.length
+      }`;
+
       // TODO: Replace with actual pose detection
       const poseData = await extractPoseKeypoints(frames[i].imageData);
       extractedFrames.value[i].poseData = poseData;
     }
 
-    emit("pose-detected", extractedFrames.value.map(f => f.poseData));
+    emit(
+      "pose-detected",
+      extractedFrames.value.map((f) => f.poseData)
+    );
 
     processingStatus.value = "Ready for image matching";
     processingDetails.value = "Frames extracted and poses detected successfully";
-
   } catch (err) {
     console.error("Video processing error:", err);
     error.value = "Failed to process video: " + err.message;
@@ -366,9 +407,9 @@ const extractPoseKeypoints = async (imageData) => {
   try {
     // Wait for pose detection session to be ready
     if (!sessionReady.value) {
-      console.log('Waiting for pose detection session...');
+      console.log("Waiting for pose detection session...");
       // Wait a bit for session to initialize
-      await new Promise(resolve => {
+      await new Promise((resolve) => {
         const checkReady = () => {
           if (sessionReady.value) {
             resolve();
@@ -379,54 +420,54 @@ const extractPoseKeypoints = async (imageData) => {
         checkReady();
       });
     }
-    
+
     // Convert ImageData to File (which is what runPoseDetection expects)
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = imageData.width;
     canvas.height = imageData.height;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     ctx.putImageData(imageData, 0, 0);
-    
+
     // Convert canvas to blob then to file
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    const imageFile = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
-    
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    const imageFile = new File([blob], "frame.jpg", { type: "image/jpeg" });
+
     // Run pose detection using the working composable
     await runPoseDetection(imageFile);
-    
+
     // Wait for results
     while (isAnalyzing.value) {
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    
+
     if (poseResults.value && poseResults.value.length > 0) {
       const firstPose = poseResults.value[0];
-      
+
       // Helper function to safely extract keypoint or return default
       const getKeypoint = (index) => {
         const kp = firstPose.keypoints[index];
-        return kp && kp.x !== undefined && kp.y !== undefined && kp.confidence !== undefined 
-          ? kp 
+        return kp && kp.x !== undefined && kp.y !== undefined && kp.confidence !== undefined
+          ? kp
           : { x: 0, y: 0, confidence: 0 };
       };
-      
+
       // Convert to the format expected by the UI
       return {
         keypoints: {
-          leftWrist: getKeypoint(9),    // left wrist
-          rightWrist: getKeypoint(10),  // right wrist  
-          leftAnkle: getKeypoint(15),   // left ankle
-          rightAnkle: getKeypoint(16)   // right ankle
+          leftWrist: getKeypoint(9), // left wrist
+          rightWrist: getKeypoint(10), // right wrist
+          leftAnkle: getKeypoint(15), // left ankle
+          rightAnkle: getKeypoint(16), // right ankle
         },
         // Add full keypoints array for debugging
         allKeypoints: firstPose.keypoints || [],
-        confidence: firstPose.confidence || 0
+        confidence: firstPose.confidence || 0,
       };
     } else {
-      throw new Error('No poses detected in image');
+      throw new Error("No poses detected in image");
     }
   } catch (error) {
-    console.error('Pose detection failed:', error);
+    console.error("Pose detection failed:", error);
     throw new Error(`Pose detection failed: ${error.message}`);
   }
 };
@@ -436,7 +477,7 @@ const handleMatchFound = async (matchedImage) => {
   try {
     // Check if OpenCV is loaded
     if (!window.cv) {
-      console.warn('⚠️ OpenCV.js not loaded yet, skipping homography calculation');
+      console.warn("⚠️ OpenCV.js not loaded yet, skipping homography calculation");
       emit("match-found", {
         video: selectedVideo.value,
         frames: extractedFrames.value,
@@ -444,14 +485,14 @@ const handleMatchFound = async (matchedImage) => {
       });
       return;
     }
-    
+
     const inferenceStore = useInferenceStore();
     const matchUrl = matchedImage.url;
     const inferenceResult = inferenceStore.inferenceResults[matchUrl];
-    
+
     if (inferenceResult && inferenceResult.rawData) {
-      console.log('Calculating homography for matched image...');
-      
+      console.log("Calculating homography for matched image...");
+
       // Extract matching points from inference results
       const matches = [];
       const rawData = inferenceResult.rawData;
@@ -475,21 +516,21 @@ const handleMatchFound = async (matchedImage) => {
 
       if (matches.length >= 4) {
         const homographyResult = await calculateHomographyMatrix(matches);
-        console.log('Homography calculated for match:', homographyResult);
-        
+        console.log("Homography calculated for match:", homographyResult);
+
         // Add homography matrix to the matched image
         matchedImage.homographyMatrix = homographyResult.matrix;
         matchedImage.homographyInliers = homographyResult.inliers;
       } else {
-        console.warn('⚠️ Not enough matches for homography calculation:', matches.length);
+        console.warn("⚠️ Not enough matches for homography calculation:", matches.length);
       }
     } else {
-      console.warn('⚠️ No inference results found for matched image:', matchUrl);
+      console.warn("⚠️ No inference results found for matched image:", matchUrl);
     }
   } catch (error) {
-    console.error('❌ Error calculating homography for match:', error);
+    console.error("❌ Error calculating homography for match:", error);
   }
-  
+
   emit("match-found", {
     video: selectedVideo.value,
     frames: extractedFrames.value,
@@ -499,12 +540,14 @@ const handleMatchFound = async (matchedImage) => {
 
 const handleAnalysisComplete = async (bestMatchResult) => {
   bestMatch.value = bestMatchResult;
-  
+
   // Step 3: Get inference results and calculate homography matrix
   try {
     // Check if OpenCV is loaded
     if (!window.cv) {
-      console.warn('⚠️ OpenCV.js not loaded yet, skipping homography calculation for analysis complete');
+      console.warn(
+        "⚠️ OpenCV.js not loaded yet, skipping homography calculation for analysis complete"
+      );
       emit("analysis-complete", {
         video: selectedVideo.value,
         frames: extractedFrames.value,
@@ -512,14 +555,14 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       });
       return;
     }
-    
+
     const inferenceStore = useInferenceStore();
     const matchUrl = bestMatchResult.url;
     const inferenceResult = inferenceStore.inferenceResults[matchUrl];
-    
+
     if (inferenceResult && inferenceResult.rawData) {
-      console.log('Calculating homography from inference results...');
-      
+      console.log("Calculating homography from inference results...");
+
       // Extract matching points from inference results
       const matches = [];
       const rawData = inferenceResult.rawData;
@@ -527,23 +570,29 @@ const handleAnalysisComplete = async (bestMatchResult) => {
 
       // SuperPoint/LightGlue uses 256x256 inference size - need to scale keypoints back to original image coordinates
       const inferenceSize = 256; // From inferenceWorker.js: imgWidth = imgHeight = 256
-      
+
       // Get original image dimensions from inference result
-      const userImageDims = inferenceResult.userImageDims || { width: inferenceSize, height: inferenceSize };
-      const topoImageDims = inferenceResult.topoImageDims || { width: inferenceSize, height: inferenceSize };
-      
+      const userImageDims = inferenceResult.userImageDims || {
+        width: inferenceSize,
+        height: inferenceSize,
+      };
+      const topoImageDims = inferenceResult.topoImageDims || {
+        width: inferenceSize,
+        height: inferenceSize,
+      };
+
       // Calculate scaling factors
       const userScaleX = userImageDims.width / inferenceSize;
       const userScaleY = userImageDims.height / inferenceSize;
       const topoScaleX = topoImageDims.width / inferenceSize;
       const topoScaleY = topoImageDims.height / inferenceSize;
 
-      console.log('🔍 Coordinate space scaling:', {
+      console.log("🔍 Coordinate space scaling:", {
         inferenceSize,
         userImageDims,
         topoImageDims,
         userScale: { x: userScaleX, y: userScaleY },
-        topoScale: { x: topoScaleX, y: topoScaleY }
+        topoScale: { x: topoScaleX, y: topoScaleY },
       });
 
       for (let i = 0; i < maxMatches; i++) {
@@ -555,7 +604,9 @@ const handleAnalysisComplete = async (bestMatchResult) => {
         const x0_raw = Number(rawData.keypoints.cpuData[img0Idx * 2]);
         const y0_raw = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
         const x1_raw = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]);
-        const y1_raw = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
+        const y1_raw = Number(
+          rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]
+        );
 
         // Scale keypoints back to original image coordinate space
         const x0 = x0_raw * userScaleX;
@@ -571,21 +622,21 @@ const handleAnalysisComplete = async (bestMatchResult) => {
 
       if (matches.length >= 4) {
         const homographyResult = await calculateHomographyMatrix(matches);
-        console.log('Homography calculated:', homographyResult);
-        
+        console.log("Homography calculated:", homographyResult);
+
         // Add homography matrix to the match result
         bestMatchResult.homographyMatrix = homographyResult.matrix;
         bestMatchResult.homographyInliers = homographyResult.inliers;
       } else {
-        console.warn('⚠️ Not enough matches for homography calculation:', matches.length);
+        console.warn("⚠️ Not enough matches for homography calculation:", matches.length);
       }
     } else {
-      console.warn('⚠️ No inference results found for matched image:', matchUrl);
+      console.warn("⚠️ No inference results found for matched image:", matchUrl);
     }
   } catch (error) {
-    console.error('❌ Error calculating homography:', error);
+    console.error("❌ Error calculating homography:", error);
   }
-  
+
   emit("analysis-complete", {
     video: selectedVideo.value,
     frames: extractedFrames.value,
@@ -611,33 +662,32 @@ const transformPosesToMatchedImage = async (matchResult) => {
       if (!frame.poseData) continue;
 
       const pose = frame.poseData.keypoints;
-      
+
       // Extract wrist and ankle points
       const sourcePoints = [
         { x: pose.leftWrist.x, y: pose.leftWrist.y },
         { x: pose.rightWrist.x, y: pose.rightWrist.y },
         { x: pose.leftAnkle.x, y: pose.leftAnkle.y },
-        { x: pose.rightAnkle.x, y: pose.rightAnkle.y }
+        { x: pose.rightAnkle.x, y: pose.rightAnkle.y },
       ];
 
       // Transform points using homography
       const transformedPoints = transformPoints(sourcePoints, homographyMatrix);
-      
+
       transformedFrames.push({
         frameIndex: i,
         originalPoints: sourcePoints,
         transformedPoints,
         color: FRAME_COLORS[i],
-        confidence: frame.poseData.confidence
+        confidence: frame.poseData.confidence,
       });
     }
 
     transformedPoses.value = transformedFrames;
-    
+
     // Trigger visualization redraw
     await nextTick();
     drawPoseVisualization();
-
   } catch (err) {
     console.error("Pose transformation error:", err);
     error.value = "Failed to transform poses: " + err.message;
@@ -653,15 +703,15 @@ const drawPoseVisualization = () => {
 
   const img = visualizationImage.value;
   const canvas = poseCanvas.value;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
 
   // Set canvas size to match image
   canvas.width = img.clientWidth;
   canvas.height = img.clientHeight;
-  
+
   visualizationDimensions.value = {
     width: img.clientWidth,
-    height: img.clientHeight
+    height: img.clientHeight,
   };
 
   // Clear canvas
@@ -672,9 +722,9 @@ const drawPoseVisualization = () => {
   const scaleY = img.clientHeight / img.naturalHeight;
 
   // Draw poses for each frame
-  transformedPoses.value.forEach(frame => {
+  transformedPoses.value.forEach((frame) => {
     const { transformedPoints, color, frameIndex } = frame;
-    
+
     if (transformedPoints.length !== 4) return;
 
     ctx.strokeStyle = color;
@@ -682,9 +732,9 @@ const drawPoseVisualization = () => {
     ctx.lineWidth = 2;
 
     // Scale points to display size
-    const scaledPoints = transformedPoints.map(point => ({
+    const scaledPoints = transformedPoints.map((point) => ({
       x: point.x * scaleX,
-      y: point.y * scaleY
+      y: point.y * scaleY,
     }));
 
     // Draw wrists (first two points)
@@ -692,7 +742,7 @@ const drawPoseVisualization = () => {
       ctx.beginPath();
       ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
       ctx.fill();
-      
+
       // Label
       ctx.fillText(`H${index + 1}F${frameIndex + 1}`, point.x + 8, point.y - 8);
     });
@@ -702,7 +752,7 @@ const drawPoseVisualization = () => {
       ctx.beginPath();
       ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
       ctx.fill();
-      
+
       // Label
       ctx.fillText(`F${index + 1}F${frameIndex + 1}`, point.x + 8, point.y + 15);
     });
@@ -745,7 +795,7 @@ const clearState = () => {
   transformedPoses.value = [];
 
   // Clean up any object URLs
-  extractedFrames.value.forEach(frame => {
+  extractedFrames.value.forEach((frame) => {
     if (frame.url) {
       URL.revokeObjectURL(frame.url);
     }
@@ -754,26 +804,30 @@ const clearState = () => {
 
 // Utility functions
 const createFileFromImageData = async (imageData, fileName) => {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   ctx.putImageData(imageData, 0, 0);
-  
-  return new Promise(resolve => {
-    canvas.toBlob(blob => {
-      resolve(new File([blob], fileName, { type: 'image/jpeg' }));
-    }, 'image/jpeg', 0.8);
+
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => {
+        resolve(new File([blob], fileName, { type: "image/jpeg" }));
+      },
+      "image/jpeg",
+      0.8
+    );
   });
 };
 
 const createImageUrlFromImageData = (imageData) => {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   ctx.putImageData(imageData, 0, 0);
-  return canvas.toDataURL('image/jpeg', 0.8);
+  return canvas.toDataURL("image/jpeg", 0.8);
 };
 
 const formatFileSize = (bytes) => {

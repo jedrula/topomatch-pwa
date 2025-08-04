@@ -79,60 +79,43 @@
                 <!-- Hold Detection Overlay -->
                 <div
                   v-if="imageLoaded && (detectionResults || selectedProblemHolds.length > 0)"
-                  class="absolute inset-0 opacity-70"
+                  class="absolute inset-0"
                 >
-                  <!-- Detected Holds (when detection has been run) -->
-                  <div
-                    v-for="(hold, index) in detectionResults?.holds || []"
-                    :key="'detected-' + (hold.id || index)"
-                    class="absolute cursor-pointer hover:opacity-100 transition-all duration-200 group"
-                    :style="{
-                      left: `${hold.x * imageScale}px`,
-                      top: `${hold.y * imageScale}px`,
-                      width: `${hold.width * imageScale}px`,
-                      height: `${hold.height * imageScale}px`,
-                      backgroundColor: getHoldBackgroundColor(hold, index),
-                      borderColor: getHoldBorderColor(index),
-                    }"
-                    @click="selectHold(hold, index)"
-                    :class="{
-                      'ring-4 ring-blue-500': selectedHoldIndex === index,
-                      'ring-4': isHoldInActiveProblem(index),
-                    }"
-                  >
-                    <!-- Hold Label -->
-                    <div
-                      class="absolute -top-8 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none"
-                    >
-                      <div>{{ hold.type }} ({{ Math.round(hold.confidence * 100) }}%)</div>
-                      <div v-if="hold.color" class="text-gray-300">{{ hold.color.name }}</div>
-                    </div>
-                  </div>
+                  <!-- Segmentation Canvas for precise hold masks -->
+                  <HoldSegmentationCanvas
+                    v-if="detectionResults?.holds && detectionResults.holds.length > 0"
+                    :holds="detectionResults.holds"
+                    :image-scale="imageScale"
+                    :selected-hold-index="selectedHoldIndex"
+                    :canvas-width="imageWidth * imageScale"
+                    :canvas-height="imageHeight * imageScale"
+                    @hold-click="selectHold"
+                  />
 
-                  <!-- Selected Problem Holds (when viewing an existing problem) -->
-                  <div
-                    v-for="(problemHold, index) in selectedProblemHolds"
-                    :key="'problem-' + (problemHold.hold.id || index)"
-                    class="absolute transition-all duration-200 group border-4"
-                    :class="{
-                      'pointer-events-none': detectionResults && boulderProblemsStore.activeProblem,
-                    }"
-                    :style="{
-                      left: `${problemHold.hold.x * imageScale}px`,
-                      top: `${problemHold.hold.y * imageScale}px`,
-                      width: `${problemHold.hold.width * imageScale}px`,
-                      height: `${problemHold.hold.height * imageScale}px`,
-                      backgroundColor: boulderProblemsStore.activeProblem?.color + '80', // Add transparency
-                      borderColor: boulderProblemsStore.activeProblem?.color,
-                    }"
-                  >
-                    <!-- Problem Hold Label -->
+                  <!-- Fallback: Traditional bounding boxes for problem holds or non-segmented holds -->
+                  <div class="absolute inset-0 opacity-70 pointer-events-none">
+                    <!-- Selected Problem Holds (when viewing an existing problem) -->
                     <div
-                      class="absolute -top-8 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none"
+                      v-for="(problemHold, index) in selectedProblemHolds"
+                      :key="'problem-' + (problemHold.hold.id || index)"
+                      class="absolute transition-all duration-200 group border-4"
+                      :style="{
+                        left: `${problemHold.hold.x * imageScale}px`,
+                        top: `${problemHold.hold.y * imageScale}px`,
+                        width: `${problemHold.hold.width * imageScale}px`,
+                        height: `${problemHold.hold.height * imageScale}px`,
+                        backgroundColor: boulderProblemsStore.activeProblem?.color + '80', // Add transparency
+                        borderColor: boulderProblemsStore.activeProblem?.color,
+                      }"
                     >
-                      <div>{{ boulderProblemsStore.activeProblem?.name }}</div>
-                      <div class="text-gray-300">
-                        {{ boulderProblemsStore.activeProblem?.grade }}
+                      <!-- Problem Hold Label -->
+                      <div
+                        class="absolute -top-8 left-0 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none"
+                      >
+                        <div>{{ boulderProblemsStore.activeProblem?.name }}</div>
+                        <div class="text-gray-300">
+                          {{ boulderProblemsStore.activeProblem?.grade }}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -206,6 +189,58 @@
                   class="w-full mt-2 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <p class="text-sm text-gray-500 mt-1">Current Scale: {{ imageScale.toFixed(2) }}</p>
+              </div>
+
+              <!-- SAM Segmentation Toggle -->
+              <div class="mt-6">
+                <div class="flex items-center justify-between">
+                  <label for="sam-toggle" class="text-sm font-medium text-gray-700">
+                    Precise Segmentation
+                  </label>
+                  <button
+                    id="sam-toggle"
+                    @click="
+                      holdDetectionStore.useSAMSegmentation = !holdDetectionStore.useSAMSegmentation
+                    "
+                    :class="{
+                      'bg-blue-600': holdDetectionStore.useSAMSegmentation,
+                      'bg-gray-200': !holdDetectionStore.useSAMSegmentation,
+                    }"
+                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    <span
+                      :class="{
+                        'translate-x-6': holdDetectionStore.useSAMSegmentation,
+                        'translate-x-1': !holdDetectionStore.useSAMSegmentation,
+                      }"
+                      class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                    />
+                  </button>
+                </div>
+                <p class="text-sm text-gray-500 mt-1">
+                  {{ holdDetectionStore.useSAMSegmentation ? "Enabled" : "Disabled" }} -
+                  {{
+                    holdDetectionStore.useSAMSegmentation
+                      ? "Uses AI segmentation for precise hold shapes"
+                      : "Uses simple bounding boxes for faster detection"
+                  }}
+                </p>
+                <div v-if="holdDetectionStore.samSessionReady" class="text-xs text-green-600 mt-1">
+                  ✓ SAM model ready
+                </div>
+                <div
+                  v-else-if="holdDetectionStore.useSAMSegmentation"
+                  class="text-xs text-yellow-600 mt-1"
+                >
+                  ⏳ Loading SAM model...
+                </div>
+                <a
+                  href="/sam-playground.html"
+                  target="_blank"
+                  class="text-xs text-blue-600 hover:text-blue-800 mt-1 inline-block"
+                >
+                  🔬 Debug SAM in Playground
+                </a>
               </div>
             </div>
           </div>
@@ -423,6 +458,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import MainFooter from "@/components/MainFooter.vue";
 import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
+import HoldSegmentationCanvas from "@/components/HoldSegmentationCanvas.vue";
 import { useHoldDetectionStore } from "@/stores/holdDetectionStore";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 import { locationService } from "@/services/locationService";
@@ -461,6 +497,15 @@ const detectionResults = computed(() => holdDetectionStore.detectionResults);
 const selectedHold = computed(() => {
   if (selectedHoldIndex.value === null || !detectionResults.value) return null;
   return detectionResults.value.holds[selectedHoldIndex.value];
+});
+
+// Image dimensions for canvas sizing
+const imageWidth = computed(() => {
+  return detectionResults.value?.imageWidth || climbingImage.value?.naturalWidth || 0;
+});
+
+const imageHeight = computed(() => {
+  return detectionResults.value?.imageHeight || climbingImage.value?.naturalHeight || 0;
 });
 
 // Computed property for holds from selected boulder problem

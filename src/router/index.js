@@ -43,6 +43,13 @@ const router = createRouter({
       component: PlaygroundView,
     },
     {
+      path: "/sam-playground",
+      name: "sam-playground",
+      beforeEnter() {
+        window.location.href = "/sam-playground.html";
+      },
+    },
+    {
       path: "/video-pose-test",
       name: "video-pose-test",
       component: VideoPoseTestView,

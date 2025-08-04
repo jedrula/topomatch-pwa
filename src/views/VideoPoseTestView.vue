@@ -964,10 +964,13 @@ const onSourceImageClick = (event) => {
         offsetHeight: img.offsetHeight,
       },
     },
-    frameData: results.value.frames.length > 0 ? {
-      frameWidth: results.value.frames[0].imageData?.width,
-      frameHeight: results.value.frames[0].imageData?.height,
-    } : null,
+    frameData:
+      results.value.frames.length > 0
+        ? {
+            frameWidth: results.value.frames[0].imageData?.width,
+            frameHeight: results.value.frames[0].imageData?.height,
+          }
+        : null,
     scales: {
       scaleX: scaleX,
       scaleY: scaleY,
@@ -1043,15 +1046,22 @@ const clearClickedPoints = () => {
 
 const drawInteractivePoints = () => {
   console.log("🎨 DRAW INTERACTIVE POINTS - START");
-  console.log("🔧 OVERALL STATE CHECK:", JSON.stringify({
-    clickedPoints: clickedPoints.value.length,
-    match: !!results.value.match,
-    homographyMatrix: !!results.value.match?.homographyMatrix,
-    sourceFrameCanvas: !!sourceFrameCanvas.value,
-    sourceFrameImage: !!sourceFrameImage.value,
-    targetMatchCanvas: !!targetMatchCanvas.value,
-    targetMatchImage: !!targetMatchImage.value,
-  }, null, 2));
+  console.log(
+    "🔧 OVERALL STATE CHECK:",
+    JSON.stringify(
+      {
+        clickedPoints: clickedPoints.value.length,
+        match: !!results.value.match,
+        homographyMatrix: !!results.value.match?.homographyMatrix,
+        sourceFrameCanvas: !!sourceFrameCanvas.value,
+        sourceFrameImage: !!sourceFrameImage.value,
+        targetMatchCanvas: !!targetMatchCanvas.value,
+        targetMatchImage: !!targetMatchImage.value,
+      },
+      null,
+      2
+    )
+  );
 
   // Clear both canvases
   if (sourceFrameCanvas.value && sourceFrameImage.value) {
@@ -1067,34 +1077,48 @@ const drawInteractivePoints = () => {
     const scaleX = canvas.width / img.naturalWidth;
     const scaleY = canvas.height / img.naturalHeight;
 
-    console.log("📍 SOURCE CANVAS DEBUG:", JSON.stringify({
-      canvas: {
-        width: canvas.width,
-        height: canvas.height,
-      },
-      image: {
-        naturalWidth: img.naturalWidth,
-        naturalHeight: img.naturalHeight,
-        offsetWidth: img.offsetWidth,
-        offsetHeight: img.offsetHeight,
-        displayWidth: img.width,
-        displayHeight: img.height,
-      },
-      scales: { scaleX, scaleY },
-      totalPoints: clickedPoints.value.length,
-      framePoints: clickedPoints.value.filter((p) => p.sourceImage === "frame").length,
-    }, null, 2));
+    console.log(
+      "📍 SOURCE CANVAS DEBUG:",
+      JSON.stringify(
+        {
+          canvas: {
+            width: canvas.width,
+            height: canvas.height,
+          },
+          image: {
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight,
+            offsetWidth: img.offsetWidth,
+            offsetHeight: img.offsetHeight,
+            displayWidth: img.width,
+            displayHeight: img.height,
+          },
+          scales: { scaleX, scaleY },
+          totalPoints: clickedPoints.value.length,
+          framePoints: clickedPoints.value.filter((p) => p.sourceImage === "frame").length,
+        },
+        null,
+        2
+      )
+    );
 
     clickedPoints.value.forEach((point, index) => {
       if (point.sourceImage === "frame") {
         const x = point.source.x * scaleX;
         const y = point.source.y * scaleY;
 
-        console.log(`🔵 SOURCE Point ${index + 1}:`, JSON.stringify({
-          original: point.source,
-          canvasCoords: { x, y },
-          inBounds: x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height,
-        }, null, 2));
+        console.log(
+          `🔵 SOURCE Point ${index + 1}:`,
+          JSON.stringify(
+            {
+              original: point.source,
+              canvasCoords: { x, y },
+              inBounds: x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height,
+            },
+            null,
+            2
+          )
+        );
 
         ctx.beginPath();
         ctx.arc(x, y, 8, 0, 2 * Math.PI);
@@ -1112,17 +1136,24 @@ const drawInteractivePoints = () => {
     });
   }
 
-  console.log("🔍 TARGET CANVAS CHECK:", JSON.stringify({
-    targetMatchCanvas: {
-      exists: !!targetMatchCanvas.value,
-      element: targetMatchCanvas.value ? "Found" : "Missing",
-    },
-    targetMatchImage: {
-      exists: !!targetMatchImage.value,
-      element: targetMatchImage.value ? "Found" : "Missing",
-    },
-    condition: !!(targetMatchCanvas.value && targetMatchImage.value),
-  }, null, 2));
+  console.log(
+    "🔍 TARGET CANVAS CHECK:",
+    JSON.stringify(
+      {
+        targetMatchCanvas: {
+          exists: !!targetMatchCanvas.value,
+          element: targetMatchCanvas.value ? "Found" : "Missing",
+        },
+        targetMatchImage: {
+          exists: !!targetMatchImage.value,
+          element: targetMatchImage.value ? "Found" : "Missing",
+        },
+        condition: !!(targetMatchCanvas.value && targetMatchImage.value),
+      },
+      null,
+      2
+    )
+  );
 
   if (targetMatchCanvas.value && targetMatchImage.value) {
     const canvas = targetMatchCanvas.value;
@@ -1137,25 +1168,32 @@ const drawInteractivePoints = () => {
     const scaleX = canvas.width / img.naturalWidth;
     const scaleY = canvas.height / img.naturalHeight;
 
-    console.log("🎯 TARGET CANVAS DEBUG:", JSON.stringify({
-      canvas: {
-        width: canvas.width,
-        height: canvas.height,
-      },
-      image: {
-        naturalWidth: img.naturalWidth,
-        naturalHeight: img.naturalHeight,
-        offsetWidth: img.offsetWidth,
-        offsetHeight: img.offsetHeight,
-        displayWidth: img.width,
-        displayHeight: img.height,
-      },
-      scales: { scaleX, scaleY },
-      totalPoints: clickedPoints.value.length,
-      transformedPoints: clickedPoints.value.filter(
-        (p) => p.sourceImage === "frame" && p.transformed
-      ).length,
-    }, null, 2));
+    console.log(
+      "🎯 TARGET CANVAS DEBUG:",
+      JSON.stringify(
+        {
+          canvas: {
+            width: canvas.width,
+            height: canvas.height,
+          },
+          image: {
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight,
+            offsetWidth: img.offsetWidth,
+            offsetHeight: img.offsetHeight,
+            displayWidth: img.width,
+            displayHeight: img.height,
+          },
+          scales: { scaleX, scaleY },
+          totalPoints: clickedPoints.value.length,
+          transformedPoints: clickedPoints.value.filter(
+            (p) => p.sourceImage === "frame" && p.transformed
+          ).length,
+        },
+        null,
+        2
+      )
+    );
 
     clickedPoints.value.forEach((point, index) => {
       if (point.sourceImage === "frame" && point.transformed) {
@@ -1167,13 +1205,21 @@ const drawInteractivePoints = () => {
         const canvasX = x * scaleX;
         const canvasY = y * scaleY;
 
-        console.log(`🟡 TARGET Point ${index + 1}:`, JSON.stringify({
-          transformed: point.transformed,
-          naturalCoords: { x, y },
-          canvasCoords: { x: canvasX, y: canvasY },
-          inBounds: canvasX >= 0 && canvasX <= canvas.width && canvasY >= 0 && canvasY <= canvas.height,
-          scales: { scaleX, scaleY },
-        }, null, 2));
+        console.log(
+          `🟡 TARGET Point ${index + 1}:`,
+          JSON.stringify(
+            {
+              transformed: point.transformed,
+              naturalCoords: { x, y },
+              canvasCoords: { x: canvasX, y: canvasY },
+              inBounds:
+                canvasX >= 0 && canvasX <= canvas.width && canvasY >= 0 && canvasY <= canvas.height,
+              scales: { scaleX, scaleY },
+            },
+            null,
+            2
+          )
+        );
 
         // Draw the point using canvas coordinates
         ctx.beginPath();
