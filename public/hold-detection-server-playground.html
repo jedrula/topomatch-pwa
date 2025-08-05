@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hold Detection Server Playground</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .controls {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 5px;
+      }
+      .status {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .status.loading {
+        background: #fff3cd;
+        color: #856404;
+      }
+      .status.ready {
+        background: #d4edda;
+        color: #155724;
+      }
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .status.processing {
+        background: #cce5ff;
+        color: #004085;
+      }
+      .logs {
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 10px;
+        margin-top: 20px;
+        height: 200px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin: 20px 0;
+      }
+      .metric-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        text-align: center;
+      }
+      .metric-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007bff;
+      }
+      .metric-label {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 5px;
+      }
+      .image-container {
+        position: relative;
+        display: inline-block;
+        border: 2px solid #ddd;
+        border-radius: 5px;
+        overflow: hidden;
+        max-width: 100%;
+      }
+      #originalImage {
+        max-width: 800px;
+        height: auto;
+        display: block;
+      }
+      .svg-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .results-section {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 5px;
+      }
+      .svg-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+      .svg-item {
+        background: white;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+      }
+      .svg-item h4 {
+        margin: 0 0 10px 0;
+        color: #333;
+      }
+      .svg-content {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid #eee;
+        border-radius: 3px;
+      }
+      .config-section {
+        background: #e9ecef;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      }
+      .config-section label {
+        display: inline-block;
+        margin-right: 10px;
+        min-width: 100px;
+      }
+      .config-section input {
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        width: 300px;
+      }
+      .progress-bar {
+        width: 100%;
+        height: 20px;
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
+      }
+      .progress-fill {
+        height: 100%;
+        background: #007bff;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🧗 Hold Detection Server Playground</h1>
+      <p>
+        Test server-side hold detection API. Upload images and get back SVG overlays of detected holds.
+      </p>
+
+      <div class="config-section">
+        <h3>🔧 Configuration</h3>
+        <div style="margin: 10px 0;">
+          <label for="apiUrl">API URL:</label>
+          <input type="text" id="apiUrl" value="http://192.168.0.243:8000" placeholder="Enter API base URL">
+        </div>
+        <div style="margin: 10px 0;">
+          <label for="imageUrl">Firebase Image URL:</label>
+          <input type="text" id="imageUrl" value="http://127.0.0.1:9199/v0/b/demo-offline-vue-pwa.appspot.com/o/location-images%2FYIYwNAjQ0uycov4oGy7Z%2F1753809160762-IMG_8026.jpg?alt=media&token=e03842c3-d8fd-4a02-8d97-19d09b818e83" placeholder="Enter Firebase Storage URL">
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="testHealthBtn">🏥 Test API Health</button>
+        <button id="processImageBtn">🚀 Process Test Image</button>
+        <button id="clearResultsBtn">🧹 Clear Results</button>
+      </div>
+
+      <div id="status" class="status ready">Ready to test API</div>
+
+      <div class="progress-bar" id="progressContainer" style="display: none;">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric-card">
+          <div id="apiStatus" class="metric-value">Unknown</div>
+          <div class="metric-label">API Status</div>
+        </div>
+        <div class="metric-card">
+          <div id="detectionCount" class="metric-value">-</div>
+          <div class="metric-label">Holds Detected</div>
+        </div>
+        <div class="metric-card">
+          <div id="processingTime" class="metric-value">-</div>
+          <div class="metric-label">Processing Time (s)</div>
+        </div>
+        <div class="metric-card">
+          <div id="svgCount" class="metric-value">-</div>
+          <div class="metric-label">SVGs Generated</div>
+        </div>
+      </div>
+
+      <div class="image-container" id="imageContainer" style="display: none;">
+        <img id="originalImage" alt="Climbing wall image">
+        <div id="svgOverlay" class="svg-overlay"></div>
+      </div>
+
+      <div class="results-section" id="resultsSection" style="display: none;">
+        <h3>📊 Detection Results</h3>
+        <div id="resultsData"></div>
+        
+        <h3>🎨 Generated SVGs</h3>
+        <div id="svgList" class="svg-list"></div>
+      </div>
+
+      <div class="logs" id="logs"></div>
+    </div>
+
+    <script>
+      // Global state
+      let currentJobId = null;
+      let pollingInterval = null;
+
+      // DOM elements
+      const statusEl = document.getElementById("status");
+      const logsEl = document.getElementById("logs");
+      const apiUrlInput = document.getElementById("apiUrl");
+      const imageUrlInput = document.getElementById("imageUrl");
+      const progressContainer = document.getElementById("progressContainer");
+      const progressFill = document.getElementById("progressFill");
+      
+      // Metrics
+      const apiStatusEl = document.getElementById("apiStatus");
+      const detectionCountEl = document.getElementById("detectionCount");
+      const processingTimeEl = document.getElementById("processingTime");
+      const svgCountEl = document.getElementById("svgCount");
+
+      // Image and results
+      const imageContainer = document.getElementById("imageContainer");
+      const originalImage = document.getElementById("originalImage");
+      const svgOverlay = document.getElementById("svgOverlay");
+      const resultsSection = document.getElementById("resultsSection");
+      const resultsData = document.getElementById("resultsData");
+      const svgList = document.getElementById("svgList");
+
+      // Logging
+      function log(message) {
+        console.log(message);
+        const timestamp = new Date().toLocaleTimeString();
+        logsEl.innerHTML += `[${timestamp}] ${message}\n`;
+        logsEl.scrollTop = logsEl.scrollHeight;
+      }
+
+      function updateStatus(message, type = "ready") {
+        statusEl.textContent = message;
+        statusEl.className = `status ${type}`;
+      }
+
+      function updateProgress(percent) {
+        if (percent > 0) {
+          progressContainer.style.display = "block";
+          progressFill.style.width = percent + "%";
+        } else {
+          progressContainer.style.display = "none";
+        }
+      }
+
+      // API Functions
+      async function testApiHealth() {
+        const apiUrl = apiUrlInput.value.trim();
+        if (!apiUrl) {
+          log("❌ Please enter API URL");
+          return false;
+        }
+
+        try {
+          log("🔍 Testing API health...");
+          updateStatus("Testing API connection...", "loading");
+
+          const response = await fetch(`${apiUrl}/health`);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const health = await response.json();
+          
+          log("✅ API is healthy");
+          log(`   CUDA: ${health.components.cuda}`);
+          log(`   YOLO: ${health.components.yolo_detector}`);
+          log(`   SAM2: ${health.components.sam2_predictor}`);
+          
+          apiStatusEl.textContent = "Healthy";
+          updateStatus("API is ready", "ready");
+          return true;
+
+        } catch (error) {
+          log(`❌ API health check failed: ${error.message}`);
+          apiStatusEl.textContent = "Error";
+          updateStatus(`API connection failed: ${error.message}`, "error");
+          return false;
+        }
+      }
+
+      async function fetchImageAsBlob(imageUrl) {
+        log(`📸 Fetching image from: ${imageUrl}`);
+        
+        try {
+          const response = await fetch(imageUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          log(`✅ Image fetched successfully (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+          return blob;
+          
+        } catch (error) {
+          log(`❌ Failed to fetch image: ${error.message}`);
+          throw error;
+        }
+      }
+
+      async function uploadAndProcessImage() {
+        const apiUrl = apiUrlInput.value.trim();
+        const imageUrl = imageUrlInput.value.trim();
+
+        if (!apiUrl || !imageUrl) {
+          log("❌ Please enter both API URL and image URL");
+          return;
+        }
+
+        try {
+          updateStatus("Fetching image...", "loading");
+          updateProgress(10);
+
+          // Fetch image from Firebase Storage
+          const imageBlob = await fetchImageAsBlob(imageUrl);
+          
+          updateStatus("Uploading to API...", "loading");
+          updateProgress(20);
+
+          // Upload to API
+          const formData = new FormData();
+          formData.append('file', imageBlob, 'climbing_wall.jpg');
+
+          const response = await fetch(`${apiUrl}/api/v1/process`, {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!response.ok) {
+            throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          currentJobId = result.job_id;
+          
+          log(`✅ Upload successful, job ID: ${currentJobId}`);
+          updateStatus("Processing image...", "processing");
+          updateProgress(30);
+
+          // Start polling for results
+          await pollForResults();
+
+        } catch (error) {
+          log(`❌ Processing failed: ${error.message}`);
+          updateStatus(`Processing failed: ${error.message}`, "error");
+          updateProgress(0);
+        }
+      }
+
+      async function pollForResults() {
+        const apiUrl = apiUrlInput.value.trim();
+        
+        if (!currentJobId) return;
+
+        try {
+          const response = await fetch(`${apiUrl}/api/v1/status/${currentJobId}`);
+          
+          if (!response.ok) {
+            throw new Error(`Status check failed: ${response.status}`);
+          }
+
+          const status = await response.json();
+          log(`📊 Status: ${status.status} - ${status.progress || 'Processing...'}`);
+
+          // Update progress based on status
+          if (status.status === 'processing') {
+            updateProgress(50 + Math.random() * 30); // Simulate progress
+          }
+
+          if (status.status === 'completed') {
+            log("✅ Processing completed!");
+            updateStatus("Processing completed!", "ready");
+            updateProgress(100);
+            
+            setTimeout(() => updateProgress(0), 2000);
+            
+            displayResults(status.result);
+            return;
+            
+          } else if (status.status === 'failed') {
+            const errorMsg = status.result?.error_message || 'Unknown error';
+            log(`❌ Processing failed: ${errorMsg}`);
+            updateStatus(`Processing failed: ${errorMsg}`, "error");
+            updateProgress(0);
+            return;
+          }
+
+          // Continue polling
+          setTimeout(() => pollForResults(), 2000);
+
+        } catch (error) {
+          log(`❌ Status check error: ${error.message}`);
+          updateStatus(`Status check failed: ${error.message}`, "error");
+          updateProgress(0);
+        }
+      }
+
+      function displayResults(result) {
+        if (!result) return;
+
+        log("\n📊 PROCESSING RESULTS");
+        log("=" * 50);
+
+        // Update metrics
+        detectionCountEl.textContent = result.yolo_results.total_detections;
+        processingTimeEl.textContent = result.processing_time.toFixed(2);
+        svgCountEl.textContent = result.svg_files.length;
+
+        // Display image with overlay
+        displayImageWithOverlay(result);
+
+        // Show detailed results
+        showDetailedResults(result);
+
+        // Show SVG files
+        showSvgFiles(result);
+
+        // Show sections
+        imageContainer.style.display = "block";
+        resultsSection.style.display = "block";
+      }
+
+      function displayImageWithOverlay(result) {
+        const imageUrl = imageUrlInput.value.trim();
+        
+        // Load original image
+        originalImage.src = imageUrl;
+        originalImage.onload = () => {
+          log(`📸 Image loaded: ${result.image_info.width}x${result.image_info.height}`);
+          
+          // Clear previous overlay
+          svgOverlay.innerHTML = "";
+          
+          // Add composite SVG if available
+          if (result.composite_svg) {
+            log("🎨 Loading composite SVG overlay");
+            
+            // Create SVG element from composite SVG data
+            const svgElement = document.createElement('div');
+            svgElement.innerHTML = result.composite_svg;
+            const svg = svgElement.firstElementChild;
+            
+            if (svg && svg.tagName === 'svg') {
+              // Scale SVG to match image display size
+              svg.style.width = "100%";
+              svg.style.height = "100%";
+              svg.style.position = "absolute";
+              svg.style.top = "0";
+              svg.style.left = "0";
+              
+              svgOverlay.appendChild(svg);
+            }
+          }
+        };
+      }
+
+      function showDetailedResults(result) {
+        const html = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+            <div style="background: white; padding: 15px; border-radius: 5px;">
+              <h4>📸 Image Info</h4>
+              <p><strong>Filename:</strong> ${result.image_info.filename}</p>
+              <p><strong>Size:</strong> ${result.image_info.width}x${result.image_info.height}</p>
+              <p><strong>File Size:</strong> ${result.image_info.size_mb.toFixed(2)} MB</p>
+            </div>
+            
+            <div style="background: white; padding: 15px; border-radius: 5px;">
+              <h4>🎯 YOLO Detection</h4>
+              <p><strong>Holds Detected:</strong> ${result.yolo_results.total_detections}</p>
+              <p><strong>Inference Time:</strong> ${result.yolo_results.inference_time.toFixed(3)}s</p>
+            </div>
+            
+            <div style="background: white; padding: 15px; border-radius: 5px;">
+              <h4>🎯 SAM2 Segmentation</h4>
+              <p><strong>Successful:</strong> ${result.sam2_results.successful_segmentations}</p>
+              <p><strong>Success Rate:</strong> ${result.sam2_results.success_rate.toFixed(1)}%</p>
+            </div>
+            
+            <div style="background: white; padding: 15px; border-radius: 5px;">
+              <h4>⏱️ Performance</h4>
+              <p><strong>Total Time:</strong> ${result.processing_time.toFixed(2)}s</p>
+              <p><strong>Individual SVGs:</strong> ${result.svg_files.length}</p>
+              <p><strong>Composite SVG:</strong> ${result.composite_svg ? '✅' : '❌'}</p>
+            </div>
+          </div>
+        `;
+        
+        resultsData.innerHTML = html;
+      }
+
+      function showSvgFiles(result) {
+        svgList.innerHTML = "";
+        
+        // Show composite SVG first
+        if (result.composite_svg) {
+          const compositeItem = document.createElement('div');
+          compositeItem.className = 'svg-item';
+          compositeItem.innerHTML = `
+            <h4>🎨 Composite SVG (All Holds)</h4>
+            <div class="svg-content">${result.composite_svg}</div>
+          `;
+          svgList.appendChild(compositeItem);
+        }
+
+        // Show individual SVG files
+        result.svg_files.forEach((svgFile, index) => {
+          const hold = result.holds[index];
+          const svgItem = document.createElement('div');
+          svgItem.className = 'svg-item';
+          
+          svgItem.innerHTML = `
+            <h4>Hold ${hold.id}</h4>
+            <p><strong>Confidence:</strong> ${hold.confidence.toFixed(3)}</p>
+            <p><strong>SVG:</strong> ${svgFile ? '✅ Generated' : '❌ Failed'}</p>
+            ${svgFile ? `<div class="svg-content">${svgFile}</div>` : ''}
+          `;
+          
+          svgList.appendChild(svgItem);
+        });
+      }
+
+      function clearResults() {
+        imageContainer.style.display = "none";
+        resultsSection.style.display = "none";
+        svgOverlay.innerHTML = "";
+        resultsData.innerHTML = "";
+        svgList.innerHTML = "";
+        
+        // Reset metrics
+        detectionCountEl.textContent = "-";
+        processingTimeEl.textContent = "-";
+        svgCountEl.textContent = "-";
+        
+        // Clear job
+        currentJobId = null;
+        updateProgress(0);
+        updateStatus("Ready to test API", "ready");
+        
+        log("🧹 Results cleared");
+      }
+
+      // Event listeners
+      document.getElementById("testHealthBtn").addEventListener("click", testApiHealth);
+      document.getElementById("processImageBtn").addEventListener("click", uploadAndProcessImage);
+      document.getElementById("clearResultsBtn").addEventListener("click", clearResults);
+
+      // Initialize
+      log("🧗 Hold Detection Server Playground initialized");
+      log("📝 Configure API URL and image URL, then test API health");
+    </script>
+  </body>
+</html>
