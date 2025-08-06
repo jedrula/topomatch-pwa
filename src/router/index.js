@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "../views/HomeView.vue";
 import RegionView from "../views/RegionView.vue";
 import HoldDetectionView from "../views/HoldDetectionView.vue";
+import HoldDetectionServerView from "../views/HoldDetectionServerView.vue";
 import PoseDetectionView from "../views/PoseDetectionView.vue";
 import PlaygroundView from "../views/PlaygroundView.vue";
 import VideoPoseTestView from "../views/VideoPoseTestView.vue";
@@ -31,6 +32,11 @@ const router = createRouter({
       path: "/hold-detection",
       name: "hold-detection",
       component: HoldDetectionView,
+    },
+    {
+      path: "/hold-detection-server",
+      name: "hold-detection-server",
+      component: HoldDetectionServerView,
     },
     {
       path: "/pose-detection",
@@ -88,6 +94,12 @@ const router = createRouter({
       path: "/location/:locationId/holds",
       name: "location-hold-detection",
       component: HoldDetectionView,
+      props: true,
+    },
+    {
+      path: "/location/:locationId/holds-server",
+      name: "location-hold-detection-server",
+      component: HoldDetectionServerView,
       props: true,
     },
     {
