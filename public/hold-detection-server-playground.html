@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hold Detection Server Playground</title>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -107,6 +108,7 @@
         max-width: 800px;
         height: auto;
         display: block;
+        width: 100%;
       }
       .svg-overlay {
         position: absolute;
@@ -161,6 +163,30 @@
         border-radius: 3px;
         width: 300px;
       }
+      .config-section input[type="range"] {
+        width: 200px;
+      }
+      .overlay-controls {
+        background: white;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+      }
+      .overlay-controls label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      .opacity-display {
+        display: inline-block;
+        margin-left: 10px;
+        padding: 2px 8px;
+        background: #007bff;
+        color: white;
+        border-radius: 3px;
+        font-size: 12px;
+      }
       .progress-bar {
         width: 100%;
         height: 20px;
@@ -175,24 +201,99 @@
         width: 0%;
         transition: width 0.3s ease;
       }
+      .timing-breakdown {
+        background: white;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 15px;
+        border: 1px solid #ddd;
+      }
+      .timing-item {
+        display: flex;
+        justify-content: space-between;
+        margin: 5px 0;
+        padding: 5px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .timing-item:last-child {
+        border-bottom: none;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <h1>🧗 Hold Detection Server Playground</h1>
       <p>
-        Test server-side hold detection API. Upload images and get back SVG overlays of detected holds.
+        Test server-side hold detection API. Upload images and get back SVG
+        overlays of detected holds.
       </p>
 
       <div class="config-section">
         <h3>🔧 Configuration</h3>
-        <div style="margin: 10px 0;">
+        <div style="margin: 10px 0">
           <label for="apiUrl">API URL:</label>
-          <input type="text" id="apiUrl" value="http://192.168.0.243:8000" placeholder="Enter API base URL">
+          <input
+            type="text"
+            id="apiUrl"
+            value="http://192.168.0.243:8000"
+            placeholder="Enter API base URL"
+          />
         </div>
-        <div style="margin: 10px 0;">
+        <div style="margin: 10px 0">
           <label for="imageUrl">Firebase Image URL:</label>
-          <input type="text" id="imageUrl" value="http://127.0.0.1:9199/v0/b/demo-offline-vue-pwa.appspot.com/o/location-images%2FYIYwNAjQ0uycov4oGy7Z%2F1753809160762-IMG_8026.jpg?alt=media&token=e03842c3-d8fd-4a02-8d97-19d09b818e83" placeholder="Enter Firebase Storage URL">
+          <input
+            type="text"
+            id="imageUrl"
+            value="http://127.0.0.1:9199/v0/b/demo-offline-vue-pwa.appspot.com/o/location-images%2FYIYwNAjQ0uycov4oGy7Z%2F1753809160762-IMG_8026.jpg?alt=media&token=e03842c3-d8fd-4a02-8d97-19d09b818e83"
+            placeholder="Enter Firebase Storage URL"
+          />
+        </div>
+
+        <div
+          style="
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 5px;
+          "
+        >
+          <h4>🗜️ Image Compression Settings</h4>
+          <div style="margin: 10px 0">
+            <label for="enableCompression">
+              <input type="checkbox" id="enableCompression" checked />
+              Enable image compression before upload
+            </label>
+          </div>
+          <div style="margin: 10px 0">
+            <label for="maxSizeMB">Max file size (MB):</label>
+            <input
+              type="number"
+              id="maxSizeMB"
+              value="1"
+              min="0.1"
+              max="10"
+              step="0.1"
+              style="width: 100px"
+            />
+          </div>
+          <div style="margin: 10px 0">
+            <label for="maxWidthOrHeight">Max width/height (px):</label>
+            <input
+              type="number"
+              id="maxWidthOrHeight"
+              value="1920"
+              min="500"
+              max="4000"
+              step="100"
+              style="width: 100px"
+            />
+          </div>
+          <div style="margin: 10px 0">
+            <label for="useWebWorker">
+              <input type="checkbox" id="useWebWorker" checked />
+              Use Web Worker (better performance)
+            </label>
+          </div>
         </div>
       </div>
 
@@ -204,7 +305,7 @@
 
       <div id="status" class="status ready">Ready to test API</div>
 
-      <div class="progress-bar" id="progressContainer" style="display: none;">
+      <div class="progress-bar" id="progressContainer" style="display: none">
         <div class="progress-fill" id="progressFill"></div>
       </div>
 
@@ -225,17 +326,58 @@
           <div id="svgCount" class="metric-value">-</div>
           <div class="metric-label">SVGs Generated</div>
         </div>
+        <div class="metric-card">
+          <div id="compressionRatio" class="metric-value">-</div>
+          <div class="metric-label">Compression Ratio</div>
+        </div>
+        <div class="metric-card">
+          <div id="originalSize" class="metric-value">-</div>
+          <div class="metric-label">Original Size (MB)</div>
+        </div>
       </div>
 
-      <div class="image-container" id="imageContainer" style="display: none;">
-        <img id="originalImage" alt="Climbing wall image">
+      <div class="image-container" id="imageContainer" style="display: none">
+        <img id="originalImage" alt="Climbing wall image" />
         <div id="svgOverlay" class="svg-overlay"></div>
+
+        <div
+          class="overlay-controls"
+          id="overlayControls"
+          style="display: none"
+        >
+          <label for="opacitySlider">
+            SVG Overlay Opacity:
+            <span class="opacity-display" id="opacityDisplay">70%</span>
+          </label>
+          <input
+            type="range"
+            id="opacitySlider"
+            min="0"
+            max="100"
+            value="70"
+            style="width: 100%; margin-top: 5px"
+          />
+          <div style="margin-top: 10px">
+            <button
+              id="toggleOverlayBtn"
+              style="font-size: 12px; padding: 5px 10px"
+            >
+              Hide Overlay
+            </button>
+            <button
+              id="resetOpacityBtn"
+              style="font-size: 12px; padding: 5px 10px"
+            >
+              Reset Opacity
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div class="results-section" id="resultsSection" style="display: none;">
+      <div class="results-section" id="resultsSection" style="display: none">
         <h3>📊 Detection Results</h3>
         <div id="resultsData"></div>
-        
+
         <h3>🎨 Generated SVGs</h3>
         <div id="svgList" class="svg-list"></div>
       </div>
@@ -255,20 +397,37 @@
       const imageUrlInput = document.getElementById("imageUrl");
       const progressContainer = document.getElementById("progressContainer");
       const progressFill = document.getElementById("progressFill");
-      
+
       // Metrics
       const apiStatusEl = document.getElementById("apiStatus");
       const detectionCountEl = document.getElementById("detectionCount");
       const processingTimeEl = document.getElementById("processingTime");
       const svgCountEl = document.getElementById("svgCount");
+      const compressionRatioEl = document.getElementById("compressionRatio");
+      const originalSizeEl = document.getElementById("originalSize");
+
+      // Compression controls
+      const enableCompressionEl = document.getElementById("enableCompression");
+      const maxSizeMBEl = document.getElementById("maxSizeMB");
+      const maxWidthOrHeightEl = document.getElementById("maxWidthOrHeight");
+      const useWebWorkerEl = document.getElementById("useWebWorker");
 
       // Image and results
       const imageContainer = document.getElementById("imageContainer");
       const originalImage = document.getElementById("originalImage");
       const svgOverlay = document.getElementById("svgOverlay");
+      const overlayControls = document.getElementById("overlayControls");
+      const opacitySlider = document.getElementById("opacitySlider");
+      const opacityDisplay = document.getElementById("opacityDisplay");
+      const toggleOverlayBtn = document.getElementById("toggleOverlayBtn");
+      const resetOpacityBtn = document.getElementById("resetOpacityBtn");
       const resultsSection = document.getElementById("resultsSection");
       const resultsData = document.getElementById("resultsData");
       const svgList = document.getElementById("svgList");
+
+      // Overlay state
+      let overlayVisible = true;
+      let currentResult = null; // Store current result for re-alignment
 
       // Logging
       function log(message) {
@@ -305,22 +464,21 @@
           updateStatus("Testing API connection...", "loading");
 
           const response = await fetch(`${apiUrl}/health`);
-          
+
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
 
           const health = await response.json();
-          
+
           log("✅ API is healthy");
           log(`   CUDA: ${health.components.cuda}`);
           log(`   YOLO: ${health.components.yolo_detector}`);
           log(`   SAM2: ${health.components.sam2_predictor}`);
-          
+
           apiStatusEl.textContent = "Healthy";
           updateStatus("API is ready", "ready");
           return true;
-
         } catch (error) {
           log(`❌ API health check failed: ${error.message}`);
           apiStatusEl.textContent = "Error";
@@ -331,20 +489,90 @@
 
       async function fetchImageAsBlob(imageUrl) {
         log(`📸 Fetching image from: ${imageUrl}`);
-        
+
         try {
           const response = await fetch(imageUrl);
           if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+            throw new Error(
+              `Failed to fetch image: ${response.status} ${response.statusText}`
+            );
           }
-          
+
           const blob = await response.blob();
-          log(`✅ Image fetched successfully (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+          const originalSizeMB = blob.size / 1024 / 1024;
+
+          log(
+            `✅ Image fetched successfully (${originalSizeMB.toFixed(2)} MB)`
+          );
+
+          // Update original size metric
+          originalSizeEl.textContent = originalSizeMB.toFixed(2);
+
           return blob;
-          
         } catch (error) {
           log(`❌ Failed to fetch image: ${error.message}`);
           throw error;
+        }
+      }
+
+      async function compressImageBlob(blob) {
+        if (!enableCompressionEl.checked) {
+          log("🔄 Compression disabled, using original image");
+          compressionRatioEl.textContent = "1.0x";
+          return blob;
+        }
+
+        const originalSize = blob.size;
+        const originalSizeMB = originalSize / 1024 / 1024;
+
+        log(`🗜️ Starting image compression...`);
+        log(`   📊 Original: ${originalSizeMB.toFixed(2)} MB`);
+
+        const options = {
+          maxSizeMB: parseFloat(maxSizeMBEl.value),
+          maxWidthOrHeight: parseInt(maxWidthOrHeightEl.value),
+          useWebWorker: useWebWorkerEl.checked,
+          fileType: "image/jpeg", // Force JPEG for better compression
+          initialQuality: 0.8,
+        };
+
+        log(
+          `   ⚙️ Settings: ${options.maxSizeMB}MB max, ${options.maxWidthOrHeight}px max`
+        );
+
+        try {
+          const startTime = performance.now();
+
+          // Convert blob to File for compression
+          const file = new File([blob], "climbing_wall.jpg", {
+            type: blob.type,
+          });
+          const compressedFile = await imageCompression(file, options);
+
+          const compressionTime = (performance.now() - startTime) / 1000;
+          const compressedSize = compressedFile.size;
+          const compressedSizeMB = compressedSize / 1024 / 1024;
+          const compressionRatio = originalSize / compressedSize;
+
+          log(`✅ Compression completed in ${compressionTime.toFixed(2)}s`);
+          log(`   📊 Compressed: ${compressedSizeMB.toFixed(2)} MB`);
+          log(`   📈 Compression ratio: ${compressionRatio.toFixed(2)}x`);
+          log(
+            `   💾 Size reduction: ${(
+              (1 - compressedSize / originalSize) *
+              100
+            ).toFixed(1)}%`
+          );
+
+          // Update compression metrics
+          compressionRatioEl.textContent = `${compressionRatio.toFixed(2)}x`;
+
+          return compressedFile;
+        } catch (error) {
+          log(`❌ Compression failed: ${error.message}`);
+          log(`🔄 Falling back to original image`);
+          compressionRatioEl.textContent = "Failed";
+          return blob;
         }
       }
 
@@ -363,33 +591,40 @@
 
           // Fetch image from Firebase Storage
           const imageBlob = await fetchImageAsBlob(imageUrl);
-          
+
+          updateStatus("Compressing image...", "loading");
+          updateProgress(15);
+
+          // Compress image if enabled
+          const finalBlob = await compressImageBlob(imageBlob);
+
           updateStatus("Uploading to API...", "loading");
           updateProgress(20);
 
           // Upload to API
           const formData = new FormData();
-          formData.append('file', imageBlob, 'climbing_wall.jpg');
+          formData.append("file", finalBlob, "climbing_wall.jpg");
 
           const response = await fetch(`${apiUrl}/api/v1/process`, {
-            method: 'POST',
-            body: formData
+            method: "POST",
+            body: formData,
           });
 
           if (!response.ok) {
-            throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+            throw new Error(
+              `Upload failed: ${response.status} ${response.statusText}`
+            );
           }
 
           const result = await response.json();
           currentJobId = result.job_id;
-          
+
           log(`✅ Upload successful, job ID: ${currentJobId}`);
           updateStatus("Processing image...", "processing");
           updateProgress(30);
 
           // Start polling for results
           await pollForResults();
-
         } catch (error) {
           log(`❌ Processing failed: ${error.message}`);
           updateStatus(`Processing failed: ${error.message}`, "error");
@@ -399,36 +634,113 @@
 
       async function pollForResults() {
         const apiUrl = apiUrlInput.value.trim();
-        
+
         if (!currentJobId) return;
 
         try {
-          const response = await fetch(`${apiUrl}/api/v1/status/${currentJobId}`);
-          
+          const response = await fetch(
+            `${apiUrl}/api/v1/status/${currentJobId}`
+          );
+
           if (!response.ok) {
             throw new Error(`Status check failed: ${response.status}`);
           }
 
           const status = await response.json();
-          log(`📊 Status: ${status.status} - ${status.progress || 'Processing...'}`);
 
-          // Update progress based on status
-          if (status.status === 'processing') {
+          // Enhanced logging with timing breakdown
+          const statusMsg = status.progress || "Processing...";
+          log(`📊 Status: ${status.status} - ${statusMsg}`);
+
+          // Log detailed timing if available
+          if (status.detailed_progress) {
+            const progress = status.detailed_progress;
+            if (progress.yolo_time) {
+              log(`   🎯 YOLO Detection: ${progress.yolo_time.toFixed(3)}s`);
+            }
+            if (progress.sam2_time) {
+              log(`   🎯 SAM2 Segmentation: ${progress.sam2_time.toFixed(3)}s`);
+            }
+            if (progress.svg_time) {
+              log(`   🎨 SVG Generation: ${progress.svg_time.toFixed(3)}s`);
+            }
+            if (progress.total_time) {
+              log(`   ⏱️ Total so far: ${progress.total_time.toFixed(3)}s`);
+            }
+          }
+          if (status.status === "processing") {
             updateProgress(50 + Math.random() * 30); // Simulate progress
           }
 
-          if (status.status === 'completed') {
+          if (status.status === "completed") {
             log("✅ Processing completed!");
             updateStatus("Processing completed!", "ready");
             updateProgress(100);
-            
+
+            // Log final timing breakdown
+            const result = status.result;
+            if (result) {
+              log(`\n⏱️ FINAL TIMING BREAKDOWN:`);
+              if (result.yolo_results?.inference_time) {
+                log(
+                  `   🎯 YOLO Detection: ${result.yolo_results.inference_time.toFixed(
+                    3
+                  )}s`
+                );
+              }
+              if (result.sam2_results?.processing_time) {
+                log(
+                  `   🎯 SAM2 Segmentation: ${result.sam2_results.processing_time.toFixed(
+                    3
+                  )}s`
+                );
+              }
+              if (result.svg_generation_time) {
+                log(
+                  `   🎨 SVG Generation: ${result.svg_generation_time.toFixed(
+                    3
+                  )}s`
+                );
+              }
+              if (result.processing_time) {
+                log(
+                  `   🏁 Total Processing: ${result.processing_time.toFixed(
+                    3
+                  )}s`
+                );
+              }
+
+              // Analyze what took the most time
+              const times = [];
+              if (result.yolo_results?.inference_time)
+                times.push({
+                  name: "YOLO",
+                  time: result.yolo_results.inference_time,
+                });
+              if (result.sam2_results?.processing_time)
+                times.push({
+                  name: "SAM2",
+                  time: result.sam2_results.processing_time,
+                });
+              if (result.svg_generation_time)
+                times.push({ name: "SVG", time: result.svg_generation_time });
+
+              if (times.length > 0) {
+                times.sort((a, b) => b.time - a.time);
+                log(
+                  `   🐌 Slowest component: ${
+                    times[0].name
+                  } (${times[0].time.toFixed(3)}s)`
+                );
+              }
+            }
+
             setTimeout(() => updateProgress(0), 2000);
-            
+
             displayResults(status.result);
             return;
-            
-          } else if (status.status === 'failed') {
-            const errorMsg = status.result?.error_message || 'Unknown error';
+          } else if (status.status === "failed") {
+            const errorMsg = status.result?.error_message || "Unknown error";
             log(`❌ Processing failed: ${errorMsg}`);
             updateStatus(`Processing failed: ${errorMsg}`, "error");
             updateProgress(0);
@@ -437,7 +749,6 @@
 
           // Continue polling
           setTimeout(() => pollForResults(), 2000);
-
         } catch (error) {
           log(`❌ Status check error: ${error.message}`);
           updateStatus(`Status check failed: ${error.message}`, "error");
@@ -456,6 +767,9 @@
         processingTimeEl.textContent = result.processing_time.toFixed(2);
         svgCountEl.textContent = result.svg_files.length;
 
+        // Store result for potential re-alignment
+        currentResult = result;
+
         // Display image with overlay
         displayImageWithOverlay(result);
 
@@ -467,41 +781,149 @@
 
         // Show sections
         imageContainer.style.display = "block";
+        overlayControls.style.display = "block";
         resultsSection.style.display = "block";
+      }
+
+      // Overlay control functions
+      function updateOverlayOpacity() {
+        const opacity = opacitySlider.value / 100;
+        opacityDisplay.textContent = `${opacitySlider.value}%`;
+
+        const svg = svgOverlay.querySelector("svg");
+        if (svg) {
+          svg.style.opacity = opacity;
+        }
+      }
+
+      function toggleOverlay() {
+        overlayVisible = !overlayVisible;
+        const svg = svgOverlay.querySelector("svg");
+
+        if (svg) {
+          svg.style.display = overlayVisible ? "block" : "none";
+        }
+
+        toggleOverlayBtn.textContent = overlayVisible
+          ? "Hide Overlay"
+          : "Show Overlay";
+      }
+
+      function resetOpacity() {
+        opacitySlider.value = 70;
+        updateOverlayOpacity();
       }
 
       function displayImageWithOverlay(result) {
         const imageUrl = imageUrlInput.value.trim();
-        
+
         // Load original image
         originalImage.src = imageUrl;
         originalImage.onload = () => {
-          log(`📸 Image loaded: ${result.image_info.width}x${result.image_info.height}`);
-          
-          // Clear previous overlay
-          svgOverlay.innerHTML = "";
-          
-          // Add composite SVG if available
-          if (result.composite_svg) {
-            log("🎨 Loading composite SVG overlay");
-            
-            // Create SVG element from composite SVG data
-            const svgElement = document.createElement('div');
-            svgElement.innerHTML = result.composite_svg;
-            const svg = svgElement.firstElementChild;
-            
-            if (svg && svg.tagName === 'svg') {
-              // Scale SVG to match image display size
-              svg.style.width = "100%";
-              svg.style.height = "100%";
-              svg.style.position = "absolute";
-              svg.style.top = "0";
-              svg.style.left = "0";
-              
-              svgOverlay.appendChild(svg);
-            }
-          }
+          log(
+            `📸 Image loaded: ${result.image_info.width}x${result.image_info.height}`
+          );
+
+          // Wait a moment for the image to fully render, then apply overlay
+          setTimeout(() => {
+            applyOverlay(result);
+          }, 100);
         };
+      }
+
+      function applyOverlay(result) {
+        // Clear previous overlay
+        svgOverlay.innerHTML = "";
+
+        // Add composite SVG if available
+        if (result.composite_svg) {
+          log("🎨 Loading composite SVG overlay");
+
+          // Create SVG element from composite SVG data
+          const svgElement = document.createElement("div");
+          svgElement.innerHTML = result.composite_svg;
+          const svg = svgElement.firstElementChild;
+
+          if (svg && svg.tagName === "svg") {
+            // Get the actual displayed image dimensions using natural size and computed style
+            const imgComputedStyle = window.getComputedStyle(originalImage);
+            const imgDisplayWidth = originalImage.offsetWidth;
+            const imgDisplayHeight = originalImage.offsetHeight;
+            const containerRect = imageContainer.getBoundingClientRect();
+
+            log(
+              `📐 Image display size: ${imgDisplayWidth}x${imgDisplayHeight}`
+            );
+            log(
+              `📐 Container size: ${containerRect.width}x${containerRect.height}`
+            );
+            log(
+              `📐 Original image: ${result.image_info.width}x${result.image_info.height}`
+            );
+
+            // The image is using object-fit: contain (default for max-width), so we need to calculate
+            // the actual rendered size within the img element
+            const imageAspectRatio =
+              result.image_info.width / result.image_info.height;
+            const displayAspectRatio = imgDisplayWidth / imgDisplayHeight;
+
+            let actualImageWidth, actualImageHeight;
+            let offsetX = 0,
+              offsetY = 0;
+
+            if (imageAspectRatio > displayAspectRatio) {
+              // Image is wider relative to display area - constrained by width
+              actualImageWidth = imgDisplayWidth;
+              actualImageHeight = imgDisplayWidth / imageAspectRatio;
+              offsetY = (imgDisplayHeight - actualImageHeight) / 2;
+            } else {
+              // Image is taller relative to display area - constrained by height
+              actualImageHeight = imgDisplayHeight;
+              actualImageWidth = imgDisplayHeight * imageAspectRatio;
+              offsetX = (imgDisplayWidth - actualImageWidth) / 2;
+            }
+
+            log(
+              `📐 Calculated actual image area: ${actualImageWidth}x${actualImageHeight}`
+            );
+            log(
+              `📐 Image offset within img element: X=${offsetX}, Y=${offsetY}`
+            );
+
+            // Position SVG to exactly match the actual image rendering area
+            svg.style.position = "absolute";
+            svg.style.top = `${offsetY}px`;
+            svg.style.left = `${offsetX}px`;
+            svg.style.width = `${actualImageWidth}px`;
+            svg.style.height = `${actualImageHeight}px`;
+
+            // Set viewBox to match original image dimensions
+            svg.setAttribute(
+              "viewBox",
+              `0 0 ${result.image_info.width} ${result.image_info.height}`
+            );
+
+            // Scale SVG to fit exactly with no aspect ratio preservation
+            svg.setAttribute("preserveAspectRatio", "none");
+
+            // Apply current opacity and visibility settings
+            svg.style.opacity = opacitySlider.value / 100;
+            svg.style.display = overlayVisible ? "block" : "none";
+
+            svgOverlay.appendChild(svg);
+
+            log(`🎨 SVG overlay positioned at: ${offsetX}, ${offsetY}`);
+            log(`🎯 SVG size: ${actualImageWidth}x${actualImageHeight}px`);
+            log(
+              `🎯 SVG viewBox: 0 0 ${result.image_info.width} ${result.image_info.height}`
+            );
+            log(`🎯 Image aspect ratio: ${imageAspectRatio.toFixed(3)}`);
+            log(`🎯 Display aspect ratio: ${displayAspectRatio.toFixed(3)}`);
+            log(
+              `✅ SVG overlay should now perfectly align with the visible image!`
+            );
+          }
+        }
       }
 
       function showDetailedResults(result) {
@@ -510,41 +932,100 @@
             <div style="background: white; padding: 15px; border-radius: 5px;">
               <h4>📸 Image Info</h4>
               <p><strong>Filename:</strong> ${result.image_info.filename}</p>
-              <p><strong>Size:</strong> ${result.image_info.width}x${result.image_info.height}</p>
-              <p><strong>File Size:</strong> ${result.image_info.size_mb.toFixed(2)} MB</p>
+              <p><strong>Size:</strong> ${result.image_info.width}x${
+          result.image_info.height
+        }</p>
+              <p><strong>File Size:</strong> ${result.image_info.size_mb.toFixed(
+                2
+              )} MB</p>
             </div>
             
             <div style="background: white; padding: 15px; border-radius: 5px;">
               <h4>🎯 YOLO Detection</h4>
-              <p><strong>Holds Detected:</strong> ${result.yolo_results.total_detections}</p>
-              <p><strong>Inference Time:</strong> ${result.yolo_results.inference_time.toFixed(3)}s</p>
+              <p><strong>Holds Detected:</strong> ${
+                result.yolo_results.total_detections
+              }</p>
+              <p><strong>Inference Time:</strong> ${result.yolo_results.inference_time.toFixed(
+                3
+              )}s</p>
             </div>
             
             <div style="background: white; padding: 15px; border-radius: 5px;">
               <h4>🎯 SAM2 Segmentation</h4>
-              <p><strong>Successful:</strong> ${result.sam2_results.successful_segmentations}</p>
-              <p><strong>Success Rate:</strong> ${result.sam2_results.success_rate.toFixed(1)}%</p>
+              <p><strong>Successful:</strong> ${
+                result.sam2_results.successful_segmentations
+              }</p>
+              <p><strong>Success Rate:</strong> ${result.sam2_results.success_rate.toFixed(
+                1
+              )}%</p>
+              <p><strong>Processing Time:</strong> ${
+                result.sam2_results.processing_time?.toFixed(3) || "N/A"
+              }s</p>
             </div>
             
             <div style="background: white; padding: 15px; border-radius: 5px;">
               <h4>⏱️ Performance</h4>
-              <p><strong>Total Time:</strong> ${result.processing_time.toFixed(2)}s</p>
-              <p><strong>Individual SVGs:</strong> ${result.svg_files.length}</p>
-              <p><strong>Composite SVG:</strong> ${result.composite_svg ? '✅' : '❌'}</p>
+              <p><strong>Total Time:</strong> ${result.processing_time.toFixed(
+                2
+              )}s</p>
+              <p><strong>Individual SVGs:</strong> ${
+                result.svg_files.length
+              }</p>
+              <p><strong>Composite SVG:</strong> ${
+                result.composite_svg ? "✅" : "❌"
+              }</p>
+              <p><strong>SVG Gen Time:</strong> ${
+                result.svg_generation_time?.toFixed(3) || "N/A"
+              }s</p>
+            </div>
+          </div>
+          
+          <div class="timing-breakdown">
+            <h4>🕐 Detailed Timing Breakdown</h4>
+            ${
+              result.yolo_results?.inference_time
+                ? `
+            <div class="timing-item">
+              <span>🎯 YOLO Detection</span>
+              <span>${result.yolo_results.inference_time.toFixed(3)}s</span>
+            </div>`
+                : ""
+            }
+            ${
+              result.sam2_results?.processing_time
+                ? `
+            <div class="timing-item">
+              <span>🎯 SAM2 Segmentation</span>
+              <span>${result.sam2_results.processing_time.toFixed(3)}s</span>
+            </div>`
+                : ""
+            }
+            ${
+              result.svg_generation_time
+                ? `
+            <div class="timing-item">
+              <span>🎨 SVG Generation</span>
+              <span>${result.svg_generation_time.toFixed(3)}s</span>
+            </div>`
+                : ""
+            }
+            <div class="timing-item" style="border-top: 2px solid #007bff; font-weight: bold;">
+              <span>🏁 Total Processing</span>
+              <span>${result.processing_time.toFixed(3)}s</span>
             </div>
           </div>
         `;
-        
+
         resultsData.innerHTML = html;
       }
 
       function showSvgFiles(result) {
         svgList.innerHTML = "";
-        
+
         // Show composite SVG first
         if (result.composite_svg) {
-          const compositeItem = document.createElement('div');
-          compositeItem.className = 'svg-item';
+          const compositeItem = document.createElement("div");
+          compositeItem.className = "svg-item";
           compositeItem.innerHTML = `
             <h4>🎨 Composite SVG (All Holds)</h4>
             <div class="svg-content">${result.composite_svg}</div>
@@ -555,16 +1036,18 @@
         // Show individual SVG files
         result.svg_files.forEach((svgFile, index) => {
           const hold = result.holds[index];
-          const svgItem = document.createElement('div');
-          svgItem.className = 'svg-item';
-          
+          const svgItem = document.createElement("div");
+          svgItem.className = "svg-item";
+
           svgItem.innerHTML = `
             <h4>Hold ${hold.id}</h4>
             <p><strong>Confidence:</strong> ${hold.confidence.toFixed(3)}</p>
-            <p><strong>SVG:</strong> ${svgFile ? '✅ Generated' : '❌ Failed'}</p>
-            ${svgFile ? `<div class="svg-content">${svgFile}</div>` : ''}
+            <p><strong>SVG:</strong> ${
+              svgFile ? "✅ Generated" : "❌ Failed"
+            }</p>
+            ${svgFile ? `<div class="svg-content">${svgFile}</div>` : ""}
           `;
-          
+
           svgList.appendChild(svgItem);
         });
       }
@@ -575,24 +1058,62 @@
         svgOverlay.innerHTML = "";
         resultsData.innerHTML = "";
         svgList.innerHTML = "";
-        
+
         // Reset metrics
         detectionCountEl.textContent = "-";
         processingTimeEl.textContent = "-";
         svgCountEl.textContent = "-";
-        
+        compressionRatioEl.textContent = "-";
+        originalSizeEl.textContent = "-";
+
+        // Clear stored result
+        currentResult = null;
+
         // Clear job
         currentJobId = null;
         updateProgress(0);
         updateStatus("Ready to test API", "ready");
-        
+
         log("🧹 Results cleared");
       }
 
       // Event listeners
-      document.getElementById("testHealthBtn").addEventListener("click", testApiHealth);
-      document.getElementById("processImageBtn").addEventListener("click", uploadAndProcessImage);
-      document.getElementById("clearResultsBtn").addEventListener("click", clearResults);
+      document
+        .getElementById("testHealthBtn")
+        .addEventListener("click", testApiHealth);
+      document
+        .getElementById("processImageBtn")
+        .addEventListener("click", uploadAndProcessImage);
+      document
+        .getElementById("clearResultsBtn")
+        .addEventListener("click", clearResults);
+
+      // Overlay control event listeners
+      if (opacitySlider) {
+        opacitySlider.addEventListener("input", function () {
+          const opacity = this.value / 100;
+          updateOverlayOpacity(opacity);
+          opacityDisplay.textContent = `${this.value}%`;
+        });
+      }
+
+      if (toggleOverlayBtn) {
+        toggleOverlayBtn.addEventListener("click", toggleOverlay);
+      }
+
+      if (resetOpacityBtn) {
+        resetOpacityBtn.addEventListener("click", resetOpacity);
+      }
+
+      // Window resize handler to re-align overlay
+      window.addEventListener("resize", () => {
+        if (currentResult && originalImage.complete) {
+          log("🔄 Window resized, re-aligning SVG overlay...");
+          setTimeout(() => {
+            applyOverlay(currentResult);
+          }, 100);
+        }
+      });
 
       // Initialize
       log("🧗 Hold Detection Server Playground initialized");
