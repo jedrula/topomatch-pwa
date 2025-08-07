@@ -32,10 +32,11 @@ src/
 ├── views/
 │   └── HoldDetectionServerView.vue # Main detection interface
 ├── stores/
-│   ├── boulderProblemsStore.js    # Problem state management
-│   └── serverStore.js             # Detection results state
+│   ├── boulderProblemsStore.js     # Problem state management
+│   └── holdDetectionServerStore.js # Detection results state
 └── services/
-    └── boulderProblemsServiceV2.js # Firebase Functions client
+    ├── boulderProblemsServiceV2.js # Firebase Functions client
+    └── detectionCacheService.js    # Browser cache abstraction
 ```
 
 ### Backend (Firebase Functions)
@@ -62,6 +63,14 @@ server/src/
 - **Pinia Stores**: Reactive state for problems and detection results
 - **Server-First**: Server detection results are source of truth
 - **SVG Markup**: Hold data includes SVG paths from AI detection
+- **Browser Caching**: Detection results cached for 1 week using abstracted cache service
+
+### Caching Architecture
+- **Abstracted Service**: `detectionCacheService.js` handles all caching logic
+- **Easy Disable**: Set `CACHE_ENABLED = false` in cache service to disable
+- **Easy Removal**: Replace cache service with no-op implementation to remove entirely
+- **Cache Key**: Based on image URL + compression settings
+- **Expiry**: 1 week (configurable in service)
 
 ### Hover System
 

@@ -278,6 +278,23 @@
                         </div>
                       </div>
                     </div>
+
+                    <!-- Cache Management -->
+                    <div class="border-t pt-4 mt-4">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Cache Management</span>
+                        <button
+                          @click="clearDetectionCache"
+                          class="text-xs text-gray-500 hover:text-red-600 transition-colors"
+                          title="Clear cached detection results"
+                        >
+                          Clear Cache
+                        </button>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-1">
+                        Repeated detections are cached for 1 week
+                      </p>
+                    </div>
                   </div>
                 </details>
               </div>
@@ -323,9 +340,22 @@
                 <!-- Processing Status -->
                 <div class="flex items-center justify-between">
                   <span class="text-gray-600">Status</span>
-                  <span class="text-sm font-medium text-gray-900 capitalize">
-                    {{ serverStore.processingStatus }}
-                  </span>
+                  <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium text-gray-900 capitalize">
+                      {{ serverStore.processingStatus }}
+                    </span>
+                    <!-- Cache indicator -->
+                    <div 
+                      v-if="serverStore.statusMessage.includes('cached')"
+                      class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
+                      title="Results loaded from browser cache"
+                    >
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                      </svg>
+                      Cached
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Results Status -->
@@ -517,6 +547,11 @@ const testApiHealth = async () => {
   } else {
     console.error("❌ API health check failed:", result.error);
   }
+};
+
+const clearDetectionCache = () => {
+  serverStore.clearAllCache();
+  console.log("🗑️ Detection cache cleared by user");
 };
 
 const processImage = async () => {

@@ -1,6 +1,12 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { holdDetectionServerService } from "../services/holdDetectionServerService.js";
+import { 
+  getCachedDetectionResult, 
+  setCachedDetectionResult, 
+  clearAllDetectionCache,
+  clearExpiredDetectionCache 
+} from "../services/detectionCacheService.js";
 
 export const useHoldDetectionServerStore = defineStore("holdDetectionServer", () => {
   // Core state
@@ -102,6 +108,35 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       return { success: false, error: "API is not healthy" };
     }
 
+    // Check cache first using the cache service
+    const cachedResult = getCachedDetectionResult(imageUrl, compressionSettings.value);
+    if (cachedResult) {
+      console.log("🚀 Using cached detection results");
+      
+      // Simulate quick processing for user feedback
+      isProcessing.value = true;
+      processingStatus.value = "completed";
+      statusMessage.value = "Using cached results...";
+      updateProgress(4, 100, "Loaded from cache!");
+      
+      // Set results and complete
+      results.value = cachedResult.result;
+      processingMetrics.value = cachedResult.metrics;
+      
+      // Brief delay to show cache feedback
+      setTimeout(() => {
+        isProcessing.value = false;
+        statusMessage.value = "Processing completed (cached)";
+      }, 500);
+
+      return {
+        success: true,
+        result: cachedResult.result,
+        metrics: cachedResult.metrics,
+        fromCache: true
+      };
+    }
+
     try {
       // Reset state
       isProcessing.value = true;
@@ -147,10 +182,18 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
 
       console.log("Processing completed:", results.value);
 
+      // Cache the successful result using the cache service
+      const resultToCache = {
+        result: pollResult.result,
+        metrics: processingMetrics.value
+      };
+      setCachedDetectionResult(imageUrl, compressionSettings.value, resultToCache);
+
       return {
         success: true,
         result: results.value,
         metrics: processingMetrics.value,
+        fromCache: false
       };
     } catch (err) {
       error.value = err.message;
@@ -216,7 +259,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     return poll();
   };
 
-  const clearResults = () => {
+  const clearResults = (clearCache = false) => {
     results.value = null;
     error.value = null;
     currentJobId.value = null;
@@ -226,6 +269,10 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     statusMessage.value = "Ready to process images";
     currentStep.value = 0;
     progressPercent.value = 0;
+    
+    if (clearCache) {
+      clearAllDetectionCache();
+    }
   };
 
   const resetState = () => {
@@ -233,8 +280,9 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     clearResults();
   };
 
-  // Initialize service with URL
+  // Initialize service with URL and clean up expired cache
   holdDetectionServerService.setApiUrl(apiUrl.value);
+  clearExpiredDetectionCache(); // Clean up on store initialization
 
   return {
     // State
@@ -267,5 +315,9 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     processImage,
     clearResults,
     resetState,
+    
+    // Cache management (delegated to cache service)
+    clearAllCache: clearAllDetectionCache,
+    clearExpiredCache: clearExpiredDetectionCache,
   };
 });
