@@ -80,6 +80,8 @@
                   :is-editing-problem="editingState.isEditing"
                   :editing-problem="editingState.editingProblem"
                   :hovered-problem-id="hoveredProblemId"
+                  :magic-wand-active="magicWandActive"
+                  :magic-wand-selection="magicWandSelection"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   ref="unifiedOverlay"
@@ -174,6 +176,29 @@
                     />
                   </svg>
                   <span>Clear Results</span>
+                </button>
+
+                <!-- Magic Wand Button -->
+                <button
+                  v-if="serverStore.hasResults"
+                  @click="toggleMagicWand"
+                  :class="[
+                    'px-6 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
+                    magicWandActive 
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                      : 'border border-purple-300 text-purple-700 hover:bg-purple-50'
+                  ]"
+                  title="Magic Wand: Click a hold to select 10 closest holds"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4.929 2.929l1.414 1.414M2.929 7.071l1.414-1.414m0 0L7.071 2.93m-2.728 2.728L6.929 7.243m9.9-2.122l1.414-1.414m-2.122 9.9l1.414 1.414M12 3v3m6 6h3M9 21h6m-9-6h3m6 0h3"
+                    />
+                  </svg>
+                  <span>{{ magicWandActive ? "Magic Wand ON" : "Magic Wand" }}</span>
                 </button>
               </div>
 
@@ -281,15 +306,25 @@
 
                     <!-- Cache Management -->
                     <div class="border-t pt-4 mt-4">
-                      <div class="flex items-center justify-between">
+                      <div class="flex items-center justify-between mb-2">
                         <span class="text-sm text-gray-600">Cache Management</span>
-                        <button
-                          @click="clearDetectionCache"
-                          class="text-xs text-gray-500 hover:text-red-600 transition-colors"
-                          title="Clear cached detection results"
-                        >
-                          Clear Cache
-                        </button>
+                        <div class="flex gap-2">
+                          <button
+                            v-if="imageUrl"
+                            @click="clearCurrentImageCache"
+                            class="text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                            title="Clear cache for current image only"
+                          >
+                            Clear Current
+                          </button>
+                          <button
+                            @click="clearDetectionCache"
+                            class="text-xs text-gray-500 hover:text-red-600 transition-colors"
+                            title="Clear all cached detection results"
+                          >
+                            Clear All
+                          </button>
+                        </div>
                       </div>
                       <p class="text-xs text-gray-500 mt-1">
                         Repeated detections are cached for 1 week
@@ -375,6 +410,56 @@
                   <span class="text-gray-600">Processing Time</span>
                   <span class="text-sm font-medium text-gray-900">
                     {{ serverStore.processingTime.toFixed(2) }}s
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Magic Wand Status -->
+          <div
+            v-if="magicWandActive && magicWandSelection.stats"
+            class="bg-purple-50 border border-purple-200 rounded-lg shadow-sm"
+          >
+            <div class="p-6">
+              <h3 class="text-lg font-semibold text-purple-900 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4.929 2.929l1.414 1.414M2.929 7.071l1.414-1.414m0 0L7.071 2.93m-2.728 2.728L6.929 7.243m9.9-2.122l1.414-1.414m-2.122 9.9l1.414 1.414M12 3v3m6 6h3M9 21h6m-9-6h3m6 0h3"
+                  />
+                </svg>
+                Magic Wand Selection
+              </h3>
+              <div class="space-y-3">
+                <!-- Target Hold -->
+                <div class="flex items-center justify-between">
+                  <span class="text-purple-600">Target Hold:</span>
+                  <span class="text-sm font-medium text-purple-900">
+                    #{{ magicWandSelection.targetHoldIndex }}
+                  </span>
+                </div>
+                <!-- Total Selected -->
+                <div class="flex items-center justify-between">
+                  <span class="text-purple-600">Total Selected:</span>
+                  <span class="text-sm font-medium text-purple-900">
+                    {{ magicWandSelection.selectedIndices.length }} holds
+                  </span>
+                </div>
+                <!-- Average Distance -->
+                <div class="flex items-center justify-between">
+                  <span class="text-purple-600">Avg Distance:</span>
+                  <span class="text-sm font-medium text-purple-900">
+                    {{ magicWandSelection.stats.averageDistance }}px
+                  </span>
+                </div>
+                <!-- Max Distance -->
+                <div class="flex items-center justify-between">
+                  <span class="text-purple-600">Max Distance:</span>
+                  <span class="text-sm font-medium text-purple-900">
+                    {{ magicWandSelection.stats.maxDistance }}px
                   </span>
                 </div>
               </div>
@@ -484,6 +569,7 @@ import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore.js";
 import { locationService } from "@/services/locationService";
 import UnifiedHoldOverlay from "@/components/UnifiedHoldOverlay.vue";
 import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
+import { performMagicWandSelection, isHoldInMagicWandSelection } from "@/utils/magicWandUtils.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -502,6 +588,14 @@ const hoveredProblemId = ref(null);
 const editingState = ref({
   isEditing: false,
   editingProblem: null,
+});
+
+// Magic Wand state
+const magicWandActive = ref(false);
+const magicWandSelection = ref({
+  selectedIndices: [],
+  targetHoldIndex: null,
+  stats: null
 });
 
 // Dynamic image loading based on query parameters
@@ -555,7 +649,48 @@ const testApiHealth = async () => {
 
 const clearDetectionCache = () => {
   serverStore.clearAllCache();
-  console.log("🗑️ Detection cache cleared by user");
+  console.log("🗑️ All detection cache cleared by user");
+};
+
+const clearCurrentImageCache = () => {
+  if (!imageUrl.value) return;
+
+  const cleared = serverStore.clearCacheForImage(imageUrl.value, serverStore.compressionSettings);
+  if (cleared) {
+    console.log("🗑️ Cache cleared for current image:", imageUrl.value);
+    // Also clear any current results to force re-detection
+    serverStore.clearResults();
+  } else {
+    console.log("ℹ️ No cache found for current image:", imageUrl.value);
+  }
+};
+
+// Magic Wand functionality
+const toggleMagicWand = () => {
+  magicWandActive.value = !magicWandActive.value;
+  
+  if (magicWandActive.value) {
+    console.log("🪄 Magic Wand activated - click any hold to select 10 closest holds");
+    // Clear any previous selection when activating
+    magicWandSelection.value = {
+      selectedIndices: [],
+      targetHoldIndex: null,
+      stats: null
+    };
+  } else {
+    console.log("🪄 Magic Wand deactivated");
+    // Clear selection when deactivating
+    magicWandSelection.value = {
+      selectedIndices: [],
+      targetHoldIndex: null,
+      stats: null
+    };
+    
+    // Trigger overlay update
+    if (unifiedOverlay.value) {
+      unifiedOverlay.value.recalculatePosition();
+    }
+  }
 };
 
 const processImage = async () => {
@@ -591,6 +726,44 @@ const goBackToLocation = () => {
 const handleHoldClick = (hold, holdIndex) => {
   console.log("🎯 Hold clicked in main view:", { hold, holdIndex });
 
+  // Magic Wand functionality
+  if (magicWandActive.value) {
+    console.log("🪄 Magic Wand is active - performing proximity selection");
+    
+    // Get all holds from server results
+    const allHolds = serverStore.results?.yolo_results?.holds || [];
+    
+    if (allHolds.length === 0) {
+      console.warn("No holds available for magic wand selection");
+      return;
+    }
+    
+    // Perform magic wand selection
+    const result = performMagicWandSelection(holdIndex, allHolds, 10);
+    
+    if (result.success) {
+      magicWandSelection.value = {
+        selectedIndices: result.selectedIndices,
+        targetHoldIndex: holdIndex,
+        stats: result.stats
+      };
+      
+      console.log("🪄 Magic Wand Selection Complete:", {
+        targetHold: holdIndex,
+        totalSelected: result.selectedIndices.length,
+        stats: result.stats
+      });
+      
+      // Trigger overlay update by notifying UnifiedHoldOverlay
+      if (unifiedOverlay.value) {
+        unifiedOverlay.value.recalculatePosition();
+      }
+    }
+    
+    return; // Don't proceed with normal hold selection when magic wand is active
+  }
+
+  // Normal hold selection logic (existing code)
   // Check if hold is already assigned to another problem
   const existingProblem = boulderProblemsStore.sortedProblems.find((problem) =>
     problem.holds?.some((h) => h.holdIndex === holdIndex)

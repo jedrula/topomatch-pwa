@@ -66,6 +66,15 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Magic Wand props
+  magicWandActive: {
+    type: Boolean,
+    default: false,
+  },
+  magicWandSelection: {
+    type: Object,
+    default: () => ({ selectedIndices: [], targetHoldIndex: null, stats: null }),
+  },
 });
 
 const emit = defineEmits(["hold-click", "hold-hover"]);
@@ -113,6 +122,20 @@ const getHoldProblemId = (holdIndex) => {
 // Get CSS classes for hold based on its state
 const getHoldClasses = (holdIndex) => {
   const classes = ["hold-svg"];
+
+  // Magic Wand highlighting takes priority when active
+  if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
+    if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
+      if (holdIndex === props.magicWandSelection.targetHoldIndex) {
+        classes.push("magic-wand-target"); // Target hold (the one clicked)
+      } else {
+        classes.push("magic-wand-proximity"); // Proximity holds
+      }
+    } else {
+      classes.push("magic-wand-dimmed"); // Other holds are dimmed
+    }
+    return classes; // Return early for magic wand mode
+  }
 
   const problemId = getHoldProblemId(holdIndex);
 
@@ -296,5 +319,49 @@ defineExpose({
 .hold-problem-hovered g {
   stroke: rgba(255, 255, 255, 1) !important;
   stroke-width: 3 !important;
+}
+
+/* Magic Wand Styles */
+.magic-wand-target g {
+  stroke: rgba(147, 51, 234, 1) !important; /* Purple for target hold */
+  stroke-width: 4 !important;
+  fill-opacity: 0.9 !important;
+  animation: magicWandPulse 1.5s ease-in-out infinite;
+}
+
+.magic-wand-proximity g {
+  stroke: rgba(168, 85, 247, 0.8) !important; /* Lighter purple for proximity holds */
+  stroke-width: 3 !important;
+  fill-opacity: 0.8 !important;
+}
+
+.magic-wand-dimmed g {
+  opacity: 0.3 !important; /* Dim other holds */
+  stroke: rgba(156, 163, 175, 0.3) !important;
+  stroke-width: 1 !important;
+}
+
+/* Magic Wand Target Hold Animation */
+@keyframes magicWandPulse {
+  0%, 100% {
+    stroke-width: 4;
+    stroke-opacity: 1;
+  }
+  50% {
+    stroke-width: 6;
+    stroke-opacity: 0.7;
+  }
+}
+
+/* Magic Wand Hover Effects */
+.magic-wand-target:hover g {
+  stroke: rgba(147, 51, 234, 1) !important;
+  stroke-width: 5 !important;
+}
+
+.magic-wand-proximity:hover g {
+  stroke: rgba(168, 85, 247, 1) !important;
+  stroke-width: 4 !important;
+  fill-opacity: 1 !important;
 }
 </style>

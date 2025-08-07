@@ -6,6 +6,7 @@ import {
   setCachedDetectionResult,
   clearAllDetectionCache,
   clearExpiredDetectionCache,
+  clearDetectionCacheForImage,
 } from "../services/detectionCacheService.js";
 
 export const useHoldDetectionServerStore = defineStore("holdDetectionServer", () => {
@@ -109,9 +110,13 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     }
 
     // Check cache first using the cache service
+    console.log("🔍 Checking cache for image:", imageUrl);
+    console.log("🔧 Cache settings:", compressionSettings.value);
+
     const cachedResult = getCachedDetectionResult(imageUrl, compressionSettings.value);
     if (cachedResult) {
-      console.log("🚀 Using cached detection results");
+      console.log("✅ Using cached detection results for:", imageUrl);
+      console.log("📦 Cached result contains:", Object.keys(cachedResult.result || {}));
 
       // Simulate quick processing for user feedback
       isProcessing.value = true;
@@ -187,6 +192,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
         result: pollResult.result,
         metrics: processingMetrics.value,
       };
+      console.log("💾 Caching new detection results for:", imageUrl);
       setCachedDetectionResult(imageUrl, compressionSettings.value, resultToCache);
 
       return {
@@ -319,5 +325,6 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     // Cache management (delegated to cache service)
     clearAllCache: clearAllDetectionCache,
     clearExpiredCache: clearExpiredDetectionCache,
+    clearCacheForImage: clearDetectionCacheForImage,
   };
 });

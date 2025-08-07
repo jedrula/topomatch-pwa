@@ -24,10 +24,24 @@ const generateCacheKey = (imageUrl, settings) => {
         maxSizeMB: settings.maxSizeMB,
         maxWidthOrHeight: settings.maxWidthOrHeight,
       })
-    ).slice(0, 16);
+    );
 
-    const urlHash = btoa(imageUrl).slice(0, 16);
-    return `${CACHE_PREFIX}${urlHash}_${settingsHash}`;
+    // Use full URL hash to avoid collisions between similar Firebase URLs
+    // Extract unique parts: filename and token for additional uniqueness
+    let uniquePart = "";
+    try {
+      const url = new URL(imageUrl);
+      const pathname = decodeURIComponent(url.pathname);
+      const filename = pathname.split("/").pop() || "";
+      const token = url.searchParams.get("token") || "";
+      uniquePart = filename + "_" + token.slice(0, 8); // First 8 chars of token for brevity
+    } catch (urlError) {
+      // Fallback to using part of the URL if parsing fails
+      uniquePart = imageUrl.slice(-32); // Last 32 chars as fallback
+    }
+
+    const urlHash = btoa(imageUrl + "_" + uniquePart).replace(/[=+/]/g, ""); // Remove problematic chars
+    return `${CACHE_PREFIX}${urlHash}_${settingsHash}`.replace(/[=+/]/g, ""); // Clean final key
   } catch (error) {
     console.error("Error generating cache key:", error);
     return null;
@@ -127,14 +141,52 @@ export const clearAllDetectionCache = () => {
   if (!CACHE_ENABLED) return;
 
   try {
+    let clearedCount = 0;
+    const keysToRemove = [];
+
     Object.keys(localStorage).forEach((key) => {
       if (key.startsWith(CACHE_PREFIX)) {
-        localStorage.removeItem(key);
+        keysToRemove.push(key);
       }
     });
-    console.log("🗑️ Cleared all detection cache");
+
+    keysToRemove.forEach((key) => {
+      try {
+        const cached = localStorage.getItem(key);
+        if (cached) {
+          const { imageUrl } = JSON.parse(cached);
+          console.log("🗑️ Removing cached detection for:", imageUrl);
+        }
+      } catch (parseError) {
+        console.log("🗑️ Removing corrupted cache entry:", key);
+      }
+      localStorage.removeItem(key);
+      clearedCount++;
+    });
+
+    console.log(`🗑️ Cleared ${clearedCount} detection cache entries`);
   } catch (error) {
     console.error("Error clearing cache:", error);
+  }
+};
+
+/**
+ * Clear cache for a specific image URL
+ */
+export const clearDetectionCacheForImage = (imageUrl, settings) => {
+  if (!CACHE_ENABLED) return;
+
+  try {
+    const cacheKey = generateCacheKey(imageUrl, settings);
+    if (cacheKey && localStorage.getItem(cacheKey)) {
+      localStorage.removeItem(cacheKey);
+      console.log("🗑️ Cleared cache for specific image:", imageUrl);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Error clearing cache for image:", error);
+    return false;
   }
 };
 
@@ -165,6 +217,44 @@ export const getDetectionCacheStats = () => {
   } catch (error) {
     console.error("Error getting cache stats:", error);
     return { enabled: true, count: 0, totalSize: 0, error: error.message };
+  }
+};
+
+/**
+ * Debug: List all cached images with their URLs (for troubleshooting cache collisions)
+ */
+export const debugListCachedImages = () => {
+  if (!CACHE_ENABLED) return [];
+
+  try {
+    const cachedImages = [];
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith(CACHE_PREFIX)) {
+        try {
+          const cached = localStorage.getItem(key);
+          const { imageUrl, timestamp, settings } = JSON.parse(cached);
+          cachedImages.push({
+            key,
+            imageUrl,
+            timestamp,
+            settings,
+            age: Math.round((Date.now() - timestamp) / (1000 * 60 * 60)), // hours
+          });
+        } catch (parseError) {
+          cachedImages.push({
+            key,
+            imageUrl: "CORRUPTED",
+            error: parseError.message,
+          });
+        }
+      }
+    });
+
+    console.table(cachedImages);
+    return cachedImages;
+  } catch (error) {
+    console.error("Error listing cached images:", error);
+    return [];
   }
 };
 
