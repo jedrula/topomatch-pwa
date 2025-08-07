@@ -637,6 +637,49 @@ export const deleteBoulderProblem = onCall(async (request) => {
   }
 });
 
+export const deleteAllBoulderProblems = onCall(async (request) => {
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+
+  const { locationId } = request.data;
+
+  if (!locationId) {
+    throw new Error("Missing required field: locationId");
+  }
+
+  try {
+    const problemsRef = db.collection("locations").doc(locationId).collection("boulderProblems");
+
+    // Get all boulder problems for this location
+    const problemsSnap = await problemsRef.get();
+
+    if (problemsSnap.empty) {
+      logger.info(`No boulder problems found for location ${locationId}`);
+      return { message: "No boulder problems to delete", deletedCount: 0 };
+    }
+
+    // Delete all problems in a batch
+    const batch = db.batch();
+    problemsSnap.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+
+    const deletedCount = problemsSnap.size;
+    logger.info(`Deleted ${deletedCount} boulder problems for location ${locationId}`);
+
+    return {
+      message: `Successfully deleted ${deletedCount} boulder problems`,
+      deletedCount,
+    };
+  } catch (error) {
+    logger.error("Error deleting all boulder problems:", error);
+    throw new Error("Failed to delete all boulder problems");
+  }
+});
+
 export const addHoldToProblem = onCall(async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");

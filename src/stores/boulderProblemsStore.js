@@ -426,16 +426,36 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
   };
 
   const clearAllProblems = async () => {
-    // For now, just clear local state
-    // In the future, this could optionally delete from backend
-    boulderProblems.value = [];
-    activeProblem.value = null;
-    isCreatingProblem.value = false;
+    if (!currentLocationId.value) {
+      console.warn("No location ID available for clearing problems");
+      return;
+    }
 
-    // Clear all unsaved changes
-    problemsWithUnsavedChanges.value.clear();
+    try {
+      isLoading.value = true;
+      error.value = null;
 
-    error.value = null;
+      // Call server to delete all problems
+      const result = await boulderProblemsService.deleteAllBoulderProblemsForLocation(
+        currentLocationId.value
+      );
+
+      // Clear local state
+      boulderProblems.value = [];
+      activeProblem.value = null;
+      isCreatingProblem.value = false;
+
+      // Clear all unsaved changes
+      problemsWithUnsavedChanges.value.clear();
+
+      console.log(`✅ Cleared ${result.deletedCount} boulder problems from server and local state`);
+    } catch (err) {
+      console.error("Failed to clear all boulder problems:", err);
+      error.value = err.message || "Failed to clear all boulder problems";
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
   };
 
   const clearError = () => {

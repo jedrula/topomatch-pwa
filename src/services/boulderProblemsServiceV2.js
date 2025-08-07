@@ -7,6 +7,7 @@ const getBoulderProblemsFn = httpsCallable(functions, "getBoulderProblems");
 const getBoulderProblemFn = httpsCallable(functions, "getBoulderProblem");
 const updateBoulderProblemFn = httpsCallable(functions, "updateBoulderProblem");
 const deleteBoulderProblemFn = httpsCallable(functions, "deleteBoulderProblem");
+const deleteAllBoulderProblemsFn = httpsCallable(functions, "deleteAllBoulderProblems");
 const addHoldToProblemFn = httpsCallable(functions, "addHoldToProblem");
 const removeHoldFromProblemFn = httpsCallable(functions, "removeHoldFromProblem");
 const updateProblemHoldsFn = httpsCallable(functions, "updateProblemHolds");
@@ -185,15 +186,19 @@ export const boulderProblemsServiceV2 = {
   },
 
   /**
-   * Delete all boulder problems for a location (called when location is deleted)
-   * Note: This should be handled server-side when a location is deleted
+   * Delete all boulder problems for a location via Firebase Function
    * @param {string} locationId - The location ID
-   * @returns {Promise<void>}
+   * @returns {Promise<Object>} Result with deletedCount
    */
   async deleteAllBoulderProblemsForLocation(locationId) {
-    // This would be handled automatically by the deleteLocation Firebase Function
-    // or we could create a separate function for this
-    console.warn("deleteAllBoulderProblemsForLocation should be handled server-side");
+    try {
+      const result = await deleteAllBoulderProblemsFn({ locationId });
+      console.log("All boulder problems deleted:", result.data.message);
+      return result.data;
+    } catch (error) {
+      console.error("Error deleting all boulder problems:", error);
+      throw error;
+    }
   },
 
   /**
