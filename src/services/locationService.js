@@ -1,6 +1,6 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase.js";
-import { boulderProblemsService } from "./boulderProblemsService.js";
+import { boulderProblemsServiceV2 as boulderProblemsService } from "./boulderProblemsServiceV2.js";
 
 // Initialize callable functions
 const createLocationFn = httpsCallable(functions, "createLocation");

@@ -28,27 +28,53 @@ locations/{locationId}/
       └── color: string (hex color for UI)
 ```
 
-### Hold Object Structure
+### Hold Object Structure (Updated for Self-Contained SVG)
 
 ```javascript
 {
-  holdIndex: number,        // Index in detection results
-  hold: {
-    id: string,
-    x: number,             // Position coordinates
+  // Core identification
+  holdIndex: number,           // Index in detection results (for backward compatibility)
+  detectionIndex: number,      // Original detection index
+  id: string,                  // Unique hold identifier
+
+  // Hold metadata
+  confidence: number,          // Detection confidence (0-1)
+  bbox: [x, y, width, height], // Bounding box coordinates
+  coordinates: {               // Coordinate object for backward compatibility
+    x: number,
     y: number,
-    width: number,         // Bounding box dimensions
-    height: number,
-    type: string,          // Hold type (jug, crimp, etc.)
-    confidence: number,    // AI confidence (0-1)
-    color: {
-      name: string,        // Color name
-      hex: string          // Hex color code
-    }
+    width: number,
+    height: number
   },
-  addedAt: timestamp       // When hold was added to problem
+
+  // Self-contained SVG markup (the key improvement!)
+  svgMarkup: string,           // Complete SVG markup for this hold
+  detectionSource: string,     // 'svg_markups' | 'svg_files' | 'user_drawn' | 'custom'
+
+  // Metadata
+  addedAt: timestamp,          // When hold was added to problem
+  addedBy: string             // User ID who added the hold
 }
 ```
+
+**Key Benefits of Self-Contained SVG:**
+
+- **Future-Proof**: Can store any SVG markup (rectangles, circles, custom shapes, user drawings)
+- **Independent**: Each hold carries its complete visual representation
+- **Flexible**: Supports combined holds, modified holds, or entirely custom markup
+- **Portable**: Hold data can be moved between problems or exported without dependencies
+  height: number,
+  type: string, // Hold type (jug, crimp, etc.)
+  confidence: number, // AI confidence (0-1)
+  color: {
+  name: string, // Color name
+  hex: string // Hex color code
+  }
+  },
+  addedAt: timestamp // When hold was added to problem
+  }
+
+````
 
 ## Usage Examples
 
@@ -63,7 +89,7 @@ await boulderProblemsStore.createNewProblem("V3", "Crimpy Goodness");
 
 // Add holds by clicking on detected holds
 // This happens automatically when clicking holds while creating
-```
+````
 
 ### 2. Loading Existing Problems
 

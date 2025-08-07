@@ -6,7 +6,7 @@
 class HoldDetectionServerService {
   constructor() {
     // Default API URL - can be configured
-    this.apiUrl = 'http://192.168.0.243:8000';
+    this.apiUrl = "http://192.168.0.243:8000";
     this.currentJobId = null;
   }
 
@@ -14,7 +14,7 @@ class HoldDetectionServerService {
    * Set API URL for the server
    */
   setApiUrl(url) {
-    this.apiUrl = url.replace(/\/$/, ''); // Remove trailing slash
+    this.apiUrl = url.replace(/\/$/, ""); // Remove trailing slash
   }
 
   /**
@@ -22,24 +22,30 @@ class HoldDetectionServerService {
    */
   async testHealth() {
     try {
-      const response = await fetch(`${this.apiUrl}/health`);
-      
+      const healthUrl = `${this.apiUrl}/health`;
+      console.log("🔍 Service: Testing health endpoint:", healthUrl);
+
+      const response = await fetch(healthUrl);
+      console.log("🔍 Service: Response status:", response.status, response.statusText);
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const health = await response.json();
-      
+      console.log("🔍 Service: Health response:", health);
+
       return {
         success: true,
         data: health,
-        message: 'API is healthy'
+        message: "API is healthy",
       };
     } catch (error) {
+      console.log("❌ Service: Health check error:", error);
       return {
         success: false,
         error: error.message,
-        message: `API health check failed: ${error.message}`
+        message: `API health check failed: ${error.message}`,
       };
     }
   }
@@ -56,18 +62,18 @@ class HoldDetectionServerService {
 
       const blob = await response.blob();
       const sizeMB = blob.size / 1024 / 1024;
-      
+
       return {
         success: true,
         blob,
         sizeMB,
-        message: `Image fetched successfully (${sizeMB.toFixed(2)} MB)`
+        message: `Image fetched successfully (${sizeMB.toFixed(2)} MB)`,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Failed to fetch image: ${error.message}`
+        message: `Failed to fetch image: ${error.message}`,
       };
     }
   }
@@ -77,13 +83,13 @@ class HoldDetectionServerService {
    */
   async compressImage(blob, options = {}) {
     // Check if compression library is available
-    if (typeof imageCompression === 'undefined') {
-      console.warn('Image compression library not available, using original image');
+    if (typeof imageCompression === "undefined") {
+      console.warn("Image compression library not available, using original image");
       return {
         success: true,
         blob,
         compressionRatio: 1.0,
-        message: 'Compression not available, using original image'
+        message: "Compression not available, using original image",
       };
     }
 
@@ -92,30 +98,30 @@ class HoldDetectionServerService {
         success: true,
         blob,
         compressionRatio: 1.0,
-        message: 'Compression disabled'
+        message: "Compression disabled",
       };
     }
 
     const originalSize = blob.size;
-    
+
     const compressionOptions = {
       maxSizeMB: options.maxSizeMB || 1,
       maxWidthOrHeight: options.maxWidthOrHeight || 1920,
       useWebWorker: options.useWebWorker !== false,
-      fileType: 'image/jpeg',
+      fileType: "image/jpeg",
       initialQuality: 0.8,
     };
 
     try {
       const startTime = performance.now();
-      
+
       // Convert blob to File for compression
-      const file = new File([blob], 'climbing_wall.jpg', { type: blob.type });
+      const file = new File([blob], "climbing_wall.jpg", { type: blob.type });
       const compressedFile = await imageCompression(file, compressionOptions);
-      
+
       const compressionTime = (performance.now() - startTime) / 1000;
       const compressionRatio = originalSize / compressedFile.size;
-      
+
       return {
         success: true,
         blob: compressedFile,
@@ -123,15 +129,17 @@ class HoldDetectionServerService {
         compressionTime,
         originalSize,
         compressedSize: compressedFile.size,
-        message: `Compression completed in ${compressionTime.toFixed(2)}s (${compressionRatio.toFixed(2)}x reduction)`
+        message: `Compression completed in ${compressionTime.toFixed(
+          2
+        )}s (${compressionRatio.toFixed(2)}x reduction)`,
       };
     } catch (error) {
-      console.warn('Compression failed, using original image:', error);
+      console.warn("Compression failed, using original image:", error);
       return {
         success: true,
         blob,
         compressionRatio: 1.0,
-        message: `Compression failed: ${error.message}, using original image`
+        message: `Compression failed: ${error.message}, using original image`,
       };
     }
   }
@@ -139,13 +147,13 @@ class HoldDetectionServerService {
   /**
    * Upload image to server for processing
    */
-  async uploadImage(blob, filename = 'climbing_wall.jpg') {
+  async uploadImage(blob, filename = "climbing_wall.jpg") {
     try {
       const formData = new FormData();
-      formData.append('file', blob, filename);
+      formData.append("file", blob, filename);
 
       const response = await fetch(`${this.apiUrl}/api/v1/process`, {
-        method: 'POST',
+        method: "POST",
         body: formData,
       });
 
@@ -159,13 +167,13 @@ class HoldDetectionServerService {
       return {
         success: true,
         jobId: result.job_id,
-        message: `Upload successful, job ID: ${result.job_id}`
+        message: `Upload successful, job ID: ${result.job_id}`,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Upload failed: ${error.message}`
+        message: `Upload failed: ${error.message}`,
       };
     }
   }
@@ -189,13 +197,13 @@ class HoldDetectionServerService {
         progress: status.progress,
         detailedProgress: status.detailed_progress,
         result: status.result,
-        message: `Status: ${status.status}`
+        message: `Status: ${status.status}`,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Status check failed: ${error.message}`
+        message: `Status check failed: ${error.message}`,
       };
     }
   }
@@ -207,39 +215,42 @@ class HoldDetectionServerService {
     const workflow = {
       steps: [],
       currentStep: 0,
-      totalSteps: 4
+      totalSteps: 4,
     };
 
     try {
       // Step 1: Fetch image
-      workflow.steps.push('Fetching image from Firebase Storage...');
+      workflow.steps.push("Fetching image from Firebase Storage...");
       workflow.currentStep = 1;
-      
+
       const fetchResult = await this.fetchImageAsBlob(imageUrl);
       if (!fetchResult.success) {
         throw new Error(fetchResult.error);
       }
 
       // Step 2: Compress image (optional)
-      workflow.steps.push('Compressing image...');
+      workflow.steps.push("Compressing image...");
       workflow.currentStep = 2;
-      
-      const compressionResult = await this.compressImage(fetchResult.blob, options.compression || {});
+
+      const compressionResult = await this.compressImage(
+        fetchResult.blob,
+        options.compression || {}
+      );
       if (!compressionResult.success) {
         throw new Error(compressionResult.error);
       }
 
       // Step 3: Upload to server
-      workflow.steps.push('Uploading to server...');
+      workflow.steps.push("Uploading to server...");
       workflow.currentStep = 3;
-      
+
       const uploadResult = await this.uploadImage(compressionResult.blob);
       if (!uploadResult.success) {
         throw new Error(uploadResult.error);
       }
 
       // Step 4: Return job ID for polling
-      workflow.steps.push('Processing started...');
+      workflow.steps.push("Processing started...");
       workflow.currentStep = 4;
 
       return {
@@ -248,17 +259,16 @@ class HoldDetectionServerService {
         workflow,
         fetchInfo: {
           originalSize: fetchResult.sizeMB,
-          compressionRatio: compressionResult.compressionRatio
+          compressionRatio: compressionResult.compressionRatio,
         },
-        message: 'Processing started successfully'
+        message: "Processing started successfully",
       };
-
     } catch (error) {
       return {
         success: false,
         error: error.message,
         workflow,
-        message: `Processing failed: ${error.message}`
+        message: `Processing failed: ${error.message}`,
       };
     }
   }
@@ -273,34 +283,34 @@ class HoldDetectionServerService {
 
     const poll = async () => {
       attempts++;
-      
+
       if (attempts > maxAttempts) {
-        throw new Error('Polling timeout: Maximum attempts exceeded');
+        throw new Error("Polling timeout: Maximum attempts exceeded");
       }
 
       const statusResult = await this.getJobStatus(jobId);
-      
+
       if (!statusResult.success) {
         throw new Error(statusResult.error);
       }
 
       const { status, result } = statusResult;
 
-      if (status === 'completed') {
+      if (status === "completed") {
         return {
           success: true,
           result,
-          message: 'Processing completed successfully'
+          message: "Processing completed successfully",
         };
       }
 
-      if (status === 'failed') {
-        const errorMsg = result?.error_message || 'Unknown error';
+      if (status === "failed") {
+        const errorMsg = result?.error_message || "Unknown error";
         throw new Error(`Processing failed: ${errorMsg}`);
       }
 
       // Still processing, wait and retry
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
       return poll();
     };
 
@@ -310,7 +320,7 @@ class HoldDetectionServerService {
       return {
         success: false,
         error: error.message,
-        message: `Polling failed: ${error.message}`
+        message: `Polling failed: ${error.message}`,
       };
     }
   }

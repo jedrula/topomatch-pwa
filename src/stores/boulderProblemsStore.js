@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { boulderProblemsService } from "@/services/boulderProblemsService";
+import { boulderProblemsServiceV2 as boulderProblemsService } from "@/services/boulderProblemsServiceV2";
 
 export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
   // State

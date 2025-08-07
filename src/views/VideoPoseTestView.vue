@@ -381,7 +381,7 @@
 import { ref, computed, onMounted, nextTick } from "vue";
 import VideoFrameMatcherEnhanced from "@/components/VideoFrameMatcherEnhanced.vue";
 import { locationService } from "@/services/locationService";
-import { boulderProblemsService } from "@/services/boulderProblemsService";
+import { boulderProblemsServiceV2 as boulderProblemsService } from "@/services/boulderProblemsServiceV2";
 
 // State
 const results = ref({

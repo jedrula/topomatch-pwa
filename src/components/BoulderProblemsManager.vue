@@ -225,7 +225,9 @@
             v-for="problem in boulderProblemsStore.sortedProblems"
             :key="problem.id"
             @click="selectProblem(problem)"
-            class="flex items-center justify-between p-3 rounded-lg border border-gray-200 transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+            @mouseenter="handleProblemHover(problem, true)"
+            @mouseleave="handleProblemHover(problem, false)"
+            class="flex items-center justify-between p-3 rounded-lg border border-gray-200 transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-md cursor-pointer"
             :class="{
               'border-blue-500 bg-blue-50':
                 boulderProblemsStore.activeProblem?.id === problem.id &&
@@ -388,12 +390,14 @@ import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 
-defineProps({
+const props = defineProps({
   hasDetectionResults: {
     type: Boolean,
     default: false,
   },
 });
+
+const emit = defineEmits(["problem-hover"]);
 
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
@@ -537,6 +541,11 @@ const saveAllChanges = async () => {
     console.error("Error saving all changes:", error);
     // Error is already handled in the store and displayed in the UI
   }
+};
+
+const handleProblemHover = (problem, isEntering) => {
+  // Emit problem hover event to parent component
+  emit("problem-hover", problem, isEntering);
 };
 
 // Cancel edit mode when starting to create a new problem
