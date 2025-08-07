@@ -390,7 +390,7 @@ import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 
-const props = defineProps({
+defineProps({
   hasDetectionResults: {
     type: Boolean,
     default: false,

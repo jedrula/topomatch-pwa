@@ -430,6 +430,15 @@
             </div>
           </div>
 
+          <!-- Boulder Problems Manager -->
+          <BoulderProblemsManager
+            v-if="route.params.locationId"
+            :location-id="route.params.locationId"
+            :has-detection-results="serverStore.hasResults"
+            :detection-results="serverStore.results"
+            :climbing-image="climbingImage"
+          />
+
           <!-- Error Display -->
           <div v-if="serverStore.error" class="bg-white rounded-lg shadow-sm border border-red-200">
             <div class="p-6">
@@ -459,6 +468,7 @@ import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore.js";
 import { locationService } from "@/services/locationService";
 import ServerHoldOverlay from "@/components/ServerHoldOverlay.vue";
 import StoredBoulderProblemOverlay from "@/components/StoredBoulderProblemOverlay.vue";
+import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -557,6 +567,7 @@ const loadImageFromQuery = async () => {
 
   if (locationId && imageId) {
     try {
+      // Load existing boulder problems for this image
       console.log("📂 Loading image from location:", { locationId, imageId });
 
       // Load image data from the location service
@@ -608,7 +619,8 @@ onMounted(async () => {
   if (route.params.locationId) {
     console.log("🏔️ Loading boulder problems for location:", route.params.locationId);
     try {
-      await boulderProblemsStore.loadProblems(route.params.locationId);
+      boulderProblemsStore.initializeForLocation(route.params.locationId, route.query.imageId);
+      await boulderProblemsStore.loadBoulderProblems(route.params.locationId);
       console.log("✅ Boulder problems loaded successfully");
     } catch (error) {
       console.error("❌ Failed to load boulder problems:", error);
