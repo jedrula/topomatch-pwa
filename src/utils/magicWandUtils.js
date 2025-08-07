@@ -44,13 +44,21 @@ export const findClosestHolds = (targetHold, allHolds, count = 10) => {
 };
 
 /**
- * Magic Wand main function - selects target hold + N closest holds
+ * Magic Wand main function - selects target hold + N closest holds with color filtering
  * @param {number} targetHoldIndex - Index of the clicked hold
  * @param {Array} allHolds - Array of all detection results
  * @param {number} proximityCount - Number of proximity holds to select (default: 10)
+ * @param {boolean} enableColorFiltering - Whether to apply color similarity filtering (default: true)
+ * @param {number} maxColorDistance - Maximum color distance for similarity (default: 50)
  * @returns {Object} Selection result with target and proximity holds
  */
-export const performMagicWandSelection = (targetHoldIndex, allHolds, proximityCount = 10) => {
+export const performMagicWandSelection = (
+  targetHoldIndex,
+  allHolds,
+  proximityCount = 10,
+  enableColorFiltering = true,
+  maxColorDistance = 50
+) => {
   if (
     !allHolds ||
     allHolds.length === 0 ||
@@ -67,10 +75,29 @@ export const performMagicWandSelection = (targetHoldIndex, allHolds, proximityCo
   }
 
   const targetHold = allHolds[targetHoldIndex];
+
+  // Step 1: Find closest holds by proximity
   const proximityResults = findClosestHolds(targetHold, allHolds, proximityCount);
 
+  let finalProximityHolds = proximityResults;
+
+  // Step 2: Apply color filtering if enabled
+  if (enableColorFiltering && proximityResults.length > 0) {
+    const candidateHolds = proximityResults.map((result) => result.hold);
+    const colorSimilarHolds = findSimilarColorHolds(targetHold, candidateHolds, maxColorDistance);
+
+    // Filter proximity results to only include color-similar holds
+    finalProximityHolds = proximityResults.filter((result) =>
+      colorSimilarHolds.includes(result.hold)
+    );
+
+    console.log(
+      `Magic Wand: Color filtering reduced selection from ${proximityResults.length} to ${finalProximityHolds.length} holds`
+    );
+  }
+
   // Extract the hold indices for easy selection tracking
-  const selectedIndices = [targetHoldIndex, ...proximityResults.map((result) => result.index)];
+  const selectedIndices = [targetHoldIndex, ...finalProximityHolds.map((result) => result.index)];
 
   const result = {
     success: true,
@@ -78,20 +105,24 @@ export const performMagicWandSelection = (targetHoldIndex, allHolds, proximityCo
       hold: targetHold,
       index: targetHoldIndex,
     },
-    proximityHolds: proximityResults,
+    proximityHolds: finalProximityHolds,
     selectedIndices: selectedIndices,
     stats: {
       totalHolds: allHolds.length,
+      proximityFiltered: proximityResults.length,
+      colorFiltered: enableColorFiltering ? finalProximityHolds.length : proximityResults.length,
       selected: selectedIndices.length,
+      colorFilteringEnabled: enableColorFiltering,
       averageDistance:
-        proximityResults.length > 0
+        finalProximityHolds.length > 0
           ? Math.round(
-              proximityResults.reduce((sum, r) => sum + r.distance, 0) / proximityResults.length
+              finalProximityHolds.reduce((sum, r) => sum + r.distance, 0) /
+                finalProximityHolds.length
             )
           : 0,
       maxDistance:
-        proximityResults.length > 0
-          ? Math.round(Math.max(...proximityResults.map((r) => r.distance)))
+        finalProximityHolds.length > 0
+          ? Math.round(Math.max(...finalProximityHolds.map((r) => r.distance)))
           : 0,
     },
   };
@@ -122,13 +153,98 @@ export const isHoldInMagicWandSelection = (holdIndex, selectedIndices) => {
 };
 
 /**
- * Future enhancement placeholder: Find holds with similar colors
+ * Calculate color difference using RGB Euclidean distance
+ * @param {Object} color1 - RGB color object { r, g, b }
+ * @param {Object} color2 - RGB color object { r, g, b }
+ * @returns {number} Color distance (0 = identical, higher = more different)
+ */
+export const calculateColorDistance = (color1, color2) => {
+  if (!color1 || !color2) return Infinity;
+
+  const dr = (color1.r || 0) - (color2.r || 0);
+  const dg = (color1.g || 0) - (color2.g || 0);
+  const db = (color1.b || 0) - (color2.b || 0);
+
+  return Math.sqrt(dr * dr + dg * dg + db * db);
+};
+
+/**
+ * Extract color from hold data
+ * @param {Object} hold - Hold object that may contain color information
+ * @returns {Object|null} RGB color object or null if no color found
+ */
+export const extractHoldColor = (hold) => {
+  if (!hold?.color_analysis) return null;
+
+  // Primary: Use dominant color RGB array
+  const rgb = hold.color_analysis.dominant_color_rgb;
+  if (Array.isArray(rgb) && rgb.length >= 3) {
+    return { r: rgb[0], g: rgb[1], b: rgb[2] };
+  }
+
+  // Fallback: Use mean color RGB array
+  const meanRgb = hold.color_analysis.mean_color_rgb;
+  if (Array.isArray(meanRgb) && meanRgb.length >= 3) {
+    return { r: meanRgb[0], g: meanRgb[1], b: meanRgb[2] };
+  }
+
+  return null;
+};
+
+/**
+ * Find holds with similar colors using smart color matching
  * @param {Object} targetHold - The reference hold
  * @param {Array} candidateHolds - Array of holds to filter by color similarity
+ * @param {number} maxColorDistance - Maximum color distance for similarity (default: 50)
  * @returns {Array} Filtered holds with similar colors
  */
-export const findSimilarColorHolds = (targetHold, candidateHolds) => {
-  // TODO: Implement color similarity algorithm
-  // This would analyze the hold.color property or RGB values
-  return candidateHolds;
+export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistance = 50) => {
+  if (!targetHold || !candidateHolds || candidateHolds.length === 0) {
+    return candidateHolds || [];
+  }
+
+  const targetColor = extractHoldColor(targetHold);
+  const targetCategory = targetHold.color_analysis?.color_category;
+
+  if (!targetColor) {
+    console.log("Magic Wand: No color data found for target hold, returning all candidates");
+    return candidateHolds;
+  }
+
+  const similarHolds = candidateHolds.filter((hold) => {
+    const holdColor = extractHoldColor(hold);
+    if (!holdColor) return false; // Skip holds without color data
+
+    const colorDistance = calculateColorDistance(targetColor, holdColor);
+
+    // First filter: RGB color distance
+    if (colorDistance > maxColorDistance) {
+      return false;
+    }
+
+    // Second filter: If we have color categories, prefer exact category matches
+    // but be defensive and allow some cross-category matches for similar colors
+    if (targetCategory && hold.color_analysis?.color_category) {
+      const holdCategory = hold.color_analysis.color_category;
+
+      // Exact category match is always good
+      if (targetCategory === holdCategory) {
+        return true;
+      }
+
+      // For non-exact category matches, be more strict with color distance
+      if (colorDistance > maxColorDistance * 0.6) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const targetCategoryInfo = targetCategory ? ` (${targetCategory})` : "";
+  console.log(
+    `Magic Wand: Color filtering - Target: RGB(${targetColor.r}, ${targetColor.g}, ${targetColor.b})${targetCategoryInfo}, Found ${similarHolds.length}/${candidateHolds.length} similar holds (max distance: ${maxColorDistance})`
+  );
+
+  return similarHolds;
 };
