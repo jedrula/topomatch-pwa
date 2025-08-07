@@ -36,13 +36,7 @@
         <div class="xl:col-span-2 space-y-6">
           <!-- Image Display Card -->
           <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div class="p-6 border-b border-gray-100">
-              <h2 class="text-xl font-semibold text-gray-900">Climbing Wall Analysis</h2>
-              <p class="text-gray-600 mt-1">
-                <span v-if="currentImage">Currently analyzing: {{ imageDisplayName }}</span>
-                <span v-else-if="route.query.imageId">Loading image...</span>
-                <span v-else>Currently analyzing: {{ imageDisplayName }}</span>
-              </p>
+            <div class="p-6">
               <!-- Error message for image loading -->
               <div
                 v-if="imageLoadError"
@@ -50,9 +44,6 @@
               >
                 Error loading image: {{ imageLoadError }}
               </div>
-            </div>
-
-            <div class="p-6">
               <!-- Image Container -->
               <div class="relative bg-gray-100 rounded-lg overflow-hidden">
                 <!-- Loading state when no image is available -->
@@ -86,6 +77,8 @@
                   :boulder-problems="boulderProblemsStore.sortedProblems"
                   :is-creating-problem="boulderProblemsStore.isCreatingProblem"
                   :active-problem="boulderProblemsStore.activeProblem"
+                  :is-editing-problem="editingState.isEditing"
+                  :editing-problem="editingState.editingProblem"
                   :hovered-problem-id="hoveredProblemId"
                   @hold-click="handleHoldClick"
                   ref="unifiedOverlay"
@@ -293,6 +286,16 @@
 
         <!-- Right Column: Results and Statistics -->
         <div class="space-y-6">
+          <!-- Boulder Problems Manager -->
+          <BoulderProblemsManager
+            v-if="route.params.locationId"
+            :location-id="route.params.locationId"
+            :has-detection-results="serverStore.hasResults"
+            :detection-results="serverStore.results"
+            :climbing-image="climbingImage"
+            @editing-state-change="handleEditingStateChange"
+          />
+
           <!-- Processing Status -->
           <div class="bg-white rounded-lg shadow-sm border border-gray-200">
             <div class="p-6">
@@ -417,15 +420,6 @@
             </div>
           </div>
 
-          <!-- Boulder Problems Manager -->
-          <BoulderProblemsManager
-            v-if="route.params.locationId"
-            :location-id="route.params.locationId"
-            :has-detection-results="serverStore.hasResults"
-            :detection-results="serverStore.results"
-            :climbing-image="climbingImage"
-          />
-
           <!-- Error Display -->
           <div v-if="serverStore.error" class="bg-white rounded-lg shadow-sm border border-red-200">
             <div class="p-6">
@@ -470,6 +464,10 @@ const imageLoadError = ref(null);
 
 // Hold interaction state
 const hoveredProblemId = ref(null);
+const editingState = ref({
+  isEditing: false,
+  editingProblem: null
+});
 
 // Dynamic image loading based on query parameters
 const imageUrl = computed(() => {
@@ -558,15 +556,26 @@ const handleHoldClick = (hold, holdIndex) => {
     problem.holds?.some(h => h.holdIndex === holdIndex)
   );
   
-  if (existingProblem && (!boulderProblemsStore.isCreatingProblem || existingProblem.id !== boulderProblemsStore.activeProblem?.id)) {
-    console.warn(`⚠️ Hold ${holdIndex} is already part of problem #${existingProblem.id}`);
-    // Could show a warning toast here in the future
+  // Determine which problem we're working with
+  let targetProblem = null;
+  
+  if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
+    // Creating a new problem
+    targetProblem = boulderProblemsStore.activeProblem;
+  } else if (editingState.value.isEditing && editingState.value.editingProblem) {
+    // Editing an existing problem
+    targetProblem = editingState.value.editingProblem;
+  }
+  
+  if (!targetProblem) {
+    console.log("⚠️ No active problem being created or edited, ignoring hold click");
     return;
   }
   
-  // Only allow hold selection when creating a problem
-  if (!boulderProblemsStore.isCreatingProblem || !boulderProblemsStore.activeProblem) {
-    console.log("⚠️ No active problem being created, ignoring hold click");
+  // If hold belongs to a different problem than the one being worked on, prevent selection
+  if (existingProblem && existingProblem.id !== targetProblem.id) {
+    console.warn(`⚠️ Hold ${holdIndex} is already part of problem #${existingProblem.id}`);
+    // Could show a warning toast here in the future
     return;
   }
 
@@ -578,14 +587,19 @@ const handleHoldClick = (hold, holdIndex) => {
     detectionSource: "server"
   };
 
-  // Add or remove hold from the active problem
+  // Add or remove hold from the target problem
   boulderProblemsStore.addHoldToProblem(
-    boulderProblemsStore.activeProblem.id,
+    targetProblem.id,
     enhancedHold,
     holdIndex
   );
   
-  console.log("✅ Hold added/removed from active problem with SVG markup:", enhancedHold.svgMarkup ? "included" : "not available");
+  console.log(`✅ Hold added/removed from ${editingState.value.isEditing ? 'edited' : 'created'} problem with SVG markup:`, enhancedHold.svgMarkup ? "included" : "not available");
+};
+
+const handleEditingStateChange = (newEditingState) => {
+  editingState.value = newEditingState;
+  console.log("🔧 Editing state changed:", newEditingState);
 };
 
 // Load image based on query parameters

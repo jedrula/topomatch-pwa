@@ -46,6 +46,14 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  isEditingProblem: {
+    type: Boolean,
+    default: false,
+  },
+  editingProblem: {
+    type: Object,
+    default: null,
+  },
   hoveredProblemId: {
     type: String,
     default: null,
@@ -81,6 +89,14 @@ const getHoldProblemId = (holdIndex) => {
     }
   }
   
+  // Check if it's in the problem being edited
+  if (props.isEditingProblem && props.editingProblem) {
+    const inEditingProblem = props.editingProblem.holds?.some(h => h.holdIndex === holdIndex);
+    if (inEditingProblem) {
+      return props.editingProblem.id;
+    }
+  }
+  
   return null;
 };
 
@@ -91,11 +107,16 @@ const getHoldClasses = (holdIndex) => {
   const problemId = getHoldProblemId(holdIndex);
   
   if (problemId) {
-    if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
-      // Hold is part of the problem being created
+    // Check if this hold is part of the problem being actively worked on
+    const isActiveWorkingProblem = 
+      (props.isCreatingProblem && props.activeProblem?.id === problemId) ||
+      (props.isEditingProblem && props.editingProblem?.id === problemId);
+    
+    if (isActiveWorkingProblem) {
+      // Hold is part of the problem being created or edited
       classes.push('hold-being-edited');
     } else {
-      // Hold is part of an existing problem
+      // Hold is part of an existing problem that's not being worked on
       classes.push('hold-assigned');
       
       // Check if this problem is being hovered

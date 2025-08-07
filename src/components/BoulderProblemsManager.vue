@@ -397,7 +397,7 @@ defineProps({
   },
 });
 
-const emit = defineEmits(["problem-hover"]);
+const emit = defineEmits(["problem-hover", "editing-state-change"]);
 
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
@@ -556,5 +556,17 @@ watch(
       cancelEdit();
     }
   }
+);
+
+// Emit editing state changes to parent
+watch(
+  editingProblem,
+  (newEditingProblem) => {
+    emit("editing-state-change", {
+      isEditing: !!newEditingProblem,
+      editingProblem: newEditingProblem
+    });
+  },
+  { immediate: true }
 );
 </script>
