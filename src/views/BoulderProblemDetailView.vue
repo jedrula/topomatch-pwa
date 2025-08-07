@@ -256,12 +256,11 @@ const viewOnImage = async () => {
   // Navigate back to the image gallery with this image selected
   try {
     const locationId = route.params.locationId;
-    const imageRecords = await locationService.getLocationImages(locationId);
-    const imageIndex = imageRecords.findIndex((img) => img.id === problem.value.imageId);
+    const imageId = problem.value.imageId;
 
     router.push({
       path: `/location/${locationId}`,
-      query: { image: imageIndex >= 0 ? imageIndex : 0 },
+      query: { imageId },
     });
   } catch (error) {
     console.error("Error navigating to image:", error);
