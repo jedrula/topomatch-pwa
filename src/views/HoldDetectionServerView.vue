@@ -78,33 +78,18 @@
                   @load="onImageLoad"
                 />
 
-                <!-- Server SVG Overlay -->
-                <ServerHoldOverlay
+                <!-- Unified Hold Overlay - Single SVG with all holds -->
+                <UnifiedHoldOverlay
                   v-if="imageLoaded && serverStore.hasResults"
-                  :result="serverStore.results"
+                  :detection-results="serverStore.results"
                   :image-element="climbingImage"
-                  :show-controls="true"
-                  :selected-holds="selectedHoldIndices"
+                  :boulder-problems="boulderProblemsStore.sortedProblems"
+                  :is-creating-problem="boulderProblemsStore.isCreatingProblem"
+                  :active-problem="boulderProblemsStore.activeProblem"
+                  :hovered-problem-id="hoveredProblemId"
                   @hold-click="handleHoldClick"
-                  ref="svgOverlay"
+                  ref="unifiedOverlay"
                 />
-
-                <!-- Existing Boulder Problems Overlay - Show stored problems with self-contained SVG -->
-                <template
-                  v-for="problem in boulderProblemsStore.sortedProblems"
-                  :key="`stored-problem-${problem.id}`"
-                >
-                  <StoredBoulderProblemOverlay
-                    v-if="imageLoaded && problem.holds && problem.holds.length > 0"
-                    :problem="problem"
-                    :image-element="climbingImage"
-                    :image-info="serverStore.results?.image_info || { width: 1000, height: 1000 }"
-                    :interactive="true"
-                    :show-problem-info="false"
-                    :show-hold-labels="false"
-                    :opacity="0.7"
-                  />
-                </template>
 
                 <!-- Processing Overlay -->
                 <div
@@ -468,8 +453,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useHoldDetectionServerStore } from "@/stores/holdDetectionServerStore.js";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore.js";
 import { locationService } from "@/services/locationService";
-import ServerHoldOverlay from "@/components/ServerHoldOverlay.vue";
-import StoredBoulderProblemOverlay from "@/components/StoredBoulderProblemOverlay.vue";
+import UnifiedHoldOverlay from "@/components/UnifiedHoldOverlay.vue";
 import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
 
 const route = useRoute();
@@ -479,16 +463,13 @@ const boulderProblemsStore = useBoulderProblemsStore();
 
 // Reactive state
 const climbingImage = ref(null);
-const svgOverlay = ref(null);
+const unifiedOverlay = ref(null);
 const imageLoaded = ref(false);
 const currentImage = ref(null);
 const imageLoadError = ref(null);
 
-// Hold selection state
-const selectedHoldIndices = computed(() => {
-  if (!boulderProblemsStore.activeProblem?.holds) return [];
-  return boulderProblemsStore.activeProblem.holds.map(h => h.holdIndex);
-});
+// Hold interaction state
+const hoveredProblemId = ref(null);
 
 // Dynamic image loading based on query parameters
 const imageUrl = computed(() => {
@@ -522,9 +503,9 @@ const onImageLoad = () => {
   imageLoaded.value = true;
   console.log("🖼️ Image loaded successfully");
 
-  // Recalculate SVG overlay if we have results
-  if (svgOverlay.value && serverStore.hasResults) {
-    svgOverlay.value.recalculatePosition();
+  // Recalculate unified overlay position if we have results
+  if (unifiedOverlay.value && serverStore.hasResults) {
+    unifiedOverlay.value.recalculatePosition();
   }
 };
 
@@ -571,6 +552,17 @@ const goBackToLocation = () => {
 // Hold interaction handlers
 const handleHoldClick = (hold, holdIndex) => {
   console.log("🎯 Hold clicked in main view:", { hold, holdIndex });
+  
+  // Check if hold is already assigned to another problem
+  const existingProblem = boulderProblemsStore.sortedProblems.find(problem => 
+    problem.holds?.some(h => h.holdIndex === holdIndex)
+  );
+  
+  if (existingProblem && (!boulderProblemsStore.isCreatingProblem || existingProblem.id !== boulderProblemsStore.activeProblem?.id)) {
+    console.warn(`⚠️ Hold ${holdIndex} is already part of problem #${existingProblem.id}`);
+    // Could show a warning toast here in the future
+    return;
+  }
   
   // Only allow hold selection when creating a problem
   if (!boulderProblemsStore.isCreatingProblem || !boulderProblemsStore.activeProblem) {
