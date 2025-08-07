@@ -324,7 +324,7 @@
                       class="text-sm font-medium"
                       :class="serverStore.apiHealthy ? 'text-green-600' : 'text-red-600'"
                     >
-                      {{ connectionDisplayText }} ({{ serverStore.apiHealthy }})
+                      {{ connectionDisplayText }}
                     </span>
                   </div>
                 </div>
@@ -465,13 +465,6 @@ const router = useRouter();
 const serverStore = useHoldDetectionServerStore();
 const boulderProblemsStore = useBoulderProblemsStore();
 
-// Debug: Log store instance info
-console.log(
-  "🔍 View using store instance:",
-  serverStore.getApiHealthyDebugInfo?.()?.storeInstanceId
-);
-console.log("🔍 View store apiHealthy initial value:", serverStore.apiHealthy);
-
 // Reactive state
 const climbingImage = ref(null);
 const svgOverlay = ref(null);
@@ -519,32 +512,13 @@ const onImageLoad = () => {
 
 const testApiHealth = async () => {
   console.log("🔍 Testing API health...");
-  console.log("🔍 Current API health status before test:", serverStore.apiHealthy);
-
-  // Get debug info before test
-  const debugInfoBefore = serverStore.getApiHealthyDebugInfo();
-  console.log("🔍 DEBUG INFO BEFORE:", debugInfoBefore);
-
   const result = await serverStore.testApiHealth();
 
-  // Get debug info after test
-  const debugInfoAfter = serverStore.getApiHealthyDebugInfo();
-  console.log("🔍 DEBUG INFO AFTER:", debugInfoAfter);
-
-  console.log("🔍 Current API health status after test:", serverStore.apiHealthy);
-
   if (result.success) {
-    console.log("✅ API health check successful:", result.data);
+    console.log("✅ API health check successful");
   } else {
     console.error("❌ API health check failed:", result.error);
   }
-
-  // Double-check the store state
-  setTimeout(() => {
-    console.log("🔍 API health status 100ms later:", serverStore.apiHealthy);
-    const debugInfoDelayed = serverStore.getApiHealthyDebugInfo();
-    console.log("🔍 DEBUG INFO DELAYED:", debugInfoDelayed);
-  }, 100);
 };
 
 const processImage = async () => {

@@ -1,12 +1,8 @@
 import { defineStore } from "pinia";
-import { ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
 import { holdDetectionServerService } from "../services/holdDetectionServerService.js";
 
 export const useHoldDetectionServerStore = defineStore("holdDetectionServer", () => {
-  // Store instance ID for debugging
-  const storeInstanceId = Math.random().toString(36).substr(2, 9);
-  console.log("🏗️ Creating hold detection server store instance:", storeInstanceId);
-
   // Core state
   const isProcessing = ref(false);
   const currentJobId = ref(null);
@@ -14,42 +10,9 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   const statusMessage = ref("Ready to process images");
   const error = ref(null);
 
-  // API configuration - CRITICAL: This ref must be the single source of truth
+  // API configuration
   const apiUrl = ref("http://192.168.0.243:8000");
   const apiHealthy = ref(false);
-
-  console.log(
-    "🏗️ Store",
-    storeInstanceId,
-    "- Initial apiHealthy:",
-    apiHealthy.value,
-    "ref:",
-    apiHealthy
-  );
-
-  // Debug: Track apiHealthy changes
-  const _debugApiHealthyHistory = ref([]);
-  const _setApiHealthy = (value, reason = "unknown") => {
-    const timestamp = new Date().toISOString();
-    const stackTrace = new Error().stack;
-    _debugApiHealthyHistory.value.push({
-      timestamp,
-      oldValue: apiHealthy.value,
-      newValue: value,
-      reason,
-      stackTrace: stackTrace?.split("\n").slice(0, 5).join("\n"), // First 5 lines of stack
-    });
-
-    console.log(
-      `🔄 API_HEALTHY_CHANGE [${storeInstanceId}]: ${apiHealthy.value} → ${value} (${reason}) at ${timestamp}`
-    );
-    apiHealthy.value = value;
-
-    // Keep only last 10 entries to prevent memory leaks
-    if (_debugApiHealthyHistory.value.length > 10) {
-      _debugApiHealthyHistory.value = _debugApiHealthyHistory.value.slice(-10);
-    }
-  };
 
   // Processing progress
   const currentStep = ref(0);
@@ -90,44 +53,32 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   const setApiUrl = (url) => {
     apiUrl.value = url;
     holdDetectionServerService.setApiUrl(url);
-    console.log("🔧 API URL changed to:", url);
   };
 
   const testApiHealth = async () => {
     try {
-      console.log("🔍 Store: Testing API health with URL:", apiUrl.value);
-      console.log("🔍 Store: Current apiHealthy value before test:", apiHealthy.value);
-      console.log("🔍 Store: apiHealthy ref identity:", apiHealthy);
+      console.log("🔍 Testing API health with URL:", apiUrl.value);
       statusMessage.value = "Testing API connection...";
 
       const healthResult = await holdDetectionServerService.testHealth();
-      console.log("🔍 Store: Health result received:", healthResult);
 
       if (healthResult.success) {
-        console.log("🔍 Store: Setting apiHealthy to true...");
-        _setApiHealthy(true, "health_check_success");
+        apiHealthy.value = true;
         statusMessage.value = "API is ready";
-        console.log("✅ Store: API Health successful:", healthResult.data);
-        console.log("✅ Store: apiHealthy value after setting:", apiHealthy.value);
-        console.log("✅ Store: isReady computed:", isReady.value);
-
+        console.log("✅ API Health check successful");
         return { success: true, data: healthResult.data };
       } else {
-        console.log("🔍 Store: Setting apiHealthy to false...");
-        _setApiHealthy(false, "health_check_failed");
+        apiHealthy.value = false;
         error.value = healthResult.error;
         statusMessage.value = healthResult.message;
-        console.log("❌ Store: API Health failed:", healthResult.error);
-        console.log("❌ Store: apiHealthy value after setting:", apiHealthy.value);
+        console.log("❌ API Health check failed:", healthResult.error);
         return { success: false, error: healthResult.error };
       }
     } catch (err) {
-      console.log("🔍 Store: Exception caught, setting apiHealthy to false...");
-      _setApiHealthy(false, "health_check_exception");
+      apiHealthy.value = false;
       error.value = err.message;
       statusMessage.value = `API connection failed: ${err.message}`;
-      console.log("❌ Store: API Health exception:", err.message);
-      console.log("❌ Store: apiHealthy value after exception:", apiHealthy.value);
+      console.log("❌ API Health exception:", err.message);
       return { success: false, error: err.message };
     }
   };
@@ -280,38 +231,10 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   const resetState = () => {
     isProcessing.value = false;
     clearResults();
-    // Note: Don't reset apiHealthy here as it's connection state, not processing state
   };
 
-  // Debug function to check apiHealthy history
-  const getApiHealthyDebugInfo = () => {
-    return {
-      storeInstanceId,
-      currentValue: apiHealthy.value,
-      refIdentity: apiHealthy,
-      history: _debugApiHealthyHistory.value,
-      computedIsReady: isReady.value,
-      processingStatus: processingStatus.value,
-    };
-  };
-
-  // Initialize service with URL only once
-  console.log("🏗️ Initializing hold detection server store with URL:", apiUrl.value);
+  // Initialize service with URL
   holdDetectionServerService.setApiUrl(apiUrl.value);
-
-  // Watch for unexpected apiHealthy changes
-  watch(
-    apiHealthy,
-    (newVal, oldVal) => {
-      console.log("🚨 WATCH: apiHealthy changed!", {
-        oldValue: oldVal,
-        newValue: newVal,
-        timestamp: new Date().toISOString(),
-        stackTrace: new Error().stack?.split("\n").slice(0, 10).join("\n"),
-      });
-    },
-    { immediate: true }
-  );
 
   return {
     // State
@@ -344,8 +267,5 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     processImage,
     clearResults,
     resetState,
-
-    // Debug
-    getApiHealthyDebugInfo,
   };
 });
