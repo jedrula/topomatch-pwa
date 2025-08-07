@@ -176,16 +176,10 @@ export const calculateColorDistance = (color1, color2) => {
 export const extractHoldColor = (hold) => {
   if (!hold?.color_analysis) return null;
 
-  // Primary: Use dominant color RGB array
-  const rgb = hold.color_analysis.dominant_color_rgb;
-  if (Array.isArray(rgb) && rgb.length >= 3) {
-    return { r: rgb[0], g: rgb[1], b: rgb[2] };
-  }
-
-  // Fallback: Use mean color RGB array
-  const meanRgb = hold.color_analysis.mean_color_rgb;
-  if (Array.isArray(meanRgb) && meanRgb.length >= 3) {
-    return { r: meanRgb[0], g: meanRgb[1], b: meanRgb[2] };
+  // Use median color RGB array
+  const medianRgb = hold.color_analysis.median_color_rgb;
+  if (Array.isArray(medianRgb) && medianRgb.length >= 3) {
+    return { r: medianRgb[0], g: medianRgb[1], b: medianRgb[2] };
   }
 
   return null;

@@ -732,7 +732,7 @@ const handleHoldClick = (hold, holdIndex) => {
     console.log("🪄 Magic Wand is active - performing proximity selection");
 
     // Get all holds from server results
-    const allHolds = serverStore.results?.yolo_results?.holds || [];
+    const allHolds = serverStore.results?.holds || [];
 
     if (allHolds.length === 0) {
       console.warn("No holds available for magic wand selection");
