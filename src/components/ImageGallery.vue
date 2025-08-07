@@ -180,13 +180,11 @@ const hoveredProblemId = ref(null);
 const holdPadding = 5;
 
 const currentIndex = computed(() => {
-  // Get index from URL if available
-  const imageIndex = route.query.image;
-  if (imageIndex !== undefined) {
-    const index = parseInt(imageIndex);
-    return isNaN(index)
-      ? props.initialIndex
-      : Math.max(0, Math.min(index, props.images.length - 1));
+  // Get imageId from URL if available
+  const imageId = route.query.imageId;
+  if (imageId !== undefined) {
+    const index = props.images.findIndex(img => img.id === imageId);
+    return index !== -1 ? index : props.initialIndex;
   }
   return props.initialIndex;
 });
@@ -237,9 +235,9 @@ const calculateImageScale = () => {
 };
 
 const closeGallery = () => {
-  // Remove image query parameter to close gallery
+  // Remove imageId query parameter to close gallery
   const query = { ...route.query };
-  delete query.image;
+  delete query.imageId;
   router.push({ query });
   emit("close");
 };
@@ -268,9 +266,13 @@ const goToImage = (index) => {
 
 const navigateToImage = (index) => {
   const clampedIndex = Math.max(0, Math.min(index, props.images.length - 1));
-  router.push({
-    query: { ...route.query, image: clampedIndex },
-  });
+  const imageId = props.images[clampedIndex]?.id;
+  
+  if (imageId) {
+    router.push({
+      query: { ...route.query, imageId },
+    });
+  }
   emit("navigate", clampedIndex);
 };
 

@@ -295,7 +295,7 @@
     <!-- Image Gallery Modal -->
     <ImageGallery
       :images="images"
-      :initial-index="0"
+      :initial-index="initialImageIndex"
       :is-open="isGalleryOpen"
       :location-id="locationId"
       @close="closeGallery"
@@ -332,7 +332,14 @@ const locationId = route.params.locationId;
 
 // Gallery state
 const isGalleryOpen = computed(() => {
-  return route.query.image !== undefined;
+  return route.query.imageId !== undefined;
+});
+
+const initialImageIndex = computed(() => {
+  if (!route.query.imageId || !images.value.length) return 0;
+  
+  const index = images.value.findIndex(img => img.id === route.query.imageId);
+  return index !== -1 ? index : 0;
 });
 
 const loadLocation = async () => {
@@ -388,14 +395,10 @@ const editLocation = () => {
 };
 
 const openImageModal = (image) => {
-  // Find the index of the clicked image
-  const imageIndex = images.value.findIndex((img) => img.id === image.id);
-  if (imageIndex !== -1) {
-    // Navigate to the image gallery with the specific image
-    router.push({
-      query: { ...route.query, image: imageIndex },
-    });
-  }
+  // Navigate to the image gallery with the specific imageId
+  router.push({
+    query: { ...route.query, imageId: image.id },
+  });
 };
 
 const openHoldDetection = (image) => {
@@ -410,9 +413,9 @@ const openHoldDetection = (image) => {
 };
 
 const closeGallery = () => {
-  // Remove image query parameter to close gallery
+  // Remove imageId query parameter to close gallery
   const query = { ...route.query };
-  delete query.image;
+  delete query.imageId;
   router.push({ query });
 };
 
