@@ -1,7 +1,7 @@
 <template>
   <svg
     v-if="detectionResults?.svg_markups && detectionResults?.holds"
-    class="absolute inset-0 w-full h-full pointer-events-auto"
+    class="absolute inset-0 w-full h-full pointer-events-none"
     :viewBox="svgViewBox"
     preserveAspectRatio="none"
     ref="svgElement"
@@ -14,7 +14,10 @@
       :data-hold-id="detectionResults.holds[index]?.id"
       :data-problem-id="getHoldProblemId(index)"
       :class="getHoldClasses(index)"
+      class="pointer-events-auto cursor-pointer"
       @click.stop="handleHoldClick(detectionResults.holds[index], index)"
+      @mouseenter="handleHoldHover(index, true)"
+      @mouseleave="handleHoldHover(index, false)"
     >
       <!-- Render SVG content directly -->
       <g v-html="svgMarkup"></g>
@@ -60,10 +63,12 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["hold-click"]);
+const emit = defineEmits(["hold-click", "hold-hover"]);
 
 // Reactive state
 const svgElement = ref(null);
+const hoveredHoldIndex = ref(null);
+const hoveredProblemIdLocal = ref(null);
 
 // SVG viewBox based on image dimensions
 const svgViewBox = computed(() => {
@@ -75,60 +80,60 @@ const svgViewBox = computed(() => {
 // Get which problem a hold belongs to
 const getHoldProblemId = (holdIndex) => {
   for (const problem of props.boulderProblems) {
-    const holdFound = problem.holds?.some(h => h.holdIndex === holdIndex);
+    const holdFound = problem.holds?.some((h) => h.holdIndex === holdIndex);
     if (holdFound) {
       return problem.id;
     }
   }
-  
+
   // Check if it's in the active problem being created
   if (props.isCreatingProblem && props.activeProblem) {
-    const inActiveProblem = props.activeProblem.holds?.some(h => h.holdIndex === holdIndex);
+    const inActiveProblem = props.activeProblem.holds?.some((h) => h.holdIndex === holdIndex);
     if (inActiveProblem) {
       return props.activeProblem.id;
     }
   }
-  
+
   // Check if it's in the problem being edited
   if (props.isEditingProblem && props.editingProblem) {
-    const inEditingProblem = props.editingProblem.holds?.some(h => h.holdIndex === holdIndex);
+    const inEditingProblem = props.editingProblem.holds?.some((h) => h.holdIndex === holdIndex);
     if (inEditingProblem) {
       return props.editingProblem.id;
     }
   }
-  
+
   return null;
 };
 
 // Get CSS classes for hold based on its state
 const getHoldClasses = (holdIndex) => {
-  const classes = ['hold-svg'];
-  
+  const classes = ["hold-svg"];
+
   const problemId = getHoldProblemId(holdIndex);
-  
+
   if (problemId) {
-    // Check if this hold is part of the problem being actively worked on
-    const isActiveWorkingProblem = 
-      (props.isCreatingProblem && props.activeProblem?.id === problemId) ||
-      (props.isEditingProblem && props.editingProblem?.id === problemId);
-    
-    if (isActiveWorkingProblem) {
-      // Hold is part of the problem being created or edited
-      classes.push('hold-being-edited');
+    if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
+      // Hold is part of the problem being created
+      classes.push("hold-being-edited");
     } else {
-      // Hold is part of an existing problem that's not being worked on
-      classes.push('hold-assigned');
-      
-      // Check if this problem is being hovered
-      if (props.hoveredProblemId === problemId) {
-        classes.push('hold-problem-hovered');
+      // Hold is part of an existing problem
+      classes.push("hold-assigned");
+
+      // Check if this problem is being hovered (from parent or local hover)
+      if (props.hoveredProblemId === problemId || hoveredProblemIdLocal.value === problemId) {
+        classes.push("hold-problem-hovered");
       }
     }
   } else {
     // Hold is available for selection
-    classes.push('hold-available');
+    classes.push("hold-available");
   }
-  
+
+  // Individual hold hover state
+  if (hoveredHoldIndex.value === holdIndex) {
+    classes.push("hold-hovered");
+  }
+
   return classes;
 };
 
@@ -136,6 +141,20 @@ const getHoldClasses = (holdIndex) => {
 const handleHoldClick = (hold, index) => {
   console.log(`🎯 Hold clicked:`, { hold, index });
   emit("hold-click", hold, index);
+};
+
+const handleHoldHover = (index, isEntering) => {
+  hoveredHoldIndex.value = isEntering ? index : null;
+
+  if (isEntering) {
+    // Find which problem this hold belongs to and highlight all holds in that problem
+    const problemId = getHoldProblemId(index);
+    hoveredProblemIdLocal.value = problemId;
+  } else {
+    hoveredProblemIdLocal.value = null;
+  }
+
+  emit("hold-hover", index, isEntering);
 };
 
 // Simplified overlay - no complex positioning needed
@@ -164,7 +183,8 @@ defineExpose({
   filter: none;
 }
 
-.hold-available:hover {
+.hold-available:hover,
+.hold-available.hold-hovered {
   opacity: 0.9;
   filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.8));
 }
@@ -175,7 +195,8 @@ defineExpose({
   filter: drop-shadow(0 0 8px rgba(34, 197, 94, 1));
 }
 
-.hold-being-edited:hover {
+.hold-being-edited:hover,
+.hold-being-edited.hold-hovered {
   filter: drop-shadow(0 0 12px rgba(34, 197, 94, 1));
 }
 
@@ -186,12 +207,13 @@ defineExpose({
   cursor: help;
 }
 
-.hold-assigned:hover {
+.hold-assigned:hover,
+.hold-assigned.hold-hovered {
   opacity: 0.6;
   filter: drop-shadow(0 0 6px rgba(107, 114, 128, 0.8));
 }
 
-/* When hovering over a problem in the manager, highlight all its holds */
+/* When hovering over a problem (all holds in that problem) */
 .hold-problem-hovered {
   opacity: 0.9 !important;
   filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.8)) !important;
@@ -214,18 +236,27 @@ defineExpose({
 }
 
 /* Hover effects on the inner SVG elements */
-.hold-available:hover g {
+.hold-available:hover g,
+.hold-available.hold-hovered g {
   stroke: rgba(59, 130, 246, 0.8);
   stroke-width: 2;
 }
 
-.hold-being-edited:hover g {
+.hold-being-edited:hover g,
+.hold-being-edited.hold-hovered g {
   stroke: rgba(34, 197, 94, 1);
   stroke-width: 3;
 }
 
-.hold-assigned:hover g {
+.hold-assigned:hover g,
+.hold-assigned.hold-hovered g {
   stroke: rgba(107, 114, 128, 0.8);
   stroke-width: 2;
+}
+
+/* Problem hover - highlight all holds with a white border */
+.hold-problem-hovered g {
+  stroke: rgba(255, 255, 255, 1) !important;
+  stroke-width: 3 !important;
 }
 </style>

@@ -81,6 +81,7 @@
                   :editing-problem="editingState.editingProblem"
                   :hovered-problem-id="hoveredProblemId"
                   @hold-click="handleHoldClick"
+                  @hold-hover="handleHoldHover"
                   ref="unifiedOverlay"
                 />
 
@@ -466,7 +467,7 @@ const imageLoadError = ref(null);
 const hoveredProblemId = ref(null);
 const editingState = ref({
   isEditing: false,
-  editingProblem: null
+  editingProblem: null,
 });
 
 // Dynamic image loading based on query parameters
@@ -550,15 +551,15 @@ const goBackToLocation = () => {
 // Hold interaction handlers
 const handleHoldClick = (hold, holdIndex) => {
   console.log("🎯 Hold clicked in main view:", { hold, holdIndex });
-  
+
   // Check if hold is already assigned to another problem
-  const existingProblem = boulderProblemsStore.sortedProblems.find(problem => 
-    problem.holds?.some(h => h.holdIndex === holdIndex)
+  const existingProblem = boulderProblemsStore.sortedProblems.find((problem) =>
+    problem.holds?.some((h) => h.holdIndex === holdIndex)
   );
-  
+
   // Determine which problem we're working with
   let targetProblem = null;
-  
+
   if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
     // Creating a new problem
     targetProblem = boulderProblemsStore.activeProblem;
@@ -566,12 +567,12 @@ const handleHoldClick = (hold, holdIndex) => {
     // Editing an existing problem
     targetProblem = editingState.value.editingProblem;
   }
-  
+
   if (!targetProblem) {
     console.log("⚠️ No active problem being created or edited, ignoring hold click");
     return;
   }
-  
+
   // If hold belongs to a different problem than the one being worked on, prevent selection
   if (existingProblem && existingProblem.id !== targetProblem.id) {
     console.warn(`⚠️ Hold ${holdIndex} is already part of problem #${existingProblem.id}`);
@@ -584,17 +585,22 @@ const handleHoldClick = (hold, holdIndex) => {
     ...hold,
     // Include SVG markup from server results if available
     svgMarkup: serverStore.results?.svg_markups?.[holdIndex] || null,
-    detectionSource: "server"
+    detectionSource: "server",
   };
 
   // Add or remove hold from the target problem
-  boulderProblemsStore.addHoldToProblem(
-    targetProblem.id,
-    enhancedHold,
-    holdIndex
+  boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, holdIndex);
+
+  console.log(
+    `✅ Hold added/removed from ${
+      editingState.value.isEditing ? "edited" : "created"
+    } problem with SVG markup:`,
+    enhancedHold.svgMarkup ? "included" : "not available"
   );
-  
-  console.log(`✅ Hold added/removed from ${editingState.value.isEditing ? 'edited' : 'created'} problem with SVG markup:`, enhancedHold.svgMarkup ? "included" : "not available");
+};
+
+const handleHoldHover = (holdIndex, problemId) => {
+  hoveredProblemId.value = problemId;
 };
 
 const handleEditingStateChange = (newEditingState) => {

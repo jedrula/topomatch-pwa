@@ -564,7 +564,7 @@ watch(
   (newEditingProblem) => {
     emit("editing-state-change", {
       isEditing: !!newEditingProblem,
-      editingProblem: newEditingProblem
+      editingProblem: newEditingProblem,
     });
   },
   { immediate: true }
