@@ -319,7 +319,7 @@ const router = useRouter();
 const userStore = useUserStore();
 
 // Inject auth modal controls
-const authModal = inject('authModal');
+const authModal = inject("authModal");
 
 const location = ref(null);
 const images = ref([]); // Placeholder for location images
@@ -337,8 +337,8 @@ const isGalleryOpen = computed(() => {
 
 const initialImageIndex = computed(() => {
   if (!route.query.imageId || !images.value.length) return 0;
-  
-  const index = images.value.findIndex(img => img.id === route.query.imageId);
+
+  const index = images.value.findIndex((img) => img.id === route.query.imageId);
   return index !== -1 ? index : 0;
 });
 
@@ -384,7 +384,7 @@ const handleBetaUploadClick = () => {
     authModal.open();
     return;
   }
-  
+
   // User is authenticated, show the upload modal
   showBetaUploadModal.value = true;
 };
