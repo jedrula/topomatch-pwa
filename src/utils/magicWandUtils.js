@@ -15,10 +15,10 @@ export const calculateDistance = (hold1, hold2) => {
   const y1 = hold1.y + (hold1.height || 0) / 2;
   const x2 = hold2.x + (hold2.width || 0) / 2;
   const y2 = hold2.y + (hold2.height || 0) / 2;
-  
+
   const dx = x2 - x1;
   const dy = y2 - y1;
-  
+
   return Math.sqrt(dx * dx + dy * dy);
 };
 
@@ -30,28 +30,16 @@ export const calculateDistance = (hold1, hold2) => {
  * @returns {Array} Array of objects with { hold, distance, index }
  */
 export const findClosestHolds = (targetHold, allHolds, count = 10) => {
-  console.time('magicWand-findClosestHolds');
-  
   const distances = allHolds
     .map((hold, index) => ({
       hold,
       distance: calculateDistance(targetHold, hold),
-      index
+      index,
     }))
-    .filter(item => item.hold !== targetHold) // Exclude the target hold itself
+    .filter((item) => item.hold !== targetHold) // Exclude the target hold itself
     .sort((a, b) => a.distance - b.distance) // Sort by distance (closest first)
     .slice(0, count); // Take only the requested number
-  
-  console.timeEnd('magicWand-findClosestHolds');
-  
-  console.log(`Magic Wand: Found ${distances.length} closest holds to target:`, {
-    targetHold: { x: targetHold.x, y: targetHold.y, confidence: targetHold.confidence },
-    closestDistances: distances.slice(0, 3).map(d => ({ 
-      distance: Math.round(d.distance), 
-      confidence: d.hold.confidence?.toFixed(3) 
-    }))
-  });
-  
+
   return distances;
 };
 
@@ -63,53 +51,51 @@ export const findClosestHolds = (targetHold, allHolds, count = 10) => {
  * @returns {Object} Selection result with target and proximity holds
  */
 export const performMagicWandSelection = (targetHoldIndex, allHolds, proximityCount = 10) => {
-  console.time('magicWand-performSelection');
-  
-  if (!allHolds || allHolds.length === 0 || targetHoldIndex < 0 || targetHoldIndex >= allHolds.length) {
-    console.warn('Magic Wand: Invalid input parameters');
+  if (
+    !allHolds ||
+    allHolds.length === 0 ||
+    targetHoldIndex < 0 ||
+    targetHoldIndex >= allHolds.length
+  ) {
+    console.warn("Magic Wand: Invalid input parameters");
     return {
       success: false,
       targetHold: null,
       proximityHolds: [],
-      selectedIndices: []
+      selectedIndices: [],
     };
   }
-  
+
   const targetHold = allHolds[targetHoldIndex];
   const proximityResults = findClosestHolds(targetHold, allHolds, proximityCount);
-  
+
   // Extract the hold indices for easy selection tracking
-  const selectedIndices = [targetHoldIndex, ...proximityResults.map(result => result.index)];
-  
+  const selectedIndices = [targetHoldIndex, ...proximityResults.map((result) => result.index)];
+
   const result = {
     success: true,
     targetHold: {
       hold: targetHold,
-      index: targetHoldIndex
+      index: targetHoldIndex,
     },
     proximityHolds: proximityResults,
     selectedIndices: selectedIndices,
     stats: {
       totalHolds: allHolds.length,
       selected: selectedIndices.length,
-      averageDistance: proximityResults.length > 0 
-        ? Math.round(proximityResults.reduce((sum, r) => sum + r.distance, 0) / proximityResults.length)
-        : 0,
-      maxDistance: proximityResults.length > 0 
-        ? Math.round(Math.max(...proximityResults.map(r => r.distance)))
-        : 0
-    }
+      averageDistance:
+        proximityResults.length > 0
+          ? Math.round(
+              proximityResults.reduce((sum, r) => sum + r.distance, 0) / proximityResults.length
+            )
+          : 0,
+      maxDistance:
+        proximityResults.length > 0
+          ? Math.round(Math.max(...proximityResults.map((r) => r.distance)))
+          : 0,
+    },
   };
-  
-  console.timeEnd('magicWand-performSelection');
-  
-  console.log('Magic Wand Selection Result:', {
-    targetIndex: targetHoldIndex,
-    proximityCount: proximityResults.length,
-    totalSelected: selectedIndices.length,
-    stats: result.stats
-  });
-  
+
   return result;
 };
 
@@ -121,7 +107,7 @@ export const performMagicWandSelection = (targetHoldIndex, allHolds, proximityCo
 export const getHoldCenter = (hold) => {
   return {
     x: hold.x + (hold.width || 0) / 2,
-    y: hold.y + (hold.height || 0) / 2
+    y: hold.y + (hold.height || 0) / 2,
   };
 };
 
@@ -144,6 +130,5 @@ export const isHoldInMagicWandSelection = (holdIndex, selectedIndices) => {
 export const findSimilarColorHolds = (targetHold, candidateHolds) => {
   // TODO: Implement color similarity algorithm
   // This would analyze the hold.color property or RGB values
-  console.log('Color similarity filtering - coming in future iteration');
   return candidateHolds;
 };

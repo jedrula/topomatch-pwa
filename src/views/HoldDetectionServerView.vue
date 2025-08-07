@@ -82,6 +82,7 @@
                   :hovered-problem-id="hoveredProblemId"
                   :magic-wand-active="magicWandActive"
                   :magic-wand-selection="magicWandSelection"
+                  :show-hold-overlay="true"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   ref="unifiedOverlay"
@@ -184,9 +185,9 @@
                   @click="toggleMagicWand"
                   :class="[
                     'px-6 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
-                    magicWandActive 
-                      ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-                      : 'border border-purple-300 text-purple-700 hover:bg-purple-50'
+                    magicWandActive
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                      : 'border border-purple-300 text-purple-700 hover:bg-purple-50',
                   ]"
                   title="Magic Wand: Click a hold to select 10 closest holds"
                 >
@@ -595,7 +596,7 @@ const magicWandActive = ref(false);
 const magicWandSelection = ref({
   selectedIndices: [],
   targetHoldIndex: null,
-  stats: null
+  stats: null,
 });
 
 // Dynamic image loading based on query parameters
@@ -668,14 +669,14 @@ const clearCurrentImageCache = () => {
 // Magic Wand functionality
 const toggleMagicWand = () => {
   magicWandActive.value = !magicWandActive.value;
-  
+
   if (magicWandActive.value) {
     console.log("🪄 Magic Wand activated - click any hold to select 10 closest holds");
     // Clear any previous selection when activating
     magicWandSelection.value = {
       selectedIndices: [],
       targetHoldIndex: null,
-      stats: null
+      stats: null,
     };
   } else {
     console.log("🪄 Magic Wand deactivated");
@@ -683,9 +684,9 @@ const toggleMagicWand = () => {
     magicWandSelection.value = {
       selectedIndices: [],
       targetHoldIndex: null,
-      stats: null
+      stats: null,
     };
-    
+
     // Trigger overlay update
     if (unifiedOverlay.value) {
       unifiedOverlay.value.recalculatePosition();
@@ -729,37 +730,26 @@ const handleHoldClick = (hold, holdIndex) => {
   // Magic Wand functionality
   if (magicWandActive.value) {
     console.log("🪄 Magic Wand is active - performing proximity selection");
-    
+
     // Get all holds from server results
     const allHolds = serverStore.results?.yolo_results?.holds || [];
-    
+
     if (allHolds.length === 0) {
       console.warn("No holds available for magic wand selection");
       return;
     }
-    
+
     // Perform magic wand selection
     const result = performMagicWandSelection(holdIndex, allHolds, 10);
-    
+
     if (result.success) {
       magicWandSelection.value = {
         selectedIndices: result.selectedIndices,
         targetHoldIndex: holdIndex,
-        stats: result.stats
+        stats: result.stats,
       };
-      
-      console.log("🪄 Magic Wand Selection Complete:", {
-        targetHold: holdIndex,
-        totalSelected: result.selectedIndices.length,
-        stats: result.stats
-      });
-      
-      // Trigger overlay update by notifying UnifiedHoldOverlay
-      if (unifiedOverlay.value) {
-        unifiedOverlay.value.recalculatePosition();
-      }
     }
-    
+
     return; // Don't proceed with normal hold selection when magic wand is active
   }
 

@@ -196,7 +196,6 @@ const handleHoldHover = (index, isEntering) => {
 defineExpose({
   recalculatePosition: () => {
     // No longer needed with simplified positioning
-    console.log("📐 Recalculate position called (simplified overlay)");
   },
 });
 </script>
@@ -321,7 +320,7 @@ defineExpose({
   stroke-width: 3 !important;
 }
 
-/* Magic Wand Styles */
+/* Magic Wand Styles - Always visible regardless of show-overlay */
 .magic-wand-target g {
   stroke: rgba(147, 51, 234, 1) !important; /* Purple for target hold */
   stroke-width: 4 !important;
@@ -343,7 +342,8 @@ defineExpose({
 
 /* Magic Wand Target Hold Animation */
 @keyframes magicWandPulse {
-  0%, 100% {
+  0%,
+  100% {
     stroke-width: 4;
     stroke-opacity: 1;
   }
