@@ -84,6 +84,8 @@
                   :result="serverStore.results"
                   :image-element="climbingImage"
                   :show-controls="true"
+                  :selected-holds="selectedHoldIndices"
+                  @hold-click="handleHoldClick"
                   ref="svgOverlay"
                 />
 
@@ -482,6 +484,12 @@ const imageLoaded = ref(false);
 const currentImage = ref(null);
 const imageLoadError = ref(null);
 
+// Hold selection state
+const selectedHoldIndices = computed(() => {
+  if (!boulderProblemsStore.activeProblem?.holds) return [];
+  return boulderProblemsStore.activeProblem.holds.map(h => h.holdIndex);
+});
+
 // Dynamic image loading based on query parameters
 const imageUrl = computed(() => {
   if (currentImage.value) {
@@ -558,6 +566,34 @@ const goBackToLocation = () => {
   if (locationId) {
     router.push(`/location/${locationId}`);
   }
+};
+
+// Hold interaction handlers
+const handleHoldClick = (hold, holdIndex) => {
+  console.log("🎯 Hold clicked in main view:", { hold, holdIndex });
+  
+  // Only allow hold selection when creating a problem
+  if (!boulderProblemsStore.isCreatingProblem || !boulderProblemsStore.activeProblem) {
+    console.log("⚠️ No active problem being created, ignoring hold click");
+    return;
+  }
+
+  // Enhance hold data with SVG markup from server results if available
+  const enhancedHold = {
+    ...hold,
+    // Include SVG markup from server results if available
+    svgMarkup: serverStore.results?.svg_markups?.[holdIndex] || null,
+    detectionSource: "server"
+  };
+
+  // Add or remove hold from the active problem
+  boulderProblemsStore.addHoldToProblem(
+    boulderProblemsStore.activeProblem.id,
+    enhancedHold,
+    holdIndex
+  );
+  
+  console.log("✅ Hold added/removed from active problem with SVG markup:", enhancedHold.svgMarkup ? "included" : "not available");
 };
 
 // Load image based on query parameters
