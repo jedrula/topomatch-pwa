@@ -321,47 +321,72 @@ defineExpose({
 }
 
 /* Magic Wand Styles - Always visible regardless of show-overlay */
+.magic-wand-target {
+  opacity: 1 !important; /* Ensure it's fully visible */
+}
+
 .magic-wand-target g {
-  stroke: rgba(147, 51, 234, 1) !important; /* Purple for target hold */
-  stroke-width: 4 !important;
-  fill-opacity: 0.9 !important;
+  stroke: rgba(147, 51, 234, 1) !important; /* Bright purple for target hold */
+  stroke-width: 6 !important;
+  fill: rgba(147, 51, 234, 0.4) !important; /* Solid purple fill */
+  fill-opacity: 1 !important;
+  filter: drop-shadow(0 0 12px rgba(147, 51, 234, 0.8)) !important;
   animation: magicWandPulse 1.5s ease-in-out infinite;
 }
 
+.magic-wand-proximity {
+  opacity: 1 !important; /* Ensure it's fully visible */
+}
+
 .magic-wand-proximity g {
-  stroke: rgba(168, 85, 247, 0.8) !important; /* Lighter purple for proximity holds */
-  stroke-width: 3 !important;
-  fill-opacity: 0.8 !important;
+  stroke: rgba(168, 85, 247, 1) !important; /* Bright lighter purple for proximity holds */
+  stroke-width: 4 !important;
+  fill: rgba(168, 85, 247, 0.3) !important; /* Semi-transparent purple fill */
+  fill-opacity: 1 !important;
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.6)) !important;
+}
+
+.magic-wand-dimmed {
+  opacity: 0.15 !important; /* Much more dimmed for better contrast */
 }
 
 .magic-wand-dimmed g {
-  opacity: 0.3 !important; /* Dim other holds */
-  stroke: rgba(156, 163, 175, 0.3) !important;
+  opacity: 0.2 !important; 
+  stroke: rgba(156, 163, 175, 0.2) !important;
   stroke-width: 1 !important;
+  fill-opacity: 0.1 !important;
 }
 
-/* Magic Wand Target Hold Animation */
+/* Magic Wand Target Hold Animation - More dramatic pulsing */
 @keyframes magicWandPulse {
-  0%,
-  100% {
-    stroke-width: 4;
+  0% {
+    stroke-width: 6;
     stroke-opacity: 1;
+    filter: drop-shadow(0 0 12px rgba(147, 51, 234, 0.8));
   }
   50% {
+    stroke-width: 8;
+    stroke-opacity: 0.8;
+    filter: drop-shadow(0 0 20px rgba(147, 51, 234, 1));
+  }
+  100% {
     stroke-width: 6;
-    stroke-opacity: 0.7;
+    stroke-opacity: 1;
+    filter: drop-shadow(0 0 12px rgba(147, 51, 234, 0.8));
   }
 }
 
-/* Magic Wand Hover Effects */
+/* Magic Wand Hover Effects - Even more prominent */
 .magic-wand-target:hover g {
   stroke: rgba(147, 51, 234, 1) !important;
-  stroke-width: 5 !important;
+  stroke-width: 8 !important;
+  filter: drop-shadow(0 0 16px rgba(147, 51, 234, 1)) !important;
 }
 
 .magic-wand-proximity:hover g {
   stroke: rgba(168, 85, 247, 1) !important;
-  stroke-width: 4 !important;
-  fill-opacity: 1 !important;
+  stroke-width: 5 !important;
+  fill: rgba(168, 85, 247, 0.5) !important;
+  filter: drop-shadow(0 0 12px rgba(168, 85, 247, 0.8)) !important;
 }
 </style>
