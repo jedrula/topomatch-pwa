@@ -64,6 +64,13 @@ server/src/
 - **Server-First**: Server detection results are source of truth
 - **SVG Markup**: Hold data includes SVG paths from AI detection
 - **Browser Caching**: Detection results cached for 1 week using abstracted cache service
+- **Optimistic Updates**: Local state updates immediately, server persistence handled separately
+- **Unsaved Changes Tracking**: Changes marked for later batch persistence
+
+### Boulder Problem Updates
+- **Create Flow**: `createNewProblem` → `finishCreatingProblem` (persists name, grade, holds)
+- **Edit Flow**: `updateProblemName`/`updateProblemGrade` → `saveProblemChanges` (persists all fields)
+- **Always Include**: Ensure name, grade, and holds are sent to `updateBoulderProblem` function
 
 ### Caching Architecture
 - **Abstracted Service**: `detectionCacheService.js` handles all caching logic

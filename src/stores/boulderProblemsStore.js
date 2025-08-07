@@ -189,6 +189,8 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
           currentLocationId.value,
           activeProblem.value.id,
           {
+            name: activeProblem.value.name,
+            grade: activeProblem.value.grade,
             holds: activeProblem.value.holds,
           }
         );
