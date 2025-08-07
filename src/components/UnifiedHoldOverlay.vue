@@ -2,6 +2,7 @@
   <svg
     v-if="detectionResults?.svg_markups && detectionResults?.holds"
     class="absolute inset-0 w-full h-full pointer-events-none"
+    :class="{ 'show-overlay': showHoldOverlay }"
     :viewBox="svgViewBox"
     preserveAspectRatio="none"
     ref="svgElement"
@@ -61,6 +62,10 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  showHoldOverlay: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(["hold-click", "hold-hover"]);
@@ -112,12 +117,16 @@ const getHoldClasses = (holdIndex) => {
   const problemId = getHoldProblemId(holdIndex);
 
   if (problemId) {
+    // Hold belongs to a problem
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
       // Hold is part of the problem being created
       classes.push("hold-being-edited");
+    } else if (props.isEditingProblem && props.editingProblem?.id === problemId) {
+      // Hold is part of the problem being edited - make it prominent
+      classes.push("hold-being-edited");
     } else {
-      // Hold is part of an existing problem
-      classes.push("hold-assigned");
+      // Hold belongs to a different problem - not selectable
+      classes.push("hold-assigned-other");
 
       // Check if this problem is being hovered (from parent or local hover)
       if (props.hoveredProblemId === problemId || hoveredProblemIdLocal.value === problemId) {
@@ -170,28 +179,33 @@ defineExpose({
 </script>
 
 <style scoped>
-/* Base hold styles */
+/* Default: Holds are invisible but clickable */
 .hold-svg {
-  opacity: 0.7;
+  opacity: 0;
   transition: opacity 0.2s ease, filter 0.2s ease;
   cursor: pointer;
 }
 
-/* Available holds - can be selected */
-.hold-available {
+/* When overlay is enabled, show holds */
+.show-overlay .hold-svg {
+  opacity: 0.7;
+}
+
+/* Available holds - only visible when overlay is enabled */
+.show-overlay .hold-available {
   opacity: 0.6;
   filter: none;
 }
 
-.hold-available:hover,
-.hold-available.hold-hovered {
+.show-overlay .hold-available:hover,
+.show-overlay .hold-available.hold-hovered {
   opacity: 0.9;
   filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.8));
 }
 
-/* Holds being edited in active problem */
+/* Holds being edited - always visible regardless of overlay setting */
 .hold-being-edited {
-  opacity: 1;
+  opacity: 1 !important;
   filter: drop-shadow(0 0 8px rgba(34, 197, 94, 1));
 }
 
@@ -200,17 +214,30 @@ defineExpose({
   filter: drop-shadow(0 0 12px rgba(34, 197, 94, 1));
 }
 
-/* Holds assigned to existing problems */
-.hold-assigned {
+/* Holds assigned to existing problems - only visible when overlay enabled */
+.show-overlay .hold-assigned {
   opacity: 0.4;
   filter: drop-shadow(0 0 4px rgba(107, 114, 128, 0.6));
   cursor: help;
 }
 
-.hold-assigned:hover,
-.hold-assigned.hold-hovered {
+.show-overlay .hold-assigned:hover,
+.show-overlay .hold-assigned.hold-hovered {
   opacity: 0.6;
   filter: drop-shadow(0 0 6px rgba(107, 114, 128, 0.8));
+}
+
+/* Holds assigned to other problems - always visible when editing */
+.hold-assigned-other {
+  opacity: 0.3 !important;
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.4));
+  cursor: not-allowed;
+}
+
+.hold-assigned-other:hover,
+.hold-assigned-other.hold-hovered {
+  opacity: 0.4 !important;
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
 }
 
 /* When hovering over a problem (all holds in that problem) */
@@ -219,8 +246,8 @@ defineExpose({
   filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.8)) !important;
 }
 
-/* Add subtle borders for better visibility */
-.hold-svg g {
+/* Add subtle borders for better visibility - only when overlay enabled */
+.show-overlay .hold-svg g {
   stroke-width: 1;
   stroke: rgba(255, 255, 255, 0.3);
 }
@@ -230,14 +257,19 @@ defineExpose({
   stroke-width: 2;
 }
 
-.hold-assigned g {
+.show-overlay .hold-assigned g {
   stroke: rgba(107, 114, 128, 0.5);
   stroke-width: 1;
 }
 
+.hold-assigned-other g {
+  stroke: rgba(239, 68, 68, 0.4);
+  stroke-width: 1;
+}
+
 /* Hover effects on the inner SVG elements */
-.hold-available:hover g,
-.hold-available.hold-hovered g {
+.show-overlay .hold-available:hover g,
+.show-overlay .hold-available.hold-hovered g {
   stroke: rgba(59, 130, 246, 0.8);
   stroke-width: 2;
 }
@@ -248,9 +280,15 @@ defineExpose({
   stroke-width: 3;
 }
 
-.hold-assigned:hover g,
-.hold-assigned.hold-hovered g {
+.show-overlay .hold-assigned:hover g,
+.show-overlay .hold-assigned.hold-hovered g {
   stroke: rgba(107, 114, 128, 0.8);
+  stroke-width: 2;
+}
+
+.hold-assigned-other:hover g,
+.hold-assigned-other.hold-hovered g {
+  stroke: rgba(239, 68, 68, 0.6);
   stroke-width: 2;
 }
 

@@ -1,6 +1,6 @@
 /**
  * Detection Cache Service
- * 
+ *
  * Abstracts browser caching for hold detection results.
  * To disable caching: set CACHE_ENABLED = false
  * To remove caching entirely: replace this service with a no-op implementation
@@ -16,14 +16,16 @@ const CACHE_PREFIX = "hold_detection_cache_";
  */
 const generateCacheKey = (imageUrl, settings) => {
   if (!CACHE_ENABLED) return null;
-  
+
   try {
-    const settingsHash = btoa(JSON.stringify({
-      enabled: settings.enabled,
-      maxSizeMB: settings.maxSizeMB,
-      maxWidthOrHeight: settings.maxWidthOrHeight,
-    })).slice(0, 16);
-    
+    const settingsHash = btoa(
+      JSON.stringify({
+        enabled: settings.enabled,
+        maxSizeMB: settings.maxSizeMB,
+        maxWidthOrHeight: settings.maxWidthOrHeight,
+      })
+    ).slice(0, 16);
+
     const urlHash = btoa(imageUrl).slice(0, 16);
     return `${CACHE_PREFIX}${urlHash}_${settingsHash}`;
   } catch (error) {
@@ -37,11 +39,11 @@ const generateCacheKey = (imageUrl, settings) => {
  */
 export const getCachedDetectionResult = (imageUrl, settings) => {
   if (!CACHE_ENABLED) return null;
-  
+
   try {
     const cacheKey = generateCacheKey(imageUrl, settings);
     if (!cacheKey) return null;
-    
+
     const cached = localStorage.getItem(cacheKey);
     if (!cached) return null;
 
@@ -68,18 +70,18 @@ export const getCachedDetectionResult = (imageUrl, settings) => {
  */
 export const setCachedDetectionResult = (imageUrl, settings, data) => {
   if (!CACHE_ENABLED) return;
-  
+
   try {
     const cacheKey = generateCacheKey(imageUrl, settings);
     if (!cacheKey) return;
-    
+
     const cacheEntry = {
       data,
       timestamp: Date.now(),
       imageUrl,
-      settings: { ...settings }
+      settings: { ...settings },
     };
-    
+
     localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
     console.log("💾 Cached detection results for:", imageUrl);
   } catch (error) {
@@ -94,12 +96,12 @@ export const setCachedDetectionResult = (imageUrl, settings, data) => {
  */
 export const clearExpiredDetectionCache = () => {
   if (!CACHE_ENABLED) return;
-  
+
   try {
     const now = Date.now();
     const expiry = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
-    
-    Object.keys(localStorage).forEach(key => {
+
+    Object.keys(localStorage).forEach((key) => {
       if (key.startsWith(CACHE_PREFIX)) {
         try {
           const { timestamp } = JSON.parse(localStorage.getItem(key));
@@ -123,9 +125,9 @@ export const clearExpiredDetectionCache = () => {
  */
 export const clearAllDetectionCache = () => {
   if (!CACHE_ENABLED) return;
-  
+
   try {
-    Object.keys(localStorage).forEach(key => {
+    Object.keys(localStorage).forEach((key) => {
       if (key.startsWith(CACHE_PREFIX)) {
         localStorage.removeItem(key);
       }
@@ -141,24 +143,24 @@ export const clearAllDetectionCache = () => {
  */
 export const getDetectionCacheStats = () => {
   if (!CACHE_ENABLED) return { enabled: false, count: 0, totalSize: 0 };
-  
+
   try {
     let count = 0;
     let totalSize = 0;
-    
-    Object.keys(localStorage).forEach(key => {
+
+    Object.keys(localStorage).forEach((key) => {
       if (key.startsWith(CACHE_PREFIX)) {
         count++;
         totalSize += localStorage.getItem(key).length;
       }
     });
-    
+
     return {
       enabled: true,
       count,
       totalSize,
       formattedSize: `${(totalSize / 1024).toFixed(1)} KB`,
-      expiryHours: CACHE_EXPIRY_HOURS
+      expiryHours: CACHE_EXPIRY_HOURS,
     };
   } catch (error) {
     console.error("Error getting cache stats:", error);

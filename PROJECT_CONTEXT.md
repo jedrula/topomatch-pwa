@@ -68,11 +68,13 @@ server/src/
 - **Unsaved Changes Tracking**: Changes marked for later batch persistence
 
 ### Boulder Problem Updates
+
 - **Create Flow**: `createNewProblem` → `finishCreatingProblem` (persists name, grade, holds)
 - **Edit Flow**: `updateProblemName`/`updateProblemGrade` → `saveProblemChanges` (persists all fields)
 - **Always Include**: Ensure name, grade, and holds are sent to `updateBoulderProblem` function
 
 ### Caching Architecture
+
 - **Abstracted Service**: `detectionCacheService.js` handles all caching logic
 - **Easy Disable**: Set `CACHE_ENABLED = false` in cache service to disable
 - **Easy Removal**: Replace cache service with no-op implementation to remove entirely

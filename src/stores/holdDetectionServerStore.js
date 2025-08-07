@@ -1,11 +1,11 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { holdDetectionServerService } from "../services/holdDetectionServerService.js";
-import { 
-  getCachedDetectionResult, 
-  setCachedDetectionResult, 
+import {
+  getCachedDetectionResult,
+  setCachedDetectionResult,
   clearAllDetectionCache,
-  clearExpiredDetectionCache 
+  clearExpiredDetectionCache,
 } from "../services/detectionCacheService.js";
 
 export const useHoldDetectionServerStore = defineStore("holdDetectionServer", () => {
@@ -112,17 +112,17 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     const cachedResult = getCachedDetectionResult(imageUrl, compressionSettings.value);
     if (cachedResult) {
       console.log("🚀 Using cached detection results");
-      
+
       // Simulate quick processing for user feedback
       isProcessing.value = true;
       processingStatus.value = "completed";
       statusMessage.value = "Using cached results...";
       updateProgress(4, 100, "Loaded from cache!");
-      
+
       // Set results and complete
       results.value = cachedResult.result;
       processingMetrics.value = cachedResult.metrics;
-      
+
       // Brief delay to show cache feedback
       setTimeout(() => {
         isProcessing.value = false;
@@ -133,7 +133,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
         success: true,
         result: cachedResult.result,
         metrics: cachedResult.metrics,
-        fromCache: true
+        fromCache: true,
       };
     }
 
@@ -185,7 +185,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       // Cache the successful result using the cache service
       const resultToCache = {
         result: pollResult.result,
-        metrics: processingMetrics.value
+        metrics: processingMetrics.value,
       };
       setCachedDetectionResult(imageUrl, compressionSettings.value, resultToCache);
 
@@ -193,7 +193,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
         success: true,
         result: results.value,
         metrics: processingMetrics.value,
-        fromCache: false
+        fromCache: false,
       };
     } catch (err) {
       error.value = err.message;
@@ -269,7 +269,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     statusMessage.value = "Ready to process images";
     currentStep.value = 0;
     progressPercent.value = 0;
-    
+
     if (clearCache) {
       clearAllDetectionCache();
     }
@@ -315,7 +315,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     processImage,
     clearResults,
     resetState,
-    
+
     // Cache management (delegated to cache service)
     clearAllCache: clearAllDetectionCache,
     clearExpiredCache: clearExpiredDetectionCache,
