@@ -206,6 +206,7 @@ defineExpose({
   opacity: 0;
   transition: opacity 0.2s ease, filter 0.2s ease;
   cursor: pointer;
+  fill: transparent; /* Default fill to avoid flickering */
 }
 
 /* When overlay is enabled, show holds */
@@ -276,7 +277,7 @@ defineExpose({
 
 .hold-being-edited g {
   stroke: rgba(34, 197, 94, 0.8);
-  stroke-width: 2;
+  stroke-width: 8;
 }
 
 .show-overlay .hold-assigned g {
@@ -351,7 +352,7 @@ defineExpose({
 }
 
 .magic-wand-dimmed g {
-  opacity: 0.2 !important; 
+  opacity: 0.2 !important;
   stroke: rgba(156, 163, 175, 0.2) !important;
   stroke-width: 1 !important;
   fill-opacity: 0.1 !important;

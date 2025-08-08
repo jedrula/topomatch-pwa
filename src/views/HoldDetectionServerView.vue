@@ -82,7 +82,7 @@
                   :hovered-problem-id="hoveredProblemId"
                   :magic-wand-active="isAnyMagicWandActive"
                   :magic-wand-selection="magicWandSelection"
-                  :show-hold-overlay="true"
+                  :show-hold-overlay="false"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   ref="unifiedOverlay"
