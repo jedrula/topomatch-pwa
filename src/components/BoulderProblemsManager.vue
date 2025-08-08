@@ -162,10 +162,64 @@
             </svg>
             {{
               editingProblem
-                ? "Click on detected holds to adjust this problem."
-                : "Click on the detected holds in the image to add them to this problem."
+                ? "Use the tool picker below to select holds for this problem."
+                : "Use the tool picker below to add holds to this problem."
             }}
           </p>
+        </div>
+
+        <!-- Tool Picker -->
+        <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+          <h5 class="text-sm font-medium text-gray-700 mb-3">Select Tool:</h5>
+          <div class="flex space-x-2">
+            <button
+              @click="setHoldSelectionTool('single')"
+              :class="[
+                'flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
+                holdSelectionTool === 'single'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              ]"
+              title="Single Hold Selector - Click individual holds to add/remove them"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                />
+              </svg>
+              <span>Single</span>
+            </button>
+            <button
+              @click="setHoldSelectionTool('magic-wand')"
+              :class="[
+                'flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
+                holdSelectionTool === 'magic-wand'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              ]"
+              title="Magic Wand - Click a hold to select an entire connected route of similar-colored holds"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4.929 2.929l1.414 1.414M2.929 7.071l1.414-1.414m0 0L7.071 2.93m-2.728 2.728L6.929 7.243m9.9-2.122l1.414-1.414m-2.122 9.9l1.414 1.414M12 3v3m6 6h3M9 21h6m-9-6h3m6 0h3"
+                />
+              </svg>
+              <span>Magic Wand</span>
+            </button>
+          </div>
+          <div class="mt-2 text-xs text-gray-600">
+            {{
+              holdSelectionTool === 'single'
+                ? 'Click individual holds to add or remove them from the problem.'
+                : 'Click any hold to automatically select an entire connected route of similar-colored holds.'
+            }}
+          </div>
         </div>
 
         <!-- Action Buttons -->
@@ -397,7 +451,7 @@ defineProps({
   },
 });
 
-const emit = defineEmits(["problem-hover", "editing-state-change"]);
+const emit = defineEmits(["problem-hover", "editing-state-change", "tool-selection-change"]);
 
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
@@ -408,6 +462,15 @@ const selectedGrade = ref("V0");
 
 // Edit mode state
 const editingProblem = ref(null);
+
+// Tool selection state
+const holdSelectionTool = ref("single");
+
+const setHoldSelectionTool = (tool) => {
+  holdSelectionTool.value = tool;
+  // Emit tool selection change to parent
+  emit("tool-selection-change", tool);
+};
 
 const startCreatingProblem = async () => {
   try {
@@ -436,17 +499,21 @@ const finishProblem = async () => {
 
   await boulderProblemsStore.finishCreatingProblem();
 
-  // Reset form
+  // Reset form and tool selection
   problemName.value = "";
   selectedGrade.value = "V0";
+  holdSelectionTool.value = "single";
+  emit("tool-selection-change", "single");
 };
 
 const cancelProblem = async () => {
   await boulderProblemsStore.cancelCreatingProblem();
 
-  // Reset form
+  // Reset form and tool selection
   problemName.value = "";
   selectedGrade.value = "V0";
+  holdSelectionTool.value = "single";
+  emit("tool-selection-change", "single");
 };
 
 const selectProblem = (problem) => {
@@ -471,6 +538,10 @@ const editProblem = (problem) => {
   // Pre-populate the form with existing values
   problemName.value = problem.name;
   selectedGrade.value = problem.grade;
+  
+  // Reset tool selection to single when starting edit
+  holdSelectionTool.value = "single";
+  emit("tool-selection-change", "single");
 };
 
 const saveEdit = async () => {
@@ -515,6 +586,8 @@ const cancelEdit = async () => {
   editingProblem.value = null;
   problemName.value = "";
   selectedGrade.value = "V0";
+  holdSelectionTool.value = "single";
+  emit("tool-selection-change", "single");
 };
 
 const deleteProblem = async (problemId) => {

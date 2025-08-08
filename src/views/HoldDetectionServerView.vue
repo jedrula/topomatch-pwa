@@ -80,7 +80,7 @@
                   :is-editing-problem="editingState.isEditing"
                   :editing-problem="editingState.editingProblem"
                   :hovered-problem-id="hoveredProblemId"
-                  :magic-wand-active="magicWandActive"
+                  :magic-wand-active="isAnyMagicWandActive"
                   :magic-wand-selection="magicWandSelection"
                   :show-hold-overlay="true"
                   @hold-click="handleHoldClick"
@@ -179,9 +179,9 @@
                   <span>Clear Results</span>
                 </button>
 
-                <!-- Magic Wand Button -->
+                <!-- Magic Wand Button - Only show when not in boulder creation/editing mode -->
                 <button
-                  v-if="serverStore.hasResults"
+                  v-if="serverStore.hasResults && !boulderProblemsStore.isCreatingProblem && !editingState.isEditing"
                   @click="toggleMagicWand"
                   :class="[
                     'px-6 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
@@ -189,7 +189,7 @@
                       ? 'bg-purple-600 hover:bg-purple-700 text-white'
                       : 'border border-purple-300 text-purple-700 hover:bg-purple-50',
                   ]"
-                  title="Magic Wand: Click a hold to select 10 closest holds"
+                  title="Magic Wand: Click a hold to select connected route of similar-colored holds"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -348,6 +348,7 @@
             :detection-results="serverStore.results"
             :climbing-image="climbingImage"
             @editing-state-change="handleEditingStateChange"
+            @tool-selection-change="handleToolSelectionChange"
           />
 
           <!-- Processing Status -->
@@ -417,7 +418,7 @@
             </div>
           </div>
 
-          <!-- Magic Wand Status -->
+          <!-- Magic Wand Status - Only show for standalone magic wand -->
           <div
             v-if="magicWandActive && magicWandSelection.stats"
             class="bg-purple-50 border border-purple-200 rounded-lg shadow-sm"
@@ -449,18 +450,18 @@
                     {{ magicWandSelection.selectedIndices.length }} holds
                   </span>
                 </div>
-                <!-- Average Distance -->
+                <!-- Color Similar -->
                 <div class="flex items-center justify-between">
-                  <span class="text-purple-600">Avg Distance:</span>
+                  <span class="text-purple-600">Color Similar:</span>
                   <span class="text-sm font-medium text-purple-900">
-                    {{ magicWandSelection.stats.averageDistance }}px
+                    {{ magicWandSelection.stats.colorSimilar }} holds
                   </span>
                 </div>
-                <!-- Max Distance -->
+                <!-- Connected -->
                 <div class="flex items-center justify-between">
-                  <span class="text-purple-600">Max Distance:</span>
+                  <span class="text-purple-600">Connected Route:</span>
                   <span class="text-sm font-medium text-purple-900">
-                    {{ magicWandSelection.stats.maxDistance }}px
+                    {{ magicWandSelection.stats.connected }} holds
                   </span>
                 </div>
               </div>
@@ -591,7 +592,10 @@ const editingState = ref({
   editingProblem: null,
 });
 
-// Magic Wand state
+// Boulder problem tool selection state
+const boulderHoldSelectionTool = ref("single");
+
+// Magic Wand state (global magic wand for standalone use)
 const magicWandActive = ref(false);
 const magicWandSelection = ref({
   selectedIndices: [],
@@ -624,6 +628,14 @@ const apiHealthStatus = computed(() => {
 
 const connectionDisplayText = computed(() => {
   return apiHealthStatus.value ? "Connected" : "Disconnected";
+});
+
+// Check if any form of magic wand is active
+const isAnyMagicWandActive = computed(() => {
+  // Standalone magic wand OR boulder creation/editing with magic wand tool
+  return magicWandActive.value || 
+    ((boulderProblemsStore.isCreatingProblem || editingState.value.isEditing) && 
+     boulderHoldSelectionTool.value === "magic-wand");
 });
 
 // Methods
@@ -727,9 +739,12 @@ const goBackToLocation = () => {
 const handleHoldClick = (hold, holdIndex) => {
   console.log("🎯 Hold clicked in main view:", { hold, holdIndex });
 
-  // Magic Wand functionality
-  if (magicWandActive.value) {
-    console.log("🪄 Magic Wand is active - performing proximity selection");
+  // Check if we're in boulder creation/editing mode
+  const isBoulderMode = boulderProblemsStore.isCreatingProblem || editingState.value.isEditing;
+
+  // Priority 1: Boulder creation/editing with magic wand tool
+  if (isBoulderMode && boulderHoldSelectionTool.value === "magic-wand") {
+    console.log("🪄 Boulder Magic Wand is active - performing route selection for boulder problem");
 
     // Get all holds from server results
     const allHolds = serverStore.results?.holds || [];
@@ -739,8 +754,61 @@ const handleHoldClick = (hold, holdIndex) => {
       return;
     }
 
+    // Determine which problem we're working with
+    let targetProblem = null;
+    if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
+      targetProblem = boulderProblemsStore.activeProblem;
+    } else if (editingState.value.isEditing && editingState.value.editingProblem) {
+      targetProblem = editingState.value.editingProblem;
+    }
+
+    if (!targetProblem) {
+      console.log("⚠️ No active problem being created or edited, ignoring magic wand click");
+      return;
+    }
+
     // Perform magic wand selection
-    const result = performMagicWandSelection(holdIndex, allHolds, 33);
+    const result = performMagicWandSelection(holdIndex, allHolds);
+
+    if (result.success) {
+      console.log(`✨ Magic Wand found ${result.selectedIndices.length} connected holds for boulder problem`);
+      
+      // Add all selected holds to the target problem
+      result.selectedIndices.forEach((selectedHoldIndex) => {
+        const selectedHold = allHolds[selectedHoldIndex];
+        if (selectedHold) {
+          // Enhance hold data with SVG markup from server results if available
+          const enhancedHold = {
+            ...selectedHold,
+            svgMarkup: serverStore.results?.svg_markups?.[selectedHoldIndex] || null,
+            detectionSource: "server",
+          };
+
+          // Add hold to the target problem (this will toggle - add if not present, remove if present)
+          boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, selectedHoldIndex);
+        }
+      });
+
+      console.log(`✅ Added ${result.selectedIndices.length} holds to boulder problem via Magic Wand`);
+    }
+
+    return; // Don't proceed with other logic when using boulder magic wand
+  }
+
+  // Priority 2: Standalone Magic Wand functionality (when not in boulder mode)
+  if (!isBoulderMode && magicWandActive.value) {
+    console.log("🪄 Standalone Magic Wand is active - performing proximity selection");
+
+    // Get all holds from server results
+    const allHolds = serverStore.results?.holds || [];
+
+    if (allHolds.length === 0) {
+      console.warn("No holds available for magic wand selection");
+      return;
+    }
+
+    // Perform magic wand selection for standalone use
+    const result = performMagicWandSelection(holdIndex, allHolds);
 
     if (result.success) {
       magicWandSelection.value = {
@@ -750,55 +818,62 @@ const handleHoldClick = (hold, holdIndex) => {
       };
     }
 
-    return; // Don't proceed with normal hold selection when magic wand is active
+    return; // Don't proceed with normal hold selection when standalone magic wand is active
   }
 
-  // Normal hold selection logic (existing code)
-  // Check if hold is already assigned to another problem
-  const existingProblem = boulderProblemsStore.sortedProblems.find((problem) =>
-    problem.holds?.some((h) => h.holdIndex === holdIndex)
-  );
+  // Priority 3: Normal boulder creation/editing (single hold selection)
+  if (isBoulderMode) {
+    // Normal hold selection logic for boulder problems
+    console.log("🏔️ Boulder mode: single hold selection");
 
-  // Determine which problem we're working with
-  let targetProblem = null;
+    // Check if hold is already assigned to another problem
+    const existingProblem = boulderProblemsStore.sortedProblems.find((problem) =>
+      problem.holds?.some((h) => h.holdIndex === holdIndex)
+    );
 
-  if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
-    // Creating a new problem
-    targetProblem = boulderProblemsStore.activeProblem;
-  } else if (editingState.value.isEditing && editingState.value.editingProblem) {
-    // Editing an existing problem
-    targetProblem = editingState.value.editingProblem;
+    // Determine which problem we're working with
+    let targetProblem = null;
+    if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
+      // Creating a new problem
+      targetProblem = boulderProblemsStore.activeProblem;
+    } else if (editingState.value.isEditing && editingState.value.editingProblem) {
+      // Editing an existing problem
+      targetProblem = editingState.value.editingProblem;
+    }
+
+    if (!targetProblem) {
+      console.log("⚠️ No active problem being created or edited, ignoring hold click");
+      return;
+    }
+
+    // If hold belongs to a different problem than the one being worked on, prevent selection
+    if (existingProblem && existingProblem.id !== targetProblem.id) {
+      console.warn(`⚠️ Hold ${holdIndex} is already part of problem #${existingProblem.id}`);
+      return;
+    }
+
+    // Enhance hold data with SVG markup from server results if available
+    const enhancedHold = {
+      ...hold,
+      svgMarkup: serverStore.results?.svg_markups?.[holdIndex] || null,
+      detectionSource: "server",
+    };
+
+    // Add or remove hold from the target problem
+    boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, holdIndex);
+
+    console.log(
+      `✅ Hold added/removed from ${
+        editingState.value.isEditing ? "edited" : "created"
+      } problem with SVG markup:`,
+      enhancedHold.svgMarkup ? "included" : "not available"
+    );
+
+    return; // Don't proceed with other logic when in boulder mode
   }
 
-  if (!targetProblem) {
-    console.log("⚠️ No active problem being created or edited, ignoring hold click");
-    return;
-  }
-
-  // If hold belongs to a different problem than the one being worked on, prevent selection
-  if (existingProblem && existingProblem.id !== targetProblem.id) {
-    console.warn(`⚠️ Hold ${holdIndex} is already part of problem #${existingProblem.id}`);
-    // Could show a warning toast here in the future
-    return;
-  }
-
-  // Enhance hold data with SVG markup from server results if available
-  const enhancedHold = {
-    ...hold,
-    // Include SVG markup from server results if available
-    svgMarkup: serverStore.results?.svg_markups?.[holdIndex] || null,
-    detectionSource: "server",
-  };
-
-  // Add or remove hold from the target problem
-  boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, holdIndex);
-
-  console.log(
-    `✅ Hold added/removed from ${
-      editingState.value.isEditing ? "edited" : "created"
-    } problem with SVG markup:`,
-    enhancedHold.svgMarkup ? "included" : "not available"
-  );
+  // Priority 4: No special mode active - ignore click
+  console.log("ℹ️ No special mode active, ignoring hold click");
 };
 
 const handleHoldHover = (holdIndex, problemId) => {
@@ -808,6 +883,11 @@ const handleHoldHover = (holdIndex, problemId) => {
 const handleEditingStateChange = (newEditingState) => {
   editingState.value = newEditingState;
   console.log("🔧 Editing state changed:", newEditingState);
+};
+
+const handleToolSelectionChange = (selectedTool) => {
+  boulderHoldSelectionTool.value = selectedTool;
+  console.log("🔧 Boulder tool selection changed:", selectedTool);
 };
 
 // Load image based on query parameters

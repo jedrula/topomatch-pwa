@@ -70,14 +70,14 @@ export const findClosestHolds = (targetHold, allHolds, count = 10) => {
  * Magic Wand main function - finds connected route of similar-colored holds
  * @param {number} targetHoldIndex - Index of the clicked hold
  * @param {Array} allHolds - Array of all holds in the image
- * @param {number} maxColorDistance - Maximum LAB color distance for similarity (default: 50)
+ * @param {number} maxColorDistance - Maximum LAB color distance for similarity (default: 33)
  * @param {number} maxReachDistance - Maximum pixel distance between reachable holds (default: 500)
  * @returns {Object} Selection result with connected route holds
  */
 export const performMagicWandSelection = (
   targetHoldIndex,
   allHolds,
-  maxColorDistance = 50,
+  maxColorDistance = 33,
   maxReachDistance = 500
 ) => {
   if (
@@ -215,7 +215,7 @@ export const extractHoldColor = (hold) => {
  * @param {number} maxColorDistance - Maximum LAB color distance for similarity
  * @returns {Array} All color-similar holds with their indices
  */
-export const findAllSimilarColorHolds = (targetHold, allHolds, maxColorDistance = 50) => {
+export const findAllSimilarColorHolds = (targetHold, allHolds, maxColorDistance = 33) => {
   const targetColor = extractHoldColor(targetHold);
   if (!targetColor) {
     console.log("Magic Wand: No color data found for target hold");
@@ -358,7 +358,7 @@ export const findConnectedComponent = (graph, targetHoldIndex) => {
  * @param {number} maxColorDistance - Maximum color distance for similarity
  * @returns {Array} Filtered holds with similar colors
  */
-export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistance = 50) => {
+export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistance = 33) => {
   const targetColor = extractHoldColor(targetHold);
   if (!targetColor) {
     return candidateHolds || [];
