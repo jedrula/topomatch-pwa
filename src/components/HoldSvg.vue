@@ -91,7 +91,8 @@ const handleHover = (isEntering) => {
 
 .interaction-selected :deep(path) {
   stroke: var(--hold-color, #3b82f6);
-  stroke-width: 3;
+  stroke-width: 6;
+  fill: transparent;
   filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6));
 }
 
@@ -123,7 +124,8 @@ const handleHover = (isEntering) => {
 
 .interaction-hover :deep(path) {
   stroke: var(--hold-color, #3b82f6);
-  stroke-width: 4;
+  stroke-width: 8;
+  fill: rgba(59, 130, 246, 0.3);
   filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8));
 }
 
