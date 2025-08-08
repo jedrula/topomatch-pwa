@@ -20,10 +20,7 @@
             {{ problem.name }}
           </div>
           <!-- Unsaved changes indicator -->
-          <div
-            v-if="hasUnsavedChanges"
-            class="flex items-center flex-shrink-0"
-          >
+          <div v-if="hasUnsavedChanges" class="flex items-center flex-shrink-0">
             <div class="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes"></div>
           </div>
         </div>
@@ -34,9 +31,7 @@
     </div>
 
     <div class="flex items-center space-x-1 flex-shrink-0">
-      <span
-        class="text-xs font-medium text-gray-500 max-w-16 truncate"
-        :title="`#${problem.id}`"
+      <span class="text-xs font-medium text-gray-500 max-w-16 truncate" :title="`#${problem.id}`"
         >#{{ problem.id }}</span
       >
       <button
@@ -144,7 +139,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   "click",
-  "mouseenter", 
+  "mouseenter",
   "mouseleave",
   "view-detail",
   "toggle-visibility",

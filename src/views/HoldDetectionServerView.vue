@@ -571,6 +571,15 @@
         </div>
       </div>
     </main>
+
+    <!-- Floating Problem Card Tooltip -->
+    <FloatingBoulderProblemCard
+      :visible="floatingCard.visible"
+      :problem="floatingCard.problem"
+      :position="floatingCard.position"
+      @edit="handleFloatingCardEdit"
+      @toggle-visibility="handleFloatingCardToggleVisibility"
+    />
   </div>
 </template>
 
@@ -582,6 +591,7 @@ import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore.js";
 import { locationService } from "@/services/locationService";
 import UnifiedHoldOverlay from "@/components/UnifiedHoldOverlay.vue";
 import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
+import FloatingBoulderProblemCard from "@/components/FloatingBoulderProblemCard.vue";
 import { performMagicWandSelection, isHoldInMagicWandSelection } from "@/utils/magicWandUtils.js";
 
 const route = useRoute();
@@ -601,6 +611,13 @@ const hoveredProblemId = ref(null);
 const editingState = ref({
   isEditing: false,
   editingProblem: null,
+});
+
+// Floating problem card state
+const floatingCard = ref({
+  visible: false,
+  problem: null,
+  position: { x: 0, y: 0 },
 });
 
 // Boulder problem tool selection state
