@@ -143,7 +143,7 @@
               <div class="mt-6 flex flex-col sm:flex-row gap-3">
                 <button
                   @click="processImage"
-                  :disabled="serverStore.isProcessing || !serverStore.isReady"
+                  :disabled="serverStore.isProcessing || !serverStore.canProcessImage(imageUrl)"
                   class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
                 >
                   <div
@@ -159,7 +159,13 @@
                     />
                   </svg>
                   <span>{{
-                    serverStore.isProcessing ? "Processing..." : "Detect Holds (Server)"
+                    serverStore.isProcessing
+                      ? "Processing..."
+                      : serverStore.hasResults
+                      ? "Re-detect Holds"
+                      : serverStore.hasCachedResults(imageUrl)
+                      ? "Load Cached Results"
+                      : "Detect Holds (Server)"
                   }}</span>
                 </button>
 
@@ -921,6 +927,9 @@ const loadImageFromQuery = async () => {
           name: imageRecord.fileName,
         };
         console.log("✅ Loaded image for hold detection:", currentImage.value);
+
+        // Check if we have cached results and auto-load them
+        await checkAndLoadCachedResults();
       } else {
         console.warn(`⚠️ Image with ID ${imageId} not found in location ${locationId}`);
         currentImage.value = null;
@@ -934,6 +943,31 @@ const loadImageFromQuery = async () => {
     // No query parameters, use default/hardcoded image
     console.log("📷 Using default image (no query parameters)");
     currentImage.value = null;
+
+    // Still check for cached results for the default image
+    await checkAndLoadCachedResults();
+  }
+};
+
+// Check for cached results and automatically load them
+const checkAndLoadCachedResults = async () => {
+  if (!imageUrl.value) return;
+
+  console.log("🔍 Checking for cached results for:", imageUrl.value);
+
+  if (serverStore.hasCachedResults(imageUrl.value)) {
+    console.log("📦 Found cached results, automatically loading...");
+
+    try {
+      const result = await serverStore.processImage(imageUrl.value);
+      if (result.success && result.fromCache) {
+        console.log("✅ Automatically loaded cached hold detection results");
+      }
+    } catch (error) {
+      console.error("❌ Error loading cached results:", error);
+    }
+  } else {
+    console.log("ℹ️ No cached results found for this image");
   }
 };
 
@@ -942,6 +976,20 @@ watch(
   () => route.query,
   () => {
     loadImageFromQuery();
+  },
+  { immediate: false }
+);
+
+// Watch for image URL changes to auto-load cached results
+watch(
+  () => imageUrl.value,
+  async (newImageUrl) => {
+    if (newImageUrl) {
+      // Small delay to ensure image is loaded
+      setTimeout(async () => {
+        await checkAndLoadCachedResults();
+      }, 100);
+    }
   },
   { immediate: false }
 );
@@ -970,7 +1018,11 @@ onMounted(async () => {
   // Load image based on query parameters
   await loadImageFromQuery();
 
-  // Test API health on mount
-  await testApiHealth();
+  // Test API health on mount (but don't block if we have cached results)
+  if (!serverStore.hasResults) {
+    await testApiHealth();
+  } else {
+    console.log("ℹ️ Skipping API health check - cached results already loaded");
+  }
 });
 </script>

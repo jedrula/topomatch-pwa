@@ -49,6 +49,36 @@ const generateCacheKey = (imageUrl, settings) => {
 };
 
 /**
+ * Check if cached detection result exists for an image without retrieving it
+ */
+export const hasCachedDetectionResult = (imageUrl, settings) => {
+  if (!CACHE_ENABLED) return false;
+
+  try {
+    const cacheKey = generateCacheKey(imageUrl, settings);
+    if (!cacheKey) return false;
+
+    const cached = localStorage.getItem(cacheKey);
+    if (!cached) return false;
+
+    const { timestamp } = JSON.parse(cached);
+    const now = Date.now();
+    const expiry = CACHE_EXPIRY_HOURS * 60 * 60 * 1000;
+
+    // Check if cache is expired
+    if (now - timestamp > expiry) {
+      localStorage.removeItem(cacheKey);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error checking detection cache:", error);
+    return false;
+  }
+};
+
+/**
  * Get cached detection result if available and not expired
  */
 export const getCachedDetectionResult = (imageUrl, settings) => {

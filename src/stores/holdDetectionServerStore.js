@@ -7,6 +7,7 @@ import {
   clearAllDetectionCache,
   clearExpiredDetectionCache,
   clearDetectionCacheForImage,
+  hasCachedDetectionResult,
 } from "../services/detectionCacheService.js";
 
 export const useHoldDetectionServerStore = defineStore("holdDetectionServer", () => {
@@ -43,6 +44,12 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   const isReady = computed(() => processingStatus.value === "ready" && apiHealthy.value);
   const hasResults = computed(() => results.value !== null);
   const isLoading = computed(() => isProcessing.value);
+
+  // Can process either via API (when healthy) or cache (when available)
+  const canProcessImage = (imageUrl) => {
+    if (!imageUrl) return false;
+    return apiHealthy.value || hasCachedDetectionResult(imageUrl, compressionSettings.value);
+  };
 
   const holdCount = computed(() => {
     return results.value?.yolo_results?.total_detections || 0;
@@ -104,12 +111,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       return { success: false, error: "No image URL provided" };
     }
 
-    if (!apiHealthy.value) {
-      error.value = "API is not healthy. Please test connection first.";
-      return { success: false, error: "API is not healthy" };
-    }
-
-    // Check cache first using the cache service
+    // Check cache first - we can load cached results even if API is down
     console.log("🔍 Checking cache for image:", imageUrl);
     console.log("🔧 Cache settings:", compressionSettings.value);
 
@@ -118,21 +120,14 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       console.log("✅ Using cached detection results for:", imageUrl);
       console.log("📦 Cached result contains:", Object.keys(cachedResult.result || {}));
 
-      // Simulate quick processing for user feedback
-      isProcessing.value = true;
-      processingStatus.value = "completed";
-      statusMessage.value = "Using cached results...";
-      updateProgress(4, 100, "Loaded from cache!");
-
-      // Set results and complete
+      // Set results immediately
       results.value = cachedResult.result;
       processingMetrics.value = cachedResult.metrics;
 
-      // Brief delay to show cache feedback
-      setTimeout(() => {
-        isProcessing.value = false;
-        statusMessage.value = "Processing completed (cached)";
-      }, 500);
+      // Update status to show cached results
+      processingStatus.value = "completed";
+      statusMessage.value = "Results loaded from cache";
+      error.value = null;
 
       return {
         success: true,
@@ -140,6 +135,12 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
         metrics: cachedResult.metrics,
         fromCache: true,
       };
+    }
+
+    // Only check API health if we need to make a server request
+    if (!apiHealthy.value) {
+      error.value = "API is not healthy. Please test connection first.";
+      return { success: false, error: "API is not healthy" };
     }
 
     try {
@@ -314,6 +315,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     holdCount,
     processingTime,
     svgCount,
+    canProcessImage,
 
     // Actions
     setApiUrl,
@@ -326,5 +328,6 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     clearAllCache: clearAllDetectionCache,
     clearExpiredCache: clearExpiredDetectionCache,
     clearCacheForImage: clearDetectionCacheForImage,
+    hasCachedResults: (imageUrl) => hasCachedDetectionResult(imageUrl, compressionSettings.value),
   };
 });

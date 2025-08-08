@@ -362,10 +362,11 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     };
 
     // Check if any server-persisted properties changed (exclude local UI state like 'hidden')
-    const serverPersistedPropsChanged = 
+    const serverPersistedPropsChanged =
       updatedProblem.name !== previousProblem.name ||
       updatedProblem.grade !== previousProblem.grade ||
-      (updatedProblem.holds && JSON.stringify(updatedProblem.holds) !== JSON.stringify(previousProblem.holds));
+      (updatedProblem.holds &&
+        JSON.stringify(updatedProblem.holds) !== JSON.stringify(previousProblem.holds));
 
     // Mark problem as having unsaved changes only if server-persisted properties changed
     if (!updatedProblem.isLocalOnly && !isCreatingProblem.value && serverPersistedPropsChanged) {
