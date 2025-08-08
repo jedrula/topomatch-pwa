@@ -352,14 +352,23 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     const problemIndex = boulderProblems.value.findIndex((p) => p.id === updatedProblem.id);
     if (problemIndex === -1) return;
 
+    // Store the previous problem state to check what actually changed
+    const previousProblem = boulderProblems.value[problemIndex];
+
     // Update the problem with new properties
     boulderProblems.value[problemIndex] = {
       ...boulderProblems.value[problemIndex],
       ...updatedProblem,
     };
 
-    // Mark problem as having unsaved changes (unless it's local only or being created)
-    if (!updatedProblem.isLocalOnly && !isCreatingProblem.value) {
+    // Check if any server-persisted properties changed (exclude local UI state like 'hidden')
+    const serverPersistedPropsChanged = 
+      updatedProblem.name !== previousProblem.name ||
+      updatedProblem.grade !== previousProblem.grade ||
+      (updatedProblem.holds && JSON.stringify(updatedProblem.holds) !== JSON.stringify(previousProblem.holds));
+
+    // Mark problem as having unsaved changes only if server-persisted properties changed
+    if (!updatedProblem.isLocalOnly && !isCreatingProblem.value && serverPersistedPropsChanged) {
       problemsWithUnsavedChanges.value.add(updatedProblem.id);
     }
   };
