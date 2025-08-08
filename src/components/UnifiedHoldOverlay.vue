@@ -193,7 +193,12 @@ const getHoldSelectable = (holdIndex) => {
       return true;
     }
 
-    // Other problem holds are selectable for navigation
+    // Holds belonging to other problems are NOT selectable when creating/editing
+    if (props.isCreatingProblem || props.isEditingProblem) {
+      return false;
+    }
+
+    // Other problem holds are selectable for navigation (when not creating/editing)
     return true;
   } else {
     // Available holds are selectable when creating/editing problems

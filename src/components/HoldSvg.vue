@@ -49,8 +49,8 @@ const holdClasses = computed(() => {
 const holdStyles = computed(() => {
   const styles = {};
 
-  // Apply color for selected state
-  if (props.interaction === "selected") {
+  // Apply color for selected and hover states
+  if (props.interaction === "selected" || props.interaction === "hover") {
     styles["--hold-color"] = props.color;
   }
 
