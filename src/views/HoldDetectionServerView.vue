@@ -740,7 +740,7 @@ const handleHoldClick = (hold, holdIndex) => {
     }
 
     // Perform magic wand selection
-    const result = performMagicWandSelection(holdIndex, allHolds, 10);
+    const result = performMagicWandSelection(holdIndex, allHolds, 33);
 
     if (result.success) {
       magicWandSelection.value = {
