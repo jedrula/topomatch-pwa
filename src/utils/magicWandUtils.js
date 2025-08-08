@@ -10,14 +10,37 @@
  * @returns {number} Distance between the two holds
  */
 export const calculateDistance = (hold1, hold2) => {
-  // Use the center point of each hold for distance calculation
-  const x1 = hold1.x + (hold1.width || 0) / 2;
-  const y1 = hold1.y + (hold1.height || 0) / 2;
-  const x2 = hold2.x + (hold2.width || 0) / 2;
-  const y2 = hold2.y + (hold2.height || 0) / 2;
+  // Try center coordinates first (processed holds format)
+  if (
+    hold1.center_x !== undefined &&
+    hold1.center_y !== undefined &&
+    hold2.center_x !== undefined &&
+    hold2.center_y !== undefined
+  ) {
+    const dx = hold2.center_x - hold1.center_x;
+    const dy = hold2.center_y - hold1.center_y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
 
-  const dx = x2 - x1;
-  const dy = y2 - y1;
+  // Fallback to bbox format
+  const x1 = hold1.bbox?.x || hold1.x || 0;
+  const y1 = hold1.bbox?.y || hold1.y || 0;
+  const width1 = hold1.bbox?.width || hold1.width || 0;
+  const height1 = hold1.bbox?.height || hold1.height || 0;
+
+  const x2 = hold2.bbox?.x || hold2.x || 0;
+  const y2 = hold2.bbox?.y || hold2.y || 0;
+  const width2 = hold2.bbox?.width || hold2.width || 0;
+  const height2 = hold2.bbox?.height || hold2.height || 0;
+
+  // Calculate center points
+  const centerX1 = x1 + width1 / 2;
+  const centerY1 = y1 + height1 / 2;
+  const centerX2 = x2 + width2 / 2;
+  const centerY2 = y2 + height2 / 2;
+
+  const dx = centerX2 - centerX1;
+  const dy = centerY2 - centerY1;
 
   return Math.sqrt(dx * dx + dy * dy);
 };
@@ -190,7 +213,7 @@ export const extractHoldColor = (hold) => {
  * @param {Object} targetHold - The reference hold
  * @param {Array} candidateHolds - Array of holds to filter by color similarity
  * @param {number} maxColorDistance - Maximum color distance for similarity (default: 50)
- * @returns {Array} Filtered holds with similar colors
+ * @returns {Array} Filtered holds with similar colors (always returns at least one if candidates exist)
  */
 export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistance = 50) => {
   if (!targetHold || !candidateHolds || candidateHolds.length === 0) {
@@ -198,47 +221,39 @@ export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistan
   }
 
   const targetColor = extractHoldColor(targetHold);
-  const targetCategory = targetHold.color_analysis?.color_category;
 
   if (!targetColor) {
     console.log("Magic Wand: No color data found for target hold, returning all candidates");
     return candidateHolds;
   }
 
-  const similarHolds = candidateHolds.filter((hold) => {
-    const holdColor = extractHoldColor(hold);
-    if (!holdColor) return false; // Skip holds without color data
+  // Calculate color distances for all candidates
+  const holdsWithDistances = candidateHolds
+    .map((hold) => {
+      const holdColor = extractHoldColor(hold);
+      if (!holdColor) return null;
 
-    const colorDistance = calculateColorDistance(targetColor, holdColor);
+      const colorDistance = calculateColorDistance(targetColor, holdColor);
+      return { hold, colorDistance };
+    })
+    .filter((item) => item !== null)
+    .sort((a, b) => a.colorDistance - b.colorDistance); // Sort by color similarity
 
-    // First filter: RGB color distance
-    if (colorDistance > maxColorDistance) {
-      return false;
-    }
+  if (holdsWithDistances.length === 0) {
+    console.log("Magic Wand: No holds with color data, returning all candidates");
+    return candidateHolds;
+  }
 
-    // Second filter: If we have color categories, prefer exact category matches
-    // but be defensive and allow some cross-category matches for similar colors
-    if (targetCategory && hold.color_analysis?.color_category) {
-      const holdCategory = hold.color_analysis.color_category;
+  // Always return at least the most similar one, plus any others within threshold
+  const similarHolds = holdsWithDistances.filter((item) => item.colorDistance <= maxColorDistance);
 
-      // Exact category match is always good
-      if (targetCategory === holdCategory) {
-        return true;
-      }
+  // If no holds within threshold, return the most similar one
+  const finalHolds =
+    similarHolds.length > 0 ? similarHolds.map((item) => item.hold) : [holdsWithDistances[0].hold];
 
-      // For non-exact category matches, be more strict with color distance
-      if (colorDistance > maxColorDistance * 0.6) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  const targetCategoryInfo = targetCategory ? ` (${targetCategory})` : "";
   console.log(
-    `Magic Wand: Color filtering - Target: RGB(${targetColor.r}, ${targetColor.g}, ${targetColor.b})${targetCategoryInfo}, Found ${similarHolds.length}/${candidateHolds.length} similar holds (max distance: ${maxColorDistance})`
+    `Magic Wand: Color filtering - Target: RGB(${targetColor.r}, ${targetColor.g}, ${targetColor.b}), Found ${finalHolds.length}/${candidateHolds.length} similar holds (max distance: ${maxColorDistance})`
   );
 
-  return similarHolds;
+  return finalHolds;
 };
