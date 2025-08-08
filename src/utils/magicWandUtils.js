@@ -80,7 +80,7 @@ export const performMagicWandSelection = (
   allHolds,
   proximityCount = 20,
   enableColorFiltering = true,
-  maxColorDistance = 40
+  maxColorDistance = 25
 ) => {
   if (
     !allHolds ||
@@ -216,7 +216,7 @@ export const extractHoldColor = (hold) => {
  * @param {number} maxColorDistance - Maximum color distance for similarity (default: 50)
  * @returns {Array} Filtered holds with similar colors (always returns at least one if candidates exist)
  */
-export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistance = 40) => {
+export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistance = 25) => {
   if (!targetHold || !candidateHolds || candidateHolds.length === 0) {
     return candidateHolds || [];
   }
