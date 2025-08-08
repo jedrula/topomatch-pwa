@@ -81,7 +81,7 @@
               :key="`${problem.id}-${holdIndex}`"
               :svg-markup="problemHold.hold.svgMarkup"
               :interaction="hoveredProblemId === problem.id ? 'hover' : 'default'"
-              :selectable="true"
+              :interaction-allowed="'selectable'"
               :color="problem.color"
               @click="goToProblemDetail(problem)"
               @hover="handleProblemHover(problem.id, $event)"

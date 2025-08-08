@@ -12,7 +12,7 @@
       :key="`hold-${detectionResults.holds[index]?.id || index}`"
       :svg-markup="svgMarkup"
       :interaction="getHoldInteraction(index)"
-      :selectable="getHoldSelectable(index)"
+      :interaction-allowed="getHoldInteractionAllowed(index)"
       :color="getHoldColor(index)"
       @click="handleHoldClick(detectionResults.holds[index], index)"
       @hover="handleHoldHover(index, $event)"
@@ -165,11 +165,11 @@ const getHoldInteraction = (holdIndex) => {
   }
 };
 
-// Get whether hold is selectable
-const getHoldSelectable = (holdIndex) => {
+// Get interaction allowed state for hold
+const getHoldInteractionAllowed = (holdIndex) => {
   // Magic Wand mode - only selected holds are clickable
   if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
-    return props.magicWandSelection.selectedIndices.includes(holdIndex);
+    return props.magicWandSelection.selectedIndices.includes(holdIndex) ? "selectable" : "none";
   }
 
   const problemId = getHoldProblemId(holdIndex);
@@ -180,29 +180,32 @@ const getHoldSelectable = (holdIndex) => {
       (props.activeProblem?.id === problemId ? props.activeProblem : null) ||
       (props.editingProblem?.id === problemId ? props.editingProblem : null);
 
-    // Hidden holds are not selectable
+    // Hidden holds are not interactive
     if (problem?.hidden) {
-      return false;
+      return "none";
     }
 
     // Holds being edited are selectable
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
-      return true;
+      return "selectable";
     }
     if (props.isEditingProblem && props.editingProblem?.id === problemId) {
-      return true;
+      return "selectable";
     }
 
-    // Holds belonging to other problems are NOT selectable when creating/editing
+    // Holds belonging to other problems are FORBIDDEN when creating/editing
     if (props.isCreatingProblem || props.isEditingProblem) {
-      return false;
+      return "forbidden";
     }
 
     // Other problem holds are selectable for navigation (when not creating/editing)
-    return true;
+    return "selectable";
   } else {
     // Available holds are selectable when creating/editing problems
-    return props.isCreatingProblem || props.isEditingProblem;
+    if (props.isCreatingProblem || props.isEditingProblem) {
+      return "selectable";
+    }
+    return "none";
   }
 };
 

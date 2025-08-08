@@ -22,9 +22,10 @@ const props = defineProps({
     default: "default",
     validator: (value) => ["default", "selected", "hidden", "hover"].includes(value),
   },
-  selectable: {
-    type: Boolean,
-    default: false,
+  interactionAllowed: {
+    type: String,
+    default: "none",
+    validator: (value) => ["selectable", "forbidden", "none"].includes(value),
   },
   color: {
     type: String,
@@ -38,10 +39,7 @@ const holdClasses = computed(() => {
   const classes = ["hold-svg"];
 
   classes.push(`interaction-${props.interaction}`);
-
-  if (props.selectable) {
-    classes.push("selectable");
-  }
+  classes.push(`allowed-${props.interactionAllowed}`);
 
   return classes;
 });
@@ -58,7 +56,7 @@ const holdStyles = computed(() => {
 });
 
 const handleClick = () => {
-  if (props.selectable) {
+  if (props.interactionAllowed === "selectable") {
     emit("click");
   }
 };
@@ -71,7 +69,6 @@ const handleHover = (isEntering) => {
 <style scoped>
 .hold-svg {
   transition: opacity 0.2s ease, filter 0.2s ease, transform 0.2s ease;
-  cursor: default;
   fill: transparent;
 }
 
@@ -129,12 +126,19 @@ const handleHover = (isEntering) => {
   filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8));
 }
 
-/* Non-selectable holds should not respond to pointer events */
-.hold-svg:not(.selectable) {
-  pointer-events: none;
+/* Interaction allowed states */
+.allowed-selectable {
+  cursor: pointer;
+  pointer-events: auto;
 }
 
-.selectable {
+.allowed-forbidden {
+  cursor: not-allowed;
   pointer-events: auto;
+}
+
+.allowed-none {
+  cursor: default;
+  pointer-events: none;
 }
 </style>
