@@ -140,6 +140,12 @@ const getHoldClasses = (holdIndex) => {
   const problemId = getHoldProblemId(holdIndex);
 
   if (problemId) {
+    // Find the actual problem object to check if it's hidden
+    const problem =
+      props.boulderProblems.find((p) => p.id === problemId) ||
+      (props.activeProblem?.id === problemId ? props.activeProblem : null) ||
+      (props.editingProblem?.id === problemId ? props.editingProblem : null);
+
     // Hold belongs to a problem
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
       // Hold is part of the problem being created
@@ -148,12 +154,17 @@ const getHoldClasses = (holdIndex) => {
       // Hold is part of the problem being edited - make it prominent
       classes.push("hold-being-edited");
     } else {
-      // Hold belongs to a different problem - not selectable
-      classes.push("hold-assigned-other");
+      // Check if the problem is hidden
+      if (problem?.hidden) {
+        classes.push("hold-hidden");
+      } else {
+        // Hold belongs to a different problem - not selectable
+        classes.push("hold-assigned-other");
 
-      // Check if this problem is being hovered (from parent or local hover)
-      if (props.hoveredProblemId === problemId || hoveredProblemIdLocal.value === problemId) {
-        classes.push("hold-problem-hovered");
+        // Check if this problem is being hovered (from parent or local hover)
+        if (props.hoveredProblemId === problemId || hoveredProblemIdLocal.value === problemId) {
+          classes.push("hold-problem-hovered");
+        }
       }
     }
   } else {
@@ -230,6 +241,8 @@ defineExpose({
 .hold-being-edited {
   opacity: 1 !important;
   filter: drop-shadow(0 0 8px rgba(34, 197, 94, 1));
+  stroke: rgba(34, 197, 94, 0.8);
+  stroke-width: 8;
 }
 
 .hold-being-edited:hover,
@@ -269,56 +282,92 @@ defineExpose({
   filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.8)) !important;
 }
 
+/* Hidden holds - overlay to cover the real hold completely */
+.hold-hidden {
+  opacity: 1 !important; /* Always visible to hide the real hold underneath */
+}
+
+.hold-hidden g {
+  transform: scale(1.1);
+  transform-origin: center;
+  transform-box: fill-box;
+  /* fill: oklch(0.87 0.05 85.04) !important; Specified hidden color */
+  fill: lab(82 5.83 24.45) !important;
+  stroke: lab(82 5.83 24.45) !important;
+}
+
+.hold-hidden path {
+  /* fill: oklch(0.87 0.05 85.04) !important; Specified hidden color */
+  /* stroke: oklch(0.87 0.05 85.04) !important; */
+  /* stroke-width: 0 !important; No border to make it a solid overlay */
+  opacity: 1 !important;
+}
+
 /* Add subtle borders for better visibility - only when overlay enabled */
-.show-overlay .hold-svg g {
+.show-overlay .hold-svg path {
   stroke-width: 1;
   stroke: rgba(255, 255, 255, 0.3);
 }
 
+/* Transform scaling for better visibility */
 .hold-being-edited g {
-  stroke: rgba(34, 197, 94, 0.8);
-  stroke-width: 8;
+  transform: scale(1.1);
+  transform-origin: center;
+  transform-box: fill-box;
 }
 
-.show-overlay .hold-assigned g {
+.hold-being-edited path {
+  stroke: rgba(34, 197, 94, 0.8) !important;
+  stroke-width: 6 !important;
+  fill: rgba(34, 197, 94, 0.3) !important;
+}
+
+.show-overlay .hold-assigned path {
   stroke: rgba(107, 114, 128, 0.5);
-  stroke-width: 1;
+  stroke-width: 3;
+  fill: rgba(107, 114, 128, 0.3);
 }
 
-.hold-assigned-other g {
+.hold-assigned-other path {
   stroke: rgba(239, 68, 68, 0.4);
   stroke-width: 1;
+  fill: rgba(239, 68, 68, 0.2);
 }
 
-/* Hover effects on the inner SVG elements */
-.show-overlay .hold-available:hover g,
-.show-overlay .hold-available.hold-hovered g {
+/* Hover effects on the path elements */
+.show-overlay .hold-available:hover path,
+.show-overlay .hold-available.hold-hovered path {
   stroke: rgba(59, 130, 246, 0.8);
-  stroke-width: 2;
-}
-
-.hold-being-edited:hover g,
-.hold-being-edited.hold-hovered g {
-  stroke: rgba(34, 197, 94, 1);
   stroke-width: 3;
+  fill: rgba(59, 130, 246, 0.3);
 }
 
-.show-overlay .hold-assigned:hover g,
-.show-overlay .hold-assigned.hold-hovered g {
+.hold-being-edited:hover path,
+.hold-being-edited.hold-hovered path {
+  stroke: rgba(34, 197, 94, 1) !important;
+  stroke-width: 8 !important;
+  fill: rgba(34, 197, 94, 0.4) !important;
+}
+
+.show-overlay .hold-assigned:hover path,
+.show-overlay .hold-assigned.hold-hovered path {
   stroke: rgba(107, 114, 128, 0.8);
-  stroke-width: 2;
+  stroke-width: 4;
+  fill: rgba(107, 114, 128, 0.4);
 }
 
-.hold-assigned-other:hover g,
-.hold-assigned-other.hold-hovered g {
+.hold-assigned-other:hover path,
+.hold-assigned-other.hold-hovered path {
   stroke: rgba(239, 68, 68, 0.6);
   stroke-width: 2;
+  fill: rgba(239, 68, 68, 0.3);
 }
 
 /* Problem hover - highlight all holds with a white border */
-.hold-problem-hovered g {
+.hold-problem-hovered path {
   stroke: rgba(255, 255, 255, 1) !important;
-  stroke-width: 3 !important;
+  stroke-width: 4 !important;
+  fill: rgba(168, 85, 247, 0.3) !important;
 }
 
 /* Magic Wand Styles - Always visible regardless of show-overlay */
@@ -326,11 +375,10 @@ defineExpose({
   opacity: 1 !important; /* Ensure it's fully visible */
 }
 
-.magic-wand-target g {
+.magic-wand-target path {
   stroke: rgba(147, 51, 234, 1) !important; /* Bright purple for target hold */
   stroke-width: 6 !important;
   fill: rgba(147, 51, 234, 0.4) !important; /* Solid purple fill */
-  fill-opacity: 1 !important;
   filter: drop-shadow(0 0 12px rgba(147, 51, 234, 0.8)) !important;
   animation: magicWandPulse 1.5s ease-in-out infinite;
 }
@@ -339,11 +387,10 @@ defineExpose({
   opacity: 1 !important; /* Ensure it's fully visible */
 }
 
-.magic-wand-proximity g {
+.magic-wand-proximity path {
   stroke: rgba(168, 85, 247, 1) !important; /* Bright lighter purple for proximity holds */
   stroke-width: 4 !important;
   fill: rgba(168, 85, 247, 0.3) !important; /* Semi-transparent purple fill */
-  fill-opacity: 1 !important;
   filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.6)) !important;
 }
 
@@ -351,11 +398,11 @@ defineExpose({
   opacity: 0.15 !important; /* Much more dimmed for better contrast */
 }
 
-.magic-wand-dimmed g {
-  opacity: 0.2 !important;
-  stroke: rgba(156, 163, 175, 0.2) !important;
+.magic-wand-dimmed path {
+  opacity: 0.3 !important;
+  stroke: rgba(156, 163, 175, 0.3) !important;
   stroke-width: 1 !important;
-  fill-opacity: 0.1 !important;
+  fill: rgba(156, 163, 175, 0.1) !important;
 }
 
 /* Magic Wand Target Hold Animation - More dramatic pulsing */
@@ -378,13 +425,14 @@ defineExpose({
 }
 
 /* Magic Wand Hover Effects - Even more prominent */
-.magic-wand-target:hover g {
+.magic-wand-target:hover path {
   stroke: rgba(147, 51, 234, 1) !important;
   stroke-width: 8 !important;
+  fill: rgba(147, 51, 234, 0.5) !important;
   filter: drop-shadow(0 0 16px rgba(147, 51, 234, 1)) !important;
 }
 
-.magic-wand-proximity:hover g {
+.magic-wand-proximity:hover path {
   stroke: rgba(168, 85, 247, 1) !important;
   stroke-width: 5 !important;
   fill: rgba(168, 85, 247, 0.5) !important;

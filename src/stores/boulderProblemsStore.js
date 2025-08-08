@@ -348,6 +348,22 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     }
   };
 
+  const updateProblem = (updatedProblem) => {
+    const problemIndex = boulderProblems.value.findIndex((p) => p.id === updatedProblem.id);
+    if (problemIndex === -1) return;
+
+    // Update the problem with new properties
+    boulderProblems.value[problemIndex] = {
+      ...boulderProblems.value[problemIndex],
+      ...updatedProblem,
+    };
+
+    // Mark problem as having unsaved changes (unless it's local only or being created)
+    if (!updatedProblem.isLocalOnly && !isCreatingProblem.value) {
+      problemsWithUnsavedChanges.value.add(updatedProblem.id);
+    }
+  };
+
   // Batch save functionality
   const saveProblemChanges = async (problemId) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
@@ -510,6 +526,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     deleteProblem,
     updateProblemName,
     updateProblemGrade,
+    updateProblem,
     isHoldInProblem,
     isHoldInActiveProblem,
     clearAllProblems,
