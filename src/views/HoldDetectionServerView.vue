@@ -359,6 +359,7 @@
             :climbing-image="climbingImage"
             @editing-state-change="handleEditingStateChange"
             @tool-selection-change="handleToolSelectionChange"
+            @problem-hover="handleProblemCardHover"
           />
 
           <!-- Processing Status -->
@@ -904,6 +905,12 @@ const handleEditingStateChange = (newEditingState) => {
 const handleToolSelectionChange = (selectedTool) => {
   boulderHoldSelectionTool.value = selectedTool;
   console.log("🔧 Boulder tool selection changed:", selectedTool);
+};
+
+const handleProblemCardHover = (problem, isEntering) => {
+  // Set hovered problem ID when entering, clear when leaving
+  hoveredProblemId.value = isEntering ? problem.id : null;
+  console.log("🏔️ Problem card hover:", { problemId: problem.id, isEntering });
 };
 
 // Load image based on query parameters

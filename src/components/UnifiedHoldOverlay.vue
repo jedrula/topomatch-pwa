@@ -137,10 +137,10 @@ const getHoldInteraction = (holdIndex) => {
     // Hold belongs to a problem
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
       // Hold is part of the problem being created
-      return hoveredHoldIndex.value === holdIndex ? "hovered" : "selected";
+      return hoveredHoldIndex.value === holdIndex ? "hover" : "selected";
     } else if (props.isEditingProblem && props.editingProblem?.id === problemId) {
       // Hold is part of the problem being edited
-      return hoveredHoldIndex.value === holdIndex ? "hovered" : "selected";
+      return hoveredHoldIndex.value === holdIndex ? "hover" : "selected";
     } else {
       // Check if the problem is hidden
       if (problem?.hidden) {
@@ -149,7 +149,7 @@ const getHoldInteraction = (holdIndex) => {
         // Hold belongs to a different problem
         // Check if this problem is being hovered (from parent or local hover)
         if (props.hoveredProblemId === problemId || hoveredProblemIdLocal.value === problemId) {
-          return "hovered";
+          return "hover";
         } else {
           return props.showHoldOverlay ? "selected" : "default";
         }
