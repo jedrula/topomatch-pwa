@@ -181,7 +181,11 @@
 
                 <!-- Magic Wand Button - Only show when not in boulder creation/editing mode -->
                 <button
-                  v-if="serverStore.hasResults && !boulderProblemsStore.isCreatingProblem && !editingState.isEditing"
+                  v-if="
+                    serverStore.hasResults &&
+                    !boulderProblemsStore.isCreatingProblem &&
+                    !editingState.isEditing
+                  "
                   @click="toggleMagicWand"
                   :class="[
                     'px-6 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
@@ -633,9 +637,11 @@ const connectionDisplayText = computed(() => {
 // Check if any form of magic wand is active
 const isAnyMagicWandActive = computed(() => {
   // Standalone magic wand OR boulder creation/editing with magic wand tool
-  return magicWandActive.value || 
-    ((boulderProblemsStore.isCreatingProblem || editingState.value.isEditing) && 
-     boulderHoldSelectionTool.value === "magic-wand");
+  return (
+    magicWandActive.value ||
+    ((boulderProblemsStore.isCreatingProblem || editingState.value.isEditing) &&
+      boulderHoldSelectionTool.value === "magic-wand")
+  );
 });
 
 // Methods
@@ -771,8 +777,10 @@ const handleHoldClick = (hold, holdIndex) => {
     const result = performMagicWandSelection(holdIndex, allHolds);
 
     if (result.success) {
-      console.log(`✨ Magic Wand found ${result.selectedIndices.length} connected holds for boulder problem`);
-      
+      console.log(
+        `✨ Magic Wand found ${result.selectedIndices.length} connected holds for boulder problem`
+      );
+
       // Add all selected holds to the target problem
       result.selectedIndices.forEach((selectedHoldIndex) => {
         const selectedHold = allHolds[selectedHoldIndex];
@@ -789,7 +797,9 @@ const handleHoldClick = (hold, holdIndex) => {
         }
       });
 
-      console.log(`✅ Added ${result.selectedIndices.length} holds to boulder problem via Magic Wand`);
+      console.log(
+        `✅ Added ${result.selectedIndices.length} holds to boulder problem via Magic Wand`
+      );
     }
 
     return; // Don't proceed with other logic when using boulder magic wand

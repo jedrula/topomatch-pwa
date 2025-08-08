@@ -178,7 +178,7 @@
                 'flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
                 holdSelectionTool === 'single'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50',
               ]"
               title="Single Hold Selector - Click individual holds to add/remove them"
             >
@@ -198,7 +198,7 @@
                 'flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
                 holdSelectionTool === 'magic-wand'
                   ? 'bg-purple-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50',
               ]"
               title="Magic Wand - Click a hold to select an entire connected route of similar-colored holds"
             >
@@ -215,9 +215,9 @@
           </div>
           <div class="mt-2 text-xs text-gray-600">
             {{
-              holdSelectionTool === 'single'
-                ? 'Click individual holds to add or remove them from the problem.'
-                : 'Click any hold to automatically select an entire connected route of similar-colored holds.'
+              holdSelectionTool === "single"
+                ? "Click individual holds to add or remove them from the problem."
+                : "Click any hold to automatically select an entire connected route of similar-colored holds."
             }}
           </div>
         </div>
@@ -538,7 +538,7 @@ const editProblem = (problem) => {
   // Pre-populate the form with existing values
   problemName.value = problem.name;
   selectedGrade.value = problem.grade;
-  
+
   // Reset tool selection to single when starting edit
   holdSelectionTool.value = "single";
   emit("tool-selection-change", "single");
