@@ -974,8 +974,20 @@ const checkAndLoadCachedResults = async () => {
 // Watch for route changes to load different images
 watch(
   () => route.query,
-  () => {
+  async (newQuery, oldQuery) => {
     loadImageFromQuery();
+    
+    // If imageId changed, reload boulder problems for the new image
+    if (newQuery.imageId !== oldQuery?.imageId && route.params.locationId) {
+      console.log("🏔️ ImageId changed, reloading boulder problems for:", newQuery.imageId);
+      try {
+        boulderProblemsStore.initializeForLocation(route.params.locationId, newQuery.imageId);
+        await boulderProblemsStore.loadBoulderProblems(route.params.locationId, newQuery.imageId);
+        console.log(`✅ Boulder problems reloaded for image: ${newQuery.imageId}`);
+      } catch (error) {
+        console.error("❌ Failed to reload boulder problems:", error);
+      }
+    }
   },
   { immediate: false }
 );
@@ -1006,10 +1018,11 @@ onMounted(async () => {
   // Load boulder problems immediately on mount
   if (route.params.locationId) {
     console.log("🏔️ Loading boulder problems for location:", route.params.locationId);
+    const imageId = route.query.imageId;
     try {
-      boulderProblemsStore.initializeForLocation(route.params.locationId, route.query.imageId);
-      await boulderProblemsStore.loadBoulderProblems(route.params.locationId);
-      console.log("✅ Boulder problems loaded successfully");
+      boulderProblemsStore.initializeForLocation(route.params.locationId, imageId);
+      await boulderProblemsStore.loadBoulderProblems(route.params.locationId, imageId);
+      console.log(`✅ Boulder problems loaded successfully${imageId ? ` for image: ${imageId}` : ''}`);
     } catch (error) {
       console.error("❌ Failed to load boulder problems:", error);
     }
