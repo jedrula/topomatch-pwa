@@ -176,33 +176,34 @@ export const isHoldInMagicWandSelection = (holdIndex, selectedIndices) => {
 };
 
 /**
- * Calculate color difference using RGB Euclidean distance
- * @param {Object} color1 - RGB color object { r, g, b }
- * @param {Object} color2 - RGB color object { r, g, b }
+ * Calculate color difference using LAB Euclidean distance
+ * LAB color space is perceptually uniform, so Euclidean distance corresponds to human perception
+ * @param {Object} color1 - LAB color object { l, a, b }
+ * @param {Object} color2 - LAB color object { l, a, b }
  * @returns {number} Color distance (0 = identical, higher = more different)
  */
 export const calculateColorDistance = (color1, color2) => {
   if (!color1 || !color2) return Infinity;
 
-  const dr = (color1.r || 0) - (color2.r || 0);
-  const dg = (color1.g || 0) - (color2.g || 0);
+  const dl = (color1.l || 0) - (color2.l || 0);
+  const da = (color1.a || 0) - (color2.a || 0);
   const db = (color1.b || 0) - (color2.b || 0);
 
-  return Math.sqrt(dr * dr + dg * dg + db * db);
+  return Math.sqrt(dl * dl + da * da + db * db);
 };
 
 /**
  * Extract color from hold data
  * @param {Object} hold - Hold object that may contain color information
- * @returns {Object|null} RGB color object or null if no color found
+ * @returns {Object|null} LAB color object or null if no color found
  */
 export const extractHoldColor = (hold) => {
   if (!hold?.color_analysis) return null;
 
-  // Use median color RGB array
-  const medianRgb = hold.color_analysis.median_color_rgb;
-  if (Array.isArray(medianRgb) && medianRgb.length >= 3) {
-    return { r: medianRgb[0], g: medianRgb[1], b: medianRgb[2] };
+  // Use primary color LAB array (perceptually uniform color space)
+  const labColor = hold.color_analysis.primary_color_lab;
+  if (Array.isArray(labColor) && labColor.length >= 3) {
+    return { l: labColor[0], a: labColor[1], b: labColor[2] };
   }
 
   return null;
@@ -254,7 +255,7 @@ export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistan
   // Enhanced logging with detailed color information
   console.log(`🎯 Magic Wand Color Analysis:`);
   console.log(
-    `Target: RGB(${targetColor.r}, ${targetColor.g}, ${targetColor.b}) - Category: ${
+    `Target: LAB(${targetColor.l}, ${targetColor.a}, ${targetColor.b}) - Category: ${
       targetHold.color_analysis?.color_category || "unknown"
     }`
   );
@@ -267,7 +268,7 @@ export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistan
     const category = item.hold.color_analysis?.color_category || "unknown";
     const holdId = item.hold.id || `hold_${item.candidateIndex}`;
     console.log(
-      `  ${i + 1}. ${holdId}: RGB(${item.holdColor.r}, ${item.holdColor.g}, ${
+      `  ${i + 1}. ${holdId}: LAB(${item.holdColor.l}, ${item.holdColor.a}, ${
         item.holdColor.b
       }) - Category: ${category} - Distance: ${item.colorDistance.toFixed(1)}`
     );
@@ -282,7 +283,7 @@ export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistan
       const category = item.hold.color_analysis?.color_category || "unknown";
       const holdId = item.hold.id || `hold_${item.candidateIndex}`;
       console.log(
-        `  ${i + 1}. ${holdId}: RGB(${item.holdColor.r}, ${item.holdColor.g}, ${
+        `  ${i + 1}. ${holdId}: LAB(${item.holdColor.l}, ${item.holdColor.a}, ${
           item.holdColor.b
         }) - Category: ${category} - Distance: ${item.colorDistance.toFixed(1)}`
       );
