@@ -74,33 +74,19 @@
           preserveAspectRatio="none"
         >
           <!-- Problem Holds as SVGs -->
-          <g
-            v-for="problem in currentImageProblems"
-            :key="problem.id"
-            :data-problem-id="problem.id"
-          >
-            <g
+          <template v-for="problem in currentImageProblems" :key="problem.id">
+            <HoldSvg
               v-for="(problemHold, holdIndex) in problem.holds"
-              :key="`${problem.id}-${holdIndex}`"
               :data-problem-id="problem.id"
-              :data-hold-index="problemHold.holdIndex"
-              class="boulder-problem-hold pointer-events-auto cursor-pointer"
-              :class="{
-                'problem-hovered': hoveredProblemId === problem.id,
-                'problem-dimmed': hoveredProblemId && hoveredProblemId !== problem.id,
-              }"
-              @mouseenter="hoveredProblemId = problem.id"
-              @mouseleave="hoveredProblemId = null"
+              :key="`${problem.id}-${holdIndex}`"
+              :svg-markup="problemHold.hold.svgMarkup"
+              :interaction="hoveredProblemId === problem.id ? 'hover' : 'default'"
+              :selectable="true"
+              :color="problem.color"
               @click="goToProblemDetail(problem)"
-            >
-              <!-- Render SVG markup -->
-              <g
-                v-if="problemHold.hold.svgMarkup"
-                v-html="problemHold.hold.svgMarkup"
-                :style="{ fill: problem.color + '80', stroke: problem.color }"
-              ></g>
-            </g>
-          </g>
+              @hover="handleProblemHover(problem.id, $event)"
+            />
+          </template>
         </svg>
       </div>
     </div>
@@ -138,6 +124,7 @@
 <script setup>
 import { computed, watch, nextTick, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import HoldSvg from "./HoldSvg.vue";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 
 const props = defineProps({
@@ -271,6 +258,10 @@ const goToProblemDetail = (problem) => {
   });
 };
 
+const handleProblemHover = (problemId, isEntering) => {
+  hoveredProblemId.value = isEntering ? problemId : null;
+};
+
 // Watch for route changes to update current image
 watch(
   () => route.query.image,
@@ -310,27 +301,3 @@ watch(
   { immediate: true }
 );
 </script>
-
-<style scoped>
-/* Boulder problem SVG holds */
-.boulder-problem-hold {
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
-  cursor: pointer;
-}
-
-.boulder-problem-hold:hover {
-  opacity: 1;
-}
-
-/* When hovering over a problem, highlight all its holds */
-.problem-hovered {
-  opacity: 1 !important;
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
-}
-
-/* Dim other problems when one is hovered */
-.problem-dimmed {
-  opacity: 0.3 !important;
-}
-</style>
