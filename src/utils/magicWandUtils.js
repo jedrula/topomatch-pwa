@@ -78,9 +78,9 @@ export const findClosestHolds = (targetHold, allHolds, count = 10) => {
 export const performMagicWandSelection = (
   targetHoldIndex,
   allHolds,
-  proximityCount = 10,
+  proximityCount = 20,
   enableColorFiltering = true,
-  maxColorDistance = 50
+  maxColorDistance = 40
 ) => {
   if (
     !allHolds ||
@@ -215,7 +215,7 @@ export const extractHoldColor = (hold) => {
  * @param {number} maxColorDistance - Maximum color distance for similarity (default: 50)
  * @returns {Array} Filtered holds with similar colors (always returns at least one if candidates exist)
  */
-export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistance = 50) => {
+export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistance = 40) => {
   if (!targetHold || !candidateHolds || candidateHolds.length === 0) {
     return candidateHolds || [];
   }
@@ -229,12 +229,12 @@ export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistan
 
   // Calculate color distances for all candidates
   const holdsWithDistances = candidateHolds
-    .map((hold) => {
+    .map((hold, index) => {
       const holdColor = extractHoldColor(hold);
       if (!holdColor) return null;
 
       const colorDistance = calculateColorDistance(targetColor, holdColor);
-      return { hold, colorDistance };
+      return { hold, holdColor, colorDistance, candidateIndex: index };
     })
     .filter((item) => item !== null)
     .sort((a, b) => a.colorDistance - b.colorDistance); // Sort by color similarity
@@ -248,12 +248,46 @@ export const findSimilarColorHolds = (targetHold, candidateHolds, maxColorDistan
   const similarHolds = holdsWithDistances.filter((item) => item.colorDistance <= maxColorDistance);
 
   // If no holds within threshold, return the most similar one
-  const finalHolds =
-    similarHolds.length > 0 ? similarHolds.map((item) => item.hold) : [holdsWithDistances[0].hold];
+  const finalItems = similarHolds.length > 0 ? similarHolds : [holdsWithDistances[0]];
+  const finalHolds = finalItems.map((item) => item.hold);
 
+  // Enhanced logging with detailed color information
+  console.log(`🎯 Magic Wand Color Analysis:`);
   console.log(
-    `Magic Wand: Color filtering - Target: RGB(${targetColor.r}, ${targetColor.g}, ${targetColor.b}), Found ${finalHolds.length}/${candidateHolds.length} similar holds (max distance: ${maxColorDistance})`
+    `Target: RGB(${targetColor.r}, ${targetColor.g}, ${targetColor.b}) - Category: ${
+      targetHold.color_analysis?.color_category || "unknown"
+    }`
   );
+  console.log(
+    `Found ${finalHolds.length}/${candidateHolds.length} similar holds (max distance: ${maxColorDistance})`
+  );
+
+  console.log(`📊 Selected holds details:`);
+  finalItems.forEach((item, i) => {
+    const category = item.hold.color_analysis?.color_category || "unknown";
+    const holdId = item.hold.id || `hold_${item.candidateIndex}`;
+    console.log(
+      `  ${i + 1}. ${holdId}: RGB(${item.holdColor.r}, ${item.holdColor.g}, ${
+        item.holdColor.b
+      }) - Category: ${category} - Distance: ${item.colorDistance.toFixed(1)}`
+    );
+  });
+
+  // Also log rejected holds if any
+  const rejectedHolds = holdsWithDistances.filter((item) => item.colorDistance > maxColorDistance);
+  if (rejectedHolds.length > 0 && similarHolds.length > 0) {
+    console.log(`❌ Rejected holds (too different):`);
+    rejectedHolds.slice(0, 3).forEach((item, i) => {
+      // Show first 3 rejected
+      const category = item.hold.color_analysis?.color_category || "unknown";
+      const holdId = item.hold.id || `hold_${item.candidateIndex}`;
+      console.log(
+        `  ${i + 1}. ${holdId}: RGB(${item.holdColor.r}, ${item.holdColor.g}, ${
+          item.holdColor.b
+        }) - Category: ${category} - Distance: ${item.colorDistance.toFixed(1)}`
+      );
+    });
+  }
 
   return finalHolds;
 };
