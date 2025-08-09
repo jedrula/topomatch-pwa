@@ -374,6 +374,44 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     }
   };
 
+  // Visibility management
+  const showOnlyProblem = (targetProblemId) => {
+    console.log("🎯 showOnlyProblem called for problem:", targetProblemId);
+    // Hide all problems except the target one
+    boulderProblems.value.forEach((problem) => {
+      if (problem.id === targetProblemId) {
+        // Show the target problem
+        console.log("👁️ Showing problem:", problem.name);
+        updateProblem({ ...problem, hidden: false });
+      } else {
+        // Hide all other problems
+        console.log("🙈 Hiding problem:", problem.name);
+        updateProblem({ ...problem, hidden: true });
+      }
+    });
+  };
+
+  const showAllProblems = () => {
+    console.log("👁️ showAllProblems called - showing all problems");
+    // Show all problems
+    boulderProblems.value.forEach((problem) => {
+      console.log("👁️ Showing problem:", problem.name);
+      updateProblem({ ...problem, hidden: false });
+    });
+  };
+
+  // Check if only one problem is visible (for UI state)
+  const isShowingOnlyOneProblem = computed(() => {
+    const visibleProblems = boulderProblems.value.filter((p) => !p.hidden);
+    return visibleProblems.length === 1 && boulderProblems.value.length > 1;
+  });
+
+  // Get the currently isolated problem (if any)
+  const isolatedProblem = computed(() => {
+    if (!isShowingOnlyOneProblem.value) return null;
+    return boulderProblems.value.find((p) => !p.hidden);
+  });
+
   // Batch save functionality
   const saveProblemChanges = async (problemId) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
@@ -522,6 +560,8 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     // Computed
     sortedProblems,
     activeProblemColor,
+    isShowingOnlyOneProblem,
+    isolatedProblem,
 
     // Actions
     initializeForLocation,
@@ -537,6 +577,8 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     updateProblemName,
     updateProblemGrade,
     updateProblem,
+    showOnlyProblem,
+    showAllProblems,
     isHoldInProblem,
     isHoldInActiveProblem,
     clearAllProblems,

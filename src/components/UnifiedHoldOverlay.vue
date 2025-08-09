@@ -70,6 +70,15 @@ const props = defineProps({
     type: Object,
     default: () => ({ selectedIndices: [], targetHoldIndex: null, stats: null }),
   },
+  // "Show only" visibility props
+  isShowingOnlyOneProblem: {
+    type: Boolean,
+    default: false,
+  },
+  isolatedProblem: {
+    type: Object,
+    default: null,
+  },
 });
 
 const emit = defineEmits(["hold-click", "hold-hover"]);
@@ -127,6 +136,26 @@ const getHoldInteraction = (holdIndex) => {
 
   const problemId = getHoldProblemId(holdIndex);
 
+  // "Show only one problem" mode - hide all holds except those belonging to the isolated problem
+  if (props.isShowingOnlyOneProblem && props.isolatedProblem) {
+    console.log(`🔍 Show only mode active for problem: ${props.isolatedProblem.name}, checking hold ${holdIndex}`);
+    if (problemId === props.isolatedProblem.id) {
+      // This hold belongs to the isolated problem - show it
+      console.log(`✅ Hold ${holdIndex} belongs to isolated problem - showing`);
+      if (hoveredHoldIndex.value === holdIndex) {
+        return "hover";
+      } else if (props.hoveredProblemId === problemId || hoveredProblemIdLocal.value === problemId) {
+        return "hover";
+      } else {
+        return "selected";
+      }
+    } else {
+      // This hold belongs to a different problem or is unclassified - hide it
+      console.log(`🙈 Hold ${holdIndex} does NOT belong to isolated problem (belongs to: ${problemId || 'unclassified'}) - hiding`);
+      return "hidden";
+    }
+  }
+
   if (problemId) {
     // Find the actual problem object to check if it's hidden
     const problem =
@@ -156,7 +185,7 @@ const getHoldInteraction = (holdIndex) => {
       }
     }
   } else {
-    // Hold is available for selection
+    // Hold is available for selection (unclassified)
     if (hoveredHoldIndex.value === holdIndex) {
       return "hovered";
     } else {

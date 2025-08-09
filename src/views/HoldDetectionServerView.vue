@@ -83,6 +83,8 @@
                   :magic-wand-active="isAnyMagicWandActive"
                   :magic-wand-selection="magicWandSelection"
                   :show-hold-overlay="false"
+                  :is-showing-only-one-problem="boulderProblemsStore.isShowingOnlyOneProblem"
+                  :isolated-problem="boulderProblemsStore.isolatedProblem"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   ref="unifiedOverlay"
@@ -1181,7 +1183,14 @@ const handleFloatingCardEdit = (problem) => {
 
 const handleFloatingCardToggleVisibility = (problem) => {
   console.log("🔄 Toggling problem visibility:", problem.name);
-  boulderProblemsStore.toggleProblemVisibility(problem.id);
+  // Check if we're showing only this problem or showing all problems
+  if (boulderProblemsStore.isShowingOnlyOneProblem && !problem.hidden) {
+    // Currently showing only this problem - show all problems
+    boulderProblemsStore.showAllProblems();
+  } else {
+    // Show only this problem (hide all others)
+    boulderProblemsStore.showOnlyProblem(problem.id);
+  }
 };
 
 const handleFloatingCardMouseEnter = () => {

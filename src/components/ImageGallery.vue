@@ -388,8 +388,15 @@ const handleFloatingCardEdit = (problem) => {
 };
 
 const handleFloatingCardToggleVisibility = (problem) => {
-  console.log("🔄 Toggling problem visibility in ImageGallery:", problem.name);
-  boulderProblemsStore.toggleProblemVisibility(problem.id);
+  console.log("🔄 Toggling problem visibility from ImageGallery:", problem.name);
+  // Check if we're showing only this problem or showing all problems
+  if (boulderProblemsStore.isShowingOnlyOneProblem && !problem.hidden) {
+    // Currently showing only this problem - show all problems
+    boulderProblemsStore.showAllProblems();
+  } else {
+    // Show only this problem (hide all others)
+    boulderProblemsStore.showOnlyProblem(problem.id);
+  }
 };
 
 const handleFloatingCardMouseEnter = () => {
