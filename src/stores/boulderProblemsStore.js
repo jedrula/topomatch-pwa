@@ -49,7 +49,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
   // Computed property for grades - uses location-specific system or default
   const grades = computed(() => {
     const gradingSystem = currentLocationGradingSystem.value || defaultGradingSystem;
-    return gradingSystem.grades.map(grade => grade.label);
+    return gradingSystem.grades.map((grade) => grade.label);
   });
 
   // Computed property for current grading system

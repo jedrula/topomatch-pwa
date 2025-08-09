@@ -279,8 +279,8 @@ export const updateLocation = onCall(async (request) => {
       updateData.heroImageUrl = heroImageUrl;
     }
 
-    // Only include gradingSystem if it's provided
-    if (gradingSystem) {
+    // Include gradingSystem if it's provided (even if null to explicitly remove)
+    if (gradingSystem !== undefined) {
       updateData.gradingSystem = gradingSystem;
     }
 
