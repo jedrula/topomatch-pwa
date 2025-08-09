@@ -59,6 +59,7 @@
       <div class="relative">
         <img
           v-if="currentImage"
+          :key="currentImage.id"
           :src="currentImage.url"
           :alt="currentImage.name"
           class="max-w-full max-h-full object-contain"
@@ -69,6 +70,7 @@
         <!-- Boulder Problems SVG Overlay -->
         <svg
           v-if="imageLoaded && currentImageProblems.length > 0"
+          :key="`overlay-${currentImage?.id}`"
           class="absolute inset-0 w-full h-full pointer-events-none"
           :viewBox="imageViewBox"
           preserveAspectRatio="none"
@@ -259,10 +261,12 @@ const navigateToImage = (index) => {
 };
 
 const onImageLoad = () => {
-  imageLoaded.value = true;
-
-  // Focus the gallery for keyboard navigation
+  // Use nextTick to ensure DOM has updated before setting imageLoaded
   nextTick(() => {
+    imageLoaded.value = true;
+    console.log('🖼️ Image loaded, viewBox:', imageViewBox.value);
+    
+    // Focus the gallery for keyboard navigation
     const galleryEl = document.querySelector('[tabindex="0"]');
     if (galleryEl) {
       galleryEl.focus();
@@ -338,6 +342,13 @@ watch(
   () => currentImage.value,
   () => {
     imageLoaded.value = false;
+    // Also hide any visible tooltip when changing images
+    floatingCard.value.visible = false;
+    hoveredProblemId.value = null;
+    if (tooltipHideTimeout) {
+      clearTimeout(tooltipHideTimeout);
+      tooltipHideTimeout = null;
+    }
   }
 );
 
