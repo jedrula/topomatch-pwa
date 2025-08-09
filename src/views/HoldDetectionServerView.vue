@@ -1122,7 +1122,7 @@ watch(
   () => editingState.value,
   (newEditingState) => {
     console.log("🔄 URL editing state changed, syncing with store:", newEditingState);
-    
+
     if (newEditingState.isEditing && newEditingState.editingProblem) {
       // Problem found - start editing mode in the store
       console.log("✅ Problem found, selecting in store:", newEditingState.editingProblem.name);
@@ -1175,7 +1175,8 @@ onMounted(async () => {
 // Floating card event handlers
 const handleFloatingCardEdit = (problem) => {
   console.log("✏️ Editing problem from floating card:", problem.name);
-  // Handle edit logic here
+  // Use URL-based editing state management
+  startEditingProblem(problem);
 };
 
 const handleFloatingCardToggleVisibility = (problem) => {
