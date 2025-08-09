@@ -84,7 +84,7 @@
               :interaction-allowed="'selectable'"
               :color="problem.color"
               @click="goToProblemDetail(problem)"
-              @hover="handleProblemHover(problem.id, $event)"
+              @hover="(isEntering, event) => handleProblemHover(problem.id, isEntering, event)"
             />
           </template>
         </svg>
@@ -118,6 +118,17 @@
         <img :src="image.url" :alt="image.name" class="w-full h-full object-cover" />
       </button>
     </div>
+
+    <!-- Floating Problem Card Tooltip -->
+    <FloatingBoulderProblemCard
+      :visible="floatingCard.visible"
+      :problem="floatingCard.problem"
+      :position="floatingCard.position"
+      @edit="handleFloatingCardEdit"
+      @toggle-visibility="handleFloatingCardToggleVisibility"
+      @mouse-enter="handleFloatingCardMouseEnter"
+      @mouse-leave="handleFloatingCardMouseLeave"
+    />
   </div>
 </template>
 
@@ -125,6 +136,7 @@
 import { computed, watch, nextTick, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import HoldSvg from "./HoldSvg.vue";
+import FloatingBoulderProblemCard from "./FloatingBoulderProblemCard.vue";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 
 const props = defineProps({
@@ -156,6 +168,16 @@ const boulderProblemsStore = useBoulderProblemsStore();
 const imageElement = ref(null);
 const imageLoaded = ref(false);
 const hoveredProblemId = ref(null);
+
+// Floating problem card state
+const floatingCard = ref({
+  visible: false,
+  problem: null,
+  position: { x: 0, y: 0 },
+});
+
+// Timeout for tooltip hiding
+let tooltipHideTimeout = null;
 
 const currentIndex = computed(() => {
   // Get imageId from URL if available
@@ -258,8 +280,44 @@ const goToProblemDetail = (problem) => {
   });
 };
 
-const handleProblemHover = (problemId, isEntering) => {
-  hoveredProblemId.value = isEntering ? problemId : null;
+const handleProblemHover = (problemId, isEntering, event) => {
+  console.log('🎯 ImageGallery handleProblemHover:', { problemId, isEntering, hasEvent: !!event });
+  
+  // Clear any pending hide timeout
+  if (tooltipHideTimeout) {
+    clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = null;
+  }
+  
+  if (isEntering && event) {
+    // Find the problem data
+    const problem = currentImageProblems.value.find(p => p.id === problemId);
+    console.log('📝 Problem found:', problem?.name || 'None');
+    
+    if (problem) {
+      // Position tooltip near the mouse cursor
+      const mouseX = event.clientX;
+      const mouseY = event.clientY;
+      console.log('🖱️ Mouse position:', { mouseX, mouseY });
+      
+      // Show floating card at mouse position
+      floatingCard.value = {
+        visible: true,
+        problem: problem,
+        position: { x: mouseX, y: mouseY }
+      };
+      console.log('💫 Showing floating card for problem:', problem.name);
+    }
+    
+    hoveredProblemId.value = problemId;
+  } else {
+    // Don't hide immediately - use a delay to allow moving to tooltip
+    tooltipHideTimeout = setTimeout(() => {
+      floatingCard.value.visible = false;
+      hoveredProblemId.value = null;
+      console.log('💫 Hiding floating card (delayed)');
+    }, 300); // 300ms delay
+  }
 };
 
 // Watch for route changes to update current image
@@ -300,4 +358,35 @@ watch(
   },
   { immediate: true }
 );
+
+// Floating card event handlers
+const handleFloatingCardEdit = (problem) => {
+  console.log("✏️ Editing problem from ImageGallery:", problem.name);
+  // Navigate to edit mode for this problem
+  // This could navigate to the HoldDetectionServerView in edit mode
+};
+
+const handleFloatingCardToggleVisibility = (problem) => {
+  console.log("🔄 Toggling problem visibility in ImageGallery:", problem.name);
+  boulderProblemsStore.toggleProblemVisibility(problem.id);
+};
+
+const handleFloatingCardMouseEnter = () => {
+  console.log("🖱️ Mouse entered floating card in ImageGallery");
+  // Clear any pending hide timeout when mouse enters the tooltip
+  if (tooltipHideTimeout) {
+    clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = null;
+  }
+};
+
+const handleFloatingCardMouseLeave = () => {
+  console.log("🖱️ Mouse left floating card in ImageGallery");
+  // Hide the tooltip when mouse leaves it
+  tooltipHideTimeout = setTimeout(() => {
+    floatingCard.value.visible = false;
+    hoveredProblemId.value = null;
+    console.log('💫 Hiding floating card (after leaving tooltip)');
+  }, 200); // Shorter delay when leaving tooltip
+};
 </script>
