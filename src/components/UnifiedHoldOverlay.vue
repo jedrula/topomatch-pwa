@@ -79,6 +79,11 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  // Grade filtering props
+  filteredProblems: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const emit = defineEmits(["hold-click", "hold-hover"]);
@@ -93,6 +98,18 @@ const svgViewBox = computed(() => {
   if (!props.detectionResults?.image_info) return "0 0 1000 1000";
   const { width, height } = props.detectionResults.image_info;
   return `0 0 ${width} ${height}`;
+});
+
+// Grade filtering - compute which problem IDs should be highlighted
+const filteredProblemIds = computed(() => {
+  if (!props.filteredProblems || props.filteredProblems.length === 0) {
+    return new Set(); // No filtering active
+  }
+  return new Set(props.filteredProblems.map((p) => p.id));
+});
+
+const hasActiveGradeFilter = computed(() => {
+  return props.filteredProblems && props.filteredProblems.length > 0;
 });
 
 // Get which problem a hold belongs to
@@ -138,21 +155,59 @@ const getHoldInteraction = (holdIndex) => {
 
   // "Show only one problem" mode - hide all holds except those belonging to the isolated problem
   if (props.isShowingOnlyOneProblem && props.isolatedProblem) {
-    console.log(`🔍 Show only mode active for problem: ${props.isolatedProblem.name}, checking hold ${holdIndex}`);
+    console.log(
+      `🔍 Show only mode active for problem: ${props.isolatedProblem.name}, checking hold ${holdIndex}`
+    );
     if (problemId === props.isolatedProblem.id) {
       // This hold belongs to the isolated problem - show it
       console.log(`✅ Hold ${holdIndex} belongs to isolated problem - showing`);
       if (hoveredHoldIndex.value === holdIndex) {
         return "hover";
-      } else if (props.hoveredProblemId === problemId || hoveredProblemIdLocal.value === problemId) {
+      } else if (
+        props.hoveredProblemId === problemId ||
+        hoveredProblemIdLocal.value === problemId
+      ) {
         return "hover";
       } else {
         return "selected";
       }
     } else {
       // This hold belongs to a different problem or is unclassified - hide it
-      console.log(`🙈 Hold ${holdIndex} does NOT belong to isolated problem (belongs to: ${problemId || 'unclassified'}) - hiding`);
+      console.log(
+        `🙈 Hold ${holdIndex} does NOT belong to isolated problem (belongs to: ${
+          problemId || "unclassified"
+        }) - hiding`
+      );
       return "hidden";
+    }
+  }
+
+  // Grade filtering - highlight holds from filtered problems
+  if (hasActiveGradeFilter.value && problemId) {
+    if (filteredProblemIds.value.has(problemId)) {
+      // This hold belongs to a filtered problem - highlight it more prominently
+      if (hoveredHoldIndex.value === holdIndex) {
+        return "hover";
+      } else if (
+        props.hoveredProblemId === problemId ||
+        hoveredProblemIdLocal.value === problemId
+      ) {
+        return "hover";
+      } else {
+        return "selected"; // Highlighted as part of filtered results
+      }
+    } else {
+      // This hold doesn't belong to a filtered problem - dim it
+      const problem =
+        props.boulderProblems.find((p) => p.id === problemId) ||
+        (props.activeProblem?.id === problemId ? props.activeProblem : null) ||
+        (props.editingProblem?.id === problemId ? props.editingProblem : null);
+
+      if (problem?.hidden) {
+        return "hidden";
+      } else {
+        return "default"; // Dimmed/less prominent
+      }
     }
   }
 

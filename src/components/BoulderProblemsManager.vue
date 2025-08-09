@@ -274,9 +274,72 @@
       <div v-if="boulderProblemsStore.sortedProblems.length > 0" class="space-y-3">
         <h4 class="font-medium text-gray-900">Created Problems</h4>
 
+        <!-- Grade Filter Section -->
+        <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <div class="flex items-center justify-between mb-3">
+            <h5 class="text-sm font-medium text-gray-700">Filter by Grade</h5>
+            <button
+              v-if="hasActiveGradeFilter"
+              @click="clearGradeFilter"
+              class="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              Clear Filter
+            </button>
+          </div>
+
+          <div class="space-y-3">
+            <!-- Grade Range Display -->
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600">Min Grade:</span>
+              <span class="font-medium text-gray-900">{{ selectedMinGrade }}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-600">Max Grade:</span>
+              <span class="font-medium text-gray-900">{{ selectedMaxGrade }}</span>
+            </div>
+
+            <!-- Grade Range Sliders -->
+            <div class="space-y-2">
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Minimum Grade</label>
+                <input
+                  type="range"
+                  :min="0"
+                  :max="boulderProblemsStore.grades.length - 1"
+                  v-model.number="minGradeIndex"
+                  @input="updateGradeFilter"
+                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-blue"
+                />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Maximum Grade</label>
+                <input
+                  type="range"
+                  :min="0"
+                  :max="boulderProblemsStore.grades.length - 1"
+                  v-model.number="maxGradeIndex"
+                  @input="updateGradeFilter"
+                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-blue"
+                />
+              </div>
+            </div>
+
+            <!-- Filtered Results Summary -->
+            <div class="pt-2 border-t border-gray-300">
+              <div class="flex items-center justify-between text-xs text-gray-600">
+                <span>Showing:</span>
+                <span class="font-medium">
+                  {{ filteredProblems.length }} of
+                  {{ boulderProblemsStore.sortedProblems.length }} problems
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="space-y-2 max-h-64 overflow-y-auto">
           <BoulderProblemCard
-            v-for="problem in boulderProblemsStore.sortedProblems"
+            v-for="problem in filteredProblems"
             :key="problem.id"
             :problem="problem"
             :is-active="
@@ -363,7 +426,7 @@
 
 <script setup>
 import { ref, watch, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 import BoulderProblemCard from "@/components/BoulderProblemCard.vue";
 
@@ -383,14 +446,39 @@ const emit = defineEmits([
   "start-editing",
   "stop-editing",
   "tool-selection-change",
+  "filtered-problems-change",
 ]);
 
+const route = useRoute();
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
 
 // Local reactive state for the form
 const problemName = ref("");
 const selectedGrade = ref("V0");
+
+// Grade filtering state
+const minGradeIndex = ref(0);
+const maxGradeIndex = ref(boulderProblemsStore.grades.length - 1);
+
+// Computed properties for grade filtering
+const selectedMinGrade = computed(() => boulderProblemsStore.grades[minGradeIndex.value]);
+const selectedMaxGrade = computed(() => boulderProblemsStore.grades[maxGradeIndex.value]);
+
+const hasActiveGradeFilter = computed(() => {
+  return minGradeIndex.value > 0 || maxGradeIndex.value < boulderProblemsStore.grades.length - 1;
+});
+
+const filteredProblems = computed(() => {
+  if (!hasActiveGradeFilter.value) {
+    return boulderProblemsStore.sortedProblems;
+  }
+
+  return boulderProblemsStore.sortedProblems.filter((problem) => {
+    const gradeIndex = boulderProblemsStore.grades.indexOf(problem.grade);
+    return gradeIndex >= minGradeIndex.value && gradeIndex <= maxGradeIndex.value;
+  });
+});
 
 // Edit mode state (now derived from props instead of local state)
 const editingProblem = computed(() => {
@@ -585,6 +673,52 @@ const handleProblemHover = (problem, isEntering) => {
   emit("problem-hover", problem, isEntering);
 };
 
+// Grade filtering functions
+const updateGradeFilter = () => {
+  // Ensure min is not greater than max
+  if (minGradeIndex.value > maxGradeIndex.value) {
+    maxGradeIndex.value = minGradeIndex.value;
+  }
+
+  // Update URL query parameters
+  const query = { ...route.query };
+
+  if (hasActiveGradeFilter.value) {
+    query.minGrade = selectedMinGrade.value;
+    query.maxGrade = selectedMaxGrade.value;
+  } else {
+    delete query.minGrade;
+    delete query.maxGrade;
+  }
+
+  router.push({ query });
+};
+
+const clearGradeFilter = () => {
+  minGradeIndex.value = 0;
+  maxGradeIndex.value = boulderProblemsStore.grades.length - 1;
+  updateGradeFilter();
+};
+
+const initializeGradeFilterFromQuery = () => {
+  const minGrade = route.query.minGrade;
+  const maxGrade = route.query.maxGrade;
+
+  if (minGrade) {
+    const minIndex = boulderProblemsStore.grades.indexOf(minGrade);
+    if (minIndex !== -1) {
+      minGradeIndex.value = minIndex;
+    }
+  }
+
+  if (maxGrade) {
+    const maxIndex = boulderProblemsStore.grades.indexOf(maxGrade);
+    if (maxIndex !== -1) {
+      maxGradeIndex.value = maxIndex;
+    }
+  }
+};
+
 // Cancel edit mode when starting to create a new problem
 watch(
   () => boulderProblemsStore.isCreatingProblem,
@@ -612,6 +746,24 @@ watch(
       problemName.value = "";
       selectedGrade.value = "V0";
     }
+  },
+  { immediate: true }
+);
+
+// Initialize grade filter from URL on mount
+watch(
+  () => route.query,
+  () => {
+    initializeGradeFilterFromQuery();
+  },
+  { immediate: true }
+);
+
+// Watch filtered problems and emit them to parent for hold highlighting
+watch(
+  filteredProblems,
+  (newFilteredProblems) => {
+    emit("filtered-problems-change", newFilteredProblems);
   },
   { immediate: true }
 );

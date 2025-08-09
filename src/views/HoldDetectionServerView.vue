@@ -85,6 +85,7 @@
                   :show-hold-overlay="false"
                   :is-showing-only-one-problem="boulderProblemsStore.isShowingOnlyOneProblem"
                   :isolated-problem="boulderProblemsStore.isolatedProblem"
+                  :filtered-problems="filteredProblems"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   ref="unifiedOverlay"
@@ -364,6 +365,7 @@
             @stop-editing="stopEditingProblem"
             @tool-selection-change="handleToolSelectionChange"
             @problem-hover="handleProblemCardHover"
+            @filtered-problems-change="handleFilteredProblemsChange"
           />
 
           <!-- Processing Status -->
@@ -614,6 +616,7 @@ const imageLoadError = ref(null);
 
 // Hold interaction state
 const hoveredProblemId = ref(null);
+const filteredProblems = ref([]);
 
 // Editing state derived from URL query parameters (single source of truth)
 const editingState = computed(() => {
@@ -1017,6 +1020,11 @@ const handleProblemCardHover = (problem, isEntering) => {
   // Set hovered problem ID when entering, clear when leaving
   hoveredProblemId.value = isEntering ? problem.id : null;
   console.log("🏔️ Problem card hover:", { problemId: problem.id, isEntering });
+};
+
+const handleFilteredProblemsChange = (newFilteredProblems) => {
+  filteredProblems.value = newFilteredProblems;
+  console.log("📊 Filtered problems changed:", newFilteredProblems.length);
 };
 
 // Load image based on query parameters
