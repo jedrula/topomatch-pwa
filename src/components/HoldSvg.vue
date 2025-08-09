@@ -3,8 +3,8 @@
     :class="holdClasses"
     :style="holdStyles"
     @click.stop="handleClick"
-    @mouseenter="handleHover(true)"
-    @mouseleave="handleHover(false)"
+    @mouseenter="handleHover(true, $event)"
+    @mouseleave="handleHover(false, $event)"
     v-html="svgMarkup"
   ></g>
 </template>
@@ -61,8 +61,9 @@ const handleClick = () => {
   }
 };
 
-const handleHover = (isEntering) => {
-  emit("hover", isEntering);
+const handleHover = (isEntering, event) => {
+  console.log("🎯 HoldSvg handleHover:", { isEntering, hasEvent: !!event });
+  emit("hover", isEntering, event);
 };
 </script>
 

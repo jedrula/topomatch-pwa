@@ -579,6 +579,8 @@
       :position="floatingCard.position"
       @edit="handleFloatingCardEdit"
       @toggle-visibility="handleFloatingCardToggleVisibility"
+      @mouse-enter="handleFloatingCardMouseEnter"
+      @mouse-leave="handleFloatingCardMouseLeave"
     />
   </div>
 </template>
@@ -619,6 +621,9 @@ const floatingCard = ref({
   problem: null,
   position: { x: 0, y: 0 },
 });
+
+// Timeout for tooltip hiding
+let tooltipHideTimeout = null;
 
 // Boulder problem tool selection state
 const boulderHoldSelectionTool = ref("single");
@@ -921,10 +926,16 @@ const getHoldProblemId = (holdIndex) => {
   return null;
 };
 
-const handleHoldHover = (holdIndex, isEntering) => {
-  console.log('🎯 handleHoldHover called:', { holdIndex, isEntering });
+const handleHoldHover = (holdIndex, isEntering, event) => {
+  console.log('🎯 handleHoldHover called:', { holdIndex, isEntering, hasEvent: !!event });
   
-  if (isEntering) {
+  // Clear any pending hide timeout
+  if (tooltipHideTimeout) {
+    clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = null;
+  }
+  
+  if (isEntering && event) {
     // Find which problem this hold belongs to
     const problemId = getHoldProblemId(holdIndex);
     console.log('🔍 Problem ID found:', problemId);
@@ -934,22 +945,29 @@ const handleHoldHover = (holdIndex, isEntering) => {
       console.log('📝 Problem found:', problem?.name || 'None');
       
       if (problem) {
-        // Show floating card
+        // Position tooltip near the mouse cursor
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
+        console.log('🖱️ Mouse position:', { mouseX, mouseY });
+        
+        // Show floating card at mouse position with small offset
         floatingCard.value = {
           visible: true,
           problem: problem,
-          position: { x: 200, y: 200 } // Simple fixed position for now
+          position: { x: mouseX, y: mouseY }
         };
-        console.log('💫 Showing floating card');
+        console.log('💫 Showing floating card at mouse position');
       }
     }
     
     hoveredProblemId.value = problemId;
   } else {
-    // Hide floating card
-    floatingCard.value.visible = false;
-    hoveredProblemId.value = null;
-    console.log('💫 Hiding floating card');
+    // Don't hide immediately - use a delay to allow moving to tooltip
+    tooltipHideTimeout = setTimeout(() => {
+      floatingCard.value.visible = false;
+      hoveredProblemId.value = null;
+      console.log('💫 Hiding floating card (delayed)');
+    }, 300); // 300ms delay
   }
 };
 
@@ -1101,4 +1119,34 @@ onMounted(async () => {
     console.log("ℹ️ Skipping API health check - cached results already loaded");
   }
 });
+
+// Floating card event handlers
+const handleFloatingCardEdit = (problem) => {
+  console.log("✏️ Editing problem from floating card:", problem.name);
+  // Handle edit logic here
+};
+
+const handleFloatingCardToggleVisibility = (problem) => {
+  console.log("🔄 Toggling problem visibility:", problem.name);
+  boulderProblemsStore.toggleProblemVisibility(problem.id);
+};
+
+const handleFloatingCardMouseEnter = () => {
+  console.log("🖱️ Mouse entered floating card - keeping it visible");
+  // Clear any pending hide timeout when mouse enters the tooltip
+  if (tooltipHideTimeout) {
+    clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = null;
+  }
+};
+
+const handleFloatingCardMouseLeave = () => {
+  console.log("🖱️ Mouse left floating card - starting hide timer");
+  // Hide the tooltip when mouse leaves it
+  tooltipHideTimeout = setTimeout(() => {
+    floatingCard.value.visible = false;
+    hoveredProblemId.value = null;
+    console.log('💫 Hiding floating card (after leaving tooltip)');
+  }, 200); // Shorter delay when leaving tooltip
+};
 </script>

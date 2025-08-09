@@ -15,7 +15,7 @@
       :interaction-allowed="getHoldInteractionAllowed(index)"
       :color="getHoldColor(index)"
       @click="handleHoldClick(detectionResults.holds[index], index)"
-      @hover="handleHoldHover(index, $event)"
+      @hover="(isEntering, event) => handleHoldHover(index, isEntering, event)"
     />
   </svg>
 </template>
@@ -250,7 +250,7 @@ const handleHoldClick = (hold, index) => {
   emit("hold-click", hold, index);
 };
 
-const handleHoldHover = (index, isEntering) => {
+const handleHoldHover = (index, isEntering, event) => {
   hoveredHoldIndex.value = isEntering ? index : null;
 
   if (isEntering) {
@@ -261,7 +261,7 @@ const handleHoldHover = (index, isEntering) => {
     hoveredProblemIdLocal.value = null;
   }
 
-  emit("hold-hover", index, isEntering);
+  emit("hold-hover", index, isEntering, event);
 };
 
 // Simplified overlay - no complex positioning needed

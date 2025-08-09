@@ -2,8 +2,10 @@
   <Teleport to="body">
     <div
       v-if="visible && problem"
-      class="fixed z-50 pointer-events-none"
+      class="fixed z-50 pointer-events-auto"
       :style="{ left: `${position.x + 12}px`, top: `${position.y - 8}px` }"
+      @mouseenter="handleMouseEnter"
+      @mouseleave="handleMouseLeave"
     >
       <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-3 max-w-xs">
         <div class="flex items-center space-x-2 mb-2">
@@ -96,7 +98,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["edit", "toggle-visibility"]);
+const emit = defineEmits(["edit", "toggle-visibility", "mouse-enter", "mouse-leave"]);
 
 const handleEdit = () => {
   if (props.problem) {
@@ -108,6 +110,14 @@ const handleToggleVisibility = () => {
   if (props.problem) {
     emit("toggle-visibility", props.problem);
   }
+};
+
+const handleMouseEnter = () => {
+  emit("mouse-enter");
+};
+
+const handleMouseLeave = () => {
+  emit("mouse-leave");
 };
 </script>
 
