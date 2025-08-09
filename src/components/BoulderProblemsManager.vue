@@ -290,38 +290,25 @@
           <div class="space-y-3">
             <!-- Grade Range Display -->
             <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-600">Min Grade:</span>
-              <span class="font-medium text-gray-900">{{ selectedMinGrade }}</span>
-            </div>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-600">Max Grade:</span>
-              <span class="font-medium text-gray-900">{{ selectedMaxGrade }}</span>
+              <span class="text-gray-600">Range:</span>
+              <span class="font-medium text-gray-900">{{ selectedMinGrade }} - {{ selectedMaxGrade }}</span>
             </div>
 
-            <!-- Grade Range Sliders -->
-            <div class="space-y-2">
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">Minimum Grade</label>
-                <input
-                  type="range"
-                  :min="0"
-                  :max="boulderProblemsStore.grades.length - 1"
-                  v-model.number="minGradeIndex"
-                  @input="updateGradeFilter"
-                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-blue"
-                />
-              </div>
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">Maximum Grade</label>
-                <input
-                  type="range"
-                  :min="0"
-                  :max="boulderProblemsStore.grades.length - 1"
-                  v-model.number="maxGradeIndex"
-                  @input="updateGradeFilter"
-                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-blue"
-                />
-              </div>
+            <!-- Single Range Slider -->
+            <div>
+              <label class="block text-xs text-gray-600 mb-2">Grade Range</label>
+              <Slider
+                v-model="gradeRange"
+                :min="0"
+                :max="boulderProblemsStore.grades.length - 1"
+                :format="(value) => boulderProblemsStore.grades[value]"
+                :tooltips="false"
+                :lazy="true"
+                :step="1"
+                @update="handleSliderUpdate"
+                @change="handleSliderChange"
+                class="grade-range-slider"
+              />
             </div>
 
             <!-- Filtered Results Summary -->
@@ -425,10 +412,11 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 import BoulderProblemCard from "@/components/BoulderProblemCard.vue";
+import Slider from "@vueform/slider";
 
 const props = defineProps({
   hasDetectionResults: {
@@ -457,16 +445,15 @@ const boulderProblemsStore = useBoulderProblemsStore();
 const problemName = ref("");
 const selectedGrade = ref("V0");
 
-// Grade filtering state
-const minGradeIndex = ref(0);
-const maxGradeIndex = ref(boulderProblemsStore.grades.length - 1);
+// Grade filtering state - single range array [min, max]
+const gradeRange = ref([0, boulderProblemsStore.grades.length - 1]);
 
 // Computed properties for grade filtering
-const selectedMinGrade = computed(() => boulderProblemsStore.grades[minGradeIndex.value]);
-const selectedMaxGrade = computed(() => boulderProblemsStore.grades[maxGradeIndex.value]);
+const selectedMinGrade = computed(() => boulderProblemsStore.grades[gradeRange.value[0]]);
+const selectedMaxGrade = computed(() => boulderProblemsStore.grades[gradeRange.value[1]]);
 
 const hasActiveGradeFilter = computed(() => {
-  return minGradeIndex.value > 0 || maxGradeIndex.value < boulderProblemsStore.grades.length - 1;
+  return gradeRange.value[0] > 0 || gradeRange.value[1] < boulderProblemsStore.grades.length - 1;
 });
 
 const filteredProblems = computed(() => {
@@ -476,7 +463,7 @@ const filteredProblems = computed(() => {
 
   return boulderProblemsStore.sortedProblems.filter((problem) => {
     const gradeIndex = boulderProblemsStore.grades.indexOf(problem.grade);
-    return gradeIndex >= minGradeIndex.value && gradeIndex <= maxGradeIndex.value;
+    return gradeIndex >= gradeRange.value[0] && gradeIndex <= gradeRange.value[1];
   });
 });
 
@@ -674,12 +661,42 @@ const handleProblemHover = (problem, isEntering) => {
 };
 
 // Grade filtering functions
-const updateGradeFilter = () => {
-  // Ensure min is not greater than max
-  if (minGradeIndex.value > maxGradeIndex.value) {
-    maxGradeIndex.value = minGradeIndex.value;
-  }
+let updateTimeout = null;
+let isUpdating = false;
 
+const handleSliderUpdate = (value) => {
+  // Real-time UI update while dragging - no URL update yet
+  console.log("🎚️ Slider update (dragging):", value);
+  isUpdating = true;
+  
+  // Clear any pending timeout
+  if (updateTimeout) {
+    clearTimeout(updateTimeout);
+  }
+};
+
+const handleSliderChange = (value) => {
+  console.log("🎚️ Slider change (final):", value);
+  isUpdating = false;
+  
+  // Debounce URL updates to avoid excessive navigation
+  if (updateTimeout) {
+    clearTimeout(updateTimeout);
+  }
+  
+  updateTimeout = setTimeout(() => {
+    updateGradeFilter();
+  }, 500); // Increased debounce time for better performance
+};
+
+const updateGradeFilter = () => {
+  if (isUpdating) {
+    console.log("⏭️ Skipping URL update - still dragging");
+    return;
+  }
+  
+  console.log("🔄 Updating URL with grade filter");
+  
   // Update URL query parameters
   const query = { ...route.query };
 
@@ -695,8 +712,7 @@ const updateGradeFilter = () => {
 };
 
 const clearGradeFilter = () => {
-  minGradeIndex.value = 0;
-  maxGradeIndex.value = boulderProblemsStore.grades.length - 1;
+  gradeRange.value = [0, boulderProblemsStore.grades.length - 1];
   updateGradeFilter();
 };
 
@@ -704,19 +720,23 @@ const initializeGradeFilterFromQuery = () => {
   const minGrade = route.query.minGrade;
   const maxGrade = route.query.maxGrade;
 
+  let newRange = [0, boulderProblemsStore.grades.length - 1];
+
   if (minGrade) {
     const minIndex = boulderProblemsStore.grades.indexOf(minGrade);
     if (minIndex !== -1) {
-      minGradeIndex.value = minIndex;
+      newRange[0] = minIndex;
     }
   }
 
   if (maxGrade) {
     const maxIndex = boulderProblemsStore.grades.indexOf(maxGrade);
     if (maxIndex !== -1) {
-      maxGradeIndex.value = maxIndex;
+      newRange[1] = maxIndex;
     }
   }
+
+  gradeRange.value = newRange;
 };
 
 // Cancel edit mode when starting to create a new problem
@@ -767,4 +787,25 @@ watch(
   },
   { immediate: true }
 );
+
+// Cleanup timeout on unmount
+onUnmounted(() => {
+  if (updateTimeout) {
+    clearTimeout(updateTimeout);
+  }
+});
 </script>
+
+<style>
+@import "@vueform/slider/themes/default.css";
+
+.grade-range-slider {
+  --slider-bg: #e5e7eb;
+  --slider-connect-bg: #3b82f6;
+  --slider-tooltip-bg: #1f2937;
+  --slider-handle-ring-color: #3b82f630;
+  --slider-handle-bg: #ffffff;
+  --slider-handle-border: #3b82f6;
+  margin: 0.5rem 0;
+}
+</style>
