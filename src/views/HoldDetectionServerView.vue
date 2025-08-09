@@ -910,8 +910,47 @@ const handleHoldClick = (hold, holdIndex) => {
   console.log("ℹ️ No special mode active, ignoring hold click");
 };
 
-const handleHoldHover = (holdIndex, problemId) => {
-  hoveredProblemId.value = problemId;
+// Helper function to get problem ID for a hold
+const getHoldProblemId = (holdIndex) => {
+  for (const problem of boulderProblemsStore.sortedProblems) {
+    const holdFound = problem.holds?.some((h) => h.holdIndex === holdIndex);
+    if (holdFound) {
+      return problem.id;
+    }
+  }
+  return null;
+};
+
+const handleHoldHover = (holdIndex, isEntering) => {
+  console.log('🎯 handleHoldHover called:', { holdIndex, isEntering });
+  
+  if (isEntering) {
+    // Find which problem this hold belongs to
+    const problemId = getHoldProblemId(holdIndex);
+    console.log('🔍 Problem ID found:', problemId);
+    
+    if (problemId) {
+      const problem = boulderProblemsStore.sortedProblems.find((p) => p.id === problemId);
+      console.log('📝 Problem found:', problem?.name || 'None');
+      
+      if (problem) {
+        // Show floating card
+        floatingCard.value = {
+          visible: true,
+          problem: problem,
+          position: { x: 200, y: 200 } // Simple fixed position for now
+        };
+        console.log('💫 Showing floating card');
+      }
+    }
+    
+    hoveredProblemId.value = problemId;
+  } else {
+    // Hide floating card
+    floatingCard.value.visible = false;
+    hoveredProblemId.value = null;
+    console.log('💫 Hiding floating card');
+  }
 };
 
 const handleEditingStateChange = (newEditingState) => {
