@@ -373,8 +373,18 @@ watch(
 // Floating card event handlers
 const handleFloatingCardEdit = (problem) => {
   console.log("✏️ Editing problem from ImageGallery:", problem.name);
-  // Navigate to edit mode for this problem
-  // This could navigate to the HoldDetectionServerView in edit mode
+  // Navigate to HoldDetectionServerView with editing state
+  router.push({
+    name: "location-hold-detection-server",
+    params: {
+      locationId: props.locationId,
+    },
+    query: {
+      imageId: currentImage.value?.id,
+      imageName: currentImage.value?.name,
+      editingProblemId: problem.id,
+    },
+  });
 };
 
 const handleFloatingCardToggleVisibility = (problem) => {
