@@ -320,6 +320,9 @@
                   {{ boulderProblemsStore.sortedProblems.length }} problems
                 </span>
               </div>
+              <div v-if="hasActiveGradeFilter" class="mt-1 text-xs text-blue-600">
+                Only holds from filtered problems are visible on the image
+              </div>
             </div>
           </div>
         </div>

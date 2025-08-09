@@ -109,7 +109,9 @@ const filteredProblemIds = computed(() => {
 });
 
 const hasActiveGradeFilter = computed(() => {
-  return props.filteredProblems && props.filteredProblems.length > 0;
+  return props.filteredProblems && 
+         props.filteredProblems.length > 0 && 
+         props.filteredProblems.length < props.boulderProblems.length;
 });
 
 // Get which problem a hold belongs to
@@ -182,32 +184,20 @@ const getHoldInteraction = (holdIndex) => {
     }
   }
 
-  // Grade filtering - highlight holds from filtered problems
-  if (hasActiveGradeFilter.value && problemId) {
-    if (filteredProblemIds.value.has(problemId)) {
-      // This hold belongs to a filtered problem - highlight it more prominently
-      if (hoveredHoldIndex.value === holdIndex) {
-        return "hover";
-      } else if (
-        props.hoveredProblemId === problemId ||
-        hoveredProblemIdLocal.value === problemId
-      ) {
-        return "hover";
-      } else {
-        return "selected"; // Highlighted as part of filtered results
-      }
-    } else {
-      // This hold doesn't belong to a filtered problem - dim it
-      const problem =
-        props.boulderProblems.find((p) => p.id === problemId) ||
-        (props.activeProblem?.id === problemId ? props.activeProblem : null) ||
-        (props.editingProblem?.id === problemId ? props.editingProblem : null);
-
-      if (problem?.hidden) {
+  // Grade filtering - hide holds that don't belong to filtered problems
+  if (hasActiveGradeFilter.value) {
+    if (problemId) {
+      // This hold belongs to a problem - check if it's in the filtered list
+      if (!filteredProblemIds.value.has(problemId)) {
+        // This hold belongs to a problem that doesn't match the filter - hide it
+        console.log(`🙈 Hold ${holdIndex} belongs to filtered-out problem ${problemId} - hiding`);
         return "hidden";
-      } else {
-        return "default"; // Dimmed/less prominent
       }
+      // Fall through to normal problem hold logic
+    } else {
+      // This is an unclassified hold - hide it during filtering for cleaner view
+      console.log(`🙈 Hold ${holdIndex} is unclassified during grade filtering - hiding`);
+      return "hidden";
     }
   }
 
