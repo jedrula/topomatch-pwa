@@ -264,8 +264,8 @@ const onImageLoad = () => {
   // Use nextTick to ensure DOM has updated before setting imageLoaded
   nextTick(() => {
     imageLoaded.value = true;
-    console.log('🖼️ Image loaded, viewBox:', imageViewBox.value);
-    
+    console.log("🖼️ Image loaded, viewBox:", imageViewBox.value);
+
     // Focus the gallery for keyboard navigation
     const galleryEl = document.querySelector('[tabindex="0"]');
     if (galleryEl) {
@@ -285,41 +285,41 @@ const goToProblemDetail = (problem) => {
 };
 
 const handleProblemHover = (problemId, isEntering, event) => {
-  console.log('🎯 ImageGallery handleProblemHover:', { problemId, isEntering, hasEvent: !!event });
-  
+  console.log("🎯 ImageGallery handleProblemHover:", { problemId, isEntering, hasEvent: !!event });
+
   // Clear any pending hide timeout
   if (tooltipHideTimeout) {
     clearTimeout(tooltipHideTimeout);
     tooltipHideTimeout = null;
   }
-  
+
   if (isEntering && event) {
     // Find the problem data
-    const problem = currentImageProblems.value.find(p => p.id === problemId);
-    console.log('📝 Problem found:', problem?.name || 'None');
-    
+    const problem = currentImageProblems.value.find((p) => p.id === problemId);
+    console.log("📝 Problem found:", problem?.name || "None");
+
     if (problem) {
       // Position tooltip near the mouse cursor
       const mouseX = event.clientX;
       const mouseY = event.clientY;
-      console.log('🖱️ Mouse position:', { mouseX, mouseY });
-      
+      console.log("🖱️ Mouse position:", { mouseX, mouseY });
+
       // Show floating card at mouse position
       floatingCard.value = {
         visible: true,
         problem: problem,
-        position: { x: mouseX, y: mouseY }
+        position: { x: mouseX, y: mouseY },
       };
-      console.log('💫 Showing floating card for problem:', problem.name);
+      console.log("💫 Showing floating card for problem:", problem.name);
     }
-    
+
     hoveredProblemId.value = problemId;
   } else {
     // Don't hide immediately - use a delay to allow moving to tooltip
     tooltipHideTimeout = setTimeout(() => {
       floatingCard.value.visible = false;
       hoveredProblemId.value = null;
-      console.log('💫 Hiding floating card (delayed)');
+      console.log("💫 Hiding floating card (delayed)");
     }, 300); // 300ms delay
   }
 };
@@ -397,7 +397,7 @@ const handleFloatingCardMouseLeave = () => {
   tooltipHideTimeout = setTimeout(() => {
     floatingCard.value.visible = false;
     hoveredProblemId.value = null;
-    console.log('💫 Hiding floating card (after leaving tooltip)');
+    console.log("💫 Hiding floating card (after leaving tooltip)");
   }, 200); // Shorter delay when leaving tooltip
 };
 </script>

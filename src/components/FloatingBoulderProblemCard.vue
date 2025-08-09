@@ -17,14 +17,14 @@
             {{ problem.name }}
           </div>
         </div>
-        
+
         <div class="text-xs text-gray-500 mb-2">
           Grade {{ problem.grade }} • {{ problem.holds.length }} holds
         </div>
-        
+
         <div class="flex items-center space-x-1 text-xs">
           <span class="text-gray-400">#{{ problem.id }}</span>
-          
+
           <!-- Quick action buttons -->
           <div class="flex items-center space-x-1 ml-auto">
             <button
@@ -41,7 +41,7 @@
                 />
               </svg>
             </button>
-            
+
             <button
               @click.stop="handleToggleVisibility"
               :class="[

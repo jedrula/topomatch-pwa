@@ -357,7 +357,9 @@
             :has-detection-results="serverStore.hasResults"
             :detection-results="serverStore.results"
             :climbing-image="climbingImage"
-            @editing-state-change="handleEditingStateChange"
+            :editing-problem-id="editingState.editingProblemId"
+            @start-editing="startEditingProblem"
+            @stop-editing="stopEditingProblem"
             @tool-selection-change="handleToolSelectionChange"
             @problem-hover="handleProblemCardHover"
           />
@@ -610,9 +612,25 @@ const imageLoadError = ref(null);
 
 // Hold interaction state
 const hoveredProblemId = ref(null);
-const editingState = ref({
-  isEditing: false,
-  editingProblem: null,
+
+// Editing state derived from URL query parameters (single source of truth)
+const editingState = computed(() => {
+  const editingProblemId = route.query.editingProblemId;
+  if (editingProblemId) {
+    const editingProblem = boulderProblemsStore.sortedProblems.find(
+      (p) => p.id === editingProblemId
+    );
+    return {
+      isEditing: true,
+      editingProblem: editingProblem || null,
+      editingProblemId: editingProblemId, // Keep the ID even if problem not found yet
+    };
+  }
+  return {
+    isEditing: false,
+    editingProblem: null,
+    editingProblemId: null,
+  };
 });
 
 // Floating problem card state
@@ -927,53 +945,65 @@ const getHoldProblemId = (holdIndex) => {
 };
 
 const handleHoldHover = (holdIndex, isEntering, event) => {
-  console.log('🎯 handleHoldHover called:', { holdIndex, isEntering, hasEvent: !!event });
-  
+  console.log("🎯 handleHoldHover called:", { holdIndex, isEntering, hasEvent: !!event });
+
   // Clear any pending hide timeout
   if (tooltipHideTimeout) {
     clearTimeout(tooltipHideTimeout);
     tooltipHideTimeout = null;
   }
-  
+
   if (isEntering && event) {
     // Find which problem this hold belongs to
     const problemId = getHoldProblemId(holdIndex);
-    console.log('🔍 Problem ID found:', problemId);
-    
+    console.log("🔍 Problem ID found:", problemId);
+
     if (problemId) {
       const problem = boulderProblemsStore.sortedProblems.find((p) => p.id === problemId);
-      console.log('📝 Problem found:', problem?.name || 'None');
-      
+      console.log("📝 Problem found:", problem?.name || "None");
+
       if (problem) {
         // Position tooltip near the mouse cursor
         const mouseX = event.clientX;
         const mouseY = event.clientY;
-        console.log('🖱️ Mouse position:', { mouseX, mouseY });
-        
+        console.log("🖱️ Mouse position:", { mouseX, mouseY });
+
         // Show floating card at mouse position with small offset
         floatingCard.value = {
           visible: true,
           problem: problem,
-          position: { x: mouseX, y: mouseY }
+          position: { x: mouseX, y: mouseY },
         };
-        console.log('💫 Showing floating card at mouse position');
+        console.log("💫 Showing floating card at mouse position");
       }
     }
-    
+
     hoveredProblemId.value = problemId;
   } else {
     // Don't hide immediately - use a delay to allow moving to tooltip
     tooltipHideTimeout = setTimeout(() => {
       floatingCard.value.visible = false;
       hoveredProblemId.value = null;
-      console.log('💫 Hiding floating card (delayed)');
+      console.log("💫 Hiding floating card (delayed)");
     }, 300); // 300ms delay
   }
 };
 
-const handleEditingStateChange = (newEditingState) => {
-  editingState.value = newEditingState;
-  console.log("🔧 Editing state changed:", newEditingState);
+const startEditingProblem = (problem) => {
+  console.log("🔧 Starting edit mode for problem:", problem.name);
+  router.push({
+    query: {
+      ...route.query,
+      editingProblemId: problem.id,
+    },
+  });
+};
+
+const stopEditingProblem = () => {
+  console.log("🔧 Stopping edit mode");
+  const query = { ...route.query };
+  delete query.editingProblemId;
+  router.push({ query });
 };
 
 const handleToolSelectionChange = (selectedTool) => {
@@ -1057,7 +1087,7 @@ watch(
   () => route.query,
   async (newQuery, oldQuery) => {
     loadImageFromQuery();
-    
+
     // If imageId changed, reload boulder problems for the new image
     if (newQuery.imageId !== oldQuery?.imageId && route.params.locationId) {
       console.log("🏔️ ImageId changed, reloading boulder problems for:", newQuery.imageId);
@@ -1087,6 +1117,26 @@ watch(
   { immediate: false }
 );
 
+// Watch for URL editing state changes and sync with boulder problems store
+watch(
+  () => editingState.value,
+  (newEditingState) => {
+    console.log("🔄 URL editing state changed, syncing with store:", newEditingState);
+    
+    if (newEditingState.isEditing && newEditingState.editingProblem) {
+      // Problem found - start editing mode in the store
+      console.log("✅ Problem found, selecting in store:", newEditingState.editingProblem.name);
+      boulderProblemsStore.selectProblem(newEditingState.editingProblem);
+    } else if (!newEditingState.isEditing) {
+      // Not editing - exit editing mode in the store
+      console.log("🚫 Exiting edit mode");
+      boulderProblemsStore.deselectProblem();
+    }
+    // If isEditing but no editingProblem found yet, wait for data to load
+  },
+  { immediate: true }
+);
+
 // Lifecycle
 onMounted(async () => {
   console.log("🚀 Server Hold Detection View mounted");
@@ -1103,7 +1153,9 @@ onMounted(async () => {
     try {
       boulderProblemsStore.initializeForLocation(route.params.locationId, imageId);
       await boulderProblemsStore.loadBoulderProblems(route.params.locationId, imageId);
-      console.log(`✅ Boulder problems loaded successfully${imageId ? ` for image: ${imageId}` : ''}`);
+      console.log(
+        `✅ Boulder problems loaded successfully${imageId ? ` for image: ${imageId}` : ""}`
+      );
     } catch (error) {
       console.error("❌ Failed to load boulder problems:", error);
     }
@@ -1146,7 +1198,7 @@ const handleFloatingCardMouseLeave = () => {
   tooltipHideTimeout = setTimeout(() => {
     floatingCard.value.visible = false;
     hoveredProblemId.value = null;
-    console.log('💫 Hiding floating card (after leaving tooltip)');
+    console.log("💫 Hiding floating card (after leaving tooltip)");
   }, 200); // Shorter delay when leaving tooltip
 };
 </script>

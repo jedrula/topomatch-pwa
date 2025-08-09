@@ -362,19 +362,23 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 import BoulderProblemCard from "@/components/BoulderProblemCard.vue";
 
-defineProps({
+const props = defineProps({
   hasDetectionResults: {
     type: Boolean,
     default: false,
   },
+  editingProblemId: {
+    type: String,
+    default: null,
+  },
 });
 
-const emit = defineEmits(["problem-hover", "editing-state-change", "tool-selection-change"]);
+const emit = defineEmits(["problem-hover", "start-editing", "stop-editing", "tool-selection-change"]);
 
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
@@ -383,8 +387,12 @@ const boulderProblemsStore = useBoulderProblemsStore();
 const problemName = ref("");
 const selectedGrade = ref("V0");
 
-// Edit mode state
-const editingProblem = ref(null);
+// Edit mode state (now derived from props instead of local state)
+const editingProblem = computed(() => {
+  return props.editingProblemId 
+    ? boulderProblemsStore.sortedProblems.find(p => p.id === props.editingProblemId)
+    : null;
+});
 
 // Tool selection state
 const holdSelectionTool = ref("single");
@@ -462,9 +470,8 @@ const toggleProblemVisibility = (problem) => {
 };
 
 const editProblem = (problem) => {
-  // Set the problem as the editing problem and select it
-  editingProblem.value = problem;
-  boulderProblemsStore.selectProblem(problem);
+  // Emit to parent to start editing (URL-based state management)
+  emit("start-editing", problem);
 
   // Pre-populate the form with existing values
   problemName.value = problem.name;
@@ -476,17 +483,27 @@ const editProblem = (problem) => {
 };
 
 const saveEdit = async () => {
-  if (!editingProblem.value) return;
+  // Get current editing problem from URL-based state (via editingProblemId prop)
+  const currentEditingProblem = props.editingProblemId 
+    ? boulderProblemsStore.sortedProblems.find(p => p.id === props.editingProblemId)
+    : null;
+    
+  if (!currentEditingProblem) return;
 
   try {
     // Update the local problem data
-    boulderProblemsStore.updateProblemName(editingProblem.value.id, problemName.value);
-    boulderProblemsStore.updateProblemGrade(editingProblem.value.id, selectedGrade.value);
+    boulderProblemsStore.updateProblemName(currentEditingProblem.id, problemName.value);
+    boulderProblemsStore.updateProblemGrade(currentEditingProblem.id, selectedGrade.value);
 
     // Save all changes to server
-    await boulderProblemsStore.saveProblemChanges(editingProblem.value.id);
+    await boulderProblemsStore.saveProblemChanges(currentEditingProblem.id);
 
-    cancelEdit();
+    // After successful save, stop editing
+    emit("stop-editing");
+    
+    // Reset form state
+    problemName.value = "";
+    selectedGrade.value = "V0";
   } catch (error) {
     console.error("Error saving boulder problem:", error);
     // Error is already handled in the store and displayed in the UI
@@ -494,10 +511,15 @@ const saveEdit = async () => {
 };
 
 const cancelEdit = async () => {
-  if (!editingProblem.value) return;
+  // Get current editing problem from URL-based state (via editingProblemId prop)
+  const currentEditingProblem = props.editingProblemId 
+    ? boulderProblemsStore.sortedProblems.find(p => p.id === props.editingProblemId)
+    : null;
+    
+  if (!currentEditingProblem) return;
 
   // If there are unsaved changes, ask for confirmation
-  if (boulderProblemsStore.hasUnsavedChanges(editingProblem.value.id)) {
+  if (boulderProblemsStore.hasUnsavedChanges(currentEditingProblem.id)) {
     if (
       !confirm(
         "You have unsaved changes. Are you sure you want to cancel? All changes will be lost."
@@ -508,13 +530,16 @@ const cancelEdit = async () => {
 
     try {
       // Discard changes by reloading from server
-      await boulderProblemsStore.discardProblemChanges(editingProblem.value.id);
+      await boulderProblemsStore.discardProblemChanges(currentEditingProblem.id);
     } catch (error) {
       console.error("Error discarding changes:", error);
     }
   }
 
-  editingProblem.value = null;
+  // Emit to parent to stop editing (URL-based state management)
+  emit("stop-editing");
+  
+  // Reset form state
   problemName.value = "";
   selectedGrade.value = "V0";
   holdSelectionTool.value = "single";
@@ -562,14 +587,23 @@ watch(
   }
 );
 
-// Emit editing state changes to parent
+// Watch editing state for internal component logic (no longer emits to parent)
 watch(
-  editingProblem,
-  (newEditingProblem) => {
-    emit("editing-state-change", {
-      isEditing: !!newEditingProblem,
-      editingProblem: newEditingProblem,
-    });
+  () => props.editingProblemId,
+  (newEditingProblemId, oldEditingProblemId) => {
+    console.log("📝 BoulderProblemsManager editing problem ID changed:", newEditingProblemId);
+    
+    // When starting to edit a problem, populate the form
+    if (newEditingProblemId && editingProblem.value) {
+      problemName.value = editingProblem.value.name;
+      selectedGrade.value = editingProblem.value.grade;
+    }
+    
+    // When stopping editing, clear the form
+    if (!newEditingProblemId && oldEditingProblemId) {
+      problemName.value = "";
+      selectedGrade.value = "V0";
+    }
   },
   { immediate: true }
 );
