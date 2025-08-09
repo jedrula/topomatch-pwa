@@ -93,6 +93,47 @@
           </div>
         </div>
 
+        <!-- Boulder Problems Summary -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900">Boulder Problems</h2>
+              <p v-if="totalProblems > 0" class="text-sm text-gray-600">{{ totalProblems }} problems total</p>
+            </div>
+          </div>
+
+          <!-- Grade distribution -->
+          <div v-if="totalProblems > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            <div
+              v-for="gradeGroup in boulderProblemsSummary"
+              :key="gradeGroup.label"
+              class="bg-gray-50 rounded-lg p-4 text-center hover:bg-gray-100 transition-colors cursor-pointer"
+              @click="viewProblemsOfGrade(gradeGroup)"
+            >
+              <div class="text-2xl font-bold text-gray-900 mb-1">
+                {{ gradeGroup.count }}
+              </div>
+              <div class="text-sm font-medium text-gray-700 mb-1">
+                Grade {{ gradeGroup.label }}
+              </div>
+              <div class="text-xs text-gray-500">
+                {{ gradeGroup.count === 1 ? 'problem' : 'problems' }}
+              </div>
+            </div>
+          </div>
+
+          <!-- No problems message -->
+          <div v-else class="text-center py-8">
+            <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No boulder problems yet</h3>
+            <p class="text-gray-500 mb-4">
+              Upload images and use the hold detection tool to create boulder problems
+            </p>
+          </div>
+        </div>
+
         <!-- Images section -->
         <div class="bg-white rounded-lg shadow p-6">
           <div class="flex items-center justify-between mb-6">
@@ -308,15 +349,18 @@
 import { ref, onMounted, computed, inject } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { locationService } from "../services/locationService.js";
+import { useBoulderProblemsStore } from "../stores/boulderProblemsStore.js";
 import ImageUpload from "../components/ImageUpload.vue";
 import ImageGallery from "../components/ImageGallery.vue";
 import VideoFrameMatcher from "../components/VideoFrameMatcher.vue";
 import { formatDate, isSameDateTime } from "../utils/dateUtils.js";
+import { getGradeLabel, getGradeDifficulty } from "../utils/gradingUtils.js";
 import { useUserStore } from "../stores/userStore.js";
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const boulderProblemsStore = useBoulderProblemsStore();
 
 // Inject auth modal controls
 const authModal = inject("authModal");
@@ -329,6 +373,38 @@ const showUploadModal = ref(false);
 const showBetaUploadModal = ref(false);
 
 const locationId = route.params.locationId;
+
+// Boulder problems summary grouped by grade
+const boulderProblemsSummary = computed(() => {
+  if (!boulderProblemsStore.boulderProblems.length) return [];
+
+  // Group problems by grade
+  const gradeGroups = {};
+  
+  boulderProblemsStore.boulderProblems.forEach(problem => {
+    const gradeLabel = getGradeLabel(problem.grade);
+    const difficulty = getGradeDifficulty(problem.grade);
+    
+    if (!gradeGroups[gradeLabel]) {
+      gradeGroups[gradeLabel] = {
+        label: gradeLabel,
+        difficulty: difficulty,
+        count: 0,
+        problems: []
+      };
+    }
+    
+    gradeGroups[gradeLabel].count++;
+    gradeGroups[gradeLabel].problems.push(problem);
+  });
+
+  // Convert to array and sort by difficulty
+  return Object.values(gradeGroups).sort((a, b) => a.difficulty - b.difficulty);
+});
+
+const totalProblems = computed(() => {
+  return boulderProblemsStore.boulderProblems.length;
+});
 
 // Gallery state
 const isGalleryOpen = computed(() => {
@@ -348,6 +424,12 @@ const loadLocation = async () => {
     error.value = "";
 
     location.value = await locationService.getLocation(locationId);
+
+    // Initialize boulder problems store for this location
+    await boulderProblemsStore.initializeForLocation(locationId);
+    
+    // Load boulder problems
+    await boulderProblemsStore.loadBoulderProblems(locationId);
 
     // Load images for this location from the backend
     await loadLocationImages();
@@ -491,6 +573,14 @@ const handleBetaProcessingError = (error) => {
 const handleBetaVideoCleared = () => {
   console.log("Beta video cleared");
 };
+
+const viewProblemsOfGrade = (gradeGroup) => {
+  // For now, just show an alert with the problems of this grade
+  // In the future, this could navigate to a filtered view or show a modal
+  const problemNames = gradeGroup.problems.map(p => p.name).join(', ');
+  alert(`Grade ${gradeGroup.label} problems (${gradeGroup.count}):\n${problemNames}`);
+};
+
 onMounted(() => {
   loadLocation();
 });
