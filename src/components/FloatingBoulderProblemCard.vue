@@ -19,7 +19,7 @@
         </div>
 
         <div class="text-xs text-gray-500 mb-2">
-          Grade {{ problem.grade }} • {{ problem.holds.length }} holds
+          Grade {{ getGradeLabel(problem.grade) }} • {{ problem.holds.length }} holds
         </div>
 
         <div class="flex items-center space-x-1 text-xs">
@@ -119,6 +119,7 @@
 <script setup>
 import { computed } from "vue";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore.js";
+import { getGradeLabel } from "@/utils/gradingUtils.js";
 
 const boulderProblemsStore = useBoulderProblemsStore();
 

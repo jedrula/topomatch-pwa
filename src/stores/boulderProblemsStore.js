@@ -57,6 +57,20 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     return currentLocationGradingSystem.value || defaultGradingSystem;
   });
 
+  // Helper functions for grade conversion
+  const getGradeObjectFromLabel = (gradeLabel) => {
+    if (!gradeLabel) return null;
+    const system = gradingSystem.value;
+    const gradeObject = system.grades.find(g => g.label === gradeLabel);
+    return gradeObject || null;
+  };
+
+  const getGradeLabelFromObject = (gradeObject) => {
+    if (!gradeObject) return '';
+    if (typeof gradeObject === 'string') return gradeObject; // Already a label
+    return gradeObject.label || '';
+  };
+
   // Colors for visual distinction of boulder problems
   const problemColors = [
     "#ef4444", // red
@@ -141,13 +155,15 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     }
   };
 
-  const createNewProblem = async (grade, name = "") => {
+  const createNewProblem = async (gradeLabel, name = "") => {
     if (!currentLocationId.value || !currentImageId.value) {
       throw new Error("Location and image must be set before creating problems");
     }
 
-    // Use provided grade or default to first grade in system
-    const problemGrade = grade || (grades.value.length > 0 ? grades.value[0] : "V0");
+    // Convert grade label to grade object
+    const gradeObject = getGradeObjectFromLabel(gradeLabel) || 
+                       (grades.value.length > 0 ? getGradeObjectFromLabel(grades.value[0]) : null);
+    
     const colorIndex = boulderProblems.value.length % problemColors.length;
     const problemName = name || `Problem ${boulderProblems.value.length + 1}`;
 
@@ -155,7 +171,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     const localProblem = {
       id: getNextLocalId(),
       name: problemName,
-      grade: problemGrade,
+      grade: gradeObject,
       holds: [],
       imageId: currentImageId.value,
       color: problemColors[colorIndex],
@@ -172,7 +188,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
       // Create on backend
       const problemId = await boulderProblemsService.createBoulderProblem(currentLocationId.value, {
         name: problemName,
-        grade,
+        grade: gradeObject,
         imageId: currentImageId.value,
         color: problemColors[colorIndex],
         holds: [],
@@ -362,11 +378,13 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     }
   };
 
-  const updateProblemGrade = (problemId, newGrade) => {
+  const updateProblemGrade = (problemId, newGradeLabel) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return;
 
-    problem.grade = newGrade;
+    // Convert grade label to grade object
+    const gradeObject = getGradeObjectFromLabel(newGradeLabel);
+    problem.grade = gradeObject;
 
     // Mark problem as having unsaved changes (unless it's local only or being created)
     if (!problem.isLocalOnly && !isCreatingProblem.value) {
@@ -613,6 +631,10 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     clearAllProblems,
     clearError,
     getProblemStats,
+
+    // Grade conversion helpers
+    getGradeObjectFromLabel,
+    getGradeLabelFromObject,
 
     // Batch operations
     saveProblemChanges,

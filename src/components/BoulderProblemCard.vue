@@ -25,7 +25,7 @@
           </div>
         </div>
         <div class="text-sm text-gray-500">
-          Grade {{ problem.grade }} • {{ problem.holds.length }} holds
+          Grade {{ getGradeLabel(problem.grade) }} • {{ problem.holds.length }} holds
         </div>
       </div>
     </div>
@@ -118,6 +118,8 @@
 </template>
 
 <script setup>
+import { getGradeLabel } from "@/utils/gradingUtils.js";
+
 const props = defineProps({
   problem: {
     type: Object,

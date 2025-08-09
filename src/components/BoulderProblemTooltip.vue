@@ -20,7 +20,7 @@
       
       <!-- Problem Details -->
       <div class="text-sm text-gray-600 mb-2">
-        Grade {{ problem.grade }} • {{ problem.holds.length }} holds
+        Grade {{ getGradeLabel(problem.grade) }} • {{ problem.holds.length }} holds
       </div>
       
       <!-- Quick Actions -->
@@ -64,6 +64,7 @@
 
 <script setup>
 import { computed } from "vue";
+import { getGradeLabel } from "@/utils/gradingUtils.js";
 
 const props = defineProps({
   visible: {

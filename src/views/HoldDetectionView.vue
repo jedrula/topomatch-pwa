@@ -114,7 +114,7 @@
                       >
                         <div>{{ boulderProblemsStore.activeProblem?.name }}</div>
                         <div class="text-gray-300">
-                          {{ boulderProblemsStore.activeProblem?.grade }}
+                          {{ getGradeLabel(boulderProblemsStore.activeProblem?.grade) }}
                         </div>
                       </div>
                     </div>
@@ -462,6 +462,7 @@ import HoldSegmentationCanvas from "@/components/HoldSegmentationCanvas.vue";
 import { useHoldDetectionStore } from "@/stores/holdDetectionStore";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 import { locationService } from "@/services/locationService";
+import { getGradeLabel } from "@/utils/gradingUtils.js";
 
 const route = useRoute();
 const router = useRouter();

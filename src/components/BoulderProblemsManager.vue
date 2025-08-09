@@ -420,6 +420,7 @@
 import { ref, watch, computed, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
+import { getGradeLabel } from "@/utils/gradingUtils.js";
 import BoulderProblemCard from "@/components/BoulderProblemCard.vue";
 import Slider from "@vueform/slider";
 
@@ -474,7 +475,8 @@ const filteredProblems = computed(() => {
   }
 
   return boulderProblemsStore.sortedProblems.filter((problem) => {
-    const gradeIndex = boulderProblemsStore.grades.indexOf(problem.grade);
+    const gradeLabel = getGradeLabel(problem.grade);
+    const gradeIndex = boulderProblemsStore.grades.indexOf(gradeLabel);
     return gradeIndex >= gradeRange.value[0] && gradeIndex <= gradeRange.value[1];
   });
 });
@@ -570,7 +572,7 @@ const editProblem = (problem) => {
 
   // Pre-populate the form with existing values
   problemName.value = problem.name;
-  selectedGrade.value = problem.grade;
+  selectedGrade.value = getGradeLabel(problem.grade);
 
   // Reset tool selection to single when starting edit
   holdSelectionTool.value = "single";
@@ -770,7 +772,7 @@ watch(
     // When starting to edit a problem, populate the form
     if (newEditingProblemId && editingProblem.value) {
       problemName.value = editingProblem.value.name;
-      selectedGrade.value = editingProblem.value.grade;
+      selectedGrade.value = getGradeLabel(editingProblem.value.grade);
     }
 
     // When stopping editing, clear the form
