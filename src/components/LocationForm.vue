@@ -36,6 +36,14 @@
         <img :src="form.heroImageUrl" alt="Hero" class="h-24 rounded object-cover" />
       </div>
     </div>
+
+    <!-- Grading System Configuration -->
+    <div class="border-t pt-6">
+      <GradingSystemManager
+        :initial-system="form.gradingSystem"
+        @system-selected="onGradingSystemSelected"
+      />
+    </div>
     <div class="flex gap-4 mt-6">
       <div class="flex items-center justify-between gap-4 mt-6 w-full">
         <div>
@@ -66,11 +74,12 @@ import { ref, watch } from "vue";
 import { storage } from "../services/firebase.js";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useUserStore } from "../stores/userStore.js";
+import GradingSystemManager from "./GradingSystemManager.vue";
 
 const props = defineProps({
   initial: {
     type: Object,
-    default: () => ({ name: "", description: "", heroImageUrl: "" }),
+    default: () => ({ name: "", description: "", heroImageUrl: "", gradingSystem: null }),
   },
   mode: {
     type: String,
@@ -129,5 +138,9 @@ const handleSubmit = () => {
     return;
   }
   emit("submit", { ...form.value });
+};
+
+const onGradingSystemSelected = (system) => {
+  form.value.gradingSystem = system;
 };
 </script>

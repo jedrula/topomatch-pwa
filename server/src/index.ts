@@ -114,12 +114,25 @@ const getFilePathFromUrl = (downloadUrl: string): string | null => {
   }
 };
 
+// Interface for GradingSystem
+interface GradingSystem {
+  id: string;
+  name: string;
+  description?: string;
+  grades: Array<{
+    label: string;
+    color?: string;
+  }>;
+  isCustom?: boolean;
+}
+
 // Interface for Location data
 interface Location {
   id?: string;
   name: string;
   description?: string;
   heroImageUrl?: string;
+  gradingSystem?: GradingSystem;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -136,7 +149,7 @@ interface LocationImage {
 // Create a new location
 export const createLocation = onCall(async (request) => {
   try {
-    const { name, description, heroImageUrl } = request.data as Location;
+    const { name, description, heroImageUrl, gradingSystem } = request.data as Location;
 
     if (!name) {
       throw new Error("Name is required");
@@ -152,6 +165,11 @@ export const createLocation = onCall(async (request) => {
     // Only add heroImageUrl if it's provided
     if (heroImageUrl) {
       locationData.heroImageUrl = heroImageUrl;
+    }
+
+    // Only add gradingSystem if it's provided
+    if (gradingSystem) {
+      locationData.gradingSystem = gradingSystem;
     }
 
     const docRef = await db.collection("locations").add(locationData);
@@ -218,7 +236,7 @@ export const getLocation = onCall(async (request) => {
 // Update a location
 export const updateLocation = onCall(async (request) => {
   try {
-    const { locationId, name, description, heroImageUrl } = request.data;
+    const { locationId, name, description, heroImageUrl, gradingSystem } = request.data;
 
     if (!locationId) {
       throw new Error("Location ID is required");
@@ -259,6 +277,11 @@ export const updateLocation = onCall(async (request) => {
     // Only include heroImageUrl if it's provided and not empty
     if (heroImageUrl && heroImageUrl.trim() !== "") {
       updateData.heroImageUrl = heroImageUrl;
+    }
+
+    // Only include gradingSystem if it's provided
+    if (gradingSystem) {
+      updateData.gradingSystem = gradingSystem;
     }
 
     await db.collection("locations").doc(locationId).update(updateData);

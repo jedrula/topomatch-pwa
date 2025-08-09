@@ -1037,6 +1037,22 @@ const loadImageFromQuery = async () => {
       // Load existing boulder problems for this image
       console.log("📂 Loading image from location:", { locationId, imageId });
 
+      // Load location data to get grading system
+      try {
+        const location = await locationService.getLocation(locationId);
+        if (location && location.gradingSystem) {
+          boulderProblemsStore.setLocationGradingSystem(location.gradingSystem);
+          console.log("🎚️ Loaded location grading system:", location.gradingSystem);
+        } else {
+          console.log("🎚️ No custom grading system found for location, using default");
+          boulderProblemsStore.setLocationGradingSystem(null);
+        }
+      } catch (error) {
+        console.warn("⚠️ Error loading location grading system:", error);
+        // Continue with default system
+        boulderProblemsStore.setLocationGradingSystem(null);
+      }
+
       // Load image data from the location service
       const imageRecords = await locationService.getLocationImages(locationId);
       const imageRecord = imageRecords.find((record) => record.id === imageId);
@@ -1064,6 +1080,8 @@ const loadImageFromQuery = async () => {
     // No query parameters, use default/hardcoded image
     console.log("📷 Using default image (no query parameters)");
     currentImage.value = null;
+    // Use default grading system when no location specified
+    boulderProblemsStore.setLocationGradingSystem(null);
 
     // Still check for cached results for the default image
     await checkAndLoadCachedResults();

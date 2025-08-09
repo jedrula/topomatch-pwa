@@ -646,6 +646,22 @@ const loadImageFromQuery = async () => {
       // Initialize boulder problems store for this location and image
       boulderProblemsStore.initializeForLocation(locationId, imageId);
 
+      // Load location data to get grading system
+      try {
+        const location = await locationService.getLocation(locationId);
+        if (location && location.gradingSystem) {
+          boulderProblemsStore.setLocationGradingSystem(location.gradingSystem);
+          console.log("🎚️ Loaded location grading system:", location.gradingSystem);
+        } else {
+          console.log("🎚️ No custom grading system found for location, using default");
+          boulderProblemsStore.setLocationGradingSystem(null);
+        }
+      } catch (error) {
+        console.warn("⚠️ Error loading location grading system:", error);
+        // Continue with default system
+        boulderProblemsStore.setLocationGradingSystem(null);
+      }
+
       // Load existing boulder problems for this image
       await boulderProblemsStore.loadBoulderProblems(locationId, imageId);
 
@@ -672,6 +688,8 @@ const loadImageFromQuery = async () => {
   } else {
     // No query parameters, use default/hardcoded image
     currentImage.value = null;
+    // Use default grading system when no location specified
+    boulderProblemsStore.setLocationGradingSystem(null);
     // Reset boulder problems store
     boulderProblemsStore.clearAllProblems();
   }

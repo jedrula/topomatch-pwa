@@ -109,9 +109,11 @@ const filteredProblemIds = computed(() => {
 });
 
 const hasActiveGradeFilter = computed(() => {
-  return props.filteredProblems && 
-         props.filteredProblems.length > 0 && 
-         props.filteredProblems.length < props.boulderProblems.length;
+  return (
+    props.filteredProblems &&
+    props.filteredProblems.length > 0 &&
+    props.filteredProblems.length < props.boulderProblems.length
+  );
 });
 
 // Get which problem a hold belongs to

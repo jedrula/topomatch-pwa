@@ -12,33 +12,50 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
   const error = ref(null);
   const currentLocationId = ref(null);
   const currentImageId = ref(null);
+  const currentLocationGradingSystem = ref(null); // Store location-specific grading system
 
   // Batch update state
   const problemsWithUnsavedChanges = ref(new Set()); // Track which problems have unsaved changes
   const isSaving = ref(false);
 
-  // Boulder problem grades (V-Scale)
-  const grades = [
-    "VB",
-    "V0",
-    "V1",
-    "V2",
-    "V3",
-    "V4",
-    "V5",
-    "V6",
-    "V7",
-    "V8",
-    "V9",
-    "V10",
-    "V11",
-    "V12",
-    "V13",
-    "V14",
-    "V15",
-    "V16",
-    "V17",
-  ];
+  // Default V-Scale grading system (fallback)
+  const defaultGradingSystem = {
+    id: "v-scale",
+    name: "V-Scale (Traditional Bouldering)",
+    description: "Standard bouldering grades from VB to V17",
+    grades: [
+      { label: "VB", color: "#22c55e" },
+      { label: "V0", color: "#3b82f6" },
+      { label: "V1", color: "#6366f1" },
+      { label: "V2", color: "#8b5cf6" },
+      { label: "V3", color: "#a855f7" },
+      { label: "V4", color: "#c026d3" },
+      { label: "V5", color: "#db2777" },
+      { label: "V6", color: "#e11d48" },
+      { label: "V7", color: "#dc2626" },
+      { label: "V8", color: "#ea580c" },
+      { label: "V9", color: "#f59e0b" },
+      { label: "V10", color: "#eab308" },
+      { label: "V11", color: "#ca8a04" },
+      { label: "V12", color: "#a16207" },
+      { label: "V13", color: "#78716c" },
+      { label: "V14", color: "#57534e" },
+      { label: "V15", color: "#44403c" },
+      { label: "V16", color: "#292524" },
+      { label: "V17", color: "#1c1917" },
+    ],
+  };
+
+  // Computed property for grades - uses location-specific system or default
+  const grades = computed(() => {
+    const gradingSystem = currentLocationGradingSystem.value || defaultGradingSystem;
+    return gradingSystem.grades.map(grade => grade.label);
+  });
+
+  // Computed property for current grading system
+  const gradingSystem = computed(() => {
+    return currentLocationGradingSystem.value || defaultGradingSystem;
+  });
 
   // Colors for visual distinction of boulder problems
   const problemColors = [
@@ -86,6 +103,13 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     activeProblem.value = null;
     isCreatingProblem.value = false;
     error.value = null;
+    // Reset grading system - will be loaded separately
+    currentLocationGradingSystem.value = null;
+  };
+
+  const setLocationGradingSystem = (gradingSystemData) => {
+    currentLocationGradingSystem.value = gradingSystemData;
+    console.log("🎚️ Boulder problems store: Set location grading system:", gradingSystemData);
   };
 
   const loadBoulderProblems = async (locationId, imageId = null) => {
@@ -117,11 +141,13 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     }
   };
 
-  const createNewProblem = async (grade = "V0", name = "") => {
+  const createNewProblem = async (grade, name = "") => {
     if (!currentLocationId.value || !currentImageId.value) {
       throw new Error("Location and image must be set before creating problems");
     }
 
+    // Use provided grade or default to first grade in system
+    const problemGrade = grade || (grades.value.length > 0 ? grades.value[0] : "V0");
     const colorIndex = boulderProblems.value.length % problemColors.length;
     const problemName = name || `Problem ${boulderProblems.value.length + 1}`;
 
@@ -129,7 +155,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     const localProblem = {
       id: getNextLocalId(),
       name: problemName,
-      grade,
+      grade: problemGrade,
       holds: [],
       imageId: currentImageId.value,
       color: problemColors[colorIndex],
@@ -553,7 +579,9 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     error,
     currentLocationId,
     currentImageId,
+    currentLocationGradingSystem,
     grades,
+    gradingSystem,
     problemColors,
     isSaving,
 
@@ -565,6 +593,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
 
     // Actions
     initializeForLocation,
+    setLocationGradingSystem,
     loadBoulderProblems,
     createNewProblem,
     finishCreatingProblem,

@@ -3,7 +3,7 @@
     <div class="max-w-2xl mx-auto">
       <div class="bg-white rounded-lg shadow p-6">
         <LocationForm
-          :initial="{ name: '', description: '', heroImageUrl: '' }"
+          :initial="{ name: '', description: '', heroImageUrl: '', gradingSystem: null }"
           mode="add"
           @submit="handleAddSubmit"
           @cancel="handleCancel"
@@ -32,6 +32,7 @@ const handleAddSubmit = async (form) => {
       name: form.name,
       description: form.description,
       heroImageUrl: form.heroImageUrl, // If uploaded
+      gradingSystem: form.gradingSystem, // Include grading system
     });
     router.push(`/location/${location.id}`);
   } catch (err) {

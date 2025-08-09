@@ -291,7 +291,9 @@
             <!-- Grade Range Display -->
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-600">Range:</span>
-              <span class="font-medium text-gray-900">{{ selectedMinGrade }} - {{ selectedMaxGrade }}</span>
+              <span class="font-medium text-gray-900"
+                >{{ selectedMinGrade }} - {{ selectedMaxGrade }}</span
+              >
             </div>
 
             <!-- Single Range Slider -->
@@ -446,7 +448,14 @@ const boulderProblemsStore = useBoulderProblemsStore();
 
 // Local reactive state for the form
 const problemName = ref("");
-const selectedGrade = ref("V0");
+const selectedGrade = ref("");
+
+// Initialize selectedGrade with first grade from the system
+const initializeDefaultGrade = () => {
+  if (boulderProblemsStore.grades.length > 0) {
+    selectedGrade.value = boulderProblemsStore.grades[0];
+  }
+};
 
 // Grade filtering state - single range array [min, max]
 const gradeRange = ref([0, boulderProblemsStore.grades.length - 1]);
@@ -491,7 +500,7 @@ const startCreatingProblem = async () => {
     await boulderProblemsStore.createNewProblem(selectedGrade.value, problemName.value);
     // Reset form
     problemName.value = "";
-    selectedGrade.value = "V0";
+    initializeDefaultGrade();
   } catch (error) {
     console.error("Error starting boulder problem creation:", error);
     // Error is already handled in the store and displayed in the UI
@@ -515,7 +524,7 @@ const finishProblem = async () => {
 
   // Reset form and tool selection
   problemName.value = "";
-  selectedGrade.value = "V0";
+  initializeDefaultGrade();
   holdSelectionTool.value = "single";
   emit("tool-selection-change", "single");
 };
@@ -525,7 +534,7 @@ const cancelProblem = async () => {
 
   // Reset form and tool selection
   problemName.value = "";
-  selectedGrade.value = "V0";
+  initializeDefaultGrade();
   holdSelectionTool.value = "single";
   emit("tool-selection-change", "single");
 };
@@ -589,7 +598,7 @@ const saveEdit = async () => {
 
     // Reset form state
     problemName.value = "";
-    selectedGrade.value = "V0";
+    initializeDefaultGrade();
   } catch (error) {
     console.error("Error saving boulder problem:", error);
     // Error is already handled in the store and displayed in the UI
@@ -627,7 +636,7 @@ const cancelEdit = async () => {
 
   // Reset form state
   problemName.value = "";
-  selectedGrade.value = "V0";
+  initializeDefaultGrade();
   holdSelectionTool.value = "single";
   emit("tool-selection-change", "single");
 };
@@ -671,7 +680,7 @@ const handleSliderUpdate = (value) => {
   // Real-time UI update while dragging - no URL update yet
   console.log("🎚️ Slider update (dragging):", value);
   isUpdating = true;
-  
+
   // Clear any pending timeout
   if (updateTimeout) {
     clearTimeout(updateTimeout);
@@ -681,12 +690,12 @@ const handleSliderUpdate = (value) => {
 const handleSliderChange = (value) => {
   console.log("🎚️ Slider change (final):", value);
   isUpdating = false;
-  
+
   // Debounce URL updates to avoid excessive navigation
   if (updateTimeout) {
     clearTimeout(updateTimeout);
   }
-  
+
   updateTimeout = setTimeout(() => {
     updateGradeFilter();
   }, 500); // Increased debounce time for better performance
@@ -697,9 +706,9 @@ const updateGradeFilter = () => {
     console.log("⏭️ Skipping URL update - still dragging");
     return;
   }
-  
+
   console.log("🔄 Updating URL with grade filter");
-  
+
   // Update URL query parameters
   const query = { ...route.query };
 
@@ -767,8 +776,22 @@ watch(
     // When stopping editing, clear the form
     if (!newEditingProblemId && oldEditingProblemId) {
       problemName.value = "";
-      selectedGrade.value = "V0";
+      initializeDefaultGrade();
     }
+  },
+  { immediate: true }
+);
+
+// Watch for changes in the grading system to update default grade
+watch(
+  () => boulderProblemsStore.grades,
+  () => {
+    // Initialize default grade when grading system changes
+    if (!selectedGrade.value || !boulderProblemsStore.grades.includes(selectedGrade.value)) {
+      initializeDefaultGrade();
+    }
+    // Update grade range max when grades change
+    gradeRange.value = [0, boulderProblemsStore.grades.length - 1];
   },
   { immediate: true }
 );

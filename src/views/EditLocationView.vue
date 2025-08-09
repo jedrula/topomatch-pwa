@@ -26,7 +26,7 @@ import LocationForm from "../components/LocationForm.vue";
 const route = useRoute();
 const router = useRouter();
 const error = ref("");
-const locationFormData = ref({ name: "", description: "", heroImageUrl: "" });
+const locationFormData = ref({ name: "", description: "", heroImageUrl: "", gradingSystem: null });
 const locationId = route.params.locationId;
 
 const loadLocation = async () => {
@@ -36,6 +36,7 @@ const loadLocation = async () => {
       name: loc.name || "",
       description: loc.description || "",
       heroImageUrl: loc.heroImageUrl || "",
+      gradingSystem: loc.gradingSystem || null,
     };
   } catch (err) {
     console.error("Failed to load location:", err);
@@ -50,6 +51,7 @@ const handleEditSubmit = async (form) => {
       name: form.name,
       description: form.description,
       heroImageUrl: form.heroImageUrl, // If changed/uploaded
+      gradingSystem: form.gradingSystem, // Include grading system
     });
     router.push(`/location/${locationId}`);
   } catch (err) {
