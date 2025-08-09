@@ -61,14 +61,14 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
   const getGradeObjectFromLabel = (gradeLabel) => {
     if (!gradeLabel) return null;
     const system = gradingSystem.value;
-    const gradeObject = system.grades.find(g => g.label === gradeLabel);
+    const gradeObject = system.grades.find((g) => g.label === gradeLabel);
     return gradeObject || null;
   };
 
   const getGradeLabelFromObject = (gradeObject) => {
-    if (!gradeObject) return '';
-    if (typeof gradeObject === 'string') return gradeObject; // Already a label
-    return gradeObject.label || '';
+    if (!gradeObject) return "";
+    if (typeof gradeObject === "string") return gradeObject; // Already a label
+    return gradeObject.label || "";
   };
 
   // Colors for visual distinction of boulder problems
@@ -161,9 +161,10 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     }
 
     // Convert grade label to grade object
-    const gradeObject = getGradeObjectFromLabel(gradeLabel) || 
-                       (grades.value.length > 0 ? getGradeObjectFromLabel(grades.value[0]) : null);
-    
+    const gradeObject =
+      getGradeObjectFromLabel(gradeLabel) ||
+      (grades.value.length > 0 ? getGradeObjectFromLabel(grades.value[0]) : null);
+
     const colorIndex = boulderProblems.value.length % problemColors.length;
     const problemName = name || `Problem ${boulderProblems.value.length + 1}`;
 

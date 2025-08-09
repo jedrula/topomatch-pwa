@@ -76,8 +76,25 @@ export async function migrate(firestore: any): Promise<void> {
     const getRandomVScaleGrade = (): { value: number; label: string; difficulty: number } => {
       // Favor easier grades (VB-V7) for more realistic distribution
       const weights = [
-        3, 3, 3, 2, 2, 2, 2, 1, 1, 1, // VB-V9: higher weight
-        0.5, 0.5, 0.3, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, // V10-V17: lower weight
+        3,
+        3,
+        3,
+        2,
+        2,
+        2,
+        2,
+        1,
+        1,
+        1, // VB-V9: higher weight
+        0.5,
+        0.5,
+        0.3,
+        0.3,
+        0.2,
+        0.2,
+        0.1,
+        0.1,
+        0.1, // V10-V17: lower weight
       ];
 
       const weightedGrades: Array<{ value: number; label: string; difficulty: number }> = [];

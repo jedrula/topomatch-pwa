@@ -2,7 +2,7 @@
  * Migration: Convert Flow location to numeric 1-10 grading system
  * Date: 2025-08-10
  *
- * This migration updates the Flow location (YIYwNAjQ0uycov4oGy7Z) from V-Scale 
+ * This migration updates the Flow location (YIYwNAjQ0uycov4oGy7Z) from V-Scale
  * to a numeric 1-10 grading system and converts all boulder problems accordingly
  */
 
@@ -65,16 +65,18 @@ export async function migrate(firestore: any): Promise<void> {
     console.log(`Found ${boulderProblemsSnapshot.size} boulder problems to convert`);
 
     // Helper function to convert V-Scale difficulty to numeric 1-10 grade
-    const convertToNumericGrade = (originalGrade: any): { value: number; label: string; difficulty: number } => {
+    const convertToNumericGrade = (
+      originalGrade: any
+    ): { value: number; label: string; difficulty: number } => {
       let originalDifficulty = 0;
-      
+
       // Extract difficulty from the original grade
-      if (typeof originalGrade === 'object' && originalGrade.difficulty !== undefined) {
+      if (typeof originalGrade === "object" && originalGrade.difficulty !== undefined) {
         originalDifficulty = originalGrade.difficulty;
-      } else if (typeof originalGrade === 'string') {
+      } else if (typeof originalGrade === "string") {
         // Handle legacy string grades
-        if (originalGrade === 'VB') originalDifficulty = 0;
-        else if (originalGrade.startsWith('V')) {
+        if (originalGrade === "VB") originalDifficulty = 0;
+        else if (originalGrade.startsWith("V")) {
           const vNumber = parseInt(originalGrade.substring(1));
           originalDifficulty = isNaN(vNumber) ? 0 : vNumber + 1;
         }
@@ -84,14 +86,17 @@ export async function migrate(firestore: any): Promise<void> {
       // VB-V1 -> 1-2, V2-V4 -> 3-4, V5-V7 -> 5-6, V8-V10 -> 7-8, V11+ -> 9-10
       let numericValue;
       if (originalDifficulty <= 2) numericValue = Math.min(originalDifficulty, 1); // VB-V1 -> 1-2
-      else if (originalDifficulty <= 5) numericValue = 2 + Math.floor((originalDifficulty - 2) / 2); // V2-V5 -> 3-4
-      else if (originalDifficulty <= 8) numericValue = 4 + Math.floor((originalDifficulty - 5) / 2); // V6-V8 -> 5-6
-      else if (originalDifficulty <= 11) numericValue = 6 + Math.floor((originalDifficulty - 8) / 2); // V9-V11 -> 7-8
+      else if (originalDifficulty <= 5)
+        numericValue = 2 + Math.floor((originalDifficulty - 2) / 2); // V2-V5 -> 3-4
+      else if (originalDifficulty <= 8)
+        numericValue = 4 + Math.floor((originalDifficulty - 5) / 2); // V6-V8 -> 5-6
+      else if (originalDifficulty <= 11)
+        numericValue = 6 + Math.floor((originalDifficulty - 8) / 2); // V9-V11 -> 7-8
       else numericValue = 8 + Math.min(Math.floor((originalDifficulty - 11) / 4), 1); // V12+ -> 9-10
-      
+
       // Ensure we stay within bounds
       numericValue = Math.max(0, Math.min(9, numericValue));
-      
+
       return numericGradingSystem.grades[numericValue];
     };
 
@@ -110,7 +115,9 @@ export async function migrate(firestore: any): Promise<void> {
       const originalGrade = problemData.grade;
       const numericGrade = convertToNumericGrade(originalGrade);
 
-      console.log(`    Converting grade: ${JSON.stringify(originalGrade)} -> ${numericGrade.label}`);
+      console.log(
+        `    Converting grade: ${JSON.stringify(originalGrade)} -> ${numericGrade.label}`
+      );
 
       // Update the boulder problem with the new numeric grade
       const problemRef = locationRef.collection("boulderProblems").doc(problemId);
