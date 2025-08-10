@@ -34,7 +34,9 @@
               :style="{ backgroundColor: problem.color }"
             ></div>
             <h2 class="text-3xl font-bold text-gray-900 mb-2">{{ problem.name }}</h2>
-            <div class="text-2xl font-semibold text-gray-700 mb-1">Grade {{ problem.grade }}</div>
+            <div class="text-2xl font-semibold text-gray-700 mb-1">
+              Grade {{ getGradeLabel(problem.grade) }}
+            </div>
             <div class="text-gray-500">{{ problem.holds.length }} holds</div>
           </div>
 
@@ -91,7 +93,9 @@
                       d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                     ></path>
                   </svg>
-                  <span>{{ userStore.isLoggedIn && showAscentLogger ? "Cancel" : "Log Send" }}</span>
+                  <span>{{
+                    userStore.isLoggedIn && showAscentLogger ? "Cancel" : "Log Send"
+                  }}</span>
                 </button>
               </div>
 
@@ -186,6 +190,7 @@ import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 import { useAscentStore } from "@/stores/ascentStore";
 import { useUserStore } from "@/stores/userStore";
 import { locationService } from "@/services/locationService";
+import { getGradeLabel } from "@/utils/gradingUtils.js";
 import AscentLogger from "@/components/AscentLogger.vue";
 import AscentHistory from "@/components/AscentHistory.vue";
 
@@ -196,7 +201,7 @@ const ascentStore = useAscentStore();
 const userStore = useUserStore();
 
 // Inject auth modal controls
-const authModal = inject('authModal');
+const authModal = inject("authModal");
 
 const loading = ref(true);
 const error = ref(null);
@@ -270,9 +275,10 @@ const viewOnImage = async () => {
 };
 
 const editProblem = () => {
-  // Navigate to hold detection view for editing with proper query params
+  // Navigate to holds-server for editing with proper query params
   const queryParams = {
     imageId: problem.value.imageId,
+    editingProblemId: route.params.problemId,
   };
 
   // Add image name if available
@@ -281,7 +287,7 @@ const editProblem = () => {
   }
 
   router.push({
-    path: `/location/${route.params.locationId}/holds`,
+    path: `/location/${route.params.locationId}/holds-server`,
     query: queryParams,
   });
 };

@@ -98,12 +98,17 @@
           <div class="flex items-center justify-between mb-6">
             <div>
               <h2 class="text-xl font-semibold text-gray-900">Boulder Problems</h2>
-              <p v-if="totalProblems > 0" class="text-sm text-gray-600">{{ totalProblems }} problems total</p>
+              <p v-if="totalProblems > 0" class="text-sm text-gray-600">
+                {{ totalProblems }} problems total
+              </p>
             </div>
           </div>
 
           <!-- Grade distribution -->
-          <div v-if="totalProblems > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          <div
+            v-if="totalProblems > 0"
+            class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4"
+          >
             <div
               v-for="gradeGroup in boulderProblemsSummary"
               :key="gradeGroup.label"
@@ -113,19 +118,27 @@
               <div class="text-2xl font-bold text-gray-900 mb-1">
                 {{ gradeGroup.count }}
               </div>
-              <div class="text-sm font-medium text-gray-700 mb-1">
-                Grade {{ gradeGroup.label }}
-              </div>
+              <div class="text-sm font-medium text-gray-700 mb-1">Grade {{ gradeGroup.label }}</div>
               <div class="text-xs text-gray-500">
-                {{ gradeGroup.count === 1 ? 'problem' : 'problems' }}
+                {{ gradeGroup.count === 1 ? "problem" : "problems" }}
               </div>
             </div>
           </div>
 
           <!-- No problems message -->
           <div v-else class="text-center py-8">
-            <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <svg
+              class="w-16 h-16 mx-auto mb-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <h3 class="text-lg font-medium text-gray-900 mb-2">No boulder problems yet</h3>
             <p class="text-gray-500 mb-4">
@@ -380,20 +393,20 @@ const boulderProblemsSummary = computed(() => {
 
   // Group problems by grade
   const gradeGroups = {};
-  
-  boulderProblemsStore.boulderProblems.forEach(problem => {
+
+  boulderProblemsStore.boulderProblems.forEach((problem) => {
     const gradeLabel = getGradeLabel(problem.grade);
     const difficulty = getGradeDifficulty(problem.grade);
-    
+
     if (!gradeGroups[gradeLabel]) {
       gradeGroups[gradeLabel] = {
         label: gradeLabel,
         difficulty: difficulty,
         count: 0,
-        problems: []
+        problems: [],
       };
     }
-    
+
     gradeGroups[gradeLabel].count++;
     gradeGroups[gradeLabel].problems.push(problem);
   });
@@ -427,7 +440,7 @@ const loadLocation = async () => {
 
     // Initialize boulder problems store for this location
     await boulderProblemsStore.initializeForLocation(locationId);
-    
+
     // Load boulder problems
     await boulderProblemsStore.loadBoulderProblems(locationId);
 
@@ -577,7 +590,7 @@ const handleBetaVideoCleared = () => {
 const viewProblemsOfGrade = (gradeGroup) => {
   // For now, just show an alert with the problems of this grade
   // In the future, this could navigate to a filtered view or show a modal
-  const problemNames = gradeGroup.problems.map(p => p.name).join(', ');
+  const problemNames = gradeGroup.problems.map((p) => p.name).join(", ");
   alert(`Grade ${gradeGroup.label} problems (${gradeGroup.count}):\n${problemNames}`);
 };
 
