@@ -101,8 +101,11 @@ export const extractMultipleVideoFrames = async (videoFile, frameCount = 3) => {
 
         for (let i = 1; i <= frameCount; i++) {
           const timeInSeconds = timeInterval * i;
+          const timePercent = timeInSeconds / duration;
           try {
             const frame = await extractVideoFrame(videoFile, timeInSeconds);
+            // Add timePercent to the frame object
+            frame.timePercent = timePercent;
             frames.push(frame);
           } catch (error) {
             console.warn(`Failed to extract frame at ${timeInSeconds}s:`, error);

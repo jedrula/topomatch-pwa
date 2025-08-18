@@ -90,34 +90,38 @@
       <div v-if="isExtractingFrame" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div class="flex items-center space-x-3">
           <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-          <p class="text-sm font-medium text-blue-900">Extracting frame from video...</p>
+          <p class="text-sm font-medium text-blue-900">Extracting frames from video...</p>
+          <p class="text-xs text-blue-700">Extracting 3 frames at 25%, 50%, and 75%</p>
         </div>
       </div>
 
-      <!-- Extracted Frame Display -->
-      <div v-if="extractedFrame" class="bg-white border border-gray-200 rounded-lg p-4">
-        <div class="flex items-start space-x-4">
-          <img
-            :src="extractedFrame.url"
-            alt="Extracted frame"
-            class="w-24 h-24 object-cover rounded border"
-          />
-          <div class="flex-1">
-            <h4 class="text-sm font-medium text-gray-900">Extracted Frame</h4>
+      <!-- Extracted Frames Display -->
+      <div v-if="extractedFrames.length > 0" class="bg-white border border-gray-200 rounded-lg p-4">
+        <h4 class="text-sm font-medium text-gray-900 mb-3">Extracted Video Frames</h4>
+
+        <!-- Multiple frames display -->
+        <div class="grid grid-cols-3 gap-3 mb-3">
+          <div v-for="(frame, index) in extractedFrames" :key="index" class="text-center">
+            <img
+              :src="frame.url"
+              :alt="`Frame ${index + 1}`"
+              class="w-full h-20 object-cover rounded border"
+              :class="{ 'ring-2 ring-blue-500': index === 1 }"
+            />
             <p class="text-xs text-gray-500 mt-1">
-              Frame at {{ formatTime(extractedFrame.timeExtracted) }} ({{
-                Math.round((extractedFrame.timeExtracted / extractedFrame.videoDuration) * 100)
-              }}% through video)
+              Frame {{ index + 1 }} ({{ Math.round(frame.percentage * 100) }}%)
             </p>
-            <p class="text-xs text-gray-500">Ready for image matching analysis</p>
+            <p v-if="index === 1" class="text-xs text-blue-600 font-medium">Used for matching</p>
           </div>
         </div>
+
+        <p class="text-xs text-gray-500">Ready for image matching analysis</p>
       </div>
 
       <!-- Image Matcher Component -->
       <ImageMatcher
-        v-if="extractedFrame && comparisonImages.length > 0"
-        :source-image="extractedFrame.file"
+        v-if="extractedFrames.length > 0 && comparisonImages.length > 0"
+        :source-image="extractedFrames[1]?.file"
         :comparison-images="comparisonImages"
         :auto-start="autoStartMatching"
         @match-found="handleMatchFound"
@@ -127,7 +131,7 @@
 
       <!-- No Comparison Images Warning -->
       <div
-        v-if="extractedFrame && comparisonImages.length === 0"
+        v-if="extractedFrames.length > 0 && comparisonImages.length === 0"
         class="bg-yellow-50 border border-yellow-200 rounded-lg p-4"
       >
         <div class="flex items-start space-x-3">
@@ -178,7 +182,11 @@
 <script setup>
 import { ref, computed } from "vue";
 import ImageMatcher from "./ImageMatcher.vue";
-import { extractVideoFrame, validateVideoFile } from "@/utils/videoFrameUtils";
+import { validateVideoFile } from "@/utils/videoFrameUtils";
+import { extractVideoFrames } from "@/utils/homographyUtils";
+
+// Frame timestamps for extraction (25%, 50%, 75%)
+const FRAME_TIMESTAMPS = [0.25, 0.5, 0.75];
 
 const props = defineProps({
   comparisonImages: {
@@ -205,7 +213,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   "video-selected",
-  "frame-extracted",
+  "frames-extracted", // Changed from frame-extracted to frames-extracted
   "match-found",
   "analysis-complete",
   "processing-error",
@@ -215,7 +223,7 @@ const emit = defineEmits([
 // Reactive state
 const fileInput = ref(null);
 const selectedVideo = ref(null);
-const extractedFrame = ref(null);
+const extractedFrames = ref([]); // Changed from extractedFrame to extractedFrames array
 const isExtractingFrame = ref(false);
 const error = ref(null);
 
@@ -244,36 +252,78 @@ const handleVideoSelect = async (event) => {
   emit("video-selected", file);
 
   // Start frame extraction
-  await extractFrame();
+  await extractFrames();
 
   // Clear the input so the same file can be selected again
   event.target.value = "";
 };
 
-const extractFrame = async () => {
+const extractFrames = async () => {
   if (!selectedVideo.value) return;
 
   try {
     isExtractingFrame.value = true;
     error.value = null;
 
-    const frameData = await extractVideoFrame(selectedVideo.value, props.frameExtractionTime);
+    const frames = await extractVideoFrames(selectedVideo.value, FRAME_TIMESTAMPS);
 
-    extractedFrame.value = frameData;
-    emit("frame-extracted", frameData);
+    // Convert frames to display format
+    const processedFrames = [];
+    for (let i = 0; i < frames.length; i++) {
+      const frame = frames[i];
+      const file = await createFileFromImageData(frame.imageData, `frame_${i + 1}.jpg`);
+      const url = createImageUrlFromImageData(frame.imageData);
+
+      processedFrames.push({
+        ...frame,
+        file,
+        url,
+      });
+    }
+
+    extractedFrames.value = processedFrames;
+    emit("frames-extracted", extractedFrames.value);
   } catch (err) {
     console.error("Frame extraction error:", err);
-    error.value = "Failed to extract frame from video: " + err.message;
+    error.value = "Failed to extract frames from video: " + err.message;
     emit("processing-error", err);
   } finally {
     isExtractingFrame.value = false;
   }
 };
 
+// Utility functions for converting ImageData to File/URL
+const createFileFromImageData = async (imageData, fileName) => {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = imageData.width;
+  canvas.height = imageData.height;
+  ctx.putImageData(imageData, 0, 0);
+
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => {
+        resolve(new File([blob], fileName, { type: "image/jpeg" }));
+      },
+      "image/jpeg",
+      0.8
+    );
+  });
+};
+
+const createImageUrlFromImageData = (imageData) => {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = imageData.width;
+  canvas.height = imageData.height;
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL("image/jpeg", 0.8);
+};
+
 const handleMatchFound = (matchedImage) => {
   emit("match-found", {
     video: selectedVideo.value,
-    frame: extractedFrame.value,
+    frames: extractedFrames.value, // Changed to frames array
     match: matchedImage,
   });
 };
@@ -281,7 +331,7 @@ const handleMatchFound = (matchedImage) => {
 const handleAnalysisComplete = (bestMatch) => {
   emit("analysis-complete", {
     video: selectedVideo.value,
-    frame: extractedFrame.value,
+    frames: extractedFrames.value, // Changed to frames array
     match: bestMatch,
   });
 };
@@ -298,14 +348,16 @@ const clearVideo = () => {
 
 const clearState = () => {
   selectedVideo.value = null;
-  extractedFrame.value = null;
+  extractedFrames.value = []; // Changed to empty array
   isExtractingFrame.value = false;
   error.value = null;
 
   // Clean up any object URLs
-  if (extractedFrame.value?.url) {
-    URL.revokeObjectURL(extractedFrame.value.url);
-  }
+  extractedFrames.value.forEach((frame) => {
+    if (frame.url) {
+      URL.revokeObjectURL(frame.url);
+    }
+  });
 };
 
 const formatFileSize = (bytes) => {
@@ -324,7 +376,7 @@ const formatTime = (seconds) => {
 // Expose methods for parent component
 defineExpose({
   clearVideo,
-  extractFrame,
+  extractFrames, // Changed from extractFrame to extractFrames
 });
 </script>
 
