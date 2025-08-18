@@ -203,6 +203,52 @@
                 </span>
               </div>
             </div>
+
+            <!-- Keypoints Detail Table -->
+            <div class="mt-4">
+              <h5 class="text-sm font-medium text-gray-900 mb-2">Detected Keypoints</h5>
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-xs border border-gray-200 rounded">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">Frame</th>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">Keypoint</th>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">Original Coords</th>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">Transformed Coords</th>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">Confidence</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template v-for="(frame, frameIndex) in transformedPoses" :key="frameIndex">
+                      <tr v-for="(keypoint, keypointIndex) in getKeypointRows(frame)" :key="`${frameIndex}-${keypointIndex}`" 
+                          class="border-b border-gray-100">
+                        <td class="px-2 py-1">
+                          <div class="flex items-center">
+                            <div :class="`w-2 h-2 rounded-full mr-1 ${frame.color === 'red' ? 'bg-red-500' : frame.color === 'blue' ? 'bg-blue-500' : 'bg-green-500'}`"></div>
+                            {{ frameIndex === 0 ? 'Frame 1 (25%)' : frameIndex === 1 ? 'Frame 2 (50%)' : 'Frame 3 (75%)' }}
+                          </div>
+                        </td>
+                        <td class="px-2 py-1 font-medium">{{ keypoint.name }}</td>
+                        <td class="px-2 py-1 font-mono text-gray-600">
+                          ({{ Math.round(keypoint.original.x) }}, {{ Math.round(keypoint.original.y) }})
+                        </td>
+                        <td class="px-2 py-1 font-mono text-gray-600">
+                          ({{ Math.round(keypoint.transformed.x) }}, {{ Math.round(keypoint.transformed.y) }})
+                        </td>
+                        <td class="px-2 py-1">
+                          <span :class="`px-1 py-0.5 rounded text-xs ${keypoint.confidence > 0.7 ? 'bg-green-100 text-green-800' : keypoint.confidence > 0.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`">
+                            {{ (keypoint.confidence * 100).toFixed(0) }}%
+                          </span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">
+                Original coordinates are from the video frame. Transformed coordinates are projected onto the boulder image using homography.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -317,6 +363,41 @@ const FRAME_TIMESTAMPS = [0.25, 0.5, 0.75];
 const FRAME_COLORS = ["#ef4444", "#3b82f6", "#22c55e"]; // red, blue, green
 
 // Methods
+const getKeypointRows = (frame) => {
+  const keypointNames = ['Left Wrist', 'Right Wrist', 'Left Ankle', 'Right Ankle'];
+  const keypointData = [];
+  
+  // Get confidence values from the original pose data
+  const originalFrame = extractedFrames.value[frame.frameIndex];
+  const poseKeypoints = originalFrame?.poseData?.keypoints;
+  
+  if (frame.originalPoints && frame.transformedPoints) {
+    frame.originalPoints.forEach((originalPoint, index) => {
+      if (index < keypointNames.length) {
+        // Get confidence for this specific keypoint
+        let confidence = 0.5; // default
+        if (poseKeypoints) {
+          switch (index) {
+            case 0: confidence = poseKeypoints.leftWrist?.confidence || 0; break;
+            case 1: confidence = poseKeypoints.rightWrist?.confidence || 0; break;
+            case 2: confidence = poseKeypoints.leftAnkle?.confidence || 0; break;
+            case 3: confidence = poseKeypoints.rightAnkle?.confidence || 0; break;
+          }
+        }
+        
+        keypointData.push({
+          name: keypointNames[index],
+          original: originalPoint,
+          transformed: frame.transformedPoints[index],
+          confidence: confidence
+        });
+      }
+    });
+  }
+  
+  return keypointData;
+};
+
 const handleVideoSelect = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
