@@ -8,7 +8,7 @@
 
 // Cache configuration
 const CACHE_ENABLED = true; // Set to false to disable caching
-const CACHE_EXPIRY_HOURS = 24 * 7; // Cache for 1 week
+const CACHE_EXPIRY_HOURS = 24 * 30; // Cache for 1 month
 const CACHE_PREFIX = "hold_detection_cache_";
 
 /**

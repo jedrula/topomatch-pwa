@@ -331,6 +331,7 @@
         <div class="px-6 flex-1 overflow-y-auto">
           <VideoFrameMatcher
             :comparison-images="images"
+            :location-id="route.params.locationId"
             title="Upload Beta Video"
             subtitle="Upload a climbing video and let AI identify the boulder problem automatically"
             :frame-extraction-time="5"

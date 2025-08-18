@@ -160,10 +160,7 @@
             <div>
               <h4 class="text-sm font-medium text-gray-900">{{ bestMatch.name }}</h4>
               <p class="text-xs text-gray-500">
-                {{ bestMatch.locationName || "Unknown location" }}
-              </p>
-              <p class="text-xs text-gray-500">
-                {{ bestMatch.boulderProblems || 0 }} boulder problems
+                {{ matchedImageBoulderProblems.length }} boulder problems
               </p>
             </div>
           </div>
@@ -214,31 +211,75 @@
                       <th class="px-2 py-1 text-left border-b border-gray-200">Frame</th>
                       <th class="px-2 py-1 text-left border-b border-gray-200">Keypoint</th>
                       <th class="px-2 py-1 text-left border-b border-gray-200">Original Coords</th>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">Transformed Coords</th>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">
+                        Transformed Coords
+                      </th>
                       <th class="px-2 py-1 text-left border-b border-gray-200">Confidence</th>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">Closest Hold</th>
                     </tr>
                   </thead>
                   <tbody>
                     <template v-for="(frame, frameIndex) in transformedPoses" :key="frameIndex">
-                      <tr v-for="(keypoint, keypointIndex) in getKeypointRows(frame)" :key="`${frameIndex}-${keypointIndex}`" 
-                          class="border-b border-gray-100">
+                      <tr
+                        v-for="(keypoint, keypointIndex) in getKeypointRows(frame)"
+                        :key="`${frameIndex}-${keypointIndex}`"
+                        class="border-b border-gray-100"
+                      >
                         <td class="px-2 py-1">
                           <div class="flex items-center">
-                            <div :class="`w-2 h-2 rounded-full mr-1 ${frame.color === 'red' ? 'bg-red-500' : frame.color === 'blue' ? 'bg-blue-500' : 'bg-green-500'}`"></div>
-                            {{ frameIndex === 0 ? 'Frame 1 (25%)' : frameIndex === 1 ? 'Frame 2 (50%)' : 'Frame 3 (75%)' }}
+                            <div
+                              :class="`w-2 h-2 rounded-full mr-1 ${
+                                frame.color === 'red'
+                                  ? 'bg-red-500'
+                                  : frame.color === 'blue'
+                                  ? 'bg-blue-500'
+                                  : 'bg-green-500'
+                              }`"
+                            ></div>
+                            {{
+                              frameIndex === 0
+                                ? "Frame 1 (25%)"
+                                : frameIndex === 1
+                                ? "Frame 2 (50%)"
+                                : "Frame 3 (75%)"
+                            }}
                           </div>
                         </td>
                         <td class="px-2 py-1 font-medium">{{ keypoint.name }}</td>
                         <td class="px-2 py-1 font-mono text-gray-600">
-                          ({{ Math.round(keypoint.original.x) }}, {{ Math.round(keypoint.original.y) }})
+                          ({{ Math.round(keypoint.original.x) }},
+                          {{ Math.round(keypoint.original.y) }})
                         </td>
                         <td class="px-2 py-1 font-mono text-gray-600">
-                          ({{ Math.round(keypoint.transformed.x) }}, {{ Math.round(keypoint.transformed.y) }})
+                          ({{ Math.round(keypoint.transformed.x) }},
+                          {{ Math.round(keypoint.transformed.y) }})
                         </td>
                         <td class="px-2 py-1">
-                          <span :class="`px-1 py-0.5 rounded text-xs ${keypoint.confidence > 0.7 ? 'bg-green-100 text-green-800' : keypoint.confidence > 0.5 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`">
+                          <span
+                            :class="`px-1 py-0.5 rounded text-xs ${
+                              keypoint.confidence > 0.7
+                                ? 'bg-green-100 text-green-800'
+                                : keypoint.confidence > 0.5
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                            }`"
+                          >
                             {{ (keypoint.confidence * 100).toFixed(0) }}%
                           </span>
+                        </td>
+                        <td class="px-2 py-1">
+                          <div v-if="keypoint.closestProblem" class="text-xs">
+                            <div class="font-medium text-gray-900">
+                              {{ keypoint.closestProblem.name }}
+                            </div>
+                            <div class="text-gray-500">
+                              Hold #{{
+                                keypoint.closestHold?.holdIndex || keypoint.closestHold?.id || "?"
+                              }}
+                            </div>
+                            <div class="text-gray-400">{{ keypoint.distanceToHold }}px away</div>
+                          </div>
+                          <div v-else class="text-xs text-gray-400">No holds found</div>
                         </td>
                       </tr>
                     </template>
@@ -246,8 +287,71 @@
                 </table>
               </div>
               <p class="text-xs text-gray-500 mt-2">
-                Original coordinates are from the video frame. Transformed coordinates are projected onto the boulder image using homography.
+                Original coordinates are from the video frame. Transformed coordinates are projected
+                onto the boulder image using homography.
               </p>
+            </div>
+
+            <!-- Boulder Problem Analysis Summary -->
+            <div
+              v-if="climbedBoulderAnalysis"
+              class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+            >
+              <h5 class="text-sm font-medium text-blue-900 mb-2">Boulder Problem Analysis</h5>
+
+              <div v-if="climbedBoulderAnalysis.winner" class="space-y-2">
+                <div class="p-3 bg-blue-100 rounded border border-blue-300">
+                  <div class="flex items-center space-x-2 mb-1">
+                    <svg
+                      class="w-4 h-4 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span class="font-medium text-blue-900">Most Likely Boulder Problem:</span>
+                  </div>
+                  <div class="text-lg font-bold text-blue-800">
+                    {{ climbedBoulderAnalysis.winner.name }}
+                  </div>
+                  <div class="text-sm text-blue-700 mt-1">
+                    {{ climbedBoulderAnalysis.analysis }}
+                  </div>
+                </div>
+
+                <div v-if="climbedBoulderAnalysis.allProblems.length > 1" class="text-xs">
+                  <div class="font-medium text-gray-700 mb-1">All Matches:</div>
+                  <div class="space-y-1">
+                    <div
+                      v-for="(problemData, index) in climbedBoulderAnalysis.allProblems"
+                      :key="index"
+                      class="flex justify-between items-center p-2 bg-gray-100 rounded"
+                    >
+                      <span class="font-medium">{{ problemData.problem.name }}</span>
+                      <span class="text-gray-600">
+                        {{ problemData.votes }}/{{
+                          climbedBoulderAnalysis.totalKeypoints
+                        }}
+                        keypoints ({{
+                          Math.round(
+                            (problemData.votes / climbedBoulderAnalysis.totalKeypoints) * 100
+                          )
+                        }}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="text-sm text-gray-600">
+                {{ climbedBoulderAnalysis.analysis }}
+              </div>
             </div>
           </div>
         </div>
@@ -307,12 +411,17 @@ import {
 } from "@/utils/homographyUtils";
 import { usePoseDetection } from "@/composables/usePoseDetection";
 import { useInferenceStore } from "@/stores/inferenceStore";
+import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 
 // Props
 const props = defineProps({
   comparisonImages: {
     type: Array,
     default: () => [],
+  },
+  locationId: {
+    type: String,
+    default: null,
   },
   title: {
     type: String,
@@ -352,9 +461,79 @@ const visualizationImage = ref(null);
 const poseCanvas = ref(null);
 const visualizationDimensions = ref({ width: 0, height: 0 });
 
+// Store instances
+const boulderProblemsStore = useBoulderProblemsStore();
+
+// Computed properties
+const climbedBoulderAnalysis = computed(() => {
+  if (!transformedPoses.value.length) return null;
+
+  // Collect all closest problems from all keypoints
+  const problemVotes = {};
+  const allKeypoints = [];
+
+  transformedPoses.value.forEach((frame) => {
+    const keypointRows = getKeypointRows(frame);
+    keypointRows.forEach((keypoint) => {
+      allKeypoints.push(keypoint);
+      if (keypoint.closestProblem) {
+        const problemId = keypoint.closestProblem.id || keypoint.closestProblem.name;
+        if (!problemVotes[problemId]) {
+          problemVotes[problemId] = {
+            problem: keypoint.closestProblem,
+            votes: 0,
+            totalDistance: 0,
+            keypoints: [],
+          };
+        }
+        problemVotes[problemId].votes++;
+        problemVotes[problemId].totalDistance += keypoint.distanceToHold;
+        problemVotes[problemId].keypoints.push({
+          name: keypoint.name,
+          distance: keypoint.distanceToHold,
+        });
+      }
+    });
+  });
+
+  if (Object.keys(problemVotes).length === 0) {
+    return { winner: null, analysis: "No boulder problems matched any keypoints." };
+  }
+
+  // Find the winner (most votes, then by average distance)
+  const sortedProblems = Object.values(problemVotes).sort((a, b) => {
+    if (b.votes !== a.votes) {
+      return b.votes - a.votes; // Most votes first
+    }
+    return a.totalDistance / a.votes - b.totalDistance / b.votes; // Closest average distance
+  });
+
+  const winner = sortedProblems[0];
+  const totalKeypoints = allKeypoints.length;
+  const matchPercentage = Math.round((winner.votes / totalKeypoints) * 100);
+  const avgDistance = Math.round(winner.totalDistance / winner.votes);
+
+  return {
+    winner: winner.problem,
+    votes: winner.votes,
+    totalKeypoints,
+    matchPercentage,
+    avgDistance,
+    analysis: `${matchPercentage}% of keypoints (${winner.votes}/${totalKeypoints}) matched "${winner.problem.name}" with an average distance of ${avgDistance}px.`,
+    allProblems: sortedProblems,
+  };
+});
+
+// Get boulder problems for the matched image
+const matchedImageBoulderProblems = computed(() => {
+  // Use the same filtering logic as LocationDetailView that works
+  return boulderProblemsStore.boulderProblems.filter(
+    (problem) => problem.imageId === bestMatch.value.id
+  );
+});
+
 // Use the working pose detection composable
-const { runPoseDetection, poseResults, sessionReady, isAnalyzing, analysisStatus } =
-  usePoseDetection();
+const { runPoseDetection, poseResults, sessionReady, isAnalyzing } = usePoseDetection();
 
 // Frame timestamps for extraction (25%, 50%, 75%)
 const FRAME_TIMESTAMPS = [0.25, 0.5, 0.75];
@@ -363,14 +542,57 @@ const FRAME_TIMESTAMPS = [0.25, 0.5, 0.75];
 const FRAME_COLORS = ["#ef4444", "#3b82f6", "#22c55e"]; // red, blue, green
 
 // Methods
+const findClosestHold = (keypointX, keypointY) => {
+  if (!bestMatch.value || !bestMatch.value.name) {
+    return { hold: null, problem: null, distance: Infinity };
+  }
+
+  // Get all boulder problems for the matched image
+  const matchedImageId = bestMatch.value.id;
+  const problemsForImage = boulderProblemsStore.boulderProblems.filter(
+    (problem) => problem.imageId === matchedImageId
+  );
+
+  let closestHold = null;
+  let closestProblem = null;
+  let minDistance = Infinity;
+
+  console.log(`problemsForImage`, problemsForImage, boulderProblemsStore.boulderProblems);
+  // Check all holds across all problems for this image
+  problemsForImage.forEach((problem) => {
+    if (problem.holds && Array.isArray(problem.holds)) {
+      problem.holds.forEach(({ hold }) => {
+        // Extract hold coordinates - handle different possible formats
+        const holdX = hold.center_x;
+        const holdY = hold.center_y;
+
+        // Calculate Euclidean distance
+        const distance = Math.sqrt(Math.pow(keypointX - holdX, 2) + Math.pow(keypointY - holdY, 2));
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestHold = hold;
+          closestProblem = problem;
+        }
+      });
+    }
+  });
+
+  return {
+    hold: closestHold,
+    problem: closestProblem,
+    distance: Math.round(minDistance),
+  };
+};
+
 const getKeypointRows = (frame) => {
-  const keypointNames = ['Left Wrist', 'Right Wrist', 'Left Ankle', 'Right Ankle'];
+  const keypointNames = ["Left Wrist", "Right Wrist", "Left Ankle", "Right Ankle"];
   const keypointData = [];
-  
+
   // Get confidence values from the original pose data
   const originalFrame = extractedFrames.value[frame.frameIndex];
   const poseKeypoints = originalFrame?.poseData?.keypoints;
-  
+
   if (frame.originalPoints && frame.transformedPoints) {
     frame.originalPoints.forEach((originalPoint, index) => {
       if (index < keypointNames.length) {
@@ -378,23 +600,40 @@ const getKeypointRows = (frame) => {
         let confidence = 0.5; // default
         if (poseKeypoints) {
           switch (index) {
-            case 0: confidence = poseKeypoints.leftWrist?.confidence || 0; break;
-            case 1: confidence = poseKeypoints.rightWrist?.confidence || 0; break;
-            case 2: confidence = poseKeypoints.leftAnkle?.confidence || 0; break;
-            case 3: confidence = poseKeypoints.rightAnkle?.confidence || 0; break;
+            case 0:
+              confidence = poseKeypoints.leftWrist?.confidence || 0;
+              break;
+            case 1:
+              confidence = poseKeypoints.rightWrist?.confidence || 0;
+              break;
+            case 2:
+              confidence = poseKeypoints.leftAnkle?.confidence || 0;
+              break;
+            case 3:
+              confidence = poseKeypoints.rightAnkle?.confidence || 0;
+              break;
           }
         }
-        
+
+        // Find the closest hold for this keypoint
+        const closestHoldInfo = findClosestHold(
+          frame.transformedPoints[index].x,
+          frame.transformedPoints[index].y
+        );
+
         keypointData.push({
           name: keypointNames[index],
           original: originalPoint,
           transformed: frame.transformedPoints[index],
-          confidence: confidence
+          confidence: confidence,
+          closestHold: closestHoldInfo.hold,
+          closestProblem: closestHoldInfo.problem,
+          distanceToHold: closestHoldInfo.distance,
         });
       }
     });
   }
-  
+
   return keypointData;
 };
 
@@ -620,6 +859,7 @@ const handleMatchFound = async (matchedImage) => {
 };
 
 const handleAnalysisComplete = async (bestMatchResult) => {
+  console.log("bestMatchResult", bestMatchResult);
   bestMatch.value = bestMatchResult;
 
   // Step 3: Get inference results and calculate homography matrix
