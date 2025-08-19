@@ -20,7 +20,8 @@ const props = defineProps({
   interaction: {
     type: String,
     default: "default",
-    validator: (value) => ["default", "selected", "hidden", "hover"].includes(value),
+    validator: (value) =>
+      ["default", "selected", "hidden", "hover", "drawing-background"].includes(value),
   },
   interactionAllowed: {
     type: String,
@@ -124,6 +125,17 @@ const handleHover = (isEntering, event) => {
   stroke: var(--hold-color, #3b82f6);
   stroke-width: 16;
   filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8));
+}
+
+/* Drawing background: low opacity for existing holds during drawing */
+.interaction-drawing-background {
+  opacity: 0.7;
+}
+
+.interaction-drawing-background :deep(path) {
+  stroke: var(--hold-color, #3b82f6);
+  stroke-width: 8;
+  fill: transparent;
 }
 
 /* Interaction allowed states */

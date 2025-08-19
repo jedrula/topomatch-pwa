@@ -221,15 +221,15 @@ const getCanvasCoordinates = (event) => {
     x: (event.clientX - rect.left) * scaleX,
     y: (event.clientY - rect.top) * scaleY,
   };
-  
+
   console.log("getCanvasCoordinates:", {
     event: { clientX: event.clientX, clientY: event.clientY },
     rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
     canvas: { width: canvas.width, height: canvas.height },
     scale: { scaleX, scaleY },
-    coords
+    coords,
   });
-  
+
   return coords;
 };
 
@@ -244,15 +244,15 @@ const getImageCoordinates = (canvasX, canvasY) => {
     x: canvasX * scaleX,
     y: canvasY * scaleY,
   };
-  
+
   console.log("getImageCoordinates:", {
     input: { canvasX, canvasY },
     image: { naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight },
     canvas: { width: canvas.width, height: canvas.height },
     scale: { scaleX, scaleY },
-    coords
+    coords,
   });
-  
+
   return coords;
 };
 
@@ -274,7 +274,7 @@ const updateDrawing = (event) => {
   if (!isDrawing.value || !serverStore.isDrawingMode) return;
 
   const coords = getCanvasCoordinates(event);
-  
+
   // Convert both start and current coordinates to image coordinates for SVG
   const startImg = getImageCoordinates(drawingStart.value.x, drawingStart.value.y);
   const currentImg = getImageCoordinates(coords.x, coords.y);
@@ -283,11 +283,9 @@ const updateDrawing = (event) => {
     const dx = currentImg.x - startImg.x;
     const dy = currentImg.y - startImg.y;
     const radius = Math.sqrt(dx * dx + dy * dy);
-    drawingPreview.value = `M ${startImg.x + radius} ${
-      startImg.y
-    } A ${radius} ${radius} 0 1 1 ${startImg.x - radius} ${
-      startImg.y
-    } A ${radius} ${radius} 0 1 1 ${startImg.x + radius} ${startImg.y}`;
+    drawingPreview.value = `M ${startImg.x + radius} ${startImg.y} A ${radius} ${radius} 0 1 1 ${
+      startImg.x - radius
+    } ${startImg.y} A ${radius} ${radius} 0 1 1 ${startImg.x + radius} ${startImg.y}`;
   } else if (serverStore.drawingTool === "rectangle") {
     const x = Math.min(startImg.x, currentImg.x);
     const y = Math.min(startImg.y, currentImg.y);
@@ -508,6 +506,15 @@ const getHoldProblemId = (holdIndex) => {
 
 // Get interaction state for hold based on its current state (from UnifiedHoldOverlay)
 const getHoldInteraction = (holdIndex) => {
+  // During drawing mode, make existing holds visible with reduced opacity
+  if (serverStore.isDrawingMode) {
+    if (hoveredHoldIndex.value === holdIndex) {
+      return "hover";
+    } else {
+      return "drawing-background"; // Show existing holds with low opacity during drawing mode
+    }
+  }
+
   // Magic Wand highlighting takes priority when active
   if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
     if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
