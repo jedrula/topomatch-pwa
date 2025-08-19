@@ -198,6 +198,28 @@
               </svg>
               <span>Single</span>
             </button>
+            
+            <button
+              @click="setHoldSelectionTool('quick-draw')"
+              :class="[
+                'flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
+                holdSelectionTool === 'quick-draw'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50',
+              ]"
+              title="Quick Draw - Click holds or drag on empty areas to create new holds on-the-fly"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                />
+              </svg>
+              <span>Quick Draw</span>
+            </button>
+            
             <button
               @click="setHoldSelectionTool('magic-wand')"
               :class="[
@@ -223,6 +245,8 @@
             {{
               holdSelectionTool === "single"
                 ? "Click individual holds to add or remove them from the problem."
+                : holdSelectionTool === "quick-draw"
+                ? "Click holds or drag on empty areas to create new holds and add them to the problem instantly."
                 : "Click any hold to automatically select an entire connected route of similar-colored holds."
             }}
           </div>

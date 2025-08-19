@@ -78,17 +78,64 @@
       </div>
     </div>
 
-    <!-- Quick Draw Mode hint (only when creating/editing boulder problems) -->
+    <!-- Boulder Problem Tool Selection (only when creating/editing boulder problems) -->
     <div
-      v-if="isQuickDrawEnabled && !serverStore.isDrawingMode"
-      class="absolute top-4 left-4 bg-blue-50 border border-blue-200 rounded-lg shadow-lg p-3 z-40 pointer-events-none"
+      v-if="(props.isCreatingProblem || props.isEditingProblem) && !serverStore.isDrawingMode && !serverStore.isDeleteMode"
+      class="absolute top-4 left-4 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-40 pointer-events-auto"
     >
-      <div class="flex items-center space-x-2">
-        <span class="text-blue-600">⚡</span>
-        <span class="text-sm font-medium text-blue-700">Quick Draw Active</span>
+      <div class="mb-2">
+        <span class="text-sm font-medium text-gray-700">Hold Selection Mode</span>
       </div>
-      <div class="mt-1 text-xs text-blue-600">
-        Drag on empty areas to add new holds to the problem
+      
+      <div class="flex space-x-2">
+        <!-- Single Mode -->
+        <button
+          @click="handleToolChange('single')"
+          :class="[
+            'px-3 py-2 text-sm rounded transition-colors flex items-center space-x-1',
+            isSingleModeEnabled
+              ? 'bg-blue-500 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          ]"
+        >
+          <span>👆</span>
+          <span>Single</span>
+        </button>
+
+        <!-- Quick Draw Mode -->
+        <button
+          @click="handleToolChange('quick-draw')"
+          :class="[
+            'px-3 py-2 text-sm rounded transition-colors flex items-center space-x-1',
+            isQuickDrawEnabled
+              ? 'bg-blue-500 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          ]"
+        >
+          <span>⚡</span>
+          <span>Quick Draw</span>
+        </button>
+
+        <!-- Magic Wand Mode -->
+        <button
+          @click="handleToolChange('magic-wand')"
+          :class="[
+            'px-3 py-2 text-sm rounded transition-colors flex items-center space-x-1',
+            isMagicWandModeEnabled
+              ? 'bg-purple-500 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          ]"
+        >
+          <span>🪄</span>
+          <span>Magic Wand</span>
+        </button>
+      </div>
+
+      <!-- Mode description -->
+      <div class="mt-2 text-xs text-gray-600">
+        <span v-if="isSingleModeEnabled">Click individual holds to add to problem</span>
+        <span v-else-if="isQuickDrawEnabled">Click holds or drag on empty areas to draw new holds</span>
+        <span v-else-if="isMagicWandModeEnabled">Click a hold to select nearby holds automatically</span>
       </div>
     </div>
 
@@ -188,9 +235,14 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  // Boulder hold selection tool (single, magic-wand, etc.)
+  boulderHoldSelectionTool: {
+    type: String,
+    default: "single",
+  },
 });
 
-const emit = defineEmits(["hold-click", "hold-hover"]);
+const emit = defineEmits(["hold-click", "hold-hover", "tool-selection-change"]);
 
 const serverStore = useHoldDetectionServerStore();
 const boulderProblemsStore = useBoulderProblemsStore();
@@ -205,9 +257,29 @@ const hoveredProblemIdLocal = ref(null);
 const isDrawing = ref(false);
 const drawingPath = ref([]); // Points that make up the free drawing path
 
-// Quick draw mode - enabled when creating/editing boulder problems
+// Quick draw mode - enabled when creating/editing boulder problems with quick-draw tool
 const isQuickDrawEnabled = computed(() => {
-  return (props.isCreatingProblem || props.isEditingProblem) && !serverStore.isDeleteMode;
+  return (
+    (props.isCreatingProblem || props.isEditingProblem) &&
+    props.boulderHoldSelectionTool === "quick-draw" &&
+    !serverStore.isDeleteMode
+  );
+});
+
+// Magic wand mode - enabled when creating/editing boulder problems with magic-wand tool
+const isMagicWandModeEnabled = computed(() => {
+  return (
+    (props.isCreatingProblem || props.isEditingProblem) &&
+    props.boulderHoldSelectionTool === "magic-wand"
+  );
+});
+
+// Single mode - enabled when creating/editing boulder problems with single tool
+const isSingleModeEnabled = computed(() => {
+  return (
+    (props.isCreatingProblem || props.isEditingProblem) &&
+    props.boulderHoldSelectionTool === "single"
+  );
 });
 
 // Combined drawing mode - either explicit drawing mode or quick draw mode
@@ -798,6 +870,11 @@ const exitDrawingMode = () => {
 
 const exitDeleteMode = () => {
   serverStore.setDeleteMode(false);
+};
+
+const handleToolChange = (tool) => {
+  console.log("🔧 Tool selection changed:", tool);
+  emit("tool-selection-change", tool);
 };
 
 // Canvas setup
