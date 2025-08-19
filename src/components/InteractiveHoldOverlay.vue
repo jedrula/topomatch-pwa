@@ -5,7 +5,7 @@
       v-if="hasAnyHolds || serverStore.isDrawingMode"
       class="absolute inset-0 w-full h-full pointer-events-none z-10"
       :viewBox="svgViewBox"
-      preserveAspectRatio="none"
+      preserveAspectRatio="xMidYMid meet"
       ref="svgElement"
     >
       <!-- AI-detected holds -->
@@ -80,13 +80,17 @@
 
     <!-- Boulder Problem Tool Selection (only when creating/editing boulder problems) -->
     <div
-      v-if="(props.isCreatingProblem || props.isEditingProblem) && !serverStore.isDrawingMode && !serverStore.isDeleteMode"
+      v-if="
+        (props.isCreatingProblem || props.isEditingProblem) &&
+        !serverStore.isDrawingMode &&
+        !serverStore.isDeleteMode
+      "
       class="absolute top-4 left-4 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-40 pointer-events-auto"
     >
       <div class="mb-2">
         <span class="text-sm font-medium text-gray-700">Hold Selection Mode</span>
       </div>
-      
+
       <div class="flex space-x-2">
         <!-- Single Mode -->
         <button
@@ -95,7 +99,7 @@
             'px-3 py-2 text-sm rounded transition-colors flex items-center space-x-1',
             isSingleModeEnabled
               ? 'bg-blue-500 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
           ]"
         >
           <span>👆</span>
@@ -109,7 +113,7 @@
             'px-3 py-2 text-sm rounded transition-colors flex items-center space-x-1',
             isQuickDrawEnabled
               ? 'bg-blue-500 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
           ]"
         >
           <span>⚡</span>
@@ -123,7 +127,7 @@
             'px-3 py-2 text-sm rounded transition-colors flex items-center space-x-1',
             isMagicWandModeEnabled
               ? 'bg-purple-500 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
           ]"
         >
           <span>🪄</span>
@@ -134,8 +138,12 @@
       <!-- Mode description -->
       <div class="mt-2 text-xs text-gray-600">
         <span v-if="isSingleModeEnabled">Click individual holds to add to problem</span>
-        <span v-else-if="isQuickDrawEnabled">Click holds or drag on empty areas to draw new holds</span>
-        <span v-else-if="isMagicWandModeEnabled">Click a hold to select nearby holds automatically</span>
+        <span v-else-if="isQuickDrawEnabled"
+          >Click holds or drag on empty areas to draw new holds</span
+        >
+        <span v-else-if="isMagicWandModeEnabled"
+          >Click a hold to select nearby holds automatically</span
+        >
       </div>
     </div>
 

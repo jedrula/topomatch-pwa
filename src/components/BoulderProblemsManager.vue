@@ -198,7 +198,7 @@
               </svg>
               <span>Single</span>
             </button>
-            
+
             <button
               @click="setHoldSelectionTool('quick-draw')"
               :class="[
@@ -219,7 +219,7 @@
               </svg>
               <span>Quick Draw</span>
             </button>
-            
+
             <button
               @click="setHoldSelectionTool('magic-wand')"
               :class="[
