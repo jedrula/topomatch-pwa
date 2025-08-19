@@ -38,7 +38,7 @@
       <div v-if="!boulderProblemsStore.isCreatingProblem" class="mb-6">
         <button
           @click="startCreatingProblem"
-          :disabled="!hasDetectionResults || boulderProblemsStore.isLoading"
+          :disabled="!hasAnyHolds || boulderProblemsStore.isLoading"
           class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,8 +51,14 @@
           </svg>
           <span>Create New Problem</span>
         </button>
-        <p v-if="!hasDetectionResults" class="text-sm text-gray-500 mt-2 text-center">
-          Run hold detection first to create boulder problems
+        <p class="text-sm text-gray-500 mt-2 text-center">
+          <span v-if="hasAnyHolds">
+            {{ totalHoldCount }} holds available ({{
+              props.hasDetectionResults ? serverStore.holdCount : 0
+            }}
+            AI + {{ serverStore.manualHolds.length }} manual)
+          </span>
+          <span v-else> No holds detected. Use AI detection or draw holds manually first. </span>
         </p>
       </div>
 
@@ -420,6 +426,7 @@
 import { ref, watch, computed, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
+import { useHoldDetectionServerStore } from "@/stores/holdDetectionServerStore";
 import { getGradeLabel } from "@/utils/gradingUtils.js";
 import BoulderProblemCard from "@/components/BoulderProblemCard.vue";
 import Slider from "@vueform/slider";
@@ -446,6 +453,7 @@ const emit = defineEmits([
 const route = useRoute();
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
+const serverStore = useHoldDetectionServerStore();
 
 // Local reactive state for the form
 const problemName = ref("");
@@ -479,6 +487,19 @@ const filteredProblems = computed(() => {
     const gradeIndex = boulderProblemsStore.grades.indexOf(gradeLabel);
     return gradeIndex >= gradeRange.value[0] && gradeIndex <= gradeRange.value[1];
   });
+});
+
+// Check if there are any holds available (AI detection + manual)
+const hasAnyHolds = computed(() => {
+  const aiHolds = props.hasDetectionResults ? serverStore.holdCount : 0;
+  const manualHolds = serverStore.manualHolds.length;
+  return aiHolds + manualHolds > 0;
+});
+
+const totalHoldCount = computed(() => {
+  const aiHolds = props.hasDetectionResults ? serverStore.holdCount : 0;
+  const manualHolds = serverStore.manualHolds.length;
+  return aiHolds + manualHolds;
 });
 
 // Edit mode state (now derived from props instead of local state)

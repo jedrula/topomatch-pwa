@@ -45,7 +45,10 @@
                 Error loading image: {{ imageLoadError }}
               </div>
               <!-- Image Container -->
-              <div class="relative bg-gray-100 rounded-lg overflow-hidden">
+              <div
+                class="relative bg-gray-100 rounded-lg overflow-hidden min-h-64"
+                style="aspect-ratio: auto"
+              >
                 <!-- Loading state when no image is available -->
                 <div
                   v-if="route.query.imageId && !currentImage && !imageLoadError"
@@ -65,13 +68,13 @@
                   ref="climbingImage"
                   :src="imageUrl"
                   alt="Climbing wall for hold detection"
-                  class="w-full h-auto object-contain"
+                  class="w-full h-auto object-contain block"
                   @load="onImageLoad"
                 />
 
-                <!-- Unified Hold Overlay - Single SVG with all holds -->
-                <UnifiedHoldOverlay
-                  v-if="imageLoaded && serverStore.hasResults"
+                <!-- Interactive Hold Overlay with Manual Drawing Support -->
+                <InteractiveHoldOverlay
+                  v-if="imageLoaded"
                   :detection-results="serverStore.results"
                   :image-element="climbingImage"
                   :boulder-problems="boulderProblemsStore.sortedProblems"
@@ -88,7 +91,7 @@
                   :filtered-problems="filteredProblems"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
-                  ref="unifiedOverlay"
+                  ref="interactiveOverlay"
                 />
 
                 <!-- Processing Overlay -->
@@ -186,6 +189,27 @@
                     />
                   </svg>
                   <span>Clear Results</span>
+                </button>
+
+                <!-- Manual Hold Drawing Toggle -->
+                <button
+                  @click="toggleDrawingMode"
+                  :class="[
+                    'px-6 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
+                    serverStore.isDrawingMode
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'border border-green-600 text-green-600 hover:bg-green-50',
+                  ]"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    />
+                  </svg>
+                  <span>{{ serverStore.isDrawingMode ? "Exit Drawing" : "Draw Holds" }}</span>
                 </button>
 
                 <!-- Magic Wand Button - Only show when not in boulder creation/editing mode -->
@@ -597,7 +621,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useHoldDetectionServerStore } from "@/stores/holdDetectionServerStore.js";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore.js";
 import { locationService } from "@/services/locationService";
-import UnifiedHoldOverlay from "@/components/UnifiedHoldOverlay.vue";
+import InteractiveHoldOverlay from "@/components/InteractiveHoldOverlay.vue";
 import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
 import FloatingBoulderProblemCard from "@/components/FloatingBoulderProblemCard.vue";
 import { performMagicWandSelection, isHoldInMagicWandSelection } from "@/utils/magicWandUtils.js";
@@ -608,8 +632,9 @@ const serverStore = useHoldDetectionServerStore();
 const boulderProblemsStore = useBoulderProblemsStore();
 
 // Reactive state
+// References
 const climbingImage = ref(null);
-const unifiedOverlay = ref(null);
+const interactiveOverlay = ref(null);
 const imageLoaded = ref(false);
 const currentImage = ref(null);
 const imageLoadError = ref(null);
@@ -701,10 +726,7 @@ const onImageLoad = () => {
   imageLoaded.value = true;
   console.log("🖼️ Image loaded successfully");
 
-  // Recalculate unified overlay position if we have results
-  if (unifiedOverlay.value && serverStore.hasResults) {
-    unifiedOverlay.value.recalculatePosition();
-  }
+  // Image loaded - ready for interactions
 };
 
 const testApiHealth = async () => {
@@ -756,11 +778,32 @@ const toggleMagicWand = () => {
       targetHoldIndex: null,
       stats: null,
     };
+  }
+};
 
-    // Trigger overlay update
-    if (unifiedOverlay.value) {
-      unifiedOverlay.value.recalculatePosition();
+// Manual Hold Drawing functionality
+const toggleDrawingMode = () => {
+  const newDrawingMode = !serverStore.isDrawingMode;
+  console.log("🔄 Toggling drawing mode:", serverStore.isDrawingMode, "→", newDrawingMode);
+  serverStore.setDrawingMode(newDrawingMode);
+
+  if (newDrawingMode) {
+    console.log("✏️ Drawing mode activated - draw holds directly on the image");
+    console.log("📊 Current state:", {
+      isDrawingMode: serverStore.isDrawingMode,
+      drawingTool: serverStore.drawingTool,
+      manualHolds: serverStore.manualHolds.length,
+    });
+    // Disable magic wand when entering drawing mode
+    if (magicWandActive.value) {
+      toggleMagicWand();
     }
+    // Load existing manual holds for this image
+    serverStore.loadManualHolds(imageUrl.value);
+  } else {
+    console.log("✏️ Drawing mode deactivated");
+    // Save manual holds when exiting drawing mode
+    serverStore.saveManualHolds(imageUrl.value);
   }
 };
 
@@ -804,8 +847,8 @@ const handleHoldClick = (hold, holdIndex) => {
   if (isBoulderMode && boulderHoldSelectionTool.value === "magic-wand") {
     console.log("🪄 Boulder Magic Wand is active - performing route selection for boulder problem");
 
-    // Get all holds from server results
-    const allHolds = serverStore.results?.holds || [];
+    // Get all holds from combined holds (AI + manual)
+    const allHolds = serverStore.combinedHolds || [];
 
     if (allHolds.length === 0) {
       console.warn("No holds available for magic wand selection");
@@ -837,11 +880,12 @@ const handleHoldClick = (hold, holdIndex) => {
       result.selectedIndices.forEach((selectedHoldIndex) => {
         const selectedHold = allHolds[selectedHoldIndex];
         if (selectedHold) {
-          // Enhance hold data with SVG markup from server results if available
+          // Enhance hold data with SVG markup from combined markups (AI + manual)
           const enhancedHold = {
             ...selectedHold,
-            svgMarkup: serverStore.results?.svg_markups?.[selectedHoldIndex] || null,
-            detectionSource: "server",
+            svgMarkup:
+              serverStore.combinedSvgMarkups?.[selectedHoldIndex] || selectedHold.svgMarkup || null,
+            detectionSource: selectedHold.svgMarkup ? "manual" : "server",
           };
 
           // Add hold to the target problem (this will toggle - add if not present, remove if present)
@@ -861,8 +905,8 @@ const handleHoldClick = (hold, holdIndex) => {
   if (!isBoulderMode && magicWandActive.value) {
     console.log("🪄 Standalone Magic Wand is active - performing proximity selection");
 
-    // Get all holds from server results
-    const allHolds = serverStore.results?.holds || [];
+    // Get all holds from combined holds (AI + manual)
+    const allHolds = serverStore.combinedHolds || [];
 
     if (allHolds.length === 0) {
       console.warn("No holds available for magic wand selection");

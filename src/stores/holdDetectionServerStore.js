@@ -32,6 +32,11 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   const results = ref(null);
   const processingMetrics = ref(null);
 
+  // Manual holds
+  const manualHolds = ref([]);
+  const isDrawingMode = ref(false);
+  const drawingTool = ref("circle"); // circle, rectangle, polygon
+
   // Compression settings
   const compressionSettings = ref({
     enabled: true,
@@ -61,6 +66,22 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
 
   const svgCount = computed(() => {
     return results.value?.svg_files?.length || 0;
+  });
+
+  // Combined holds (AI + manual) for unified display
+  const combinedHolds = computed(() => {
+    const aiHolds = results.value?.holds || [];
+    return [...aiHolds, ...manualHolds.value];
+  });
+
+  const combinedSvgMarkups = computed(() => {
+    const aiSvgs = results.value?.svg_markups || [];
+    const manualSvgs = manualHolds.value.map((hold) => hold.svgMarkup);
+    return [...aiSvgs, ...manualSvgs];
+  });
+
+  const totalHoldCount = computed(() => {
+    return combinedHolds.value.length;
   });
 
   // Actions
@@ -287,6 +308,69 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     clearResults();
   };
 
+  // Manual hold management actions
+  const addManualHold = (hold) => {
+    // Generate unique ID for manual hold
+    const id = `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const manualHold = {
+      ...hold,
+      id,
+      confidence: 1.0, // Manual holds have 100% confidence
+      type: "manual",
+      timestamp: new Date().toISOString(),
+    };
+    manualHolds.value.push(manualHold);
+    console.log("✅ Added manual hold:", manualHold);
+  };
+
+  const removeManualHold = (holdId) => {
+    const index = manualHolds.value.findIndex((hold) => hold.id === holdId);
+    if (index !== -1) {
+      manualHolds.value.splice(index, 1);
+      console.log("🗑️ Removed manual hold:", holdId);
+    }
+  };
+
+  const clearManualHolds = () => {
+    manualHolds.value = [];
+    console.log("🧹 Cleared all manual holds");
+  };
+
+  const setDrawingMode = (enabled) => {
+    isDrawingMode.value = enabled;
+    console.log("✏️ Drawing mode:", enabled ? "enabled" : "disabled");
+  };
+
+  const setDrawingTool = (tool) => {
+    drawingTool.value = tool;
+    console.log("🔧 Drawing tool set to:", tool);
+  };
+
+  // Load manual holds from localStorage (for persistence)
+  const loadManualHolds = (imageUrl) => {
+    try {
+      const key = `manual_holds_${btoa(imageUrl)}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        manualHolds.value = JSON.parse(stored);
+        console.log("📥 Loaded manual holds from storage:", manualHolds.value.length);
+      }
+    } catch (error) {
+      console.error("❌ Error loading manual holds:", error);
+    }
+  };
+
+  // Save manual holds to localStorage
+  const saveManualHolds = (imageUrl) => {
+    try {
+      const key = `manual_holds_${btoa(imageUrl)}`;
+      localStorage.setItem(key, JSON.stringify(manualHolds.value));
+      console.log("💾 Saved manual holds to storage:", manualHolds.value.length);
+    } catch (error) {
+      console.error("❌ Error saving manual holds:", error);
+    }
+  };
+
   // Initialize service with URL and clean up expired cache
   holdDetectionServerService.setApiUrl(apiUrl.value);
   clearExpiredDetectionCache(); // Clean up on store initialization
@@ -307,6 +391,9 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     results,
     processingMetrics,
     compressionSettings,
+    manualHolds,
+    isDrawingMode,
+    drawingTool,
 
     // Computed
     isReady,
@@ -316,6 +403,9 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     processingTime,
     svgCount,
     canProcessImage,
+    combinedHolds,
+    combinedSvgMarkups,
+    totalHoldCount,
 
     // Actions
     setApiUrl,
@@ -323,6 +413,13 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     processImage,
     clearResults,
     resetState,
+    addManualHold,
+    removeManualHold,
+    clearManualHolds,
+    setDrawingMode,
+    setDrawingTool,
+    loadManualHolds,
+    saveManualHolds,
 
     // Cache management (delegated to cache service)
     clearAllCache: clearAllDetectionCache,
