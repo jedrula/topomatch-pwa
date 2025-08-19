@@ -771,10 +771,10 @@ const getHoldColor = (holdIndex) => {
 const getCombinedHoldIndex = (manualIndex) => aiHolds.value.length + manualIndex;
 
 // Manual hold interaction methods - simplified with helper
-const getManualHoldInteraction = (hold, manualIndex) => 
+const getManualHoldInteraction = (hold, manualIndex) =>
   getHoldInteraction(getCombinedHoldIndex(manualIndex));
 
-const getManualHoldInteractionAllowed = (hold, manualIndex) => 
+const getManualHoldInteractionAllowed = (hold, manualIndex) =>
   getHoldInteractionAllowed(getCombinedHoldIndex(manualIndex));
 
 const getManualHoldColor = (hold, manualIndex) => {

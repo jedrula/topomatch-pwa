@@ -321,7 +321,11 @@
 
         <div class="space-y-2 max-h-64 overflow-y-auto">
           <!-- Grade-based expandable sections -->
-          <div v-for="gradeGroup in problemsByGrade" :key="gradeGroup.grade" class="border border-gray-200 rounded-lg">
+          <div
+            v-for="gradeGroup in problemsByGrade"
+            :key="gradeGroup.grade"
+            class="border border-gray-200 rounded-lg"
+          >
             <!-- Grade header (clickable to expand/collapse) -->
             <button
               @click="toggleGradeExpansion(gradeGroup.grade)"
@@ -335,7 +339,11 @@
                   ></div>
                   <span class="font-medium text-gray-900">{{ gradeGroup.grade }}</span>
                 </div>
-                <span class="text-sm text-gray-500">{{ gradeGroup.problems.length }} problem{{ gradeGroup.problems.length !== 1 ? 's' : '' }}</span>
+                <span class="text-sm text-gray-500"
+                  >{{ gradeGroup.problems.length }} problem{{
+                    gradeGroup.problems.length !== 1 ? "s" : ""
+                  }}</span
+                >
               </div>
               <svg
                 class="w-5 h-5 text-gray-400 transition-transform"
@@ -344,15 +352,17 @@
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
 
             <!-- Problems list (collapsible) -->
-            <div
-              v-if="expandedGrades.has(gradeGroup.grade)"
-              class="divide-y divide-gray-100"
-            >
+            <div v-if="expandedGrades.has(gradeGroup.grade)" class="divide-y divide-gray-100">
               <div
                 v-for="problem in gradeGroup.problems"
                 :key="problem.id"
@@ -366,7 +376,7 @@
                   >
                     {{ problem.name }}
                   </button>
-                  
+
                   <!-- Action buttons -->
                   <div class="flex items-center space-x-1 ml-3">
                     <!-- Visibility toggle -->
@@ -401,7 +411,12 @@
                       class="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
                       </svg>
                     </button>
 
@@ -413,7 +428,12 @@
                       class="p-1 text-gray-400 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -423,7 +443,7 @@
                 <div class="mt-1 flex items-center space-x-4 text-xs text-gray-500">
                   <span>{{ problem.holds?.length || 0 }} holds</span>
                   <span v-if="problem.createdAt">
-                    {{ new Date(problem.createdAt.toDate()).toLocaleDateString() }}
+                    {{ formatDate(problem.createdAt) }}
                   </span>
                   <span
                     v-if="boulderProblemsStore.hasUnsavedChanges(problem.id)"
@@ -438,8 +458,18 @@
 
           <!-- Show message when no problems match filter -->
           <div v-if="filteredProblems.length === 0" class="text-center py-8 text-gray-500">
-            <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <svg
+              class="w-12 h-12 mx-auto mb-3 text-gray-300"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
             </svg>
             <p class="text-sm">No problems found for the selected grade range</p>
           </div>
@@ -628,14 +658,14 @@ const filteredProblems = computed(() => {
 // Group problems by grade for expandable sections
 const problemsByGrade = computed(() => {
   const grouped = {};
-  
+
   filteredProblems.value.forEach((problem) => {
     const gradeLabel = getGradeLabel(problem.grade);
     if (!grouped[gradeLabel]) {
       grouped[gradeLabel] = {
         grade: gradeLabel,
         problems: [],
-        color: problem.color || '#6b7280', // Use problem color or gray fallback
+        color: problem.color || "#6b7280", // Use problem color or gray fallback
       };
     }
     grouped[gradeLabel].problems.push(problem);
@@ -821,6 +851,31 @@ const toggleGradeExpansion = (grade) => {
   } else {
     expandedGrades.value.add(grade);
   }
+  // Trigger reactivity for Set changes
+  expandedGrades.value = new Set(expandedGrades.value);
+};
+
+// Date formatting helper - handles Firestore Timestamps, Date objects, and strings
+const formatDate = (dateValue) => {
+  if (!dateValue) return '';
+  
+  try {
+    // If it's a Firestore Timestamp with toDate method
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      return dateValue.toDate().toLocaleDateString();
+    }
+    // If it's already a Date object
+    else if (dateValue instanceof Date) {
+      return dateValue.toLocaleDateString();
+    }
+    // If it's a string or number, try to parse it
+    else {
+      return new Date(dateValue).toLocaleDateString();
+    }
+  } catch (error) {
+    console.warn('Error formatting date:', dateValue, error);
+    return '';
+  }
 };
 
 // Navigation function
@@ -829,7 +884,7 @@ const navigateToProblem = (problem) => {
   if (locationId) {
     router.push(`/location/${locationId}/problem/${problem.id}`);
   } else {
-    console.warn('Cannot navigate to problem: locationId not found in route params');
+    console.warn("Cannot navigate to problem: locationId not found in route params");
   }
 };
 

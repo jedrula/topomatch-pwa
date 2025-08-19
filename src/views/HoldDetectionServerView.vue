@@ -943,8 +943,20 @@ const processImage = async () => {
 };
 
 const clearResults = () => {
+  // Clear current results
   serverStore.clearResults();
-  console.log("🧹 Results cleared");
+  
+  // Also clear cached results for this specific image
+  if (imageUrl.value) {
+    const cleared = serverStore.clearCacheForImage(imageUrl.value, serverStore.compressionSettings);
+    if (cleared) {
+      console.log("🧹 Results and cache cleared for current image:", imageUrl.value);
+    } else {
+      console.log("🧹 Results cleared (no cache found for current image)");
+    }
+  } else {
+    console.log("🧹 Results cleared");
+  }
 };
 
 const goBackToLocation = () => {
@@ -1204,11 +1216,11 @@ const handleFilteredProblemsChange = (newFilteredProblems) => {
 
 // Shared events for BoulderProblemsManager (DRY principle) - defined after all functions
 const boulderProblemsManagerEvents = {
-  'start-editing': startEditingProblem,
-  'stop-editing': stopEditingProblem,
-  'tool-selection-change': handleToolSelectionChange,
-  'problem-hover': handleProblemCardHover,
-  'filtered-problems-change': handleFilteredProblemsChange,
+  "start-editing": startEditingProblem,
+  "stop-editing": stopEditingProblem,
+  "tool-selection-change": handleToolSelectionChange,
+  "problem-hover": handleProblemCardHover,
+  "filtered-problems-change": handleFilteredProblemsChange,
 };
 
 // Load image based on query parameters
