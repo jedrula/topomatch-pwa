@@ -81,7 +81,7 @@
               v-for="(problemHold, holdIndex) in problem.holds"
               :data-problem-id="problem.id"
               :key="`${problem.id}-${holdIndex}`"
-              :svg-markup="problemHold.hold.svgMarkup"
+              :svg-markup="ensureHoldHasSvgMarkup(problemHold.hold).svgMarkup"
               :interaction="hoveredProblemId === problem.id ? 'hover' : 'default'"
               :interaction-allowed="'selectable'"
               :color="problem.color"
@@ -140,6 +140,7 @@ import { useRoute, useRouter } from "vue-router";
 import HoldSvg from "./HoldSvg.vue";
 import FloatingBoulderProblemCard from "./FloatingBoulderProblemCard.vue";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
+import { ensureHoldHasSvgMarkup } from "@/utils/svgUtils.js";
 
 const props = defineProps({
   images: {

@@ -10,6 +10,7 @@ import {
   hasCachedDetectionResult,
 } from "../services/detectionCacheService.js";
 import { manualHoldsService } from "../services/manualHoldsService.js";
+import { ensureHoldHasSvgMarkup } from "../utils/svgUtils.js";
 
 export const useHoldDetectionServerStore = defineStore("holdDetectionServer", () => {
   // Core state
@@ -36,6 +37,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   // Manual holds
   const manualHolds = ref([]);
   const isDrawingMode = ref(false);
+  const isDeleteMode = ref(false);
 
   // Compression settings
   const compressionSettings = ref({
@@ -71,12 +73,18 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   // Combined holds (AI + manual) for unified display
   const combinedHolds = computed(() => {
     const aiHolds = results.value?.holds || [];
-    return [...aiHolds, ...manualHolds.value];
+    // Ensure manual holds have svgMarkup for consistent display
+    const enrichedManualHolds = manualHolds.value.map(ensureHoldHasSvgMarkup);
+    return [...aiHolds, ...enrichedManualHolds];
   });
 
   const combinedSvgMarkups = computed(() => {
     const aiSvgs = results.value?.svg_markups || [];
-    const manualSvgs = manualHolds.value.map((hold) => hold.svgMarkup);
+    // Ensure manual holds have svgMarkup, convert from pathPoints if needed
+    const manualSvgs = manualHolds.value.map((hold) => {
+      const enrichedHold = ensureHoldHasSvgMarkup(hold);
+      return enrichedHold.svgMarkup;
+    });
     return [...aiSvgs, ...manualSvgs];
   });
 
@@ -388,7 +396,18 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
 
   const setDrawingMode = (enabled) => {
     isDrawingMode.value = enabled;
+    if (enabled) {
+      isDeleteMode.value = false; // Disable delete mode when drawing
+    }
     console.log("✏️ Drawing mode:", enabled ? "enabled" : "disabled");
+  };
+
+  const setDeleteMode = (enabled) => {
+    isDeleteMode.value = enabled;
+    if (enabled) {
+      isDrawingMode.value = false; // Disable drawing mode when deleting
+    }
+    console.log("🗑️ Delete mode:", enabled ? "enabled" : "disabled");
   };
 
   // Load manual holds from Firestore
@@ -448,6 +467,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     compressionSettings,
     manualHolds,
     isDrawingMode,
+    isDeleteMode,
 
     // Computed
     isReady,
@@ -471,6 +491,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     removeManualHold,
     clearManualHolds,
     setDrawingMode,
+    setDeleteMode,
     loadManualHolds,
     saveManualHolds,
 

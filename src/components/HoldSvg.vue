@@ -21,7 +21,16 @@ const props = defineProps({
     type: String,
     default: "default",
     validator: (value) =>
-      ["default", "selected", "hidden", "hover", "drawing-background"].includes(value),
+      [
+        "default",
+        "selected",
+        "hidden",
+        "hover",
+        "drawing-background",
+        "disabled",
+        "delete-target",
+        "delete-hover",
+      ].includes(value),
   },
   interactionAllowed: {
     type: String,
@@ -152,5 +161,40 @@ const handleHover = (isEntering, event) => {
 .allowed-none {
   cursor: default;
   pointer-events: none;
+}
+/* Delete mode states */
+.hold-svg-delete-target {
+  cursor: crosshair;
+  stroke: #ff4444;
+  stroke-width: 3px;
+  fill: rgba(255, 68, 68, 0.2);
+  stroke-dasharray: 5, 5;
+  animation: pulse-delete 1s infinite;
+}
+
+.hold-svg-delete-hover {
+  cursor: crosshair;
+  stroke: #ff0000;
+  stroke-width: 4px;
+  fill: rgba(255, 0, 0, 0.3);
+  filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.8));
+}
+
+.hold-svg-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@keyframes pulse-delete {
+  0% {
+    stroke-opacity: 1;
+  }
+  50% {
+    stroke-opacity: 0.5;
+  }
+  100% {
+    stroke-opacity: 1;
+  }
 }
 </style>

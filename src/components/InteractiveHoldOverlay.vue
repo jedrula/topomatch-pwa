@@ -77,6 +77,27 @@
         Draw around a hold - shape will close automatically when you release
       </div>
     </div>
+
+    <!-- Delete controls -->
+    <div
+      v-if="serverStore.isDeleteMode"
+      class="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-30 pointer-events-auto"
+    >
+      <div class="flex items-center space-x-3">
+        <span class="text-sm font-medium text-red-700">🗑️ Delete Mode</span>
+
+        <div class="border-l border-gray-300 pl-3">
+          <button
+            @click="exitDeleteMode"
+            class="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+          >
+            Exit Delete
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-2 text-xs text-red-600">Click on any hold to delete it</div>
+    </div>
   </div>
 </template>
 
@@ -270,19 +291,19 @@ const cancelDrawing = () => {
 // Create SVG path string for preview
 const createPreviewPath = () => {
   if (drawingPath.value.length < 2) return "";
-  
+
   // Convert canvas coordinates to image coordinates for preview
-  const pathPoints = drawingPath.value.map(point => getImageCoordinates(point.x, point.y));
-  
+  const pathPoints = drawingPath.value.map((point) => getImageCoordinates(point.x, point.y));
+
   const pathData = pathPoints
     .map((point, index) => (index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`))
     .join(" ");
-  
+
   // Show preview with auto-close line
   if (pathPoints.length > 2) {
     return pathData + ` L ${pathPoints[0].x} ${pathPoints[0].y}`;
   }
-  
+
   return pathData;
 };
 
@@ -290,32 +311,34 @@ const createHoldFromPath = () => {
   if (drawingPath.value.length < 3) return;
 
   // Convert canvas coordinates to image coordinates
-  const pathPoints = drawingPath.value.map(point => getImageCoordinates(point.x, point.y));
+  const pathPoints = drawingPath.value.map((point) => getImageCoordinates(point.x, point.y));
 
   // Auto-close the path by connecting last point to first point
   const closedPath = [...pathPoints];
   const firstPoint = pathPoints[0];
   const lastPoint = pathPoints[pathPoints.length - 1];
-  
+
   // Only add closing point if it's not already close to the start
   const distance = Math.sqrt(
     Math.pow(lastPoint.x - firstPoint.x, 2) + Math.pow(lastPoint.y - firstPoint.y, 2)
   );
-  
-  if (distance > 10) { // If end is more than 10 pixels from start, auto-close
+
+  if (distance > 10) {
+    // If end is more than 10 pixels from start, auto-close
     closedPath.push(firstPoint);
   }
 
   // Create SVG path with auto-close
-  const pathData = closedPath
-    .map((point, index) => (index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`))
-    .join(" ") + " Z"; // Z closes the path
+  const pathData =
+    closedPath
+      .map((point, index) => (index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`))
+      .join(" ") + " Z"; // Z closes the path
 
   const svgMarkup = `<path d="${pathData}" fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2"/>`;
 
   // Calculate bounding box
-  const xs = pathPoints.map(p => p.x);
-  const ys = pathPoints.map(p => p.y);
+  const xs = pathPoints.map((p) => p.x);
+  const ys = pathPoints.map((p) => p.y);
   const boundingBox = {
     x: Math.min(...xs),
     y: Math.min(...ys),
@@ -403,6 +426,21 @@ const getHoldProblemId = (holdIndex) => {
 
 // Get interaction state for hold based on its current state (from UnifiedHoldOverlay)
 const getHoldInteraction = (holdIndex) => {
+  // During delete mode, AI holds are not deletable but show as disabled
+  if (serverStore.isDeleteMode) {
+    // AI holds (first part of combined holds array) cannot be deleted
+    if (holdIndex < aiHolds.value.length) {
+      return "disabled"; // AI holds cannot be deleted
+    } else {
+      // Manual holds can be deleted
+      if (hoveredHoldIndex.value === holdIndex) {
+        return "delete-hover"; // Special hover state for delete mode
+      } else {
+        return "delete-target"; // Show as deletable
+      }
+    }
+  }
+
   // During drawing mode, make existing holds visible with reduced opacity
   if (serverStore.isDrawingMode) {
     if (hoveredHoldIndex.value === holdIndex) {
@@ -598,6 +636,12 @@ const getManualHoldColor = (hold, manualIndex) => {
 };
 
 const handleHoldClick = (hold, index) => {
+  // In delete mode, AI holds cannot be deleted
+  if (serverStore.isDeleteMode) {
+    console.log("🗑️ Cannot delete AI-detected holds");
+    return;
+  }
+
   emit("hold-click", hold, index);
 };
 
@@ -616,6 +660,13 @@ const handleHoldHover = (index, isEntering, event) => {
 };
 
 const handleManualHoldClick = (hold, manualIndex) => {
+  // In delete mode, delete the manual hold
+  if (serverStore.isDeleteMode) {
+    console.log("🗑️ Deleting manual hold:", hold);
+    serverStore.removeManualHold(hold.id, props.locationId, props.imageUrl);
+    return;
+  }
+
   // Calculate the combined index (AI holds + manual hold position)
   const combinedIndex = aiHolds.value.length + manualIndex;
 
@@ -650,6 +701,10 @@ const exitDrawingMode = () => {
   serverStore.setDrawingMode(false);
   isDrawing.value = false;
   drawingPath.value = [];
+};
+
+const exitDeleteMode = () => {
+  serverStore.setDeleteMode(false);
 };
 
 // Canvas setup
