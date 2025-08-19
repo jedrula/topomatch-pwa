@@ -104,23 +104,89 @@
             </div>
           </div>
 
-          <!-- Grade distribution -->
-          <div
-            v-if="totalProblems > 0"
-            class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4"
-          >
+          <!-- Expandable Grade Groups -->
+          <div v-if="totalProblems > 0" class="space-y-3">
             <div
               v-for="gradeGroup in boulderProblemsSummary"
               :key="gradeGroup.label"
-              class="bg-gray-50 rounded-lg p-4 text-center hover:bg-gray-100 transition-colors cursor-pointer"
-              @click="viewProblemsOfGrade(gradeGroup)"
+              class="border border-gray-200 rounded-lg overflow-hidden"
             >
-              <div class="text-2xl font-bold text-gray-900 mb-1">
-                {{ gradeGroup.count }}
-              </div>
-              <div class="text-sm font-medium text-gray-700 mb-1">Grade {{ gradeGroup.label }}</div>
-              <div class="text-xs text-gray-500">
-                {{ gradeGroup.count === 1 ? "problem" : "problems" }}
+              <!-- Grade Header (Clickable) -->
+              <button
+                @click="toggleGradeExpansion(gradeGroup.label)"
+                class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between text-left"
+              >
+                <div class="flex items-center space-x-3">
+                  <div
+                    class="w-3 h-3 rounded-full"
+                    :style="{ backgroundColor: getGradeColor(gradeGroup.label) }"
+                  ></div>
+                  <span class="font-medium text-gray-900">Grade {{ gradeGroup.label }}</span>
+                  <span class="text-sm text-gray-500">
+                    ({{ gradeGroup.count }} {{ gradeGroup.count === 1 ? "problem" : "problems" }})
+                  </span>
+                </div>
+                <svg
+                  class="w-5 h-5 text-gray-400 transition-transform duration-200"
+                  :class="{ 'rotate-180': expandedGrades.has(gradeGroup.label) }"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+
+              <!-- Expanded Problems List -->
+              <div
+                v-if="expandedGrades.has(gradeGroup.label)"
+                class="bg-white divide-y divide-gray-100"
+              >
+                <router-link
+                  v-for="problem in gradeGroup.problems"
+                  :key="problem.id"
+                  :to="{
+                    name: 'boulder-problem-detail',
+                    params: {
+                      locationId: route.params.locationId,
+                      problemId: problem.id,
+                    },
+                  }"
+                  class="block px-4 py-3 hover:bg-blue-50 transition-colors group"
+                >
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                      <div
+                        class="w-2 h-2 rounded-full"
+                        :style="{ backgroundColor: problem.color }"
+                      ></div>
+                      <span class="font-medium text-gray-900 group-hover:text-blue-700">
+                        {{ problem.name }}
+                      </span>
+                    </div>
+                    <div class="flex items-center space-x-2 text-sm text-gray-500">
+                      <span>{{ problem.holds?.length || 0 }} holds</span>
+                      <svg
+                        class="w-4 h-4 text-gray-400 group-hover:text-blue-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </router-link>
               </div>
             </div>
           </div>
@@ -501,6 +567,9 @@ const matchedBoulderImage = ref(null);
 const allFrames = ref([]); // Will store 3 frames after match found
 const poseResults = ref([]); // Will store pose detection results
 const analysisPhase = ref(""); // 'matching', 'extracting-frames', 'detecting-poses', 'analyzing-holds'
+
+// Grade expansion state
+const expandedGrades = ref(new Set());
 
 const locationId = route.params.locationId;
 
@@ -1226,11 +1295,38 @@ const calculateProblemScore = (problem, transformedFrames) => {
   return finalScore;
 };
 
-const viewProblemsOfGrade = (gradeGroup) => {
-  // For now, just show an alert with the problems of this grade
-  // In the future, this could navigate to a filtered view or show a modal
-  const problemNames = gradeGroup.problems.map((p) => p.name).join(", ");
-  alert(`Grade ${gradeGroup.label} problems (${gradeGroup.count}):\n${problemNames}`);
+// Grade expansion functions
+const toggleGradeExpansion = (grade) => {
+  if (expandedGrades.value.has(grade)) {
+    expandedGrades.value.delete(grade);
+  } else {
+    expandedGrades.value.add(grade);
+  }
+  // Trigger reactivity
+  expandedGrades.value = new Set(expandedGrades.value);
+};
+
+const getGradeColor = (grade) => {
+  const colors = {
+    'V0': '#4ade80',    // green-400
+    'V1': '#34d399',    // emerald-400  
+    'V2': '#22d3ee',    // cyan-400
+    'V3': '#60a5fa',    // blue-400
+    'V4': '#a78bfa',    // violet-400
+    'V5': '#c084fc',    // purple-400
+    'V6': '#f472b6',    // pink-400
+    'V7': '#fb7185',    // rose-400
+    'V8': '#f87171',    // red-400
+    'V9': '#fb923c',    // orange-400
+    'V10': '#fbbf24',   // amber-400
+    'V11': '#facc15',   // yellow-400
+    'V12': '#a3a3a3',   // neutral-400
+    'V13': '#71717a',   // zinc-500
+    'V14': '#525252',   // neutral-600
+    'V15': '#374151',   // gray-700
+    'V16': '#1f2937'    // gray-800
+  };
+  return colors[grade] || '#6b7280'; // gray-500 as default
 };
 
 // Redirect to problem page with video data

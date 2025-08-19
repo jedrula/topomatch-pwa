@@ -320,25 +320,129 @@
         </div>
 
         <div class="space-y-2 max-h-64 overflow-y-auto">
-          <BoulderProblemCard
-            v-for="problem in filteredProblems"
-            :key="problem.id"
-            :problem="problem"
-            :is-active="
-              boulderProblemsStore.activeProblem?.id === problem.id &&
-              !boulderProblemsStore.isCreatingProblem &&
-              !editingProblem
-            "
-            :is-disabled="boulderProblemsStore.isCreatingProblem || editingProblem"
-            :has-unsaved-changes="boulderProblemsStore.hasUnsavedChanges(problem.id)"
-            @click="selectProblem"
-            @mouseenter="handleProblemHover(problem, true)"
-            @mouseleave="handleProblemHover(problem, false)"
-            @view-detail="viewProblemDetail"
-            @toggle-visibility="toggleProblemVisibility"
-            @edit="editProblem"
-            @delete="deleteProblem"
-          />
+          <!-- Grade-based expandable sections -->
+          <div v-for="gradeGroup in problemsByGrade" :key="gradeGroup.grade" class="border border-gray-200 rounded-lg">
+            <!-- Grade header (clickable to expand/collapse) -->
+            <button
+              @click="toggleGradeExpansion(gradeGroup.grade)"
+              class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-t-lg border-b border-gray-200 flex items-center justify-between transition-colors"
+            >
+              <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-2">
+                  <div
+                    class="w-4 h-4 rounded-full border-2"
+                    :style="{ backgroundColor: gradeGroup.color, borderColor: gradeGroup.color }"
+                  ></div>
+                  <span class="font-medium text-gray-900">{{ gradeGroup.grade }}</span>
+                </div>
+                <span class="text-sm text-gray-500">{{ gradeGroup.problems.length }} problem{{ gradeGroup.problems.length !== 1 ? 's' : '' }}</span>
+              </div>
+              <svg
+                class="w-5 h-5 text-gray-400 transition-transform"
+                :class="{ 'rotate-180': expandedGrades.has(gradeGroup.grade) }"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <!-- Problems list (collapsible) -->
+            <div
+              v-if="expandedGrades.has(gradeGroup.grade)"
+              class="divide-y divide-gray-100"
+            >
+              <div
+                v-for="problem in gradeGroup.problems"
+                :key="problem.id"
+                class="p-3 hover:bg-gray-50 transition-colors"
+              >
+                <div class="flex items-center justify-between">
+                  <!-- Problem name as link -->
+                  <button
+                    @click="navigateToProblem(problem)"
+                    class="flex-1 text-left text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                  >
+                    {{ problem.name }}
+                  </button>
+                  
+                  <!-- Action buttons -->
+                  <div class="flex items-center space-x-1 ml-3">
+                    <!-- Visibility toggle -->
+                    <button
+                      @click="toggleProblemVisibility(problem)"
+                      :title="problem.hidden ? 'Show problem' : 'Hide problem'"
+                      class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          v-if="problem.hidden"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.464 6.464M14.121 14.121l3.535 3.536m-2.656-7.07l-3.536 3.536"
+                        />
+                        <path
+                          v-else
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
+                      </svg>
+                    </button>
+
+                    <!-- Edit button -->
+                    <button
+                      @click="editProblem(problem)"
+                      :disabled="boulderProblemsStore.isCreatingProblem || editingProblem"
+                      title="Edit problem"
+                      class="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+
+                    <!-- Delete button -->
+                    <button
+                      @click="deleteProblem(problem)"
+                      :disabled="boulderProblemsStore.isCreatingProblem || editingProblem"
+                      title="Delete problem"
+                      class="p-1 text-gray-400 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Problem metadata -->
+                <div class="mt-1 flex items-center space-x-4 text-xs text-gray-500">
+                  <span>{{ problem.holds?.length || 0 }} holds</span>
+                  <span v-if="problem.createdAt">
+                    {{ new Date(problem.createdAt.toDate()).toLocaleDateString() }}
+                  </span>
+                  <span
+                    v-if="boulderProblemsStore.hasUnsavedChanges(problem.id)"
+                    class="text-orange-600 font-medium"
+                  >
+                    Unsaved changes
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Show message when no problems match filter -->
+          <div v-if="filteredProblems.length === 0" class="text-center py-8 text-gray-500">
+            <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p class="text-sm">No problems found for the selected grade range</p>
+          </div>
         </div>
       </div>
 
@@ -412,7 +516,6 @@ import { useRoute, useRouter } from "vue-router";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 import { useHoldDetectionServerStore } from "@/stores/holdDetectionServerStore";
 import { getGradeLabel } from "@/utils/gradingUtils.js";
-import BoulderProblemCard from "@/components/BoulderProblemCard.vue";
 import Slider from "@vueform/slider";
 
 const props = defineProps({
@@ -446,6 +549,9 @@ const serverStore = useHoldDetectionServerStore();
 // Local reactive state for the form
 const problemName = ref("");
 const selectedGrade = ref("");
+
+// Expandable grade sections state
+const expandedGrades = ref(new Set());
 
 // Initialize selectedGrade with first grade from the system
 const initializeDefaultGrade = () => {
@@ -519,6 +625,30 @@ const filteredProblems = computed(() => {
   });
 });
 
+// Group problems by grade for expandable sections
+const problemsByGrade = computed(() => {
+  const grouped = {};
+  
+  filteredProblems.value.forEach((problem) => {
+    const gradeLabel = getGradeLabel(problem.grade);
+    if (!grouped[gradeLabel]) {
+      grouped[gradeLabel] = {
+        grade: gradeLabel,
+        problems: [],
+        color: problem.color || '#6b7280', // Use problem color or gray fallback
+      };
+    }
+    grouped[gradeLabel].problems.push(problem);
+  });
+
+  // Sort by grade difficulty (using the grades array order)
+  return Object.values(grouped).sort((a, b) => {
+    const aIndex = boulderProblemsStore.grades.indexOf(a.grade);
+    const bIndex = boulderProblemsStore.grades.indexOf(b.grade);
+    return aIndex - bIndex;
+  });
+});
+
 // Check if there are any holds available (AI detection + manual)
 const hasAnyHolds = computed(() => {
   const aiHolds = props.hasDetectionResults ? serverStore.holdCount : 0;
@@ -579,20 +709,6 @@ const cancelProblem = async () => {
   problemName.value = "";
   initializeDefaultGrade();
   emit("tool-selection-change", "single");
-};
-
-const selectProblem = (problem) => {
-  boulderProblemsStore.selectProblem(problem);
-};
-
-const viewProblemDetail = (problem) => {
-  router.push({
-    name: "boulder-problem-detail",
-    params: {
-      locationId: boulderProblemsStore.currentLocationId,
-      problemId: problem.id,
-    },
-  });
 };
 
 const toggleProblemVisibility = (problem) => {
@@ -698,6 +814,25 @@ const clearAllProblems = async () => {
   }
 };
 
+// Grade expansion/collapse functions
+const toggleGradeExpansion = (grade) => {
+  if (expandedGrades.value.has(grade)) {
+    expandedGrades.value.delete(grade);
+  } else {
+    expandedGrades.value.add(grade);
+  }
+};
+
+// Navigation function
+const navigateToProblem = (problem) => {
+  const locationId = route.params.locationId;
+  if (locationId) {
+    router.push(`/location/${locationId}/problem/${problem.id}`);
+  } else {
+    console.warn('Cannot navigate to problem: locationId not found in route params');
+  }
+};
+
 const saveAllChanges = async () => {
   try {
     await boulderProblemsStore.saveAllPendingChanges();
@@ -705,11 +840,6 @@ const saveAllChanges = async () => {
     console.error("Error saving all changes:", error);
     // Error is already handled in the store and displayed in the UI
   }
-};
-
-const handleProblemHover = (problem, isEntering) => {
-  // Emit problem hover event to parent component
-  emit("problem-hover", problem, isEntering);
 };
 
 // Grade filtering functions
