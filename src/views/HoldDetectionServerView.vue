@@ -184,17 +184,9 @@
                 <!-- Fullscreen Boulder Problems Manager - inside image container for fullscreen visibility -->
                 <BoulderProblemsManager
                   v-if="isFullscreen && route.params.locationId"
-                  :location-id="route.params.locationId"
-                  :has-detection-results="serverStore.hasResults"
-                  :detection-results="serverStore.results"
-                  :climbing-image="climbingImage"
-                  :editing-problem-id="editingState.editingProblemId"
+                  v-bind="boulderProblemsManagerProps"
                   :is-fullscreen="true"
-                  @start-editing="startEditingProblem"
-                  @stop-editing="stopEditingProblem"
-                  @tool-selection-change="handleToolSelectionChange"
-                  @problem-hover="handleProblemCardHover"
-                  @filtered-problems-change="handleFilteredProblemsChange"
+                  v-on="boulderProblemsManagerEvents"
                 />
               </div>
 
@@ -455,17 +447,9 @@
           <!-- Boulder Problems Manager -->
           <BoulderProblemsManager
             v-if="route.params.locationId && !isFullscreen"
-            :location-id="route.params.locationId"
-            :has-detection-results="serverStore.hasResults"
-            :detection-results="serverStore.results"
-            :climbing-image="climbingImage"
-            :editing-problem-id="editingState.editingProblemId"
+            v-bind="boulderProblemsManagerProps"
             :is-fullscreen="false"
-            @start-editing="startEditingProblem"
-            @stop-editing="stopEditingProblem"
-            @tool-selection-change="handleToolSelectionChange"
-            @problem-hover="handleProblemCardHover"
-            @filtered-problems-change="handleFilteredProblemsChange"
+            v-on="boulderProblemsManagerEvents"
           />
 
           <!-- Processing Status -->
@@ -701,7 +685,7 @@ import InteractiveHoldOverlay from "@/components/InteractiveHoldOverlay.vue";
 import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
 import FloatingBoulderProblemCard from "@/components/FloatingBoulderProblemCard.vue";
 import { ensureHoldHasSvgMarkup } from "@/utils/svgUtils.js";
-import { performMagicWandSelection, isHoldInMagicWandSelection } from "@/utils/magicWandUtils.js";
+import { performMagicWandSelection } from "@/utils/magicWandUtils.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -774,13 +758,6 @@ const imageUrl = computed(() => {
   return "/topos/wibrem-23-may/WhatsApp Image 2025-05-24 at 00.15.17.jpeg";
 });
 
-const imageDisplayName = computed(() => {
-  if (currentImage.value) {
-    return currentImage.value.name;
-  }
-  return "WhatsApp Image 2025-05-24 at 00.15.17.jpeg";
-});
-
 // Debug: Reactive computed to track API health changes
 const apiHealthStatus = computed(() => {
   const status = serverStore.apiHealthy;
@@ -801,6 +778,15 @@ const isAnyMagicWandActive = computed(() => {
       boulderHoldSelectionTool.value === "magic-wand")
   );
 });
+
+// Shared props for BoulderProblemsManager (DRY principle)
+const boulderProblemsManagerProps = computed(() => ({
+  locationId: route.params.locationId,
+  hasDetectionResults: serverStore.hasResults,
+  detectionResults: serverStore.results,
+  climbingImage: climbingImage.value,
+  editingProblemId: editingState.value.editingProblemId,
+}));
 
 // Methods
 const onImageLoad = () => {
@@ -1214,6 +1200,15 @@ const handleProblemCardHover = (problem, isEntering) => {
 const handleFilteredProblemsChange = (newFilteredProblems) => {
   filteredProblems.value = newFilteredProblems;
   console.log("📊 Filtered problems changed:", newFilteredProblems.length);
+};
+
+// Shared events for BoulderProblemsManager (DRY principle) - defined after all functions
+const boulderProblemsManagerEvents = {
+  'start-editing': startEditingProblem,
+  'stop-editing': stopEditingProblem,
+  'tool-selection-change': handleToolSelectionChange,
+  'problem-hover': handleProblemCardHover,
+  'filtered-problems-change': handleFilteredProblemsChange,
 };
 
 // Load image based on query parameters

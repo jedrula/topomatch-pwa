@@ -265,30 +265,22 @@ const hoveredProblemIdLocal = ref(null);
 const isDrawing = ref(false);
 const drawingPath = ref([]); // Points that make up the free drawing path
 
-// Quick draw mode - enabled when creating/editing boulder problems with quick-draw tool
-const isQuickDrawEnabled = computed(() => {
-  return (
-    (props.isCreatingProblem || props.isEditingProblem) &&
-    props.boulderHoldSelectionTool === "quick-draw" &&
-    !serverStore.isDeleteMode
-  );
+// Boulder tool modes - unified computed properties
+const isCreatingOrEditing = computed(() => props.isCreatingProblem || props.isEditingProblem);
+
+const toolModeChecks = computed(() => {
+  const baseCondition = isCreatingOrEditing.value && !serverStore.isDeleteMode;
+  return {
+    single: baseCondition && props.boulderHoldSelectionTool === "single",
+    quickDraw: baseCondition && props.boulderHoldSelectionTool === "quick-draw",
+    magicWand: baseCondition && props.boulderHoldSelectionTool === "magic-wand",
+  };
 });
 
-// Magic wand mode - enabled when creating/editing boulder problems with magic-wand tool
-const isMagicWandModeEnabled = computed(() => {
-  return (
-    (props.isCreatingProblem || props.isEditingProblem) &&
-    props.boulderHoldSelectionTool === "magic-wand"
-  );
-});
-
-// Single mode - enabled when creating/editing boulder problems with single tool
-const isSingleModeEnabled = computed(() => {
-  return (
-    (props.isCreatingProblem || props.isEditingProblem) &&
-    props.boulderHoldSelectionTool === "single"
-  );
-});
+// Individual mode checks (for backward compatibility)
+const isQuickDrawEnabled = computed(() => toolModeChecks.value.quickDraw);
+const isMagicWandModeEnabled = computed(() => toolModeChecks.value.magicWand);
+const isSingleModeEnabled = computed(() => toolModeChecks.value.single);
 
 // Combined drawing mode - either explicit drawing mode or quick draw mode
 const isAnyDrawingMode = computed(() => {
@@ -775,37 +767,20 @@ const getHoldColor = (holdIndex) => {
   }
 };
 
-// Manual hold interaction methods - match AI hold logic exactly
-const getManualHoldInteraction = (hold, manualIndex) => {
-  // Calculate the combined index (AI holds + manual hold position)
-  const combinedIndex = aiHolds.value.length + manualIndex;
+// Helper to calculate combined index for manual holds (DRY principle)
+const getCombinedHoldIndex = (manualIndex) => aiHolds.value.length + manualIndex;
 
-  // Use the same logic as AI holds
-  return getHoldInteraction(combinedIndex);
-};
+// Manual hold interaction methods - simplified with helper
+const getManualHoldInteraction = (hold, manualIndex) => 
+  getHoldInteraction(getCombinedHoldIndex(manualIndex));
 
-const getManualHoldInteractionAllowed = (hold, manualIndex) => {
-  // Calculate the combined index (AI holds + manual hold position)
-  const combinedIndex = aiHolds.value.length + manualIndex;
-
-  // Use the same logic as AI holds
-  return getHoldInteractionAllowed(combinedIndex);
-};
+const getManualHoldInteractionAllowed = (hold, manualIndex) => 
+  getHoldInteractionAllowed(getCombinedHoldIndex(manualIndex));
 
 const getManualHoldColor = (hold, manualIndex) => {
-  // Calculate the combined index (AI holds + manual hold position)
-  const combinedIndex = aiHolds.value.length + manualIndex;
-
-  // Use the same logic as AI holds but with green base color for manual holds
-  const baseColor = getHoldColor(combinedIndex);
-
-  // If it's a default color, use green for manual holds
-  if (baseColor === "#3b82f6") {
-    // blue-500 (default AI color)
-    return "#059669"; // green-600 for manual holds
-  }
-
-  return baseColor; // Keep special colors (purple for magic wand, etc.)
+  const baseColor = getHoldColor(getCombinedHoldIndex(manualIndex));
+  // Use green for manual holds instead of default blue
+  return baseColor === "#3b82f6" ? "#059669" : baseColor;
 };
 
 const handleHoldClick = (hold, index) => {
@@ -833,40 +808,30 @@ const handleHoldHover = (index, isEntering, event) => {
 };
 
 const handleManualHoldClick = (hold, manualIndex) => {
-  // In delete mode, delete the manual hold
   if (serverStore.isDeleteMode) {
     console.log("🗑️ Deleting manual hold:", hold);
     serverStore.removeManualHold(hold.id, props.locationId, props.imageUrl);
     return;
   }
 
-  // Calculate the combined index (AI holds + manual hold position)
-  const combinedIndex = aiHolds.value.length + manualIndex;
-
+  const combinedIndex = getCombinedHoldIndex(manualIndex);
   console.log("Manual hold clicked:", { hold, manualIndex, combinedIndex });
-
-  // Emit the same event that AI holds emit
   emit("hold-click", hold, combinedIndex);
 };
 
 const handleManualHoldHover = (hold, manualIndex, isEntering, event) => {
-  // Calculate the combined index (AI holds + manual hold position)
-  const combinedIndex = aiHolds.value.length + manualIndex;
-
+  const combinedIndex = getCombinedHoldIndex(manualIndex);
   console.log("Manual hold hover:", { hold, manualIndex, combinedIndex, isEntering });
 
-  // Update local hover state
   hoveredHoldIndex.value = isEntering ? combinedIndex : null;
 
   if (isEntering) {
-    // Find which problem this hold belongs to and highlight all holds in that problem
     const problemId = getHoldProblemId(combinedIndex);
     hoveredProblemIdLocal.value = problemId;
   } else {
     hoveredProblemIdLocal.value = null;
   }
 
-  // Emit the same event that AI holds emit
   emit("hold-hover", combinedIndex, isEntering, event);
 };
 

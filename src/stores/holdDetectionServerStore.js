@@ -21,7 +21,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   const error = ref(null);
 
   // API configuration
-  const apiUrl = ref("http://192.168.0.243:8000");
+  const apiUrl = ref("https://6d2401b5f155.ngrok-free.app");
   const apiHealthy = ref(false);
 
   // Processing progress
