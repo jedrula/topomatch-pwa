@@ -23,7 +23,7 @@ export const manualHoldsService = {
    */
   getDocumentId(imageUrl) {
     // Create a safe document ID from the image URL
-    return btoa(imageUrl).replace(/[/+=]/g, '_');
+    return btoa(imageUrl).replace(/[/+=]/g, "_");
   },
 
   /**
@@ -68,7 +68,7 @@ export const manualHoldsService = {
 
       const docId = this.getDocumentId(imageUrl);
       const holdsRef = doc(db, "locations", locationId, "manualHolds", docId);
-      
+
       const holdsData = {
         imageUrl,
         holds,
@@ -78,7 +78,7 @@ export const manualHoldsService = {
 
       // Check if document exists
       const existingDoc = await getDoc(holdsRef);
-      
+
       if (existingDoc.exists()) {
         // Update existing document
         await updateDoc(holdsRef, holdsData);
@@ -120,10 +120,10 @@ export const manualHoldsService = {
 
       // Load current holds
       const currentHolds = await this.loadManualHolds(locationId, imageUrl);
-      
+
       // Add new hold
       const updatedHolds = [...currentHolds, enhancedHold];
-      
+
       // Save back to Firestore
       await this.saveManualHolds(locationId, imageUrl, updatedHolds);
 
@@ -151,10 +151,10 @@ export const manualHoldsService = {
 
       // Load current holds
       const currentHolds = await this.loadManualHolds(locationId, imageUrl);
-      
+
       // Remove the hold
-      const updatedHolds = currentHolds.filter(hold => hold.id !== holdId);
-      
+      const updatedHolds = currentHolds.filter((hold) => hold.id !== holdId);
+
       // Save back to Firestore
       await this.saveManualHolds(locationId, imageUrl, updatedHolds);
 

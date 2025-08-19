@@ -33,9 +33,9 @@
       />
 
       <!-- Drawing preview -->
-      <g v-if="drawingPreview && serverStore.isDrawingMode">
+      <g v-if="drawingPath.length > 1 && serverStore.isDrawingMode">
         <path
-          :d="drawingPreview"
+          :d="createPreviewPath()"
           fill="rgba(59, 130, 246, 0.3)"
           stroke="#3b82f6"
           stroke-width="2"
@@ -61,43 +61,7 @@
       class="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-30 pointer-events-auto"
     >
       <div class="flex items-center space-x-3">
-        <span class="text-sm font-medium text-gray-700">Draw:</span>
-
-        <button
-          @click="serverStore.setDrawingTool('circle')"
-          :class="[
-            'px-3 py-1 text-sm rounded transition-colors',
-            serverStore.drawingTool === 'circle'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
-          ]"
-        >
-          Circle
-        </button>
-
-        <button
-          @click="serverStore.setDrawingTool('rectangle')"
-          :class="[
-            'px-3 py-1 text-sm rounded transition-colors',
-            serverStore.drawingTool === 'rectangle'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
-          ]"
-        >
-          Rectangle
-        </button>
-
-        <button
-          @click="serverStore.setDrawingTool('polygon')"
-          :class="[
-            'px-3 py-1 text-sm rounded transition-colors',
-            serverStore.drawingTool === 'polygon'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
-          ]"
-        >
-          Polygon
-        </button>
+        <span class="text-sm font-medium text-gray-700">Free Drawing Mode</span>
 
         <div class="border-l border-gray-300 pl-3">
           <button
@@ -110,7 +74,7 @@
       </div>
 
       <div class="mt-2 text-xs text-gray-600">
-        {{ getDrawingInstructions() }}
+        Draw around a hold - shape will close automatically when you release
       </div>
     </div>
   </div>
@@ -201,9 +165,7 @@ const hoveredProblemIdLocal = ref(null);
 
 // Drawing state
 const isDrawing = ref(false);
-const drawingStart = ref(null);
-const drawingPreview = ref(null);
-const currentPath = ref([]);
+const drawingPath = ref([]); // Points that make up the free drawing path
 
 // Computed properties
 const aiHolds = computed(() => props.detectionResults?.holds || []);
@@ -270,147 +232,90 @@ const startDrawing = (event) => {
 
   isDrawing.value = true;
   const coords = getCanvasCoordinates(event);
-  drawingStart.value = coords;
-
-  if (serverStore.drawingTool === "polygon") {
-    if (currentPath.value.length === 0) {
-      currentPath.value.push(coords);
-    }
-  }
+  drawingPath.value = [coords]; // Start new path
 };
 
 const updateDrawing = (event) => {
   if (!isDrawing.value || !serverStore.isDrawingMode) return;
 
   const coords = getCanvasCoordinates(event);
-
-  // Convert both start and current coordinates to image coordinates for SVG
-  const startImg = getImageCoordinates(drawingStart.value.x, drawingStart.value.y);
-  const currentImg = getImageCoordinates(coords.x, coords.y);
-
-  if (serverStore.drawingTool === "circle") {
-    const dx = currentImg.x - startImg.x;
-    const dy = currentImg.y - startImg.y;
-    const radius = Math.sqrt(dx * dx + dy * dy);
-    drawingPreview.value = `M ${startImg.x + radius} ${startImg.y} A ${radius} ${radius} 0 1 1 ${
-      startImg.x - radius
-    } ${startImg.y} A ${radius} ${radius} 0 1 1 ${startImg.x + radius} ${startImg.y}`;
-  } else if (serverStore.drawingTool === "rectangle") {
-    const x = Math.min(startImg.x, currentImg.x);
-    const y = Math.min(startImg.y, currentImg.y);
-    const width = Math.abs(currentImg.x - startImg.x);
-    const height = Math.abs(currentImg.y - startImg.y);
-    drawingPreview.value = `M ${x} ${y} L ${x + width} ${y} L ${x + width} ${y + height} L ${x} ${
-      y + height
-    } Z`;
-  }
+  drawingPath.value.push(coords); // Add point to path
 };
 
 const finishDrawing = (event) => {
   if (!isDrawing.value || !serverStore.isDrawingMode) return;
 
+  // Add final point if different from last point
   const coords = getCanvasCoordinates(event);
-
-  if (serverStore.drawingTool === "polygon") {
-    // Add point to polygon
-    currentPath.value.push(coords);
-    isDrawing.value = false;
-    return; // Don't finish polygon yet
+  const lastPoint = drawingPath.value[drawingPath.value.length - 1];
+  if (lastPoint && (Math.abs(coords.x - lastPoint.x) > 2 || Math.abs(coords.y - lastPoint.y) > 2)) {
+    drawingPath.value.push(coords);
   }
 
-  // Create hold from drawing
-  createHoldFromDrawing(coords);
+  // Create hold from the free drawing path
+  if (drawingPath.value.length >= 3) {
+    createHoldFromPath();
+  }
 
+  // Reset drawing state
   isDrawing.value = false;
-  drawingPreview.value = null;
+  drawingPath.value = [];
 };
 
 const cancelDrawing = () => {
   isDrawing.value = false;
-  drawingPreview.value = null;
+  drawingPath.value = [];
 };
 
-const createHoldFromDrawing = (endCoords) => {
-  if (!drawingStart.value) return;
+// Create SVG path string for preview
+const createPreviewPath = () => {
+  if (drawingPath.value.length < 2) return "";
+  
+  // Convert canvas coordinates to image coordinates for preview
+  const pathPoints = drawingPath.value.map(point => getImageCoordinates(point.x, point.y));
+  
+  const pathData = pathPoints
+    .map((point, index) => (index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`))
+    .join(" ");
+  
+  // Show preview with auto-close line
+  if (pathPoints.length > 2) {
+    return pathData + ` L ${pathPoints[0].x} ${pathPoints[0].y}`;
+  }
+  
+  return pathData;
+};
 
-  const startImg = getImageCoordinates(drawingStart.value.x, drawingStart.value.y);
-  const endImg = getImageCoordinates(endCoords.x, endCoords.y);
+const createHoldFromPath = () => {
+  if (drawingPath.value.length < 3) return;
 
-  let svgMarkup = "";
-  let boundingBox = {};
+  // Convert canvas coordinates to image coordinates
+  const pathPoints = drawingPath.value.map(point => getImageCoordinates(point.x, point.y));
 
-  if (serverStore.drawingTool === "circle") {
-    const dx = endImg.x - startImg.x;
-    const dy = endImg.y - startImg.y;
-    const radius = Math.sqrt(dx * dx + dy * dy);
-
-    svgMarkup = `<circle cx="${startImg.x}" cy="${startImg.y}" r="${radius}" fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2"/>`;
-    boundingBox = {
-      x: startImg.x - radius,
-      y: startImg.y - radius,
-      width: radius * 2,
-      height: radius * 2,
-    };
-  } else if (serverStore.drawingTool === "rectangle") {
-    const x = Math.min(startImg.x, endImg.x);
-    const y = Math.min(startImg.y, endImg.y);
-    const width = Math.abs(endImg.x - startImg.x);
-    const height = Math.abs(endImg.y - startImg.y);
-
-    svgMarkup = `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2"/>`;
-    boundingBox = { x, y, width, height };
+  // Auto-close the path by connecting last point to first point
+  const closedPath = [...pathPoints];
+  const firstPoint = pathPoints[0];
+  const lastPoint = pathPoints[pathPoints.length - 1];
+  
+  // Only add closing point if it's not already close to the start
+  const distance = Math.sqrt(
+    Math.pow(lastPoint.x - firstPoint.x, 2) + Math.pow(lastPoint.y - firstPoint.y, 2)
+  );
+  
+  if (distance > 10) { // If end is more than 10 pixels from start, auto-close
+    closedPath.push(firstPoint);
   }
 
-  // Create hold with the same structure as AI detection results
-  const hold = {
-    // Core bounding box properties (match YOLO output)
-    x: boundingBox.x,
-    y: boundingBox.y,
-    width: boundingBox.width,
-    height: boundingBox.height,
-
-    // Detection metadata
-    confidence: 1.0, // Manual holds have 100% confidence
-    type: "manual", // Mark as manual hold
-
-    // Center point (like YOLO center)
-    centerPoint: {
-      x: boundingBox.x + boundingBox.width / 2,
-      y: boundingBox.y + boundingBox.height / 2,
-    },
-
-    // Segmentation info (manual holds are already precisely defined)
-    segmented: true,
-    iouScore: 1.0, // Perfect "segmentation" since it's manually drawn
-
-    // SVG rendering data (for display)
-    svgMarkup,
-
-    // Manual-specific metadata
-    tool: serverStore.drawingTool,
-    timestamp: new Date().toISOString(),
-  };
-
-  serverStore.addManualHold(hold, props.locationId, props.imageUrl);
-};
-
-const finishPolygon = () => {
-  if (currentPath.value.length < 3) return;
-
-  // Convert to image coordinates
-  const pathPoints = currentPath.value.map((point) => getImageCoordinates(point.x, point.y));
-
-  // Create SVG path
-  const pathData =
-    pathPoints
-      .map((point, index) => (index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`))
-      .join(" ") + " Z";
+  // Create SVG path with auto-close
+  const pathData = closedPath
+    .map((point, index) => (index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`))
+    .join(" ") + " Z"; // Z closes the path
 
   const svgMarkup = `<path d="${pathData}" fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2"/>`;
 
   // Calculate bounding box
-  const xs = pathPoints.map((p) => p.x);
-  const ys = pathPoints.map((p) => p.y);
+  const xs = pathPoints.map(p => p.x);
+  const ys = pathPoints.map(p => p.y);
   const boundingBox = {
     x: Math.min(...xs),
     y: Math.min(...ys),
@@ -444,13 +349,12 @@ const finishPolygon = () => {
     svgMarkup,
 
     // Manual-specific metadata
-    tool: "polygon",
-    pathPoints,
+    tool: "freehand",
+    pathPoints: closedPath,
     timestamp: new Date().toISOString(),
   };
 
   serverStore.addManualHold(hold, props.locationId, props.imageUrl);
-  currentPath.value = [];
 };
 
 // Computed properties for filtering (from UnifiedHoldOverlay)
@@ -745,21 +649,7 @@ const handleManualHoldHover = (hold, manualIndex, isEntering, event) => {
 const exitDrawingMode = () => {
   serverStore.setDrawingMode(false);
   isDrawing.value = false;
-  drawingPreview.value = null;
-  currentPath.value = [];
-};
-
-const getDrawingInstructions = () => {
-  switch (serverStore.drawingTool) {
-    case "circle":
-      return "Click and drag to draw a circle";
-    case "rectangle":
-      return "Click and drag to draw a rectangle";
-    case "polygon":
-      return "Click to add points, double-click to finish";
-    default:
-      return "";
-  }
+  drawingPath.value = [];
 };
 
 // Canvas setup
@@ -809,28 +699,16 @@ function setupCanvas() {
   });
 }
 
-// Handle polygon double-click
-const handleDoubleClick = () => {
-  if (serverStore.drawingTool === "polygon" && currentPath.value.length >= 3) {
-    finishPolygon();
-  }
-};
-
 onMounted(() => {
   console.log("🎨 InteractiveHoldOverlay mounted");
   nextTick(() => {
     setupCanvas();
-    if (drawingCanvas.value) {
-      drawingCanvas.value.addEventListener("dblclick", handleDoubleClick);
-      console.log("🎨 Canvas event listeners added");
-    }
+    console.log("🎨 Canvas setup completed");
   });
 });
 
 onUnmounted(() => {
-  if (drawingCanvas.value) {
-    drawingCanvas.value.removeEventListener("dblclick", handleDoubleClick);
-  }
+  console.log("🎨 InteractiveHoldOverlay unmounted");
 });
 
 // Watch for drawing mode changes

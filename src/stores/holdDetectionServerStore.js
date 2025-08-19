@@ -36,7 +36,6 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   // Manual holds
   const manualHolds = ref([]);
   const isDrawingMode = ref(false);
-  const drawingTool = ref("circle"); // circle, rectangle, polygon
 
   // Compression settings
   const compressionSettings = ref({
@@ -349,7 +348,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       // Remove from local state immediately for responsive UI
       const index = manualHolds.value.findIndex((hold) => hold.id === holdId);
       let removedHold = null;
-      
+
       if (index !== -1) {
         removedHold = manualHolds.value.splice(index, 1)[0];
         console.log("🗑️ Removed manual hold locally:", holdId);
@@ -390,11 +389,6 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   const setDrawingMode = (enabled) => {
     isDrawingMode.value = enabled;
     console.log("✏️ Drawing mode:", enabled ? "enabled" : "disabled");
-  };
-
-  const setDrawingTool = (tool) => {
-    drawingTool.value = tool;
-    console.log("🔧 Drawing tool set to:", tool);
   };
 
   // Load manual holds from Firestore
@@ -454,7 +448,6 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     compressionSettings,
     manualHolds,
     isDrawingMode,
-    drawingTool,
 
     // Computed
     isReady,
@@ -478,7 +471,6 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     removeManualHold,
     clearManualHolds,
     setDrawingMode,
-    setDrawingTool,
     loadManualHolds,
     saveManualHolds,
 
