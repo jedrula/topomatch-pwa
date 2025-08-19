@@ -3,7 +3,7 @@
     <!-- Main SVG overlay with both AI and manual holds -->
     <svg
       v-if="hasAnyHolds || serverStore.isDrawingMode"
-      class="absolute inset-0 w-full h-full pointer-events-none"
+      class="absolute inset-0 w-full h-full pointer-events-none z-10"
       :viewBox="svgViewBox"
       preserveAspectRatio="none"
       ref="svgElement"
@@ -33,7 +33,7 @@
       />
 
       <!-- Drawing preview -->
-      <g v-if="drawingPath.length > 1 && serverStore.isDrawingMode">
+      <g v-if="drawingPath.length > 1 && isAnyDrawingMode">
         <path
           :d="createPreviewPath()"
           fill="rgba(59, 130, 246, 0.3)"
@@ -46,9 +46,9 @@
 
     <!-- Drawing canvas overlay -->
     <canvas
-      v-if="serverStore.isDrawingMode"
+      v-if="isAnyDrawingMode"
       ref="drawingCanvas"
-      class="absolute inset-0 w-full h-full cursor-crosshair pointer-events-auto z-20"
+      class="absolute inset-0 w-full h-full z-30 cursor-crosshair pointer-events-auto"
       @mousedown="startDrawing"
       @mousemove="updateDrawing"
       @mouseup="finishDrawing"
@@ -58,7 +58,7 @@
     <!-- Drawing controls -->
     <div
       v-if="serverStore.isDrawingMode"
-      class="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-30 pointer-events-auto"
+      class="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-40 pointer-events-auto"
     >
       <div class="flex items-center space-x-3">
         <span class="text-sm font-medium text-gray-700">Free Drawing Mode</span>
@@ -78,10 +78,24 @@
       </div>
     </div>
 
+    <!-- Quick Draw Mode hint (only when creating/editing boulder problems) -->
+    <div
+      v-if="isQuickDrawEnabled && !serverStore.isDrawingMode"
+      class="absolute top-4 left-4 bg-blue-50 border border-blue-200 rounded-lg shadow-lg p-3 z-40 pointer-events-none"
+    >
+      <div class="flex items-center space-x-2">
+        <span class="text-blue-600">⚡</span>
+        <span class="text-sm font-medium text-blue-700">Quick Draw Active</span>
+      </div>
+      <div class="mt-1 text-xs text-blue-600">
+        Drag on empty areas to add new holds to the problem
+      </div>
+    </div>
+
     <!-- Delete controls -->
     <div
       v-if="serverStore.isDeleteMode"
-      class="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-30 pointer-events-auto"
+      class="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-40 pointer-events-auto"
     >
       <div class="flex items-center space-x-3">
         <span class="text-sm font-medium text-red-700">🗑️ Delete Mode</span>
@@ -104,7 +118,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useHoldDetectionServerStore } from "@/stores/holdDetectionServerStore";
+import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 import HoldSvg from "./HoldSvg.vue";
+import { ensureHoldHasSvgMarkup } from "@/utils/svgUtils.js";
 
 const props = defineProps({
   detectionResults: {
@@ -177,6 +193,7 @@ const props = defineProps({
 const emit = defineEmits(["hold-click", "hold-hover"]);
 
 const serverStore = useHoldDetectionServerStore();
+const boulderProblemsStore = useBoulderProblemsStore();
 const svgElement = ref(null);
 const drawingCanvas = ref(null);
 
@@ -187,6 +204,16 @@ const hoveredProblemIdLocal = ref(null);
 // Drawing state
 const isDrawing = ref(false);
 const drawingPath = ref([]); // Points that make up the free drawing path
+
+// Quick draw mode - enabled when creating/editing boulder problems
+const isQuickDrawEnabled = computed(() => {
+  return (props.isCreatingProblem || props.isEditingProblem) && !serverStore.isDeleteMode;
+});
+
+// Combined drawing mode - either explicit drawing mode or quick draw mode
+const isAnyDrawingMode = computed(() => {
+  return serverStore.isDrawingMode || isQuickDrawEnabled.value;
+});
 
 // Computed properties
 const aiHolds = computed(() => props.detectionResults?.holds || []);
@@ -248,23 +275,68 @@ const getImageCoordinates = (canvasX, canvasY) => {
   return coords;
 };
 
-const startDrawing = (event) => {
-  if (!serverStore.isDrawingMode) return;
-
-  isDrawing.value = true;
+// Helper function to check if click/drag started on an existing hold
+const isClickOnExistingHold = (event) => {
+  // Get the coordinates of the click
   const coords = getCanvasCoordinates(event);
-  drawingPath.value = [coords]; // Start new path
+  const imageCoords = getImageCoordinates(coords.x, coords.y);
+
+  // Check if click is within any existing hold's bounding box
+  const allHolds = [...aiHolds.value, ...serverStore.manualHolds];
+
+  for (const hold of allHolds) {
+    if (hold.x && hold.y && hold.width && hold.height) {
+      // Check if click is within this hold's bounding box
+      if (
+        imageCoords.x >= hold.x &&
+        imageCoords.x <= hold.x + hold.width &&
+        imageCoords.y >= hold.y &&
+        imageCoords.y <= hold.y + hold.height
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+const startDrawing = (event) => {
+  // In explicit drawing mode, always allow drawing
+  if (serverStore.isDrawingMode) {
+    isDrawing.value = true;
+    const coords = getCanvasCoordinates(event);
+    drawingPath.value = [coords]; // Start new path
+    return;
+  }
+
+  // In quick draw mode, only allow drawing if not clicking on existing hold
+  if (isQuickDrawEnabled.value) {
+    if (isClickOnExistingHold(event)) {
+      // Let the click pass through to hold selection by not starting drawing
+      // The canvas will not intercept this event
+      console.log("🎯 Click on existing hold detected - allowing pass-through");
+      return;
+    }
+
+    // Start drawing in empty area
+    console.log("⚡ Quick Draw: Starting draw in empty area");
+    isDrawing.value = true;
+    const coords = getCanvasCoordinates(event);
+    drawingPath.value = [coords]; // Start new path
+    return;
+  }
 };
 
 const updateDrawing = (event) => {
-  if (!isDrawing.value || !serverStore.isDrawingMode) return;
+  if (!isDrawing.value || !isAnyDrawingMode.value) return;
 
   const coords = getCanvasCoordinates(event);
   drawingPath.value.push(coords); // Add point to path
 };
 
 const finishDrawing = (event) => {
-  if (!isDrawing.value || !serverStore.isDrawingMode) return;
+  if (!isDrawing.value || !isAnyDrawingMode.value) return;
 
   // Add final point if different from last point
   const coords = getCanvasCoordinates(event);
@@ -377,7 +449,28 @@ const createHoldFromPath = () => {
     timestamp: new Date().toISOString(),
   };
 
+  // Save the manual hold to Firestore
   serverStore.addManualHold(hold, props.locationId, props.imageUrl);
+
+  // If in quick draw mode (boulder problem creation/editing),
+  // automatically add the hold to the active problem
+  if (isQuickDrawEnabled.value) {
+    const activeProblem = props.activeProblem || props.editingProblem;
+    if (activeProblem) {
+      // Get the index of the newly created hold in the combined holds array
+      // Manual holds come after AI holds in the combined array
+      const aiHoldsCount = aiHolds.value.length;
+      const manualHoldIndex = aiHoldsCount + serverStore.manualHolds.length - 1; // -1 because we just added it
+
+      // Ensure the hold has svgMarkup for consistent display
+      const enrichedHold = ensureHoldHasSvgMarkup(hold);
+
+      // Add to the active problem
+      boulderProblemsStore.addHoldToProblem(activeProblem.id, enrichedHold, manualHoldIndex);
+
+      console.log(`⚡ Quick Draw: Added hold to boulder problem "${activeProblem.name}"`);
+    }
+  }
 };
 
 // Computed properties for filtering (from UnifiedHoldOverlay)
@@ -710,12 +803,12 @@ const exitDeleteMode = () => {
 // Canvas setup
 function setupCanvas() {
   console.log("setupCanvas called", {
-    drawingMode: serverStore.isDrawingMode,
+    isAnyDrawingMode: isAnyDrawingMode.value,
     canvasRef: !!drawingCanvas.value,
     imageElement: !!props.imageElement,
   });
 
-  if (!serverStore.isDrawingMode || !drawingCanvas.value || !props.imageElement) {
+  if (!isAnyDrawingMode.value || !drawingCanvas.value || !props.imageElement) {
     console.log("setupCanvas early return - conditions not met");
     return;
   }
@@ -768,10 +861,14 @@ onUnmounted(() => {
 
 // Watch for drawing mode changes
 watch(
-  () => serverStore.isDrawingMode,
-  (newMode) => {
-    console.log("🎨 Drawing mode changed to:", newMode);
-    if (newMode) {
+  [() => serverStore.isDrawingMode, () => isQuickDrawEnabled.value],
+  ([newDrawingMode, newQuickDrawMode]) => {
+    console.log("🎨 Drawing mode changed:", {
+      drawingMode: newDrawingMode,
+      quickDrawMode: newQuickDrawMode,
+      anyDrawingMode: isAnyDrawingMode.value,
+    });
+    if (newDrawingMode || newQuickDrawMode) {
       nextTick(() => {
         setupCanvas();
       });

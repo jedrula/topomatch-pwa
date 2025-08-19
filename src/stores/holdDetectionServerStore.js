@@ -38,6 +38,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   const manualHolds = ref([]);
   const isDrawingMode = ref(false);
   const isDeleteMode = ref(false);
+  const isQuickDrawMode = ref(false); // Auto drawing mode for boulder problem creation
 
   // Compression settings
   const compressionSettings = ref({
@@ -398,6 +399,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     isDrawingMode.value = enabled;
     if (enabled) {
       isDeleteMode.value = false; // Disable delete mode when drawing
+      isQuickDrawMode.value = false; // Disable quick draw mode when in explicit drawing
     }
     console.log("✏️ Drawing mode:", enabled ? "enabled" : "disabled");
   };
@@ -406,8 +408,18 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     isDeleteMode.value = enabled;
     if (enabled) {
       isDrawingMode.value = false; // Disable drawing mode when deleting
+      isQuickDrawMode.value = false; // Disable quick draw mode when deleting
     }
     console.log("🗑️ Delete mode:", enabled ? "enabled" : "disabled");
+  };
+
+  const setQuickDrawMode = (enabled) => {
+    isQuickDrawMode.value = enabled;
+    if (enabled) {
+      isDrawingMode.value = false; // Disable explicit drawing mode
+      isDeleteMode.value = false; // Disable delete mode
+    }
+    console.log("⚡ Quick draw mode:", enabled ? "enabled" : "disabled");
   };
 
   // Load manual holds from Firestore
@@ -468,6 +480,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     manualHolds,
     isDrawingMode,
     isDeleteMode,
+    isQuickDrawMode,
 
     // Computed
     isReady,
@@ -492,6 +505,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     clearManualHolds,
     setDrawingMode,
     setDeleteMode,
+    setQuickDrawMode,
     loadManualHolds,
     saveManualHolds,
 
