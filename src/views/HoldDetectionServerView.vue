@@ -89,6 +89,8 @@
                   :is-showing-only-one-problem="boulderProblemsStore.isShowingOnlyOneProblem"
                   :isolated-problem="boulderProblemsStore.isolatedProblem"
                   :filtered-problems="filteredProblems"
+                  :location-id="route.params.locationId"
+                  :image-url="imageUrl"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   ref="interactiveOverlay"
@@ -799,11 +801,11 @@ const toggleDrawingMode = () => {
       toggleMagicWand();
     }
     // Load existing manual holds for this image
-    serverStore.loadManualHolds(imageUrl.value);
+    serverStore.loadManualHolds(route.params.locationId, imageUrl.value);
   } else {
     console.log("✏️ Drawing mode deactivated");
     // Save manual holds when exiting drawing mode
-    serverStore.saveManualHolds(imageUrl.value);
+    serverStore.saveManualHolds(route.params.locationId, imageUrl.value);
   }
 };
 
@@ -1111,6 +1113,9 @@ const loadImageFromQuery = async () => {
 
         // Check if we have cached results and auto-load them
         await checkAndLoadCachedResults();
+        
+        // Load existing manual holds for this image
+        await serverStore.loadManualHolds(locationId, currentImage.value.url);
       } else {
         console.warn(`⚠️ Image with ID ${imageId} not found in location ${locationId}`);
         currentImage.value = null;

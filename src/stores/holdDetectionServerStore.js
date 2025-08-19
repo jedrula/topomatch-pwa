@@ -9,6 +9,7 @@ import {
   clearDetectionCacheForImage,
   hasCachedDetectionResult,
 } from "../services/detectionCacheService.js";
+import { manualHoldsService } from "../services/manualHoldsService.js";
 
 export const useHoldDetectionServerStore = defineStore("holdDetectionServer", () => {
   // Core state
@@ -309,7 +310,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   };
 
   // Manual hold management actions
-  const addManualHold = (hold) => {
+  const addManualHold = async (hold, locationId, imageUrl) => {
     // Generate unique ID for manual hold
     const id = `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const manualHold = {
@@ -319,21 +320,71 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       type: "manual",
       timestamp: new Date().toISOString(),
     };
-    manualHolds.value.push(manualHold);
-    console.log("✅ Added manual hold:", manualHold);
-  };
 
-  const removeManualHold = (holdId) => {
-    const index = manualHolds.value.findIndex((hold) => hold.id === holdId);
-    if (index !== -1) {
-      manualHolds.value.splice(index, 1);
-      console.log("🗑️ Removed manual hold:", holdId);
+    try {
+      // Add to local state immediately for responsive UI
+      manualHolds.value.push(manualHold);
+      console.log("✅ Added manual hold locally:", manualHold);
+
+      // Save to Firestore if locationId and imageUrl are provided
+      if (locationId && imageUrl) {
+        await manualHoldsService.addManualHold(locationId, imageUrl, manualHold);
+        console.log("☁️ Saved manual hold to Firestore");
+      }
+
+      return manualHold;
+    } catch (error) {
+      // If Firestore save fails, remove from local state
+      const index = manualHolds.value.findIndex((hold) => hold.id === id);
+      if (index !== -1) {
+        manualHolds.value.splice(index, 1);
+      }
+      console.error("❌ Error adding manual hold:", error);
+      throw error;
     }
   };
 
-  const clearManualHolds = () => {
-    manualHolds.value = [];
-    console.log("🧹 Cleared all manual holds");
+  const removeManualHold = async (holdId, locationId, imageUrl) => {
+    try {
+      // Remove from local state immediately for responsive UI
+      const index = manualHolds.value.findIndex((hold) => hold.id === holdId);
+      let removedHold = null;
+      
+      if (index !== -1) {
+        removedHold = manualHolds.value.splice(index, 1)[0];
+        console.log("🗑️ Removed manual hold locally:", holdId);
+      }
+
+      // Remove from Firestore if locationId and imageUrl are provided
+      if (locationId && imageUrl) {
+        await manualHoldsService.removeManualHold(locationId, imageUrl, holdId);
+        console.log("☁️ Removed manual hold from Firestore");
+      }
+    } catch (error) {
+      // If Firestore removal fails, reload from Firestore to sync state
+      if (locationId && imageUrl) {
+        await loadManualHolds(locationId, imageUrl);
+      }
+      console.error("❌ Error removing manual hold:", error);
+      throw error;
+    }
+  };
+
+  const clearManualHolds = async (locationId, imageUrl) => {
+    try {
+      // Clear local state immediately
+      manualHolds.value = [];
+      console.log("🧹 Cleared all manual holds locally");
+
+      // Clear from Firestore if locationId and imageUrl are provided
+      if (locationId && imageUrl) {
+        await manualHoldsService.clearManualHolds(locationId, imageUrl);
+        console.log("☁️ Cleared manual holds from Firestore");
+      }
+    } catch (error) {
+      console.error("❌ Error clearing manual holds:", error);
+      throw error;
+    }
   };
 
   const setDrawingMode = (enabled) => {
@@ -346,28 +397,38 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     console.log("🔧 Drawing tool set to:", tool);
   };
 
-  // Load manual holds from localStorage (for persistence)
-  const loadManualHolds = (imageUrl) => {
+  // Load manual holds from Firestore
+  const loadManualHolds = async (locationId, imageUrl) => {
     try {
-      const key = `manual_holds_${btoa(imageUrl)}`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        manualHolds.value = JSON.parse(stored);
-        console.log("📥 Loaded manual holds from storage:", manualHolds.value.length);
+      if (!locationId || !imageUrl) {
+        console.log("📥 No location or image URL provided, skipping manual holds load");
+        manualHolds.value = [];
+        return;
       }
+
+      const holds = await manualHoldsService.loadManualHolds(locationId, imageUrl);
+      manualHolds.value = holds;
+      console.log("📥 Loaded manual holds from Firestore:", holds.length);
     } catch (error) {
       console.error("❌ Error loading manual holds:", error);
+      // Don't throw error - just log it and continue with empty holds
+      manualHolds.value = [];
     }
   };
 
-  // Save manual holds to localStorage
-  const saveManualHolds = (imageUrl) => {
+  // Save all current manual holds to Firestore
+  const saveManualHolds = async (locationId, imageUrl) => {
     try {
-      const key = `manual_holds_${btoa(imageUrl)}`;
-      localStorage.setItem(key, JSON.stringify(manualHolds.value));
-      console.log("💾 Saved manual holds to storage:", manualHolds.value.length);
+      if (!locationId || !imageUrl) {
+        console.log("💾 No location or image URL provided, skipping manual holds save");
+        return;
+      }
+
+      await manualHoldsService.saveManualHolds(locationId, imageUrl, manualHolds.value);
+      console.log("💾 Saved manual holds to Firestore:", manualHolds.value.length);
     } catch (error) {
       console.error("❌ Error saving manual holds:", error);
+      throw error;
     }
   };
 

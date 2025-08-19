@@ -39,6 +39,12 @@ service cloud.firestore {
           allow update, delete: if isOwner(resource.data.userId) || isAdmin();
         }
       }
+      
+      // Manual holds subcollection
+      match /manualHolds/{holdDocId} {
+        allow read: if true; // Public read access - manual holds are shared
+        allow write: if isAuthenticated(); // Authenticated users can contribute manual holds
+      }
     }
 
     // Location images

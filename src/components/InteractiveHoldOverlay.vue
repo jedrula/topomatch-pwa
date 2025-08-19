@@ -178,6 +178,15 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Firestore integration props
+  locationId: {
+    type: String,
+    default: null,
+  },
+  imageUrl: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits(["hold-click", "hold-hover"]);
@@ -380,17 +389,9 @@ const createHoldFromDrawing = (endCoords) => {
     // Manual-specific metadata
     tool: serverStore.drawingTool,
     timestamp: new Date().toISOString(),
-
-    // Ensure compatibility with existing boulder problem logic
-    boundingBox, // Keep legacy property for compatibility
-    center: {
-      // Keep legacy property for compatibility
-      x: boundingBox.x + boundingBox.width / 2,
-      y: boundingBox.y + boundingBox.height / 2,
-    },
   };
 
-  serverStore.addManualHold(hold);
+  serverStore.addManualHold(hold, props.locationId, props.imageUrl);
 };
 
 const finishPolygon = () => {
@@ -446,17 +447,9 @@ const finishPolygon = () => {
     tool: "polygon",
     pathPoints,
     timestamp: new Date().toISOString(),
-
-    // Ensure compatibility with existing boulder problem logic
-    boundingBox, // Keep legacy property for compatibility
-    center: {
-      // Keep legacy property for compatibility
-      x: boundingBox.x + boundingBox.width / 2,
-      y: boundingBox.y + boundingBox.height / 2,
-    },
   };
 
-  serverStore.addManualHold(hold);
+  serverStore.addManualHold(hold, props.locationId, props.imageUrl);
   currentPath.value = [];
 };
 
