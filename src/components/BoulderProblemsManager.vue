@@ -1,7 +1,45 @@
 <template>
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+  <div
+    ref="panelElement"
+    :class="[
+      'bg-white rounded-lg border border-gray-200',
+      props.isFullscreen ? 'fixed z-50' : 'shadow-sm',
+      props.isFullscreen && isDragging ? 'shadow-2xl' : props.isFullscreen ? 'shadow-lg' : '',
+    ]"
+    :style="
+      props.isFullscreen
+        ? {
+            left: panelX + 'px',
+            top: panelY + 'px',
+            maxWidth: '320px',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            opacity: isDragging ? '0.9' : '1',
+            transition: isDragging ? 'none' : 'opacity 0.2s ease',
+          }
+        : {}
+    "
+  >
     <div class="p-6">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Boulder Problems</h3>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-gray-900">
+          Boulder Problems
+          <span v-if="props.isFullscreen" class="text-xs text-gray-500 ml-2">(Drag to move)</span>
+        </h3>
+        <!-- Drag handle for fullscreen mode -->
+        <div
+          v-if="props.isFullscreen"
+          class="flex items-center text-gray-400 hover:text-gray-600 cursor-move transition-colors"
+          title="Drag to move panel"
+          @mousedown="startDrag"
+        >
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+            />
+          </svg>
+        </div>
+      </div>
 
       <!-- Error Message -->
       <div
@@ -386,6 +424,10 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  isFullscreen: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits([
@@ -414,6 +456,48 @@ const initializeDefaultGrade = () => {
 
 // Grade filtering state - single range array [min, max]
 const gradeRange = ref([0, boulderProblemsStore.grades.length - 1]);
+
+// Dragging functionality for fullscreen mode
+const isDragging = ref(false);
+const dragStartX = ref(0);
+const dragStartY = ref(0);
+const panelX = ref(20); // Initial X position
+const panelY = ref(20); // Initial Y position
+const panelElement = ref(null);
+
+const startDrag = (event) => {
+  if (!props.isFullscreen) return;
+
+  isDragging.value = true;
+  dragStartX.value = event.clientX - panelX.value;
+  dragStartY.value = event.clientY - panelY.value;
+
+  document.addEventListener("mousemove", onDrag);
+  document.addEventListener("mouseup", stopDrag);
+
+  // Prevent text selection during drag
+  event.preventDefault();
+};
+
+const onDrag = (event) => {
+  if (!isDragging.value) return;
+
+  const newX = event.clientX - dragStartX.value;
+  const newY = event.clientY - dragStartY.value;
+
+  // Keep panel within viewport bounds
+  const maxX = window.innerWidth - (panelElement.value?.offsetWidth || 300);
+  const maxY = window.innerHeight - (panelElement.value?.offsetHeight || 400);
+
+  panelX.value = Math.max(0, Math.min(newX, maxX));
+  panelY.value = Math.max(0, Math.min(newY, maxY));
+};
+
+const stopDrag = () => {
+  isDragging.value = false;
+  document.removeEventListener("mousemove", onDrag);
+  document.removeEventListener("mouseup", stopDrag);
+};
 
 // Computed properties for grade filtering
 const selectedMinGrade = computed(() => boulderProblemsStore.grades[gradeRange.value[0]]);
@@ -455,15 +539,6 @@ const editingProblem = computed(() => {
     : null;
 });
 
-// Tool selection state
-const holdSelectionTool = ref("single");
-
-const setHoldSelectionTool = (tool) => {
-  holdSelectionTool.value = tool;
-  // Emit tool selection change to parent
-  emit("tool-selection-change", tool);
-};
-
 const startCreatingProblem = async () => {
   try {
     await boulderProblemsStore.createNewProblem(selectedGrade.value, problemName.value);
@@ -491,20 +566,18 @@ const finishProblem = async () => {
 
   await boulderProblemsStore.finishCreatingProblem();
 
-  // Reset form and tool selection
+  // Reset form
   problemName.value = "";
   initializeDefaultGrade();
-  holdSelectionTool.value = "single";
   emit("tool-selection-change", "single");
 };
 
 const cancelProblem = async () => {
   await boulderProblemsStore.cancelCreatingProblem();
 
-  // Reset form and tool selection
+  // Reset form
   problemName.value = "";
   initializeDefaultGrade();
-  holdSelectionTool.value = "single";
   emit("tool-selection-change", "single");
 };
 
@@ -542,7 +615,6 @@ const editProblem = (problem) => {
   selectedGrade.value = getGradeLabel(problem.grade);
 
   // Reset tool selection to single when starting edit
-  holdSelectionTool.value = "single";
   emit("tool-selection-change", "single");
 };
 
@@ -606,7 +678,6 @@ const cancelEdit = async () => {
   // Reset form state
   problemName.value = "";
   initializeDefaultGrade();
-  holdSelectionTool.value = "single";
   emit("tool-selection-change", "single");
 };
 
@@ -783,11 +854,27 @@ watch(
   { immediate: true }
 );
 
+// Reset panel position when entering/exiting fullscreen
+watch(
+  () => props.isFullscreen,
+  (newIsFullscreen) => {
+    if (newIsFullscreen) {
+      // Reset to default position when entering fullscreen
+      panelX.value = 20;
+      panelY.value = 20;
+    }
+  }
+);
+
 // Cleanup timeout on unmount
 onUnmounted(() => {
   if (updateTimeout) {
     clearTimeout(updateTimeout);
   }
+
+  // Cleanup drag event listeners
+  document.removeEventListener("mousemove", onDrag);
+  document.removeEventListener("mouseup", stopDrag);
 });
 </script>
 

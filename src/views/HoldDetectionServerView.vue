@@ -46,9 +46,42 @@
               </div>
               <!-- Image Container -->
               <div
+                ref="imageContainer"
                 class="relative bg-gray-100 rounded-lg overflow-hidden min-h-64"
                 style="aspect-ratio: auto"
               >
+                <!-- Fullscreen Toggle Button -->
+                <button
+                  v-if="imageLoaded && !serverStore.isProcessing"
+                  @click="toggleFullscreen"
+                  class="absolute top-4 right-4 z-50 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-lg p-2 transition-all duration-200 pointer-events-auto"
+                  :title="isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'"
+                >
+                  <!-- Fullscreen Icon -->
+                  <svg
+                    v-if="!isFullscreen"
+                    class="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"
+                    />
+                  </svg>
+                  <!-- Exit Fullscreen Icon -->
+                  <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 4H4v4M16 4h4v4M8 20H4v-4M16 20h4v-4"
+                    />
+                  </svg>
+                </button>
                 <!-- Loading state when no image is available -->
                 <div
                   v-if="route.query.imageId && !currentImage && !imageLoadError"
@@ -91,8 +124,10 @@
                   :filtered-problems="filteredProblems"
                   :location-id="route.params.locationId"
                   :image-url="imageUrl"
+                  :boulder-hold-selection-tool="boulderHoldSelectionTool"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
+                  @tool-selection-change="handleToolSelectionChange"
                   ref="interactiveOverlay"
                 />
 
@@ -145,6 +180,22 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- Fullscreen Boulder Problems Manager - inside image container for fullscreen visibility -->
+                <BoulderProblemsManager
+                  v-if="isFullscreen && route.params.locationId"
+                  :location-id="route.params.locationId"
+                  :has-detection-results="serverStore.hasResults"
+                  :detection-results="serverStore.results"
+                  :climbing-image="climbingImage"
+                  :editing-problem-id="editingState.editingProblemId"
+                  :is-fullscreen="true"
+                  @start-editing="startEditingProblem"
+                  @stop-editing="stopEditingProblem"
+                  @tool-selection-change="handleToolSelectionChange"
+                  @problem-hover="handleProblemCardHover"
+                  @filtered-problems-change="handleFilteredProblemsChange"
+                />
               </div>
 
               <!-- Action Buttons -->
@@ -212,6 +263,28 @@
                     />
                   </svg>
                   <span>{{ serverStore.isDrawingMode ? "Exit Drawing" : "Draw Holds" }}</span>
+                </button>
+
+                <!-- Manual Hold Delete Toggle -->
+                <button
+                  v-if="serverStore.manualHolds.length > 0"
+                  @click="toggleDeleteMode"
+                  :class="[
+                    'px-6 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
+                    serverStore.isDeleteMode
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'border border-red-600 text-red-600 hover:bg-red-50',
+                  ]"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  <span>{{ serverStore.isDeleteMode ? "Exit Delete" : "Delete Holds" }}</span>
                 </button>
 
                 <!-- Magic Wand Button - Only show when not in boulder creation/editing mode -->
@@ -381,12 +454,13 @@
         <div class="space-y-6">
           <!-- Boulder Problems Manager -->
           <BoulderProblemsManager
-            v-if="route.params.locationId"
+            v-if="route.params.locationId && !isFullscreen"
             :location-id="route.params.locationId"
             :has-detection-results="serverStore.hasResults"
             :detection-results="serverStore.results"
             :climbing-image="climbingImage"
             :editing-problem-id="editingState.editingProblemId"
+            :is-fullscreen="false"
             @start-editing="startEditingProblem"
             @stop-editing="stopEditingProblem"
             @tool-selection-change="handleToolSelectionChange"
@@ -618,7 +692,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useHoldDetectionServerStore } from "@/stores/holdDetectionServerStore.js";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore.js";
@@ -626,6 +700,7 @@ import { locationService } from "@/services/locationService";
 import InteractiveHoldOverlay from "@/components/InteractiveHoldOverlay.vue";
 import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
 import FloatingBoulderProblemCard from "@/components/FloatingBoulderProblemCard.vue";
+import { ensureHoldHasSvgMarkup } from "@/utils/svgUtils.js";
 import { performMagicWandSelection, isHoldInMagicWandSelection } from "@/utils/magicWandUtils.js";
 
 const route = useRoute();
@@ -636,10 +711,14 @@ const boulderProblemsStore = useBoulderProblemsStore();
 // Reactive state
 // References
 const climbingImage = ref(null);
+const imageContainer = ref(null);
 const interactiveOverlay = ref(null);
 const imageLoaded = ref(false);
 const currentImage = ref(null);
 const imageLoadError = ref(null);
+
+// Fullscreen state
+const isFullscreen = ref(false);
 
 // Hold interaction state
 const hoveredProblemId = ref(null);
@@ -731,6 +810,38 @@ const onImageLoad = () => {
   // Image loaded - ready for interactions
 };
 
+// Fullscreen functionality
+const toggleFullscreen = async () => {
+  try {
+    if (!isFullscreen.value) {
+      // Enter fullscreen
+      const element = imageContainer.value;
+      if (element.requestFullscreen) {
+        await element.requestFullscreen();
+      } else if (element.webkitRequestFullscreen) {
+        await element.webkitRequestFullscreen();
+      } else if (element.mozRequestFullScreen) {
+        await element.mozRequestFullScreen();
+      } else if (element.msRequestFullscreen) {
+        await element.msRequestFullscreen();
+      }
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        await document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        await document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        await document.msExitFullscreen();
+      }
+    }
+  } catch (error) {
+    console.error("Fullscreen toggle failed:", error);
+  }
+};
+
 const testApiHealth = async () => {
   console.log("🔍 Testing API health...");
   const result = await serverStore.testApiHealth();
@@ -793,7 +904,6 @@ const toggleDrawingMode = () => {
     console.log("✏️ Drawing mode activated - draw holds directly on the image");
     console.log("📊 Current state:", {
       isDrawingMode: serverStore.isDrawingMode,
-      drawingTool: serverStore.drawingTool,
       manualHolds: serverStore.manualHolds.length,
     });
     // Disable magic wand when entering drawing mode
@@ -805,6 +915,26 @@ const toggleDrawingMode = () => {
   } else {
     console.log("✏️ Drawing mode deactivated");
     // Save manual holds when exiting drawing mode
+    serverStore.saveManualHolds(route.params.locationId, imageUrl.value);
+  }
+};
+
+const toggleDeleteMode = () => {
+  const newDeleteMode = !serverStore.isDeleteMode;
+  console.log("🔄 Toggling delete mode:", serverStore.isDeleteMode, "→", newDeleteMode);
+  serverStore.setDeleteMode(newDeleteMode);
+
+  if (newDeleteMode) {
+    console.log("🗑️ Delete mode activated - click on manual holds to delete them");
+    // Disable magic wand when entering delete mode
+    if (magicWandActive.value) {
+      toggleMagicWand();
+    }
+    // Load existing manual holds for this image
+    serverStore.loadManualHolds(route.params.locationId, imageUrl.value);
+  } else {
+    console.log("🗑️ Delete mode deactivated");
+    // Save manual holds when exiting delete mode
     serverStore.saveManualHolds(route.params.locationId, imageUrl.value);
   }
 };
@@ -882,13 +1012,19 @@ const handleHoldClick = (hold, holdIndex) => {
       result.selectedIndices.forEach((selectedHoldIndex) => {
         const selectedHold = allHolds[selectedHoldIndex];
         if (selectedHold) {
-          // Enhance hold data with SVG markup from combined markups (AI + manual)
-          const enhancedHold = {
-            ...selectedHold,
-            svgMarkup:
-              serverStore.combinedSvgMarkups?.[selectedHoldIndex] || selectedHold.svgMarkup || null,
-            detectionSource: selectedHold.svgMarkup ? "manual" : "server",
-          };
+          // Ensure hold has svgMarkup (converts from pathPoints if needed for manual holds)
+          let enhancedHold = ensureHoldHasSvgMarkup(selectedHold);
+
+          // Use combined markups if available (for AI holds)
+          if (serverStore.combinedSvgMarkups?.[selectedHoldIndex]) {
+            enhancedHold = {
+              ...enhancedHold,
+              svgMarkup: serverStore.combinedSvgMarkups[selectedHoldIndex],
+            };
+          }
+
+          // Set detection source
+          enhancedHold.detectionSource = selectedHold.pathPoints ? "manual" : "server";
 
           // Add hold to the target problem (this will toggle - add if not present, remove if present)
           boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, selectedHoldIndex);
@@ -960,12 +1096,19 @@ const handleHoldClick = (hold, holdIndex) => {
       return;
     }
 
-    // Enhance hold data with SVG markup from server results if available
-    const enhancedHold = {
-      ...hold,
-      svgMarkup: serverStore.results?.svg_markups?.[holdIndex] || null,
-      detectionSource: "server",
-    };
+    // Ensure hold has svgMarkup (converts from pathPoints if needed for manual holds)
+    let enhancedHold = ensureHoldHasSvgMarkup(hold);
+
+    // Use server SVG markup if available (for AI holds)
+    if (serverStore.results?.svg_markups?.[holdIndex]) {
+      enhancedHold = {
+        ...enhancedHold,
+        svgMarkup: serverStore.results.svg_markups[holdIndex],
+      };
+    }
+
+    // Set detection source
+    enhancedHold.detectionSource = hold.pathPoints ? "manual" : "server";
 
     // Add or remove hold from the target problem
     boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, holdIndex);
@@ -1113,7 +1256,7 @@ const loadImageFromQuery = async () => {
 
         // Check if we have cached results and auto-load them
         await checkAndLoadCachedResults();
-        
+
         // Load existing manual holds for this image
         await serverStore.loadManualHolds(locationId, currentImage.value.url);
       } else {
@@ -1214,6 +1357,29 @@ watch(
   { immediate: true }
 );
 
+// Watch for boulder problem creation/editing state to auto-enable quick draw mode
+watch(
+  () => ({
+    isCreating: boulderProblemsStore.isCreatingProblem,
+    isEditing: editingState.value.isEditing,
+    deleteMode: serverStore.isDeleteMode,
+    drawingMode: serverStore.isDrawingMode,
+  }),
+  (state) => {
+    const shouldEnableQuickDraw =
+      (state.isCreating || state.isEditing) && !state.deleteMode && !state.drawingMode;
+
+    if (shouldEnableQuickDraw && !serverStore.isQuickDrawMode) {
+      console.log("⚡ Auto-enabling Quick Draw mode for boulder problem creation/editing");
+      serverStore.setQuickDrawMode(true);
+    } else if (!shouldEnableQuickDraw && serverStore.isQuickDrawMode) {
+      console.log("⚡ Auto-disabling Quick Draw mode");
+      serverStore.setQuickDrawMode(false);
+    }
+  },
+  { immediate: true }
+);
+
 // Lifecycle
 onMounted(async () => {
   console.log("🚀 Server Hold Detection View mounted");
@@ -1247,6 +1413,31 @@ onMounted(async () => {
   } else {
     console.log("ℹ️ Skipping API health check - cached results already loaded");
   }
+
+  // Add fullscreen event listeners
+  const handleFullscreenChange = () => {
+    isFullscreen.value = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+    console.log("🖼️ Fullscreen state changed:", isFullscreen.value);
+  };
+
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+  document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+  document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+  document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+});
+
+onUnmounted(() => {
+  // Clean up fullscreen event listeners
+  const handleFullscreenChange = () => {};
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+  document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
+  document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
 });
 
 // Floating card event handlers
@@ -1287,3 +1478,96 @@ const handleFloatingCardMouseLeave = () => {
   }, 200); // Shorter delay when leaving tooltip
 };
 </script>
+
+<style scoped>
+/* Fullscreen styles */
+:global(.fullscreen-container) {
+  background: black !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+:global(.fullscreen-container img) {
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
+:global(.fullscreen-container .absolute) {
+  /* Ensure overlays maintain same positioning relative to image */
+  position: absolute !important;
+}
+
+/* Fullscreen using native fullscreen API */
+:fullscreen {
+  background: black !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+:fullscreen img {
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
+:-webkit-full-screen {
+  background: black !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+:-webkit-full-screen img {
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
+:-moz-full-screen {
+  background: black !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+:-moz-full-screen img {
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
+:-ms-fullscreen {
+  background: black !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+:-ms-fullscreen img {
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+</style>
