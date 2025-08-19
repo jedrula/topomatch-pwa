@@ -786,6 +786,10 @@ const handleBetaAnalysisComplete = async (analysisData) => {
     if (holdAnalysisResult?.bestMatch) {
       console.log("🎯 Best matching problem:", holdAnalysisResult.bestMatch.problem.name);
       analysisPhase.value = "complete";
+
+      // Redirect to problem page with video data
+      await redirectToProblemPageWithVideo(analysisData, holdAnalysisResult.bestMatch.problem);
+      return; // Early return to avoid setting additional state
     } else if (holdAnalysisResult) {
       console.log("⚠️ Hold analysis completed but no matches found");
       analysisPhase.value = "complete";
@@ -1227,6 +1231,57 @@ const viewProblemsOfGrade = (gradeGroup) => {
   // In the future, this could navigate to a filtered view or show a modal
   const problemNames = gradeGroup.problems.map((p) => p.name).join(", ");
   alert(`Grade ${gradeGroup.label} problems (${gradeGroup.count}):\n${problemNames}`);
+};
+
+// Redirect to problem page with video data
+const redirectToProblemPageWithVideo = async (analysisData, problem) => {
+  console.log("🚀 Redirecting to problem page with video data:", {
+    problemId: problem.id,
+    problemName: problem.name,
+    hasVideo: !!analysisData.video,
+    hasFrames: !!(analysisData.frames && analysisData.frames.length > 0),
+  });
+
+  try {
+    // Store only minimal essential data in sessionStorage
+    const minimalData = {
+      videoFile: {
+        name: analysisData.video.name,
+        size: analysisData.video.size,
+        type: analysisData.video.type,
+      },
+      analysisResult: {
+        matchFound: !!analysisData.match,
+        matchedProblemId: problem.id,
+        matchedProblemName: problem.name,
+        timestamp: Date.now(),
+      },
+    };
+
+    sessionStorage.setItem("prefilledVideoData", JSON.stringify(minimalData));
+    console.log("📁 Stored minimal data in sessionStorage:", minimalData);
+  } catch (storageError) {
+    console.warn("⚠️ Could not store data in sessionStorage:", storageError);
+    // Continue without sessionStorage - we'll rely on window.tempVideoFile
+  }
+
+  // Store the actual File object in a temporary variable
+  // that the target page can access
+  window.tempVideoFile = analysisData.video;
+  console.log("📁 Stored video file in window.tempVideoFile");
+
+  // Navigate to the problem page
+  await router.push({
+    name: "boulder-problem-detail",
+    params: {
+      locationId: route.params.locationId || route.params.id,
+      problemId: problem.id,
+    },
+    query: {
+      action: "log-ascent",
+      hasPrefilledVideo: "true",
+    },
+  });
 };
 
 onMounted(async () => {

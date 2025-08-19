@@ -103,6 +103,23 @@
       <!-- Beta Video Upload -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2"> Beta Video (optional) </label>
+
+        <!-- AI Auto-upload indicator -->
+        <div
+          v-if="isVideoUploading && formData.notes.includes('🤖')"
+          class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <div>
+              <p class="text-sm font-medium text-blue-800">🤖 AI-Detected Video</p>
+              <p class="text-xs text-blue-600">
+                Uploading video automatically matched by AI analysis...
+              </p>
+            </div>
+          </div>
+        </div>
+
         <VideoUpload
           v-model="formData.betaVideo"
           :location-id="locationId"
@@ -168,9 +185,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useAscentStore } from "@/stores/ascentStore";
 import VideoUpload from "@/components/VideoUpload.vue";
+import { videoService } from "@/services/videoService";
 
 const props = defineProps({
   locationId: {
@@ -196,6 +214,93 @@ const formData = ref({
 
 // Video upload state
 const isVideoUploading = ref(false);
+
+// Check for prefilled video data on mount
+onMounted(async () => {
+  await checkForPrefilledVideo();
+});
+
+const checkForPrefilledVideo = async () => {
+  try {
+    // Check if we have prefilled video data
+    const tempVideoFile = window.tempVideoFile;
+
+    if (tempVideoFile) {
+      console.log("📁 Found prefilled video file, uploading automatically...");
+      console.log("📄 Video file info:", {
+        name: tempVideoFile.name,
+        size: tempVideoFile.size,
+        type: tempVideoFile.type,
+      });
+
+      // Check for additional analysis data from sessionStorage (optional)
+      let analysisInfo = null;
+      try {
+        const prefilledData = sessionStorage.getItem("prefilledVideoData");
+        if (prefilledData) {
+          analysisInfo = JSON.parse(prefilledData);
+          console.log("🔍 Found analysis info:", analysisInfo);
+        }
+      } catch (storageError) {
+        console.warn("⚠️ Could not read from sessionStorage:", storageError);
+        // Continue without analysis info - we still have the video file
+      }
+
+      // Set uploading state
+      isVideoUploading.value = true;
+
+      // Upload the video using the existing video service
+      try {
+        const uploadResult = await videoService.uploadBetaVideo(
+          props.locationId,
+          props.problemId,
+          `temp-ascent-${Date.now()}`, // Temporary ascent ID
+          tempVideoFile,
+          (progress) => {
+            console.log(`📤 Upload progress: ${progress}%`);
+          }
+        );
+
+        console.log("✅ Prefilled video uploaded successfully:", uploadResult);
+
+        // Set the video data in the form
+        formData.value.betaVideo = uploadResult;
+
+        // Add a note about the AI analysis
+        if (analysisInfo?.analysisResult?.matchFound) {
+          const aiNote = `🤖 Video automatically analyzed and matched to this problem via AI\n📊 Detected: ${
+            analysisInfo.analysisResult.matchedProblemName || "this problem"
+          }`;
+          formData.value.notes = formData.value.notes
+            ? `${formData.value.notes}\n\n${aiNote}`
+            : aiNote;
+        } else {
+          const aiNote = "🤖 Video automatically processed for this ascent";
+          formData.value.notes = formData.value.notes
+            ? `${formData.value.notes}\n\n${aiNote}`
+            : aiNote;
+        }
+      } catch (uploadError) {
+        console.error("❌ Error uploading prefilled video:", uploadError);
+        // Continue anyway - user can upload manually
+      } finally {
+        isVideoUploading.value = false;
+      }
+
+      // Clean up the temporary data
+      try {
+        sessionStorage.removeItem("prefilledVideoData");
+      } catch (storageError) {
+        console.warn("⚠️ Could not clear sessionStorage:", storageError);
+      }
+      delete window.tempVideoFile;
+
+      console.log("🧹 Cleaned up temporary video data");
+    }
+  } catch (error) {
+    console.error("❌ Error checking for prefilled video:", error);
+  }
+};
 
 // Get today's date for max date validation
 const today = computed(() => {

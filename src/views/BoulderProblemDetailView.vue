@@ -392,6 +392,16 @@ const editAscent = (ascent) => {
 
 onMounted(() => {
   loadProblemData();
+
+  // Check if we should auto-open ascent logger with prefilled video
+  if (route.query.action === "log-ascent" && route.query.hasPrefilledVideo === "true") {
+    console.log("🎯 Auto-opening ascent logger with prefilled video data");
+
+    // Auto-open the ascent logger
+    showAscentLogger.value = true;
+
+    // The AscentLogger component will handle checking for prefilled video data
+  }
 });
 </script>
 
