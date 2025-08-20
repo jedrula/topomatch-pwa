@@ -1,4 +1,11 @@
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+  list,
+  getMetadata,
+} from "firebase/storage";
 import { storage } from "./firebase";
 import { getCurrentUser } from "./authService";
 
@@ -278,6 +285,110 @@ export const videoService = {
     }
 
     return result;
+  },
+
+  /**
+   * Get all videos for a specific boulder problem
+   * @param {string} locationId - The location ID
+   * @param {string} problemId - The boulder problem ID
+   * @returns {Promise<Array>} Array of video objects with metadata
+   */
+  async getProblemVideos(locationId, problemId) {
+    try {
+      const videosPath = `locations/${locationId}/problems/${problemId}/videos/`;
+      const listRef = ref(storage, videosPath);
+
+      const result = await list(listRef);
+      const videos = [];
+
+      for (const item of result.items) {
+        try {
+          const metadata = await getMetadata(item);
+          const downloadUrl = await getDownloadURL(item);
+
+          const video = {
+            id: item.name,
+            name: metadata.customMetadata?.originalName || item.name,
+            downloadUrl,
+            size: metadata.size,
+            contentType: metadata.contentType,
+            uploadedAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
+            uploadedBy: metadata.customMetadata?.uploadedBy || "Unknown",
+            userId: metadata.customMetadata?.userId,
+            ascentId: metadata.customMetadata?.ascentId,
+            locationId: metadata.customMetadata?.locationId,
+            problemId: metadata.customMetadata?.problemId,
+          };
+
+          videos.push(video);
+        } catch (error) {
+          console.warn(`Failed to get metadata for video ${item.name}:`, error);
+        }
+      }
+
+      // Sort by upload date (newest first)
+      videos.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+
+      return videos;
+    } catch (error) {
+      console.error("Error fetching problem videos:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all videos for a location (across all problems)
+   * @param {string} locationId - The location ID
+   * @returns {Promise<Array>} Array of video objects with metadata and problem info
+   */
+  async getLocationVideos(locationId) {
+    try {
+      const locationPath = `locations/${locationId}/problems/`;
+      const listRef = ref(storage, locationPath);
+
+      const result = await list(listRef, { delimiter: "/" });
+      const allVideos = [];
+
+      // Iterate through each problem folder
+      for (const folder of result.prefixes) {
+        const problemId = folder.name;
+        try {
+          const problemVideos = await this.getProblemVideos(locationId, problemId);
+          // Add problem info to each video
+          const videosWithProblemInfo = problemVideos.map((video) => ({
+            ...video,
+            problemId,
+          }));
+          allVideos.push(...videosWithProblemInfo);
+        } catch (error) {
+          console.warn(`Failed to get videos for problem ${problemId}:`, error);
+        }
+      }
+
+      // Sort all videos by upload date (newest first)
+      allVideos.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+
+      return allVideos;
+    } catch (error) {
+      console.error("Error fetching location videos:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get video count for a specific problem
+   * @param {string} locationId - The location ID
+   * @param {string} problemId - The boulder problem ID
+   * @returns {Promise<number>} Number of videos for the problem
+   */
+  async getProblemVideoCount(locationId, problemId) {
+    try {
+      const videos = await this.getProblemVideos(locationId, problemId);
+      return videos.length;
+    } catch (error) {
+      console.warn(`Failed to get video count for problem ${problemId}:`, error);
+      return 0;
+    }
   },
 
   /**

@@ -94,14 +94,124 @@
         </div>
 
         <!-- Boulder Problems Summary -->
-        <BoulderProblemsGradeList 
-          :problems="boulderProblemsStore.boulderProblems"
-          :location-id="locationId"
-        >
-          <template #empty-state-actions>
-            <!-- Custom actions for empty state could go here if needed -->
-          </template>
-        </BoulderProblemsGradeList>
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900">Boulder Problems</h2>
+              <p v-if="totalProblems > 0" class="text-sm text-gray-600">
+                {{ totalProblems }} problems total
+              </p>
+            </div>
+          </div>
+
+          <!-- Expandable Grade Groups -->
+          <div v-if="totalProblems > 0" class="space-y-3">
+            <div
+              v-for="gradeGroup in boulderProblemsSummary"
+              :key="gradeGroup.label"
+              class="border border-gray-200 rounded-lg overflow-hidden"
+            >
+              <!-- Grade Header (Clickable) -->
+              <button
+                @click="toggleGradeExpansion(gradeGroup.label)"
+                class="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between text-left"
+              >
+                <div class="flex items-center space-x-3">
+                  <div
+                    class="w-3 h-3 rounded-full"
+                    :style="{ backgroundColor: getGradeColor(gradeGroup.label) }"
+                  ></div>
+                  <span class="font-medium text-gray-900">Grade {{ gradeGroup.label }}</span>
+                  <span class="text-sm text-gray-500">
+                    ({{ gradeGroup.count }} {{ gradeGroup.count === 1 ? "problem" : "problems" }})
+                  </span>
+                </div>
+                <svg
+                  class="w-5 h-5 text-gray-400 transition-transform duration-200"
+                  :class="{ 'rotate-180': expandedGrades.has(gradeGroup.label) }"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+
+              <!-- Expanded Problems List -->
+              <div
+                v-if="expandedGrades.has(gradeGroup.label)"
+                class="bg-white divide-y divide-gray-100"
+              >
+                <router-link
+                  v-for="problem in gradeGroup.problems"
+                  :key="problem.id"
+                  :to="{
+                    name: 'boulder-problem-detail',
+                    params: {
+                      locationId: route.params.locationId,
+                      problemId: problem.id,
+                    },
+                  }"
+                  class="block px-4 py-3 hover:bg-blue-50 transition-colors group"
+                >
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                      <div
+                        class="w-2 h-2 rounded-full"
+                        :style="{ backgroundColor: problem.color }"
+                      ></div>
+                      <span class="font-medium text-gray-900 group-hover:text-blue-700">
+                        {{ problem.name }}
+                      </span>
+                    </div>
+                    <div class="flex items-center space-x-2 text-sm text-gray-500">
+                      <span>{{ problem.holds?.length || 0 }} holds</span>
+                      <svg
+                        class="w-4 h-4 text-gray-400 group-hover:text-blue-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </router-link>
+              </div>
+            </div>
+          </div>
+
+          <!-- No problems message -->
+          <div v-else class="text-center py-8">
+            <svg
+              class="w-16 h-16 mx-auto mb-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No boulder problems yet</h3>
+            <p class="text-gray-500 mb-4">
+              Upload images and use the hold detection tool to create boulder problems
+            </p>
+          </div>
+        </div>
 
         <!-- Images section -->
         <div class="bg-white rounded-lg shadow p-6">
@@ -198,6 +308,95 @@
                   />
                 </svg>
               </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Videos/Betas section -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900">Beta Videos</h2>
+          </div>
+
+          <!-- Loading state -->
+          <div v-if="videosLoading" class="text-center py-12">
+            <div
+              class="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"
+            ></div>
+            <p class="text-gray-600">Loading videos...</p>
+          </div>
+
+          <!-- No videos placeholder -->
+          <div v-else-if="videos.length === 0" class="text-center py-12">
+            <svg
+              class="w-16 h-16 mx-auto mb-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No beta videos yet</h3>
+            <p class="text-gray-500 mb-4">
+              Beta videos help climbers understand the sequence and technique for problems
+            </p>
+          </div>
+
+          <!-- Videos grid -->
+          <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div
+              v-for="(video, index) in videos"
+              :key="video.id"
+              class="aspect-video bg-gray-100 rounded-lg overflow-hidden relative group cursor-pointer hover:bg-gray-200 transition-colors"
+              @click="openVideoGallery(index)"
+            >
+              <!-- Video thumbnail/preview -->
+              <div class="w-full h-full relative bg-gradient-to-br from-gray-800 to-gray-900 flex flex-col items-center justify-center p-3">
+                <!-- Video title -->
+                <svg
+                  class="w-12 h-12 text-white mb-2"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                <p class="text-xs text-white text-center font-medium leading-tight">
+                  {{ video.name.length > 25 ? video.name.substring(0, 25) + '...' : video.name }}
+                </p>
+
+                <!-- Play button overlay -->
+                <div
+                  class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all"
+                >
+                  <svg
+                    class="w-16 h-16 text-white drop-shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Hover overlay with metadata -->
+              <div
+                class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-70 transition-all duration-200 flex items-end"
+              >
+                <div class="p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p class="text-sm font-medium">{{ video.name }}</p>
+                  <p class="text-xs text-gray-300">
+                    {{ formatVideoDate(video.uploadedAt) }}
+                  </p>
+                  <p class="text-xs text-gray-300">
+                    {{ formatFileSize(video.size) }}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -416,6 +615,14 @@
       @close="closeGallery"
       @navigate="onGalleryNavigate"
     />
+
+    <!-- Video Gallery Modal -->
+    <VideoGallery
+      :videos="videos"
+      :initial-index="videoGalleryIndex"
+      :is-open="isVideoGalleryOpen"
+      @close="closeVideoGallery"
+    />
   </div>
 </template>
 
@@ -426,11 +633,13 @@ import { locationService } from "../services/locationService.js";
 import { useBoulderProblemsStore } from "../stores/boulderProblemsStore.js";
 import ImageUpload from "../components/ImageUpload.vue";
 import ImageGallery from "../components/ImageGallery.vue";
-import BoulderProblemsGradeList from "../components/BoulderProblemsGradeList.vue";
+import VideoGallery from "../components/VideoGallery.vue";
 import VideoFrameMatcher from "../components/VideoFrameMatcherEnhanced.vue";
 import { formatDate, isSameDateTime } from "../utils/dateUtils.js";
+import { getGradeLabel, getGradeDifficulty } from "../utils/gradingUtils.js";
 import { useUserStore } from "../stores/userStore.js";
 import { transformPoint } from "../utils/homographyUtils.js";
+import { videoService } from "../services/videoService.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -442,6 +651,10 @@ const authModal = inject("authModal");
 
 const location = ref(null);
 const images = ref([]); // Placeholder for location images
+const videos = ref([]); // Beta videos for location
+const videosLoading = ref(false);
+const isVideoGalleryOpen = ref(false);
+const videoGalleryIndex = ref(0);
 const isLoading = ref(true);
 const error = ref("");
 const showUploadModal = ref(false);
@@ -458,7 +671,42 @@ const allFrames = ref([]); // Will store 3 frames after match found
 const poseResults = ref([]); // Will store pose detection results
 const analysisPhase = ref(""); // 'matching', 'extracting-frames', 'detecting-poses', 'analyzing-holds'
 
+// Grade expansion state
+const expandedGrades = ref(new Set());
+
 const locationId = route.params.locationId;
+
+// Boulder problems summary grouped by grade
+const boulderProblemsSummary = computed(() => {
+  if (!boulderProblemsStore.boulderProblems.length) return [];
+
+  // Group problems by grade
+  const gradeGroups = {};
+
+  boulderProblemsStore.boulderProblems.forEach((problem) => {
+    const gradeLabel = getGradeLabel(problem.grade);
+    const difficulty = getGradeDifficulty(problem.grade);
+
+    if (!gradeGroups[gradeLabel]) {
+      gradeGroups[gradeLabel] = {
+        label: gradeLabel,
+        difficulty: difficulty,
+        count: 0,
+        problems: [],
+      };
+    }
+
+    gradeGroups[gradeLabel].count++;
+    gradeGroups[gradeLabel].problems.push(problem);
+  });
+
+  // Convert to array and sort by difficulty
+  return Object.values(gradeGroups).sort((a, b) => a.difficulty - b.difficulty);
+});
+
+const totalProblems = computed(() => {
+  return boulderProblemsStore.boulderProblems.length;
+});
 
 // Gallery state
 const isGalleryOpen = computed(() => {
@@ -512,6 +760,44 @@ const loadLocationImages = async () => {
     // Don't set error here, just keep images empty
     images.value = [];
   }
+};
+
+// Load videos for location
+const loadLocationVideos = async () => {
+  videosLoading.value = true;
+  try {
+    const locationVideos = await videoService.getLocationVideos(locationId);
+    videos.value = locationVideos;
+    console.log("Loaded location videos:", videos.value);
+  } catch (err) {
+    console.error("Error loading location videos:", err);
+    videos.value = [];
+  } finally {
+    videosLoading.value = false;
+  }
+};
+
+// Video gallery methods
+const openVideoGallery = (index = 0) => {
+  videoGalleryIndex.value = index;
+  isVideoGalleryOpen.value = true;
+};
+
+const closeVideoGallery = () => {
+  isVideoGalleryOpen.value = false;
+};
+
+// Video formatting helpers
+const formatVideoDate = (dateString) => {
+  try {
+    return new Date(dateString).toLocaleDateString();
+  } catch {
+    return dateString;
+  }
+};
+
+const formatFileSize = (bytes) => {
+  return videoService.formatFileSize(bytes);
 };
 
 const handleBetaUploadClick = () => {
@@ -1150,6 +1436,40 @@ const calculateProblemScore = (problem, transformedFrames) => {
   return finalScore;
 };
 
+// Grade expansion functions
+const toggleGradeExpansion = (grade) => {
+  if (expandedGrades.value.has(grade)) {
+    expandedGrades.value.delete(grade);
+  } else {
+    expandedGrades.value.add(grade);
+  }
+  // Trigger reactivity
+  expandedGrades.value = new Set(expandedGrades.value);
+};
+
+const getGradeColor = (grade) => {
+  const colors = {
+    V0: "#4ade80", // green-400
+    V1: "#34d399", // emerald-400
+    V2: "#22d3ee", // cyan-400
+    V3: "#60a5fa", // blue-400
+    V4: "#a78bfa", // violet-400
+    V5: "#c084fc", // purple-400
+    V6: "#f472b6", // pink-400
+    V7: "#fb7185", // rose-400
+    V8: "#f87171", // red-400
+    V9: "#fb923c", // orange-400
+    V10: "#fbbf24", // amber-400
+    V11: "#facc15", // yellow-400
+    V12: "#a3a3a3", // neutral-400
+    V13: "#71717a", // zinc-500
+    V14: "#525252", // neutral-600
+    V15: "#374151", // gray-700
+    V16: "#1f2937", // gray-800
+  };
+  return colors[grade] || "#6b7280"; // gray-500 as default
+};
+
 // Redirect to problem page with video data
 const redirectToProblemPageWithVideo = async (analysisData, problem) => {
   console.log("🚀 Redirecting to problem page with video data:", {
@@ -1214,5 +1534,6 @@ onMounted(async () => {
   }
 
   loadLocation();
+  loadLocationVideos();
 });
 </script>
