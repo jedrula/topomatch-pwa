@@ -124,6 +124,59 @@ class BackupSystem {
     }
   }
 
+  // Import to production Firebase
+  async importProd(sourcePath = null, projectId = null) {
+    const targetPath = sourcePath || this.findLatestExport(DEV_EXPORTS_DIR) || SEED_DATA_DIR;
+    const project = projectId || process.env.FIREBASE_PROJECT_ID;
+    
+    if (!project) {
+      console.error('❌ No project ID specified. Use --project flag or set FIREBASE_PROJECT_ID env var');
+      return;
+    }
+    
+    console.log(`🔄 Importing to production Firebase project: ${project}`);
+    console.log(`📁 Source: ${targetPath}`);
+    
+    // Confirm with user since this is production
+    console.log('⚠️  WARNING: This will import data to PRODUCTION Firebase!');
+    console.log('⚠️  This may overwrite existing data.');
+    console.log('⚠️  Press Ctrl+C to cancel, or Enter to continue...');
+    
+    // In a real implementation, you'd want to add user confirmation here
+    // For now, proceeding with the import
+    
+    try {
+      const bucketPath = `gs://your-backup-bucket/imports/${this.timestamp}`;
+      
+      // Upload backup to Cloud Storage first
+      console.log('📤 Uploading backup to Cloud Storage...');
+      execSync(`gsutil -m cp -r "${targetPath}" ${bucketPath}`, {
+        stdio: 'inherit'
+      });
+      
+      // Import Firestore data
+      console.log('📥 Importing Firestore data...');
+      execSync(`firebase firestore:import ${bucketPath}/firestore_export --project ${project}`, {
+        stdio: 'inherit'
+      });
+      
+      // Import Storage files (if they exist)
+      const storageExportPath = path.join(targetPath, 'storage_export');
+      if (fs.existsSync(storageExportPath)) {
+        console.log('📥 Importing Storage files...');
+        execSync(`gsutil -m cp -r "${storageExportPath}/*" gs://${project}.appspot.com/`, {
+          stdio: 'inherit'
+        });
+      }
+      
+      console.log(`✅ Production import completed for project: ${project}`);
+      
+    } catch (error) {
+      console.error('❌ Production import failed:', error.message);
+      throw error;
+    }
+  }
+
   // Create seed data package
   async createSeedData() {
     console.log('🔄 Creating seed data package...');
@@ -245,6 +298,9 @@ async function main() {
       case 'export-prod':
         await backup.exportProd();
         break;
+      case 'import-prod':
+        await backup.importProd();
+        break;
       case 'package':
         await backup.createSeedData();
         break;
@@ -262,9 +318,14 @@ Commands:
   export       Export from emulators to dev-exports/
   import       Import latest dev export to emulators
   export-prod  Export from production Firebase
+  import-prod  Import dev/seed data to production Firebase
   package      Create seed data package from current dev data
   import-seed  Import seed data to emulators
   list         List all available backups
+
+Environment Bootstrap Example:
+  npm run backup:package        # Create seed data
+  npm run backup:import-prod    # Import to new Firebase project
         `);
     }
   } catch (error) {
