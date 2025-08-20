@@ -454,15 +454,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import MainFooter from "@/components/MainFooter.vue";
-import BoulderProblemsManager from "@/components/BoulderProblemsManager.vue";
-import HoldSegmentationCanvas from "@/components/HoldSegmentationCanvas.vue";
-import { useHoldDetectionStore } from "@/stores/holdDetectionStore";
-import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
-import { locationService } from "@/services/locationService";
-import { getGradeLabel } from "@/utils/gradingUtils.js";
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import MainFooter from '@/components/MainFooter.vue';
+import BoulderProblemsManager from '@/components/BoulderProblemsManager.vue';
+import HoldSegmentationCanvas from '@/components/HoldSegmentationCanvas.vue';
+import { useHoldDetectionStore } from '@/stores/holdDetectionStore';
+import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+import { locationService } from '@/services/locationService';
+import { getGradeLabel } from '@/utils/gradingUtils.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -483,14 +483,14 @@ const imageUrl = computed(() => {
     return currentImage.value.url;
   }
   // Fallback to hardcoded image if no query parameter
-  return "/topos/wibrem-23-may/WhatsApp Image 2025-05-24 at 00.15.17.jpeg";
+  return '/topos/wibrem-23-may/WhatsApp Image 2025-05-24 at 00.15.17.jpeg';
 });
 
 const imageDisplayName = computed(() => {
   if (currentImage.value) {
     return currentImage.value.name;
   }
-  return "WhatsApp Image 2025-05-24 at 00.15.17.jpeg";
+  return 'WhatsApp Image 2025-05-24 at 00.15.17.jpeg';
 });
 
 // Computed properties
@@ -526,7 +526,7 @@ const onImageLoad = () => {
 
 const calculateImageScale = () => {
   if (!climbingImage.value) {
-    console.warn("climbingImage is not ready.");
+    console.warn('climbingImage is not ready.');
     imageScale.value = 1;
     return;
   }
@@ -537,7 +537,7 @@ const calculateImageScale = () => {
   const originalHeight = climbingImage.value.naturalHeight;
 
   if (!displayedWidth || !displayedHeight || !originalWidth || !originalHeight) {
-    console.warn("Image dimensions are not properly set.", {
+    console.warn('Image dimensions are not properly set.', {
       displayedWidth,
       displayedHeight,
       originalWidth,
@@ -554,7 +554,7 @@ const calculateImageScale = () => {
   // Use the smaller scale to maintain aspect ratio
   imageScale.value = Math.min(scaleX, scaleY);
 
-  console.log("Image scale calculated:", {
+  console.log('Image scale calculated:', {
     displayedWidth,
     displayedHeight,
     originalWidth,
@@ -567,7 +567,7 @@ const calculateImageScale = () => {
   // Debugging: Check if the calculated scale matches 0.57
   if (Math.abs(imageScale.value - 0.57) < 0.01) {
     console.log(
-      "The calculated scale matches 0.57. This is likely due to the displayed dimensions:",
+      'The calculated scale matches 0.57. This is likely due to the displayed dimensions:',
       {
         displayedWidth,
         displayedHeight,
@@ -590,7 +590,7 @@ const runDetection = async () => {
 
     // Create a file-like object with the arrayBuffer method
     const imageFile = new File([blob], imageDisplayName.value, {
-      type: blob.type || "image/jpeg",
+      type: blob.type || 'image/jpeg',
     });
 
     await holdDetectionStore.runHoldDetection(imageFile);
@@ -600,7 +600,7 @@ const runDetection = async () => {
       calculateImageScale();
     }
   } catch (error) {
-    console.error("Error loading image for detection:", error);
+    console.error('Error loading image for detection:', error);
     // You could set an error state here if needed
   }
 };
@@ -619,10 +619,10 @@ const selectHold = (hold, index) => {
 const getHoldBackgroundColor = (hold, index) => {
   // If this hold is in the active problem, use the problem's color
   if (boulderProblemsStore.isHoldInActiveProblem(index)) {
-    return boulderProblemsStore.activeProblemColor + "60"; // 60% opacity
+    return boulderProblemsStore.activeProblemColor + '60'; // 60% opacity
   }
   // Otherwise use the hold's natural color or default
-  return hold.color ? hold.color.hex + "40" : "#ef444440";
+  return hold.color ? hold.color.hex + '40' : '#ef444440';
 };
 
 const getHoldBorderColor = (index) => {
@@ -630,7 +630,7 @@ const getHoldBorderColor = (index) => {
   if (boulderProblemsStore.isHoldInActiveProblem(index)) {
     return boulderProblemsStore.activeProblemColor;
   }
-  return "transparent";
+  return 'transparent';
 };
 
 const isHoldInActiveProblem = (index) => {
@@ -652,13 +652,13 @@ const loadImageFromQuery = async () => {
         const location = await locationService.getLocation(locationId);
         if (location && location.gradingSystem) {
           boulderProblemsStore.setLocationGradingSystem(location.gradingSystem);
-          console.log("🎚️ Loaded location grading system:", location.gradingSystem);
+          console.log('🎚️ Loaded location grading system:', location.gradingSystem);
         } else {
-          console.log("🎚️ No custom grading system found for location, using default");
+          console.log('🎚️ No custom grading system found for location, using default');
           boulderProblemsStore.setLocationGradingSystem(null);
         }
       } catch (error) {
-        console.warn("⚠️ Error loading location grading system:", error);
+        console.warn('⚠️ Error loading location grading system:', error);
         // Continue with default system
         boulderProblemsStore.setLocationGradingSystem(null);
       }
@@ -676,13 +676,13 @@ const loadImageFromQuery = async () => {
           url: imageRecord.downloadUrl,
           name: imageRecord.fileName,
         };
-        console.log("Loaded image for hold detection:", currentImage.value);
+        console.log('Loaded image for hold detection:', currentImage.value);
       } else {
         console.warn(`Image with ID ${imageId} not found in location ${locationId}`);
         currentImage.value = null;
       }
     } catch (error) {
-      console.error("Error loading image for hold detection:", error);
+      console.error('Error loading image for hold detection:', error);
       imageLoadError.value = error.message;
       currentImage.value = null;
     }
@@ -716,7 +716,7 @@ const goBackToLocation = () => {
 // Watch for changes in detectionResults and recalculate image scale
 watch(detectionResults, (newValue) => {
   if (newValue) {
-    console.log("detectionResults updated:", newValue);
+    console.log('detectionResults updated:', newValue);
     calculateImageScale();
   }
 });

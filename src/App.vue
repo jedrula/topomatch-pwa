@@ -1,9 +1,9 @@
 <script setup>
-import { onMounted, ref } from "vue";
-import { RouterView } from "vue-router";
-import { useUserStore } from "./stores/userStore.js";
-import AppHeader from "./components/AppHeader.vue";
-import AuthModal from "./components/AuthModal.vue";
+import { onMounted, ref } from 'vue';
+import { RouterView } from 'vue-router';
+import { useUserStore } from './stores/userStore.js';
+import AppHeader from './components/AppHeader.vue';
+import AuthModal from './components/AuthModal.vue';
 
 const userStore = useUserStore();
 const showAuthModal = ref(false);
@@ -23,12 +23,12 @@ const closeAuthModal = () => {
 };
 
 const onAuthSuccess = () => {
-  console.log("Authentication successful!");
+  console.log('Authentication successful!');
   closeAuthModal();
 };
 
 // Provide the auth modal methods globally
-import { provide } from "vue";
+import { provide } from 'vue';
 provide('authModal', {
   open: openAuthModal,
   close: closeAuthModal

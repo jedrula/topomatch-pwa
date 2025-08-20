@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-const { initializeApp } = require("firebase-admin/app");
-const { getAuth } = require("firebase-admin/auth");
-const { getFirestore } = require("firebase-admin/firestore");
+const { initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+const { getFirestore } = require('firebase-admin/firestore');
 
 // Initialize Firebase Admin with project ID
 initializeApp({
-  projectId: "demo-offline-vue-pwa",
+  projectId: 'demo-offline-vue-pwa',
 });
 
 const auth = getAuth();
@@ -33,12 +33,12 @@ async function makeUserAdmin(email) {
     console.log(`🔧 Set admin custom claims for user: ${userRecord.uid}`);
 
     // Also store in Firestore for easy querying
-    await db.collection("users").doc(userRecord.uid).set(
+    await db.collection('users').doc(userRecord.uid).set(
       {
         isAdmin: true,
         email: userRecord.email,
         updatedAt: new Date(),
-        role: "admin",
+        role: 'admin',
       },
       { merge: true }
     );

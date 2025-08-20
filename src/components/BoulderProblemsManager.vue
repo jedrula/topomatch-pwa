@@ -541,12 +541,12 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onUnmounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
-import { useHoldDetectionServerStore } from "@/stores/holdDetectionServerStore";
-import { getGradeLabel } from "@/utils/gradingUtils.js";
-import Slider from "@vueform/slider";
+import { ref, watch, computed, onUnmounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore';
+import { getGradeLabel } from '@/utils/gradingUtils.js';
+import Slider from '@vueform/slider';
 
 const props = defineProps({
   hasDetectionResults: {
@@ -564,11 +564,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  "problem-hover",
-  "start-editing",
-  "stop-editing",
-  "tool-selection-change",
-  "filtered-problems-change",
+  'problem-hover',
+  'start-editing',
+  'stop-editing',
+  'tool-selection-change',
+  'filtered-problems-change',
 ]);
 
 const route = useRoute();
@@ -577,8 +577,8 @@ const boulderProblemsStore = useBoulderProblemsStore();
 const serverStore = useHoldDetectionServerStore();
 
 // Local reactive state for the form
-const problemName = ref("");
-const selectedGrade = ref("");
+const problemName = ref('');
+const selectedGrade = ref('');
 
 // Expandable grade sections state
 const expandedGrades = ref(new Set());
@@ -608,8 +608,8 @@ const startDrag = (event) => {
   dragStartX.value = event.clientX - panelX.value;
   dragStartY.value = event.clientY - panelY.value;
 
-  document.addEventListener("mousemove", onDrag);
-  document.addEventListener("mouseup", stopDrag);
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', stopDrag);
 
   // Prevent text selection during drag
   event.preventDefault();
@@ -631,8 +631,8 @@ const onDrag = (event) => {
 
 const stopDrag = () => {
   isDragging.value = false;
-  document.removeEventListener("mousemove", onDrag);
-  document.removeEventListener("mouseup", stopDrag);
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', stopDrag);
 };
 
 // Computed properties for grade filtering
@@ -665,7 +665,7 @@ const problemsByGrade = computed(() => {
       grouped[gradeLabel] = {
         grade: gradeLabel,
         problems: [],
-        color: problem.color || "#6b7280", // Use problem color or gray fallback
+        color: problem.color || '#6b7280', // Use problem color or gray fallback
       };
     }
     grouped[gradeLabel].problems.push(problem);
@@ -703,10 +703,10 @@ const startCreatingProblem = async () => {
   try {
     await boulderProblemsStore.createNewProblem(selectedGrade.value, problemName.value);
     // Reset form
-    problemName.value = "";
+    problemName.value = '';
     initializeDefaultGrade();
   } catch (error) {
-    console.error("Error starting boulder problem creation:", error);
+    console.error('Error starting boulder problem creation:', error);
     // Error is already handled in the store and displayed in the UI
   }
 };
@@ -727,18 +727,18 @@ const finishProblem = async () => {
   await boulderProblemsStore.finishCreatingProblem();
 
   // Reset form
-  problemName.value = "";
+  problemName.value = '';
   initializeDefaultGrade();
-  emit("tool-selection-change", "single");
+  emit('tool-selection-change', 'single');
 };
 
 const cancelProblem = async () => {
   await boulderProblemsStore.cancelCreatingProblem();
 
   // Reset form
-  problemName.value = "";
+  problemName.value = '';
   initializeDefaultGrade();
-  emit("tool-selection-change", "single");
+  emit('tool-selection-change', 'single');
 };
 
 const toggleProblemVisibility = (problem) => {
@@ -754,14 +754,14 @@ const toggleProblemVisibility = (problem) => {
 
 const editProblem = (problem) => {
   // Emit to parent to start editing (URL-based state management)
-  emit("start-editing", problem);
+  emit('start-editing', problem);
 
   // Pre-populate the form with existing values
   problemName.value = problem.name;
   selectedGrade.value = getGradeLabel(problem.grade);
 
   // Reset tool selection to single when starting edit
-  emit("tool-selection-change", "single");
+  emit('tool-selection-change', 'single');
 };
 
 const saveEdit = async () => {
@@ -781,13 +781,13 @@ const saveEdit = async () => {
     await boulderProblemsStore.saveProblemChanges(currentEditingProblem.id);
 
     // After successful save, stop editing
-    emit("stop-editing");
+    emit('stop-editing');
 
     // Reset form state
-    problemName.value = "";
+    problemName.value = '';
     initializeDefaultGrade();
   } catch (error) {
-    console.error("Error saving boulder problem:", error);
+    console.error('Error saving boulder problem:', error);
     // Error is already handled in the store and displayed in the UI
   }
 };
@@ -804,7 +804,7 @@ const cancelEdit = async () => {
   if (boulderProblemsStore.hasUnsavedChanges(currentEditingProblem.id)) {
     if (
       !confirm(
-        "You have unsaved changes. Are you sure you want to cancel? All changes will be lost."
+        'You have unsaved changes. Are you sure you want to cancel? All changes will be lost.'
       )
     ) {
       return;
@@ -814,32 +814,32 @@ const cancelEdit = async () => {
       // Discard changes by reloading from server
       await boulderProblemsStore.discardProblemChanges(currentEditingProblem.id);
     } catch (error) {
-      console.error("Error discarding changes:", error);
+      console.error('Error discarding changes:', error);
     }
   }
 
   // Emit to parent to stop editing (URL-based state management)
-  emit("stop-editing");
+  emit('stop-editing');
 
   // Reset form state
-  problemName.value = "";
+  problemName.value = '';
   initializeDefaultGrade();
-  emit("tool-selection-change", "single");
+  emit('tool-selection-change', 'single');
 };
 
 const deleteProblem = async (problemId) => {
-  if (confirm("Are you sure you want to delete this problem? This action cannot be undone.")) {
+  if (confirm('Are you sure you want to delete this problem? This action cannot be undone.')) {
     try {
       await boulderProblemsStore.deleteProblem(problemId);
     } catch (error) {
-      console.error("Error deleting boulder problem:", error);
+      console.error('Error deleting boulder problem:', error);
       // Error is already handled in the store and displayed in the UI
     }
   }
 };
 
 const clearAllProblems = async () => {
-  if (confirm("Are you sure you want to delete all problems? This action cannot be undone.")) {
+  if (confirm('Are you sure you want to delete all problems? This action cannot be undone.')) {
     await boulderProblemsStore.clearAllProblems();
   }
 };
@@ -884,7 +884,7 @@ const navigateToProblem = (problem) => {
   if (locationId) {
     router.push(`/location/${locationId}/problem/${problem.id}`);
   } else {
-    console.warn("Cannot navigate to problem: locationId not found in route params");
+    console.warn('Cannot navigate to problem: locationId not found in route params');
   }
 };
 
@@ -892,7 +892,7 @@ const saveAllChanges = async () => {
   try {
     await boulderProblemsStore.saveAllPendingChanges();
   } catch (error) {
-    console.error("Error saving all changes:", error);
+    console.error('Error saving all changes:', error);
     // Error is already handled in the store and displayed in the UI
   }
 };
@@ -903,7 +903,7 @@ let isUpdating = false;
 
 const handleSliderUpdate = (value) => {
   // Real-time UI update while dragging - no URL update yet
-  console.log("🎚️ Slider update (dragging):", value);
+  console.log('🎚️ Slider update (dragging):', value);
   isUpdating = true;
 
   // Clear any pending timeout
@@ -913,7 +913,7 @@ const handleSliderUpdate = (value) => {
 };
 
 const handleSliderChange = (value) => {
-  console.log("🎚️ Slider change (final):", value);
+  console.log('🎚️ Slider change (final):', value);
   isUpdating = false;
 
   // Debounce URL updates to avoid excessive navigation
@@ -928,11 +928,11 @@ const handleSliderChange = (value) => {
 
 const updateGradeFilter = () => {
   if (isUpdating) {
-    console.log("⏭️ Skipping URL update - still dragging");
+    console.log('⏭️ Skipping URL update - still dragging');
     return;
   }
 
-  console.log("🔄 Updating URL with grade filter");
+  console.log('🔄 Updating URL with grade filter');
 
   // Update URL query parameters
   const query = { ...route.query };
@@ -990,7 +990,7 @@ watch(
 watch(
   () => props.editingProblemId,
   (newEditingProblemId, oldEditingProblemId) => {
-    console.log("📝 BoulderProblemsManager editing problem ID changed:", newEditingProblemId);
+    console.log('📝 BoulderProblemsManager editing problem ID changed:', newEditingProblemId);
 
     // When starting to edit a problem, populate the form
     if (newEditingProblemId && editingProblem.value) {
@@ -1000,7 +1000,7 @@ watch(
 
     // When stopping editing, clear the form
     if (!newEditingProblemId && oldEditingProblemId) {
-      problemName.value = "";
+      problemName.value = '';
       initializeDefaultGrade();
     }
   },
@@ -1034,7 +1034,7 @@ watch(
 watch(
   filteredProblems,
   (newFilteredProblems) => {
-    emit("filtered-problems-change", newFilteredProblems);
+    emit('filtered-problems-change', newFilteredProblems);
   },
   { immediate: true }
 );
@@ -1058,8 +1058,8 @@ onUnmounted(() => {
   }
 
   // Cleanup drag event listeners
-  document.removeEventListener("mousemove", onDrag);
-  document.removeEventListener("mouseup", stopDrag);
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', stopDrag);
 });
 </script>
 

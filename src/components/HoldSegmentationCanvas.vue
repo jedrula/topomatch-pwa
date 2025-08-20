@@ -16,7 +16,7 @@ Renders hold segmentation masks on canvas for precise visualization
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from "vue";
+import { ref, onMounted, watch, nextTick } from 'vue';
 
 const props = defineProps({
   holds: {
@@ -41,7 +41,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["holdClick"]);
+const emit = defineEmits(['holdClick']);
 
 const segmentationCanvas = ref(null);
 
@@ -50,12 +50,12 @@ const segmentationCanvas = ref(null);
  */
 const getHoldColor = (hold, index, isSelected = false) => {
   if (isSelected) {
-    return { fill: "rgba(59, 130, 246, 0.6)", stroke: "rgb(59, 130, 246)" }; // Blue
+    return { fill: 'rgba(59, 130, 246, 0.6)', stroke: 'rgb(59, 130, 246)' }; // Blue
   }
 
   // Default colors based on confidence
   const alpha = Math.min(0.7, Math.max(0.3, hold.confidence));
-  const baseColor = hold.segmented ? "34, 197, 94" : "239, 68, 68"; // Green for segmented, red for bbox
+  const baseColor = hold.segmented ? '34, 197, 94' : '239, 68, 68'; // Green for segmented, red for bbox
 
   return {
     fill: `rgba(${baseColor}, ${alpha})`,
@@ -204,13 +204,13 @@ const handleCanvasClick = (event) => {
       );
 
       if (clickedPixel) {
-        emit("holdClick", hold, index);
+        emit('holdClick', hold, index);
         return;
       }
     } else {
       // Check if click is within bounding box
       if (x >= hold.x && x <= hold.x + hold.width && y >= hold.y && y <= hold.y + hold.height) {
-        emit("holdClick", hold, index);
+        emit('holdClick', hold, index);
         return;
       }
     }
@@ -224,7 +224,7 @@ const redrawCanvas = () => {
   const canvas = segmentationCanvas.value;
   if (!canvas) return;
 
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
 
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -249,7 +249,7 @@ watch(
 onMounted(() => {
   const canvas = segmentationCanvas.value;
   if (canvas) {
-    canvas.addEventListener("click", handleCanvasClick);
+    canvas.addEventListener('click', handleCanvasClick);
     redrawCanvas();
   }
 });

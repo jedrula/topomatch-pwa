@@ -6,7 +6,7 @@
 class HoldDetectionServerService {
   constructor() {
     // Default API URL - can be configured
-    this.apiUrl = "https://6d2401b5f155.ngrok-free.app";
+    this.apiUrl = 'https://6d2401b5f155.ngrok-free.app';
     this.currentJobId = null;
   }
 
@@ -14,7 +14,7 @@ class HoldDetectionServerService {
    * Set API URL for the server
    */
   setApiUrl(url) {
-    this.apiUrl = url.replace(/\/$/, ""); // Remove trailing slash
+    this.apiUrl = url.replace(/\/$/, ''); // Remove trailing slash
   }
 
   /**
@@ -23,25 +23,25 @@ class HoldDetectionServerService {
   async testHealth() {
     try {
       const healthUrl = `${this.apiUrl}/health`;
-      console.log("🔍 Service: Testing health endpoint:", healthUrl);
+      console.log('🔍 Service: Testing health endpoint:', healthUrl);
 
       const response = await fetch(healthUrl);
-      console.log("🔍 Service: Response status:", response.status, response.statusText);
+      console.log('🔍 Service: Response status:', response.status, response.statusText);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const health = await response.json();
-      console.log("🔍 Service: Health response:", health);
+      console.log('🔍 Service: Health response:', health);
 
       return {
         success: true,
         data: health,
-        message: "API is healthy",
+        message: 'API is healthy',
       };
     } catch (error) {
-      console.log("❌ Service: Health check error:", error);
+      console.log('❌ Service: Health check error:', error);
       return {
         success: false,
         error: error.message,
@@ -54,7 +54,7 @@ class HoldDetectionServerService {
    * Fetch image from Firebase Storage using direct fetch
    */
   async fetchImageAsBlob(imageUrl) {
-    console.log("🔍 Using direct fetch for all Firebase Storage URLs");
+    console.log('🔍 Using direct fetch for all Firebase Storage URLs');
     return await this.fetchImageAsBlobDirect(imageUrl);
   }
 
@@ -63,21 +63,21 @@ class HoldDetectionServerService {
    */
   async fetchImageAsBlobDirect(imageUrl) {
     try {
-      console.log("🔍 Fetching image via direct fetch:", imageUrl);
+      console.log('🔍 Fetching image via direct fetch:', imageUrl);
 
       // Firebase Storage URLs with tokens should work with cors mode
       const fetchOptions = {
-        method: "GET",
-        mode: "cors",
-        cache: "no-cache",
-        credentials: "omit", // Don't send cookies, token is in URL
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+        credentials: 'omit', // Don't send cookies, token is in URL
       };
 
-      console.log("🔍 Using cors mode with token authentication");
+      console.log('🔍 Using cors mode with token authentication');
 
       const response = await fetch(imageUrl, fetchOptions);
 
-      console.log("🔍 Direct fetch response:", {
+      console.log('🔍 Direct fetch response:', {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok,
@@ -96,7 +96,7 @@ class HoldDetectionServerService {
       const blob = await response.blob();
       const sizeMB = blob.size / 1024 / 1024;
 
-      console.log("✅ Image fetched successfully via direct fetch:", {
+      console.log('✅ Image fetched successfully via direct fetch:', {
         sizeMB: sizeMB.toFixed(2),
         type: blob.type,
         size: blob.size,
@@ -109,7 +109,7 @@ class HoldDetectionServerService {
         message: `Image fetched successfully via direct fetch (${sizeMB.toFixed(2)} MB)`,
       };
     } catch (error) {
-      console.error("❌ Direct fetch failed:", error);
+      console.error('❌ Direct fetch failed:', error);
 
       return {
         success: false,
@@ -124,13 +124,13 @@ class HoldDetectionServerService {
    */
   async compressImage(blob, options = {}) {
     // Check if compression library is available
-    if (typeof imageCompression === "undefined") {
-      console.warn("Image compression library not available, using original image");
+    if (typeof imageCompression === 'undefined') {
+      console.warn('Image compression library not available, using original image');
       return {
         success: true,
         blob,
         compressionRatio: 1.0,
-        message: "Compression not available, using original image",
+        message: 'Compression not available, using original image',
       };
     }
 
@@ -139,7 +139,7 @@ class HoldDetectionServerService {
         success: true,
         blob,
         compressionRatio: 1.0,
-        message: "Compression disabled",
+        message: 'Compression disabled',
       };
     }
 
@@ -149,7 +149,7 @@ class HoldDetectionServerService {
       maxSizeMB: options.maxSizeMB || 1,
       maxWidthOrHeight: options.maxWidthOrHeight || 1920,
       useWebWorker: options.useWebWorker !== false,
-      fileType: "image/jpeg",
+      fileType: 'image/jpeg',
       initialQuality: 0.8,
     };
 
@@ -157,7 +157,7 @@ class HoldDetectionServerService {
       const startTime = performance.now();
 
       // Convert blob to File for compression
-      const file = new File([blob], "climbing_wall.jpg", { type: blob.type });
+      const file = new File([blob], 'climbing_wall.jpg', { type: blob.type });
       const compressedFile = await imageCompression(file, compressionOptions);
 
       const compressionTime = (performance.now() - startTime) / 1000;
@@ -175,7 +175,7 @@ class HoldDetectionServerService {
         )}s (${compressionRatio.toFixed(2)}x reduction)`,
       };
     } catch (error) {
-      console.warn("Compression failed, using original image:", error);
+      console.warn('Compression failed, using original image:', error);
       return {
         success: true,
         blob,
@@ -188,13 +188,13 @@ class HoldDetectionServerService {
   /**
    * Upload image to server for processing
    */
-  async uploadImage(blob, filename = "climbing_wall.jpg") {
+  async uploadImage(blob, filename = 'climbing_wall.jpg') {
     try {
       const formData = new FormData();
-      formData.append("file", blob, filename);
+      formData.append('file', blob, filename);
 
       const response = await fetch(`${this.apiUrl}/api/v1/process`, {
-        method: "POST",
+        method: 'POST',
         body: formData,
       });
 
@@ -261,7 +261,7 @@ class HoldDetectionServerService {
 
     try {
       // Step 1: Fetch image
-      workflow.steps.push("Fetching image from Firebase Storage...");
+      workflow.steps.push('Fetching image from Firebase Storage...');
       workflow.currentStep = 1;
 
       const fetchResult = await this.fetchImageAsBlob(imageUrl);
@@ -270,7 +270,7 @@ class HoldDetectionServerService {
       }
 
       // Step 2: Compress image (optional)
-      workflow.steps.push("Compressing image...");
+      workflow.steps.push('Compressing image...');
       workflow.currentStep = 2;
 
       const compressionResult = await this.compressImage(
@@ -282,7 +282,7 @@ class HoldDetectionServerService {
       }
 
       // Step 3: Upload to server
-      workflow.steps.push("Uploading to server...");
+      workflow.steps.push('Uploading to server...');
       workflow.currentStep = 3;
 
       const uploadResult = await this.uploadImage(compressionResult.blob);
@@ -291,7 +291,7 @@ class HoldDetectionServerService {
       }
 
       // Step 4: Return job ID for polling
-      workflow.steps.push("Processing started...");
+      workflow.steps.push('Processing started...');
       workflow.currentStep = 4;
 
       return {
@@ -302,7 +302,7 @@ class HoldDetectionServerService {
           originalSize: fetchResult.sizeMB,
           compressionRatio: compressionResult.compressionRatio,
         },
-        message: "Processing started successfully",
+        message: 'Processing started successfully',
       };
     } catch (error) {
       return {
@@ -326,7 +326,7 @@ class HoldDetectionServerService {
       attempts++;
 
       if (attempts > maxAttempts) {
-        throw new Error("Polling timeout: Maximum attempts exceeded");
+        throw new Error('Polling timeout: Maximum attempts exceeded');
       }
 
       const statusResult = await this.getJobStatus(jobId);
@@ -337,16 +337,16 @@ class HoldDetectionServerService {
 
       const { status, result } = statusResult;
 
-      if (status === "completed") {
+      if (status === 'completed') {
         return {
           success: true,
           result,
-          message: "Processing completed successfully",
+          message: 'Processing completed successfully',
         };
       }
 
-      if (status === "failed") {
-        const errorMsg = result?.error_message || "Unknown error";
+      if (status === 'failed') {
+        const errorMsg = result?.error_message || 'Unknown error';
         throw new Error(`Processing failed: ${errorMsg}`);
       }
 

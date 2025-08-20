@@ -118,7 +118,7 @@
 </template>
 
 <script setup>
-import { getGradeLabel } from "@/utils/gradingUtils.js";
+import { getGradeLabel } from '@/utils/gradingUtils.js';
 
 const props = defineProps({
   problem: {
@@ -140,40 +140,40 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  "click",
-  "mouseenter",
-  "mouseleave",
-  "view-detail",
-  "toggle-visibility",
-  "edit",
-  "delete",
+  'click',
+  'mouseenter',
+  'mouseleave',
+  'view-detail',
+  'toggle-visibility',
+  'edit',
+  'delete',
 ]);
 
 const handleClick = () => {
-  emit("click", props.problem);
+  emit('click', props.problem);
 };
 
 const handleMouseEnter = () => {
-  emit("mouseenter", props.problem);
+  emit('mouseenter', props.problem);
 };
 
 const handleMouseLeave = () => {
-  emit("mouseleave", props.problem);
+  emit('mouseleave', props.problem);
 };
 
 const handleViewDetail = () => {
-  emit("view-detail", props.problem);
+  emit('view-detail', props.problem);
 };
 
 const handleToggleVisibility = () => {
-  emit("toggle-visibility", props.problem);
+  emit('toggle-visibility', props.problem);
 };
 
 const handleEdit = () => {
-  emit("edit", props.problem);
+  emit('edit', props.problem);
 };
 
 const handleDelete = () => {
-  emit("delete", props.problem.id);
+  emit('delete', props.problem.id);
 };
 </script>

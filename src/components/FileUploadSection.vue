@@ -93,8 +93,8 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { useInferenceStore } from "@/stores/inferenceStore";
+import { ref } from 'vue';
+import { useInferenceStore } from '@/stores/inferenceStore';
 
 defineProps({
   hasCompletedInference: {
@@ -103,7 +103,7 @@ defineProps({
   },
 });
 
-const emit = defineEmits(["file-selected", "reset-upload"]);
+const emit = defineEmits(['file-selected', 'reset-upload']);
 
 const inferenceStore = useInferenceStore();
 const showUploadSection = ref(false);
@@ -112,17 +112,17 @@ function onFileChange(event) {
   const file = event.target.files[0];
   if (file) {
     showUploadSection.value = false; // Hide upload section during processing
-    emit("file-selected", file);
+    emit('file-selected', file);
   }
 }
 
 function resetForNewUpload() {
   showUploadSection.value = true;
   // Clear file input
-  const fileInput = document.getElementById("user-image");
+  const fileInput = document.getElementById('user-image');
   if (fileInput) {
-    fileInput.value = "";
+    fileInput.value = '';
   }
-  emit("reset-upload");
+  emit('reset-upload');
 }
 </script>

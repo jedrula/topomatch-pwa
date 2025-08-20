@@ -14,10 +14,10 @@
 </template>
 
 <script setup>
-import AdminPanel from "@/components/AdminPanel.vue";
-import { useUserStore } from "@/stores/userStore.js";
-import { useRouter } from "vue-router";
-import { onMounted } from "vue";
+import AdminPanel from '@/components/AdminPanel.vue';
+import { useUserStore } from '@/stores/userStore.js';
+import { useRouter } from 'vue-router';
+import { onMounted } from 'vue';
 
 const userStore = useUserStore();
 const router = useRouter();
@@ -25,8 +25,8 @@ const router = useRouter();
 // Redirect non-admins away from this page
 onMounted(() => {
   if (!userStore.isLoading && !userStore.isAdmin) {
-    console.warn("Access denied: Admin privileges required");
-    router.push("/");
+    console.warn('Access denied: Admin privileges required');
+    router.push('/');
   }
 });
 </script>

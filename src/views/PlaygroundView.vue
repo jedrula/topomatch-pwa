@@ -253,9 +253,9 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted } from "vue";
-import { useInferenceStore } from "@/stores/inferenceStore";
-import ImageUploadBox from "@/components/ImageUploadBox.vue";
+import { ref, computed, nextTick, onMounted } from 'vue';
+import { useInferenceStore } from '@/stores/inferenceStore';
+import ImageUploadBox from '@/components/ImageUploadBox.vue';
 
 // OpenCV.js reference
 let cv = null;
@@ -273,7 +273,7 @@ const targetImageInfo = ref(null);
 
 // Analysis state
 const isAnalyzing = ref(false);
-const analysisStatus = ref("");
+const analysisStatus = ref('');
 const error = ref(null);
 const matchResults = ref(null);
 const showVisualization = ref(false);
@@ -294,41 +294,41 @@ const canRunAnalysis = computed(() => {
 
 // Helper functions
 const getQualityLabel = (matchCount) => {
-  if (matchCount >= 100) return "Excellent";
-  if (matchCount >= 50) return "Good";
-  if (matchCount >= 20) return "Fair";
-  if (matchCount > 0) return "Poor";
-  return "None";
+  if (matchCount >= 100) return 'Excellent';
+  if (matchCount >= 50) return 'Good';
+  if (matchCount >= 20) return 'Fair';
+  if (matchCount > 0) return 'Poor';
+  return 'None';
 };
 
 const getQualityColor = (matchCount) => {
-  if (matchCount >= 100) return "text-green-600";
-  if (matchCount >= 50) return "text-blue-600";
-  if (matchCount >= 20) return "text-yellow-600";
-  if (matchCount > 0) return "text-red-600";
-  return "text-gray-600";
+  if (matchCount >= 100) return 'text-green-600';
+  if (matchCount >= 50) return 'text-blue-600';
+  if (matchCount >= 20) return 'text-yellow-600';
+  if (matchCount > 0) return 'text-red-600';
+  return 'text-gray-600';
 };
 
 const formatFileSize = (bytes) => {
-  if (bytes === 0) return "0 Bytes";
+  if (bytes === 0) return '0 Bytes';
   const k = 1024;
-  const sizes = ["Bytes", "KB", "MB"];
+  const sizes = ['Bytes', 'KB', 'MB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 // Initialize OpenCV
 onMounted(async () => {
   try {
     // Import OpenCV.js - version >=4.11 returns a Promise
-    const cvReadyPromise = await import("@techstark/opencv-js");
+    const cvReadyPromise = await import('@techstark/opencv-js');
     cv = await cvReadyPromise.default;
 
-    console.log("✅ OpenCV.js loaded successfully", cv);
-    console.log("Available OpenCV methods:", Object.keys(cv).slice(0, 20).join(", "));
+    console.log('✅ OpenCV.js loaded successfully', cv);
+    console.log('Available OpenCV methods:', Object.keys(cv).slice(0, 20).join(', '));
   } catch (err) {
-    console.error("❌ Failed to load OpenCV.js:", err);
-    error.value = "Failed to load OpenCV.js library";
+    console.error('❌ Failed to load OpenCV.js:', err);
+    error.value = 'Failed to load OpenCV.js library';
   }
 });
 
@@ -406,7 +406,7 @@ const runImageMatching = async () => {
 
   isAnalyzing.value = true;
   error.value = null;
-  analysisStatus.value = "Waiting for inference session...";
+  analysisStatus.value = 'Waiting for inference session...';
 
   try {
     // Wait for session to be ready if needed
@@ -421,17 +421,17 @@ const runImageMatching = async () => {
       }
 
       if (!inferenceStore.sessionReady) {
-        throw new Error("Inference session failed to initialize");
+        throw new Error('Inference session failed to initialize');
       }
     }
 
-    analysisStatus.value = "Preprocessing images...";
+    analysisStatus.value = 'Preprocessing images...';
 
     // Prepare image buffers
     const sourceBuffer = await sourceImage.value.arrayBuffer();
     const targetBuffer = await targetImage.value.arrayBuffer();
 
-    analysisStatus.value = "Running image matching...";
+    analysisStatus.value = 'Running image matching...';
 
     // Run inference using the same worker as the region view
     const result = await new Promise((resolve, reject) => {
@@ -439,7 +439,7 @@ const runImageMatching = async () => {
 
       const handler = (event) => {
         const { type, data } = event.data;
-        if (type === "inferenceComplete") {
+        if (type === 'inferenceComplete') {
           const endTime = performance.now();
 
           const result = {
@@ -451,18 +451,18 @@ const runImageMatching = async () => {
             imgHeight: data.imgHeight,
           };
 
-          inferenceStore.inferenceWorker.removeEventListener("message", handler);
+          inferenceStore.inferenceWorker.removeEventListener('message', handler);
           resolve(result);
-        } else if (type === "error") {
-          inferenceStore.inferenceWorker.removeEventListener("message", handler);
+        } else if (type === 'error') {
+          inferenceStore.inferenceWorker.removeEventListener('message', handler);
           reject(new Error(data.message));
         }
       };
 
-      inferenceStore.inferenceWorker.addEventListener("message", handler);
+      inferenceStore.inferenceWorker.addEventListener('message', handler);
       inferenceStore.inferenceWorker.postMessage(
         {
-          type: "runInference",
+          type: 'runInference',
           userImageBuffer: sourceBuffer,
           topoImageBuffer: targetBuffer,
         },
@@ -473,8 +473,8 @@ const runImageMatching = async () => {
     matchResults.value = result;
     analysisStatus.value = `Analysis complete! Found ${result.matchCount} matches in ${result.processingTime}ms`;
   } catch (err) {
-    console.error("Image matching error:", err);
-    error.value = err.message || "Image matching analysis failed";
+    console.error('Image matching error:', err);
+    error.value = err.message || 'Image matching analysis failed';
   } finally {
     isAnalyzing.value = false;
   }
@@ -483,21 +483,21 @@ const runImageMatching = async () => {
 // Homography calculation using OpenCV.js
 const calculateHomography = async () => {
   if (!cv) {
-    error.value = "OpenCV.js not loaded yet";
+    error.value = 'OpenCV.js not loaded yet';
     return;
   }
 
   if (!matchResults.value || matchResults.value.matchCount < 4) {
-    error.value = "Need at least 4 matches to calculate homography";
+    error.value = 'Need at least 4 matches to calculate homography';
     return;
   }
 
   homographyCalculating.value = true;
 
   try {
-    console.log("Starting homography calculation with cv:", typeof cv);
-    console.log("cv.Mat available:", typeof cv.Mat);
-    console.log("cv.findHomography available:", typeof cv.findHomography);
+    console.log('Starting homography calculation with cv:', typeof cv);
+    console.log('cv.Mat available:', typeof cv.Mat);
+    console.log('cv.findHomography available:', typeof cv.findHomography);
 
     const { rawData } = matchResults.value;
 
@@ -527,7 +527,7 @@ const calculateHomography = async () => {
     const srcMat = new cv.Mat(matches.length, 1, cv.CV_32FC2);
     const dstMat = new cv.Mat(matches.length, 1, cv.CV_32FC2);
 
-    console.log("Created matrices:", srcMat.rows, "x", srcMat.cols);
+    console.log('Created matrices:', srcMat.rows, 'x', srcMat.cols);
 
     // Fill the matrices with point data
     for (let i = 0; i < matches.length; i++) {
@@ -539,12 +539,12 @@ const calculateHomography = async () => {
 
     const mask = new cv.Mat();
 
-    console.log("Calling cv.findHomography...");
+    console.log('Calling cv.findHomography...');
 
     // Calculate homography using RANSAC
     const homography = cv.findHomography(srcMat, dstMat, cv.RANSAC, 5.0, mask);
 
-    console.log("Homography calculated:", homography.rows, "x", homography.cols);
+    console.log('Homography calculated:', homography.rows, 'x', homography.cols);
 
     // Count inliers
     let inlierCount = 0;
@@ -561,7 +561,7 @@ const calculateHomography = async () => {
     homographyMatrix.value = matrixData;
     homographyInliers.value = inlierCount;
 
-    console.log("✅ Homography calculated:", {
+    console.log('✅ Homography calculated:', {
       inliers: inlierCount,
       total: matches.length,
       matrix: matrixData.slice(0, 6).map((v) => v.toFixed(4)),
@@ -580,8 +580,8 @@ const calculateHomography = async () => {
     }
     drawInteractiveCanvas();
   } catch (err) {
-    console.error("Homography calculation error:", err);
-    error.value = "Failed to calculate homography: " + err.message;
+    console.error('Homography calculation error:', err);
+    error.value = 'Failed to calculate homography: ' + err.message;
   } finally {
     homographyCalculating.value = false;
   }
@@ -590,7 +590,7 @@ const calculateHomography = async () => {
 // Point transformation using homography
 const transformPoint = (x, y, inverse = false) => {
   if (!cv || !homographyMatrix.value) {
-    console.log("Transform point failed: cv or homography not available");
+    console.log('Transform point failed: cv or homography not available');
     return null;
   }
 
@@ -627,7 +627,7 @@ const transformPoint = (x, y, inverse = false) => {
 
     return result;
   } catch (err) {
-    console.error("Point transformation error:", err);
+    console.error('Point transformation error:', err);
     return null;
   }
 };
@@ -688,7 +688,7 @@ const drawInteractiveCanvas = () => {
   if (!interactiveCanvas.value || !matchResults.value) return;
 
   const canvas = interactiveCanvas.value;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   const { rawData, images, imgWidth, imgHeight } = matchResults.value;
 
   // Set canvas size
@@ -743,7 +743,7 @@ const drawInteractiveCanvas = () => {
 
     // Draw source point
     ctx.fillStyle = color;
-    ctx.strokeStyle = "#000";
+    ctx.strokeStyle = '#000';
     ctx.lineWidth = 2;
 
     const sourceX = point.sourceImage === 1 ? point.source.x : point.source.x + imgWidth;
@@ -755,8 +755,8 @@ const drawInteractiveCanvas = () => {
     ctx.stroke();
 
     // Draw number label
-    ctx.fillStyle = "#000";
-    ctx.font = "12px Arial";
+    ctx.fillStyle = '#000';
+    ctx.font = '12px Arial';
     ctx.fillText((index + 1).toString(), sourceX + 12, sourceY - 8);
 
     // Draw transformed point
@@ -769,7 +769,7 @@ const drawInteractiveCanvas = () => {
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = '#000';
     ctx.fillText((index + 1).toString(), targetX + 12, targetY - 8);
 
     // Draw connection line

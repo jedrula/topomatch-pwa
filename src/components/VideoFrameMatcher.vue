@@ -180,10 +180,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import ImageMatcher from "./ImageMatcher.vue";
-import { validateVideoFile } from "@/utils/videoFrameUtils";
-import { extractVideoFrames } from "@/utils/homographyUtils";
+import { ref, computed } from 'vue';
+import ImageMatcher from './ImageMatcher.vue';
+import { validateVideoFile } from '@/utils/videoFrameUtils';
+import { extractVideoFrames } from '@/utils/homographyUtils';
 
 // Frame timestamps for extraction (25%, 50%, 75%)
 const FRAME_TIMESTAMPS = [0.25, 0.5, 0.75];
@@ -195,11 +195,11 @@ const props = defineProps({
   },
   title: {
     type: String,
-    default: "Upload Climbing Video",
+    default: 'Upload Climbing Video',
   },
   subtitle: {
     type: String,
-    default: "Upload a video and let AI identify the boulder problem automatically",
+    default: 'Upload a video and let AI identify the boulder problem automatically',
   },
   frameExtractionTime: {
     type: Number,
@@ -212,12 +212,12 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  "video-selected",
-  "frames-extracted", // Changed from frame-extracted to frames-extracted
-  "match-found",
-  "analysis-complete",
-  "processing-error",
-  "video-cleared",
+  'video-selected',
+  'frames-extracted', // Changed from frame-extracted to frames-extracted
+  'match-found',
+  'analysis-complete',
+  'processing-error',
+  'video-cleared',
 ]);
 
 // Reactive state
@@ -243,19 +243,19 @@ const handleVideoSelect = async (event) => {
   // Validate video file
   const validation = validateVideoFile(file);
   if (!validation.isValid) {
-    error.value = validation.errors.join(", ");
+    error.value = validation.errors.join(', ');
     return;
   }
 
   // Set selected video
   selectedVideo.value = file;
-  emit("video-selected", file);
+  emit('video-selected', file);
 
   // Start frame extraction
   await extractFrames();
 
   // Clear the input so the same file can be selected again
-  event.target.value = "";
+  event.target.value = '';
 };
 
 const extractFrames = async () => {
@@ -282,11 +282,11 @@ const extractFrames = async () => {
     }
 
     extractedFrames.value = processedFrames;
-    emit("frames-extracted", extractedFrames.value);
+    emit('frames-extracted', extractedFrames.value);
   } catch (err) {
-    console.error("Frame extraction error:", err);
-    error.value = "Failed to extract frames from video: " + err.message;
-    emit("processing-error", err);
+    console.error('Frame extraction error:', err);
+    error.value = 'Failed to extract frames from video: ' + err.message;
+    emit('processing-error', err);
   } finally {
     isExtractingFrame.value = false;
   }
@@ -294,8 +294,8 @@ const extractFrames = async () => {
 
 // Utility functions for converting ImageData to File/URL
 const createFileFromImageData = async (imageData, fileName) => {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   ctx.putImageData(imageData, 0, 0);
@@ -303,25 +303,25 @@ const createFileFromImageData = async (imageData, fileName) => {
   return new Promise((resolve) => {
     canvas.toBlob(
       (blob) => {
-        resolve(new File([blob], fileName, { type: "image/jpeg" }));
+        resolve(new File([blob], fileName, { type: 'image/jpeg' }));
       },
-      "image/jpeg",
+      'image/jpeg',
       0.8
     );
   });
 };
 
 const createImageUrlFromImageData = (imageData) => {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   ctx.putImageData(imageData, 0, 0);
-  return canvas.toDataURL("image/jpeg", 0.8);
+  return canvas.toDataURL('image/jpeg', 0.8);
 };
 
 const handleMatchFound = (matchedImage) => {
-  emit("match-found", {
+  emit('match-found', {
     video: selectedVideo.value,
     frames: extractedFrames.value, // Changed to frames array
     match: matchedImage,
@@ -329,7 +329,7 @@ const handleMatchFound = (matchedImage) => {
 };
 
 const handleAnalysisComplete = (bestMatch) => {
-  emit("analysis-complete", {
+  emit('analysis-complete', {
     video: selectedVideo.value,
     frames: extractedFrames.value, // Changed to frames array
     match: bestMatch,
@@ -337,13 +337,13 @@ const handleAnalysisComplete = (bestMatch) => {
 };
 
 const handleAnalysisError = (analysisError) => {
-  error.value = "Image analysis failed: " + analysisError.message;
-  emit("processing-error", analysisError);
+  error.value = 'Image analysis failed: ' + analysisError.message;
+  emit('processing-error', analysisError);
 };
 
 const clearVideo = () => {
   clearState();
-  emit("video-cleared");
+  emit('video-cleared');
 };
 
 const clearState = () => {
@@ -362,15 +362,15 @@ const clearState = () => {
 
 const formatFileSize = (bytes) => {
   const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 const formatTime = (seconds) => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
 // Expose methods for parent component

@@ -3,7 +3,7 @@ export const getImageUrl = (storageUrl) => {
   if (!storageUrl) return null;
 
   // In development, proxy storage requests through Vite server
-  if (import.meta.env.DEV && storageUrl.includes("localhost:9199")) {
+  if (import.meta.env.DEV && storageUrl.includes('localhost:9199')) {
     // Convert localhost storage URL to proxied URL
     const urlParts = new URL(storageUrl);
     return `/api/storage${urlParts.pathname}${urlParts.search}`;
@@ -19,8 +19,8 @@ export const loadImageAsDataUrl = async (storageUrl) => {
 
   try {
     const response = await fetch(storageUrl, {
-      mode: "cors",
-      credentials: "omit",
+      mode: 'cors',
+      credentials: 'omit',
     });
 
     if (!response.ok) {
@@ -36,7 +36,7 @@ export const loadImageAsDataUrl = async (storageUrl) => {
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.error("Error loading image as data URL:", error);
+    console.error('Error loading image as data URL:', error);
     return null;
   }
 };

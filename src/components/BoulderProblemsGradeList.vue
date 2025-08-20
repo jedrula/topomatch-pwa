@@ -123,8 +123,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import { getGradeColor } from "@/utils/gradingUtils";
+import { ref, computed } from 'vue';
+import { getGradeColor } from '@/utils/gradingUtils';
 
 const props = defineProps({
   /**
@@ -152,9 +152,9 @@ const problemsByGrade = computed(() => {
 
   props.problems.forEach((problem) => {
     // Handle grade as either string or object
-    let gradeLabel = "Unknown";
+    let gradeLabel = 'Unknown';
     if (problem.grade) {
-      if (typeof problem.grade === "string") {
+      if (typeof problem.grade === 'string') {
         gradeLabel = problem.grade;
       } else if (problem.grade.label) {
         gradeLabel = problem.grade.label;

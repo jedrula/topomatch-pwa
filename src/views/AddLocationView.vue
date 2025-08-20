@@ -17,13 +17,13 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { useRouter } from "vue-router";
-import { locationService } from "../services/locationService.js";
-import LocationForm from "../components/LocationForm.vue";
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { locationService } from '../services/locationService.js';
+import LocationForm from '../components/LocationForm.vue';
 
 const router = useRouter();
-const error = ref("");
+const error = ref('');
 
 const handleAddSubmit = async (form) => {
   try {
@@ -36,8 +36,8 @@ const handleAddSubmit = async (form) => {
     });
     router.push(`/location/${location.id}`);
   } catch (err) {
-    console.error("Failed to create location:", err);
-    error.value = "Failed to create location.";
+    console.error('Failed to create location:', err);
+    error.value = 'Failed to create location.';
   }
 };
 

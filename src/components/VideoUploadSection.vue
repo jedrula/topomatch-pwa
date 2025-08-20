@@ -576,8 +576,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from "vue";
-import VideoFrameMatcher from "./VideoFrameMatcher.vue";
+import { ref, reactive, computed } from 'vue';
+import VideoFrameMatcher from './VideoFrameMatcher.vue';
 
 const props = defineProps({
   regionPhotos: {
@@ -586,7 +586,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["video-uploaded"]);
+const emit = defineEmits(['video-uploaded']);
 
 // Video upload modal state
 const showVideoModal = ref(false);
@@ -594,13 +594,13 @@ const selectedVideoFile = ref(null);
 const extractedFrame = ref(null);
 const matchedBoulderProblem = ref(null);
 const uploadProgress = ref(0);
-const uploadStatus = ref("");
+const uploadStatus = ref('');
 let uploadController = null;
 
 // Video metadata form
 const videoMetadata = reactive({
-  title: "",
-  description: "",
+  title: '',
+  description: '',
   boulderProblemId: null,
   wasSent: false,
   ascentStyle: null, // "flash", "onsite", "RP" (redpoint)
@@ -608,35 +608,35 @@ const videoMetadata = reactive({
 
 // Event handlers for VideoFrameMatcher
 const handleVideoSelected = (videoFile) => {
-  console.log("Video selected:", videoFile.name);
+  console.log('Video selected:', videoFile.name);
   selectedVideoFile.value = videoFile;
 
   // Pre-populate title with filename (without extension)
-  const fileName = videoFile.name.substring(0, videoFile.name.lastIndexOf(".")) || videoFile.name;
-  videoMetadata.title = fileName.replace(/[_-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  const fileName = videoFile.name.substring(0, videoFile.name.lastIndexOf('.')) || videoFile.name;
+  videoMetadata.title = fileName.replace(/[_-]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
 const handleFrameExtracted = (frameData) => {
-  console.log("Frame extracted:", frameData);
+  console.log('Frame extracted:', frameData);
   extractedFrame.value = frameData;
 };
 
 const handleMatchFound = (matchData) => {
-  console.log("Match found:", matchData);
+  console.log('Match found:', matchData);
   matchedBoulderProblem.value = matchData.match;
   videoMetadata.boulderProblemId = matchData.match.id;
 
   // Show the modal to complete the upload metadata
   showVideoModal.value = true;
   uploadProgress.value = 0;
-  uploadStatus.value = "Ready to upload";
+  uploadStatus.value = 'Ready to upload';
 
   // Start the simulated upload
   startVideoUpload(selectedVideoFile.value);
 };
 
 const handleAnalysisComplete = (result) => {
-  console.log("Analysis complete:", result);
+  console.log('Analysis complete:', result);
 
   if (result.match) {
     // Match was found, handled by handleMatchFound
@@ -646,19 +646,19 @@ const handleAnalysisComplete = (result) => {
   // No match found, but still show modal for manual selection
   showVideoModal.value = true;
   uploadProgress.value = 0;
-  uploadStatus.value = "Ready to upload";
+  uploadStatus.value = 'Ready to upload';
 
   // Start the simulated upload
   startVideoUpload(selectedVideoFile.value);
 };
 
 const handleProcessingError = (error) => {
-  console.error("Processing error:", error);
+  console.error('Processing error:', error);
   // Could show a toast notification here
 };
 
 const handleVideoCleared = () => {
-  console.log("Video cleared");
+  console.log('Video cleared');
   selectedVideoFile.value = null;
   extractedFrame.value = null;
   matchedBoulderProblem.value = null;
@@ -668,8 +668,8 @@ const handleVideoCleared = () => {
 // Clear ascent style when wasSent is unchecked
 const resetVideoMetadata = () => {
   Object.assign(videoMetadata, {
-    title: "",
-    description: "",
+    title: '',
+    description: '',
     boulderProblemId: null,
     wasSent: false,
     ascentStyle: null,
@@ -685,7 +685,7 @@ const currentPhoto = computed(() => {
 
 // Video frame analysis state
 const isAnalyzingVideo = ref(false);
-const analysisProgress = ref("");
+const analysisProgress = ref('');
 const showManualSelection = ref(false);
 const analysisImageCount = ref(0);
 const analysisImageTotal = ref(0);
@@ -717,7 +717,7 @@ const previousPhoto = () => {
 async function startVideoUpload(file) {
   try {
     console.log(`Simulating upload: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
-    uploadStatus.value = "Uploading...";
+    uploadStatus.value = 'Uploading...';
 
     // Simulate upload progress
     const uploadSimulation = setInterval(() => {
@@ -732,19 +732,19 @@ async function startVideoUpload(file) {
 
     clearInterval(uploadSimulation);
     uploadProgress.value = 100;
-    uploadStatus.value = "Upload complete! (Demo mode)";
+    uploadStatus.value = 'Upload complete! (Demo mode)';
 
-    console.log("Video upload simulation complete");
+    console.log('Video upload simulation complete');
   } catch (error) {
-    console.error("Upload simulation error:", error);
-    uploadStatus.value = "Upload simulation failed";
+    console.error('Upload simulation error:', error);
+    uploadStatus.value = 'Upload simulation failed';
     uploadProgress.value = 0;
   }
 }
 
 function closeVideoModal() {
   if (uploadController && uploadProgress.value < 100) {
-    const shouldCancel = confirm("Upload is still in progress. Cancel upload?");
+    const shouldCancel = confirm('Upload is still in progress. Cancel upload?');
     if (!shouldCancel) return;
 
     uploadController.abort();
@@ -753,24 +753,24 @@ function closeVideoModal() {
   showVideoModal.value = false;
   selectedVideoFile.value = null;
   uploadProgress.value = 0;
-  uploadStatus.value = "";
+  uploadStatus.value = '';
   uploadController = null;
   resetVideoMetadata();
 }
 
 async function submitVideoMetadata() {
   if (uploadProgress.value < 100) {
-    alert("Please wait for the upload to complete before saving.");
+    alert('Please wait for the upload to complete before saving.');
     return;
   }
 
   if (!videoMetadata.title.trim()) {
-    alert("Please enter a title for your video.");
+    alert('Please enter a title for your video.');
     return;
   }
 
   if (!videoMetadata.boulderProblemId) {
-    alert("Please select a boulder problem photo.");
+    alert('Please select a boulder problem photo.');
     return;
   }
 
@@ -790,7 +790,7 @@ async function submitVideoMetadata() {
       },
     };
 
-    console.log("Saving video metadata:", metadataPayload);
+    console.log('Saving video metadata:', metadataPayload);
 
     // This would be sent to your backend to save the metadata
     // const response = await fetch('/api/videos/metadata', {
@@ -799,19 +799,19 @@ async function submitVideoMetadata() {
     //   body: JSON.stringify(metadataPayload)
     // });
 
-    console.log("Video published successfully!");
-    emit("video-uploaded", metadataPayload);
+    console.log('Video published successfully!');
+    emit('video-uploaded', metadataPayload);
     closeVideoModal();
   } catch (error) {
-    console.error("Error saving video metadata:", error);
-    alert("Failed to save video metadata. Please try again.");
+    console.error('Error saving video metadata:', error);
+    alert('Failed to save video metadata. Please try again.');
   }
 }
 
 function saveAsDraft() {
   // Similar to submitVideoMetadata but with draft status
-  console.log("Saving video as draft:", videoMetadata);
-  alert("Video saved as draft!");
+  console.log('Saving video as draft:', videoMetadata);
+  alert('Video saved as draft!');
   closeVideoModal();
 }
 </script>

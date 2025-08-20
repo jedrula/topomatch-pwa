@@ -251,20 +251,20 @@
 </template>
 
 <script setup>
-import { useAscentStore } from "@/stores/ascentStore";
-import { useUserStore } from "@/stores/userStore";
-import { watch } from "vue";
+import { useAscentStore } from '@/stores/ascentStore';
+import { useUserStore } from '@/stores/userStore';
+import { watch } from 'vue';
 
 const ascentStore = useAscentStore();
 const userStore = useUserStore();
 
-const emit = defineEmits(["edit-ascent"]);
+const emit = defineEmits(['edit-ascent']);
 
 // Debug: Watch for changes in ascents
 watch(
   () => ascentStore.ascents,
   (newAscents) => {
-    console.log("AscentHistory: Ascents updated:", newAscents);
+    console.log('AscentHistory: Ascents updated:', newAscents);
     newAscents.forEach((ascent, index) => {
       if (ascent.betaVideo) {
         console.log(`Ascent ${index} has video:`, ascent.betaVideo);
@@ -275,15 +275,15 @@ watch(
 );
 
 const editAscent = (ascent) => {
-  emit("edit-ascent", ascent);
+  emit('edit-ascent', ascent);
 };
 
 const deleteAscent = async (ascent) => {
-  if (confirm("Are you sure you want to delete this ascent?")) {
+  if (confirm('Are you sure you want to delete this ascent?')) {
     try {
       await ascentStore.deleteAscent(ascent.id);
     } catch (error) {
-      console.error("Error deleting ascent:", error);
+      console.error('Error deleting ascent:', error);
     }
   }
 };

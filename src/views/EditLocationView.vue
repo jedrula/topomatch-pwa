@@ -18,29 +18,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { locationService } from "../services/locationService.js";
-import LocationForm from "../components/LocationForm.vue";
+import { ref, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { locationService } from '../services/locationService.js';
+import LocationForm from '../components/LocationForm.vue';
 
 const route = useRoute();
 const router = useRouter();
-const error = ref("");
-const locationFormData = ref({ name: "", description: "", heroImageUrl: "", gradingSystem: null });
+const error = ref('');
+const locationFormData = ref({ name: '', description: '', heroImageUrl: '', gradingSystem: null });
 const locationId = route.params.locationId;
 
 const loadLocation = async () => {
   try {
     const loc = await locationService.getLocation(locationId);
     locationFormData.value = {
-      name: loc.name || "",
-      description: loc.description || "",
-      heroImageUrl: loc.heroImageUrl || "",
+      name: loc.name || '',
+      description: loc.description || '',
+      heroImageUrl: loc.heroImageUrl || '',
       gradingSystem: loc.gradingSystem || null,
     };
   } catch (err) {
-    console.error("Failed to load location:", err);
-    error.value = "Failed to load location.";
+    console.error('Failed to load location:', err);
+    error.value = 'Failed to load location.';
   }
 };
 
@@ -55,8 +55,8 @@ const handleEditSubmit = async (form) => {
     });
     router.push(`/location/${locationId}`);
   } catch (err) {
-    console.error("Failed to update location:", err);
-    error.value = "Failed to update location.";
+    console.error('Failed to update location:', err);
+    error.value = 'Failed to update location.';
   }
 };
 
@@ -67,10 +67,10 @@ const handleCancel = () => {
 const handleDelete = async () => {
   try {
     await locationService.deleteLocation(locationId);
-    router.push("/"); // Redirect to home or locations page
+    router.push('/'); // Redirect to home or locations page
   } catch (err) {
-    console.error("Failed to delete location:", err);
-    error.value = "Failed to delete location.";
+    console.error('Failed to delete location:', err);
+    error.value = 'Failed to delete location.';
   }
 };
 

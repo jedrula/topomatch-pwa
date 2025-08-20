@@ -290,12 +290,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useAscentStore } from "@/stores/ascentStore";
-import VideoUpload from "@/components/VideoUpload.vue";
-import BoulderImageWithHolds from "@/components/BoulderImageWithHolds.vue";
-import { videoService } from "@/services/videoService";
-import { getGradeLabel, getGradeColor } from "@/utils/gradingUtils";
+import { ref, computed, onMounted } from 'vue';
+import { useAscentStore } from '@/stores/ascentStore';
+import VideoUpload from '@/components/VideoUpload.vue';
+import BoulderImageWithHolds from '@/components/BoulderImageWithHolds.vue';
+import { videoService } from '@/services/videoService';
+import { getGradeLabel, getGradeColor } from '@/utils/gradingUtils';
 
 const props = defineProps({
   locationId: {
@@ -312,10 +312,10 @@ const ascentStore = useAscentStore();
 
 // Form data
 const formData = ref({
-  attemptType: "",
-  userGrade: "",
-  notes: "",
-  date: new Date().toISOString().split("T")[0], // Today's date
+  attemptType: '',
+  userGrade: '',
+  notes: '',
+  date: new Date().toISOString().split('T')[0], // Today's date
   betaVideo: null, // Video upload data
 });
 
@@ -334,8 +334,8 @@ const checkForPrefilledVideo = async () => {
     const tempVideoFile = window.tempVideoFile;
 
     if (tempVideoFile) {
-      console.log("📁 Found prefilled video file, uploading automatically...");
-      console.log("📄 Video file info:", {
+      console.log('📁 Found prefilled video file, uploading automatically...');
+      console.log('📄 Video file info:', {
         name: tempVideoFile.name,
         size: tempVideoFile.size,
         type: tempVideoFile.type,
@@ -344,13 +344,13 @@ const checkForPrefilledVideo = async () => {
       // Check for additional analysis data from sessionStorage (optional)
       let analysisInfo = null;
       try {
-        const prefilledData = sessionStorage.getItem("prefilledVideoData");
+        const prefilledData = sessionStorage.getItem('prefilledVideoData');
         if (prefilledData) {
           analysisInfo = JSON.parse(prefilledData);
-          console.log("🔍 Found analysis info:", analysisInfo);
+          console.log('🔍 Found analysis info:', analysisInfo);
         }
       } catch (storageError) {
-        console.warn("⚠️ Could not read from sessionStorage:", storageError);
+        console.warn('⚠️ Could not read from sessionStorage:', storageError);
         // Continue without analysis info - we still have the video file
       }
 
@@ -369,7 +369,7 @@ const checkForPrefilledVideo = async () => {
           }
         );
 
-        console.log("✅ Prefilled video uploaded successfully:", uploadResult);
+        console.log('✅ Prefilled video uploaded successfully:', uploadResult);
 
         // Set the video data in the form
         formData.value.betaVideo = uploadResult;
@@ -378,10 +378,10 @@ const checkForPrefilledVideo = async () => {
         if (analysisInfo) {
           aiAnalysisData.value = {
             detectedProblem: analysisInfo.analysisResult?.matchedProblem || {
-              name: analysisInfo.analysisResult?.matchedProblemName || "Unknown Problem",
+              name: analysisInfo.analysisResult?.matchedProblemName || 'Unknown Problem',
             },
             problem: analysisInfo.analysisResult?.matchedProblem || {
-              name: analysisInfo.analysisResult?.matchedProblemName || "Unknown Problem",
+              name: analysisInfo.analysisResult?.matchedProblemName || 'Unknown Problem',
             },
             matchedImage: analysisInfo.analysisResult?.matchedImage || null,
             confidence: analysisInfo.analysisResult?.confidence || 0.9,
@@ -392,19 +392,19 @@ const checkForPrefilledVideo = async () => {
         // Add a note about the AI analysis
         if (analysisInfo?.analysisResult?.matchFound) {
           const aiNote = `🤖 Video automatically analyzed and matched to this problem via AI\n📊 Detected: ${
-            analysisInfo.analysisResult.matchedProblemName || "this problem"
+            analysisInfo.analysisResult.matchedProblemName || 'this problem'
           }`;
           formData.value.notes = formData.value.notes
             ? `${formData.value.notes}\n\n${aiNote}`
             : aiNote;
         } else {
-          const aiNote = "🤖 Video automatically processed for this ascent";
+          const aiNote = '🤖 Video automatically processed for this ascent';
           formData.value.notes = formData.value.notes
             ? `${formData.value.notes}\n\n${aiNote}`
             : aiNote;
         }
       } catch (uploadError) {
-        console.error("❌ Error uploading prefilled video:", uploadError);
+        console.error('❌ Error uploading prefilled video:', uploadError);
         // Continue anyway - user can upload manually
       } finally {
         isVideoUploading.value = false;
@@ -412,25 +412,25 @@ const checkForPrefilledVideo = async () => {
 
       // Clean up the temporary data
       try {
-        sessionStorage.removeItem("prefilledVideoData");
+        sessionStorage.removeItem('prefilledVideoData');
       } catch (storageError) {
-        console.warn("⚠️ Could not clear sessionStorage:", storageError);
+        console.warn('⚠️ Could not clear sessionStorage:', storageError);
       }
       delete window.tempVideoFile;
 
-      console.log("🧹 Cleaned up temporary video data");
+      console.log('🧹 Cleaned up temporary video data');
     }
   } catch (error) {
-    console.error("❌ Error checking for prefilled video:", error);
+    console.error('❌ Error checking for prefilled video:', error);
   }
 };
 
 // Get today's date for max date validation
 const today = computed(() => {
-  return new Date().toISOString().split("T")[0];
+  return new Date().toISOString().split('T')[0];
 });
 
-const emit = defineEmits(["ascent-logged"]);
+const emit = defineEmits(['ascent-logged']);
 
 const submitAscent = async () => {
   try {
@@ -451,40 +451,40 @@ const submitAscent = async () => {
       delete ascentData.betaVideo;
     }
 
-    console.log("Submitting ascent with data:", ascentData);
+    console.log('Submitting ascent with data:', ascentData);
 
     await ascentStore.logAscent(ascentData);
 
     // Reset form
     formData.value = {
-      attemptType: "",
-      userGrade: "",
-      notes: "",
-      date: new Date().toISOString().split("T")[0],
+      attemptType: '',
+      userGrade: '',
+      notes: '',
+      date: new Date().toISOString().split('T')[0],
       betaVideo: null,
     };
 
     // Emit success event
-    emit("ascent-logged");
+    emit('ascent-logged');
   } catch (error) {
-    console.error("Error logging ascent:", error);
+    console.error('Error logging ascent:', error);
     // Error is already handled by the store
   }
 };
 
 const onVideoUploadStart = () => {
-  console.log("Video upload started");
+  console.log('Video upload started');
   isVideoUploading.value = true;
 };
 
 const onVideoUploadComplete = (videoData) => {
-  console.log("Video upload complete:", videoData);
+  console.log('Video upload complete:', videoData);
   isVideoUploading.value = false;
   // Video data is already bound to formData.betaVideo via v-model
 };
 
 const onVideoUploadError = (error) => {
-  console.error("Video upload error:", error);
+  console.error('Video upload error:', error);
   isVideoUploading.value = false;
   // Error handling could be added here if needed
 };

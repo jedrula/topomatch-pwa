@@ -74,10 +74,10 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted, watch } from "vue";
-import { useInferenceStore } from "@/stores/inferenceStore";
-import { imageCacheService } from "@/services/imageCacheService";
-import CachedImage from "@/components/CachedImage.vue";
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
+import { useInferenceStore } from '@/stores/inferenceStore';
+import { imageCacheService } from '@/services/imageCacheService';
+import CachedImage from '@/components/CachedImage.vue';
 
 const props = defineProps({
   img: {
@@ -94,7 +94,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["visualize", "click"]);
+const emit = defineEmits(['visualize', 'click']);
 
 const inferenceStore = useInferenceStore();
 const isCached = ref(false);
@@ -140,16 +140,16 @@ const handleCacheRefresh = async () => {
 };
 
 function onVisualize() {
-  emit("visualize", props.img);
+  emit('visualize', props.img);
 }
 
 function onTileClick() {
-  emit("click", props.img);
+  emit('click', props.img);
 }
 
 // Helper to get border color based on number of matches
 function getMatchBorderColor(matches) {
-  if (typeof matches !== "number") return "#1976d2"; // default blue
+  if (typeof matches !== 'number') return '#1976d2'; // default blue
   // Assume 0-100 is the range, interpolate from red to green
   const min = 0,
     max = 100;
@@ -169,17 +169,17 @@ const tileStyle = computed(() => {
       : undefined;
   let border;
   if (matches !== undefined) {
-    border = "2px solid " + getMatchBorderColor(matches);
+    border = '2px solid ' + getMatchBorderColor(matches);
   } else if (props.selected) {
-    border = "1px solid #1976d2";
+    border = '1px solid #1976d2';
   } else {
-    border = "1px solid transparent";
+    border = '1px solid transparent';
   }
   return { border };
 });
 
 const tooltipContent = computed(() => {
-  let content = "";
+  let content = '';
   if (inferenceStore.inferenceTimes && inferenceStore.inferenceTimes[props.img] !== undefined) {
     content += `<div class='inference-time'>Inference: ${inferenceStore.inferenceTimes[
       props.img
@@ -191,7 +191,7 @@ const tooltipContent = computed(() => {
     }</div>`;
   }
   if (!content) {
-    content = "<em>No data</em>";
+    content = '<em>No data</em>';
   }
   content +=
     "<div class='click-hint' style='margin-top: 8px; font-size: 11px; color: #6b7280;'>Click to view large image</div>";

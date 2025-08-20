@@ -4,23 +4,23 @@
 // ort.env.wasm.simd = true;
 // ort.env.wasm.threads = true;
 
-console.log("Hold detection worker initialized");
+console.log('Hold detection worker initialized');
 
 self.onmessage = async (event) => {
   const { type, imageBuffer } = event.data;
-  console.log("Hold detection worker received message:", type);
+  console.log('Hold detection worker received message:', type);
 
-  if (type === "createSession") {
-    console.log("Creating hold detection session...");
+  if (type === 'createSession') {
+    console.log('Creating hold detection session...');
     try {
       const startTime = performance.now();
 
       // Use WASM options to enable SIMD and threads if supported
       const session = await ort.InferenceSession.create(
-        "../../yolov8n-freeclimbs-detect-2-fp32.onnx",
+        '../../yolov8n-freeclimbs-detect-2-fp32.onnx',
         {
-          executionProviders: ["wasm"],
-          graphOptimizationLevel: "all",
+          executionProviders: ['wasm'],
+          graphOptimizationLevel: 'all',
           wasm: {
             numThreads: navigator.hardwareConcurrency
               ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
@@ -35,25 +35,25 @@ self.onmessage = async (event) => {
       self.session = session; // Store the session in the worker
 
       self.postMessage({
-        type: "sessionCreated",
+        type: 'sessionCreated',
         data: {
           sessionTime: endTime - startTime,
         },
       });
     } catch (error) {
-      console.error("Hold detection session creation error:", error);
+      console.error('Hold detection session creation error:', error);
       self.postMessage({
-        type: "error",
+        type: 'error',
         data: { message: error.message },
       });
     }
   }
 
-  if (type === "runDetection") {
+  if (type === 'runDetection') {
     if (!self.session) {
       self.postMessage({
-        type: "error",
-        data: { message: "Session is not initialized." },
+        type: 'error',
+        data: { message: 'Session is not initialized.' },
       });
       return;
     }
@@ -64,8 +64,8 @@ self.onmessage = async (event) => {
     try {
       if (!imageBuffer) {
         self.postMessage({
-          type: "error",
-          data: { message: "Image buffer must be provided." },
+          type: 'error',
+          data: { message: 'Image buffer must be provided.' },
         });
         return;
       }
@@ -91,7 +91,7 @@ self.onmessage = async (event) => {
       );
 
       self.postMessage({
-        type: "detectionComplete",
+        type: 'detectionComplete',
         data: {
           detections: detections,
           processingTime: endTime - startTime,
@@ -103,14 +103,14 @@ self.onmessage = async (event) => {
         },
       });
     } catch (error) {
-      console.error("Hold detection error:", error);
+      console.error('Hold detection error:', error);
       self.postMessage({
-        type: "error",
+        type: 'error',
         data: { message: error.message },
       });
     } finally {
       // Cleanup
-      if (imageBitmap && typeof imageBitmap.close === "function") imageBitmap.close();
+      if (imageBitmap && typeof imageBitmap.close === 'function') imageBitmap.close();
       imageBitmap = null;
       imageBlob = null;
     }
@@ -120,10 +120,10 @@ self.onmessage = async (event) => {
 function preprocessImageForYOLO(imageBitmap, targetSize) {
   // Create canvas for preprocessing
   const canvas = new OffscreenCanvas(targetSize, targetSize);
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
 
   // Fill with gray background (letterboxing)
-  ctx.fillStyle = "rgb(114, 114, 114)"; // YOLOv8 default padding color
+  ctx.fillStyle = 'rgb(114, 114, 114)'; // YOLOv8 default padding color
   ctx.fillRect(0, 0, targetSize, targetSize);
 
   // Calculate scaling to maintain aspect ratio
@@ -157,7 +157,7 @@ function preprocessImageForYOLO(imageBitmap, targetSize) {
   }
 
   // Try to create the tensor with the original float32 data but let ONNX handle conversion
-  return new ort.Tensor("float32", tensor, [1, 3, targetSize, targetSize]);
+  return new ort.Tensor('float32', tensor, [1, 3, targetSize, targetSize]);
 }
 
 function postprocessYOLOResults(results, originalWidth, originalHeight, modelInputSize) {
@@ -167,10 +167,10 @@ function postprocessYOLOResults(results, originalWidth, originalHeight, modelInp
   const outputData = output.data;
   const [batchSize, numFeatures, numBoxes] = output.dims;
 
-  console.log("YOLO output shape:", output.dims);
-  console.log("Features per box:", numFeatures);
-  console.log("Original image dimensions:", originalWidth, "x", originalHeight);
-  console.log("Model input size:", modelInputSize);
+  console.log('YOLO output shape:', output.dims);
+  console.log('Features per box:', numFeatures);
+  console.log('Original image dimensions:', originalWidth, 'x', originalHeight);
+  console.log('Model input size:', modelInputSize);
 
   const detections = [];
   const confidenceThreshold = 0.2; // Lowered minimum confidence to consider a detection
@@ -181,8 +181,8 @@ function postprocessYOLOResults(results, originalWidth, originalHeight, modelInp
   const offsetX = (modelInputSize - originalWidth * scale) / 2;
   const offsetY = (modelInputSize - originalHeight * scale) / 2;
 
-  console.log("Scale factor:", scale);
-  console.log("Offsets:", offsetX, offsetY);
+  console.log('Scale factor:', scale);
+  console.log('Offsets:', offsetX, offsetY);
 
   // Parse detections
   const boxes = [];
@@ -216,7 +216,7 @@ function postprocessYOLOResults(results, originalWidth, originalHeight, modelInp
         width: Math.max(1, Math.min(x_max - x_min, originalWidth - x_min)),
         height: Math.max(1, Math.min(y_max - y_min, originalHeight - y_min)),
         confidence: confidence,
-        type: "hold", // Single class model
+        type: 'hold', // Single class model
       };
 
       boxes.push(clampedBox);

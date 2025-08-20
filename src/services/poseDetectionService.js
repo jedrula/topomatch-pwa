@@ -15,7 +15,7 @@ class PoseDetectionService {
     this.initializationPromise = new Promise((resolve, reject) => {
       try {
         // Create worker using the same approach as the working usePoseDetection composable
-        this.worker = new Worker(new URL("/poseDetectionWorker.combined.js", import.meta.url));
+        this.worker = new Worker(new URL('/poseDetectionWorker.combined.js', import.meta.url));
         
         // Set up message handling
         const handleMessage = (event) => {

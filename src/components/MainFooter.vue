@@ -19,10 +19,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
-import * as wasmFeatureDetect from "wasm-feature-detect";
-import Bowser from "bowser";
-import { useInferenceStore } from "@/stores/inferenceStore";
+import { ref, onMounted, computed } from 'vue';
+import * as wasmFeatureDetect from 'wasm-feature-detect';
+import Bowser from 'bowser';
+import { useInferenceStore } from '@/stores/inferenceStore';
 
 const inferenceStore = useInferenceStore();
 

@@ -86,9 +86,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
-import { useInferenceStore } from "@/stores/inferenceStore";
-import { calculateHomographyMatrix } from "@/utils/homographyUtils";
+import { ref, computed, watch } from 'vue';
+import { useInferenceStore } from '@/stores/inferenceStore';
+import { calculateHomographyMatrix } from '@/utils/homographyUtils';
 
 const props = defineProps({
   sourceImage: {
@@ -105,7 +105,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["match-found", "analysis-complete", "analysis-error"]);
+const emit = defineEmits(['match-found', 'analysis-complete', 'analysis-error']);
 
 // Get inference store for image analysis
 const inferenceStore = useInferenceStore();
@@ -113,7 +113,7 @@ const inferenceStore = useInferenceStore();
 // Reactive state
 const isAnalyzing = ref(false);
 const analysisComplete = ref(false);
-const analysisStatus = ref("");
+const analysisStatus = ref('');
 const currentImageIndex = ref(0);
 const totalImages = ref(0);
 const bestMatch = ref(null);
@@ -130,7 +130,7 @@ const analysisProgress = computed(() => {
 const resetAnalysis = () => {
   isAnalyzing.value = false;
   analysisComplete.value = false;
-  analysisStatus.value = "";
+  analysisStatus.value = '';
   currentImageIndex.value = 0;
   totalImages.value = 0;
   bestMatch.value = null;
@@ -145,7 +145,7 @@ const prepareSourceImage = async () => {
     // Create object URL for display
     sourceImageUrl.value = URL.createObjectURL(props.sourceImage);
     return props.sourceImage;
-  } else if (typeof props.sourceImage === "string") {
+  } else if (typeof props.sourceImage === 'string') {
     // It's already a URL
     sourceImageUrl.value = props.sourceImage;
 
@@ -153,9 +153,9 @@ const prepareSourceImage = async () => {
     try {
       const response = await fetch(props.sourceImage);
       const blob = await response.blob();
-      return new File([blob], "source-image.jpg", { type: blob.type });
+      return new File([blob], 'source-image.jpg', { type: blob.type });
     } catch (fetchError) {
-      throw new Error("Failed to load source image from URL: " + fetchError.message);
+      throw new Error('Failed to load source image from URL: ' + fetchError.message);
     }
   }
 
@@ -163,7 +163,7 @@ const prepareSourceImage = async () => {
 };
 
 // Helper function to wait for inference session to be ready
-const waitForInferenceSession = async (maxWaitTime = 10000) => {
+const waitForInferenceSession = async (maxWaitTime = 30000) => {
   const checkInterval = 100; // Check every 100ms
   const maxAttempts = maxWaitTime / checkInterval;
   let attempts = 0;
@@ -173,7 +173,7 @@ const waitForInferenceSession = async (maxWaitTime = 10000) => {
       if (inferenceStore.sessionReady) {
         resolve();
       } else if (attempts >= maxAttempts) {
-        reject(new Error("Timeout waiting for AI session to initialize"));
+        reject(new Error('Timeout waiting for AI session to initialize (30s timeout)'));
       } else {
         attempts++;
         setTimeout(checkSession, checkInterval);
@@ -186,7 +186,7 @@ const waitForInferenceSession = async (maxWaitTime = 10000) => {
 
 const startAnalysis = async () => {
   if (!props.sourceImage || props.comparisonImages.length === 0) {
-    error.value = "Missing source image or comparison images";
+    error.value = 'Missing source image or comparison images';
     return;
   }
 
@@ -195,12 +195,12 @@ const startAnalysis = async () => {
     try {
       resetAnalysis();
       isAnalyzing.value = true;
-      analysisStatus.value = "Initializing AI session...";
+      analysisStatus.value = 'Initializing AI session...';
 
       // Wait for session to be ready with timeout
       await waitForInferenceSession();
     } catch (sessionError) {
-      error.value = "Failed to initialize AI session: " + sessionError.message;
+      error.value = 'Failed to initialize AI session: ' + sessionError.message;
       isAnalyzing.value = false;
       return;
     }
@@ -211,15 +211,15 @@ const startAnalysis = async () => {
       resetAnalysis();
       isAnalyzing.value = true;
     }
-    analysisStatus.value = "Preparing source image...";
+    analysisStatus.value = 'Preparing source image...';
 
     // Prepare source image
     const sourceImageFile = await prepareSourceImage();
     if (!sourceImageFile) {
-      throw new Error("Failed to prepare source image");
+      throw new Error('Failed to prepare source image');
     }
 
-    analysisStatus.value = "Analyzing against comparison images...";
+    analysisStatus.value = 'Analyzing against comparison images...';
     totalImages.value = props.comparisonImages.length;
     currentImageIndex.value = 0;
 
@@ -236,12 +236,12 @@ const startAnalysis = async () => {
 
         if (matchedImage) {
           bestMatch.value = matchedImage;
-          analysisStatus.value = `Best match: ${matchedImage.name || "Found match"}`;
+          analysisStatus.value = `Best match: ${matchedImage.name || 'Found match'}`;
 
           // Emit match found event
-          emit("match-found", matchedImage);
+          emit('match-found', matchedImage);
         } else {
-          analysisStatus.value = "No clear match found";
+          analysisStatus.value = 'No clear match found';
         }
 
         // Complete analysis
@@ -249,7 +249,7 @@ const startAnalysis = async () => {
         isAnalyzing.value = false;
 
         // Emit completion event
-        emit("analysis-complete", bestMatch.value);
+        emit('analysis-complete', bestMatch.value);
       },
       (currentIndex, totalCount) => {
         // Progress callback
@@ -259,13 +259,13 @@ const startAnalysis = async () => {
       }
     );
   } catch (err) {
-    console.error("Image analysis error:", err);
-    error.value = err.message || "Analysis failed";
+    console.error('Image analysis error:', err);
+    error.value = err.message || 'Analysis failed';
     isAnalyzing.value = false;
     analysisComplete.value = true;
 
     // Emit error event
-    emit("analysis-error", err);
+    emit('analysis-error', err);
   }
 };
 
@@ -278,8 +278,8 @@ watch(
       // Use setTimeout to avoid blocking the watcher
       setTimeout(() => {
         startAnalysis().catch((err) => {
-          console.error("Auto-analysis failed:", err);
-          error.value = "Auto-analysis failed: " + err.message;
+          console.error('Auto-analysis failed:', err);
+          error.value = 'Auto-analysis failed: ' + err.message;
         });
       }, 100);
     }

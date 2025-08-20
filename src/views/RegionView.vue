@@ -86,17 +86,17 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from "vue";
-import { useRoute } from "vue-router";
-import FileUploadSection from "@/components/FileUploadSection.vue";
-import VideoUploadSection from "@/components/VideoUploadSection.vue";
-import GalleryTile from "@/components/GalleryTile.vue";
-import RegionGallery from "@/components/RegionGallery.vue";
-import RegionCacheManager from "@/components/RegionCacheManager.vue";
-import VisualizationModal from "@/components/VisualizationModal.vue";
-import MainFooter from "@/components/MainFooter.vue";
-import { useInferenceStore } from "@/stores/inferenceStore";
-import { imageCacheService } from "@/services/imageCacheService";
+import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
+import FileUploadSection from '@/components/FileUploadSection.vue';
+import VideoUploadSection from '@/components/VideoUploadSection.vue';
+import GalleryTile from '@/components/GalleryTile.vue';
+import RegionGallery from '@/components/RegionGallery.vue';
+import RegionCacheManager from '@/components/RegionCacheManager.vue';
+import VisualizationModal from '@/components/VisualizationModal.vue';
+import MainFooter from '@/components/MainFooter.vue';
+import { useInferenceStore } from '@/stores/inferenceStore';
+import { imageCacheService } from '@/services/imageCacheService';
 
 const props = defineProps({
   regionId: String,
@@ -111,7 +111,7 @@ const topoImages = ref([]); // array of selected topo images
 const allTopoImages = ref([]); // all available topo images
 const currentlyVisualizedImage = ref(null);
 const visualizationModalRef = ref(null);
-const modalMode = ref(""); // 'visualization' or 'preview'
+const modalMode = ref(''); // 'visualization' or 'preview'
 const previewImage = ref(null);
 
 const hasCompletedInference = computed(() => {
@@ -196,9 +196,9 @@ function onFileChange(file) {
     if (topoImages.value.length > 0 && inferenceStore.sessionReady) {
       inferenceStore.runInferenceBatch(file, topoImages.value);
     } else if (topoImages.value.length === 0) {
-      inferenceStore.errorString = "Please wait for topo images to load.";
+      inferenceStore.errorString = 'Please wait for topo images to load.';
     } else {
-      inferenceStore.errorString = "Inference session is not ready yet.";
+      inferenceStore.errorString = 'Inference session is not ready yet.';
     }
   }
 }
@@ -226,7 +226,7 @@ function resetForNewUpload() {
 
 function onVideoUploaded(videoMetadata) {
   // Handle the video upload completion
-  console.log("Video uploaded with metadata:", videoMetadata);
+  console.log('Video uploaded with metadata:', videoMetadata);
   // Here you could update a store, refresh a list of videos, etc.
   // For now, just log the successful upload
 }
@@ -237,16 +237,16 @@ function onVideoUploaded(videoMetadata) {
 // }
 
 function toggleModalMode() {
-  if (modalMode.value === "preview") {
-    modalMode.value = "visualization";
+  if (modalMode.value === 'preview') {
+    modalMode.value = 'visualization';
   } else {
-    modalMode.value = "preview";
+    modalMode.value = 'preview';
     previewImage.value = currentlyVisualizedImage.value;
   }
 }
 
 function onTileVisualize(img) {
-  modalMode.value = "visualization";
+  modalMode.value = 'visualization';
   currentlyVisualizedImage.value = img;
   if (visualizationModalRef.value) {
     visualizationModalRef.value.showModal();
@@ -255,7 +255,7 @@ function onTileVisualize(img) {
 
 function onTileClick(img) {
   // Show large image preview
-  modalMode.value = "preview";
+  modalMode.value = 'preview';
   previewImage.value = img;
   currentlyVisualizedImage.value = img;
   if (visualizationModalRef.value) {
@@ -265,14 +265,14 @@ function onTileClick(img) {
 
 function onDialogClose() {
   currentlyVisualizedImage.value = null;
-  modalMode.value = "";
+  modalMode.value = '';
   previewImage.value = null;
 }
 
 function onNavigateImage(navigationData) {
   // Handle both old format (just index) and new format (object with index and mode)
-  const newIndex = typeof navigationData === "number" ? navigationData : navigationData.index;
-  const suggestedMode = typeof navigationData === "object" ? navigationData.mode : modalMode.value;
+  const newIndex = typeof navigationData === 'number' ? navigationData : navigationData.index;
+  const suggestedMode = typeof navigationData === 'object' ? navigationData.mode : modalMode.value;
 
   const newImage = sortedTopoImages.value[newIndex];
   if (newImage) {
@@ -284,7 +284,7 @@ function onNavigateImage(navigationData) {
     }
 
     // Update preview image for preview mode
-    if (modalMode.value === "preview") {
+    if (modalMode.value === 'preview') {
       previewImage.value = newImage;
     }
   }
@@ -309,7 +309,7 @@ const sortedTopoImages = computed(() => {
 onMounted(() => {
   // Session is created eagerly when the store is initialized
   // No need to create session here anymore
-  console.log("RegionView mounted, session ready:", inferenceStore.sessionReady);
+  console.log('RegionView mounted, session ready:', inferenceStore.sessionReady);
 
   // Trigger cache status refresh for all components
   setTimeout(() => {

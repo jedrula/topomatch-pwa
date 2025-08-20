@@ -10,10 +10,10 @@ import {
   orderBy,
   where,
   serverTimestamp,
-} from "firebase/firestore";
-import { db } from "./firebase";
-import { getCurrentUser } from "./authService";
-import { videoService } from "./videoService";
+} from 'firebase/firestore';
+import { db } from './firebase';
+import { getCurrentUser } from './authService';
+import { videoService } from './videoService';
 
 export const ascentService = {
   /**
@@ -27,30 +27,30 @@ export const ascentService = {
     try {
       const user = getCurrentUser();
       if (!user) {
-        throw new Error("User must be authenticated to log ascents");
+        throw new Error('User must be authenticated to log ascents');
       }
 
       // Validate required fields
       if (!ascentData.attemptType) {
-        throw new Error("Attempt type is required");
+        throw new Error('Attempt type is required');
       }
 
       const ascentsRef = collection(
         db,
-        "locations",
+        'locations',
         locationId,
-        "boulderProblems",
+        'boulderProblems',
         problemId,
-        "ascents"
+        'ascents'
       );
 
       const newAscent = {
         userId: user.uid,
-        userName: user.displayName || user.email || "Anonymous",
+        userName: user.displayName || user.email || 'Anonymous',
         userEmail: user.email,
         attemptType: ascentData.attemptType, // 'flash', 'second', 'multiple'
         userGrade: ascentData.userGrade || null, // User's opinion of the grade
-        notes: ascentData.notes || "",
+        notes: ascentData.notes || '',
         sessionId: ascentData.sessionId || null, // Optional session tracking
         date: ascentData.date || serverTimestamp(),
         // Video metadata
@@ -60,11 +60,11 @@ export const ascentService = {
       };
 
       const docRef = await addDoc(ascentsRef, newAscent);
-      console.log("Ascent logged with ID:", docRef.id);
+      console.log('Ascent logged with ID:', docRef.id);
 
       return docRef.id;
     } catch (error) {
-      console.error("Error logging ascent:", error);
+      console.error('Error logging ascent:', error);
       throw error;
     }
   },
@@ -79,13 +79,13 @@ export const ascentService = {
     try {
       const ascentsRef = collection(
         db,
-        "locations",
+        'locations',
         locationId,
-        "boulderProblems",
+        'boulderProblems',
         problemId,
-        "ascents"
+        'ascents'
       );
-      const q = query(ascentsRef, orderBy("createdAt", "desc"));
+      const q = query(ascentsRef, orderBy('createdAt', 'desc'));
 
       const querySnapshot = await getDocs(q);
       const ascents = [];
@@ -99,7 +99,7 @@ export const ascentService = {
 
       return ascents;
     } catch (error) {
-      console.error("Error fetching boulder ascents:", error);
+      console.error('Error fetching boulder ascents:', error);
       throw error;
     }
   },
@@ -115,7 +115,7 @@ export const ascentService = {
       const targetUserId = userId || user?.uid;
 
       if (!targetUserId) {
-        throw new Error("User ID is required");
+        throw new Error('User ID is required');
       }
 
       // Note: This requires a compound query across multiple collections
@@ -128,7 +128,7 @@ export const ascentService = {
 
       return ascents;
     } catch (error) {
-      console.error("Error fetching user ascents:", error);
+      console.error('Error fetching user ascents:', error);
       throw error;
     }
   },
@@ -146,21 +146,21 @@ export const ascentService = {
       const targetUserId = userId || user?.uid;
 
       if (!targetUserId) {
-        throw new Error("User ID is required");
+        throw new Error('User ID is required');
       }
 
       const ascentsRef = collection(
         db,
-        "locations",
+        'locations',
         locationId,
-        "boulderProblems",
+        'boulderProblems',
         problemId,
-        "ascents"
+        'ascents'
       );
       const q = query(
         ascentsRef,
-        where("userId", "==", targetUserId),
-        orderBy("createdAt", "desc")
+        where('userId', '==', targetUserId),
+        orderBy('createdAt', 'desc')
       );
 
       const querySnapshot = await getDocs(q);
@@ -175,7 +175,7 @@ export const ascentService = {
 
       return ascents;
     } catch (error) {
-      console.error("Error fetching user boulder ascents:", error);
+      console.error('Error fetching user boulder ascents:', error);
       throw error;
     }
   },
@@ -192,28 +192,28 @@ export const ascentService = {
     try {
       const user = getCurrentUser();
       if (!user) {
-        throw new Error("User must be authenticated to update ascents");
+        throw new Error('User must be authenticated to update ascents');
       }
 
       const ascentRef = doc(
         db,
-        "locations",
+        'locations',
         locationId,
-        "boulderProblems",
+        'boulderProblems',
         problemId,
-        "ascents",
+        'ascents',
         ascentId
       );
 
       // Check if the ascent exists and belongs to the current user
       const ascentSnap = await getDoc(ascentRef);
       if (!ascentSnap.exists()) {
-        throw new Error("Ascent not found");
+        throw new Error('Ascent not found');
       }
 
       const ascentData = ascentSnap.data();
       if (ascentData.userId !== user.uid) {
-        throw new Error("You can only update your own ascents");
+        throw new Error('You can only update your own ascents');
       }
 
       const updateData = {
@@ -222,9 +222,9 @@ export const ascentService = {
       };
 
       await updateDoc(ascentRef, updateData);
-      console.log("Ascent updated successfully");
+      console.log('Ascent updated successfully');
     } catch (error) {
-      console.error("Error updating ascent:", error);
+      console.error('Error updating ascent:', error);
       throw error;
     }
   },
@@ -240,45 +240,45 @@ export const ascentService = {
     try {
       const user = getCurrentUser();
       if (!user) {
-        throw new Error("User must be authenticated to delete ascents");
+        throw new Error('User must be authenticated to delete ascents');
       }
 
       const ascentRef = doc(
         db,
-        "locations",
+        'locations',
         locationId,
-        "boulderProblems",
+        'boulderProblems',
         problemId,
-        "ascents",
+        'ascents',
         ascentId
       );
 
       // Check if the ascent exists and belongs to the current user
       const ascentSnap = await getDoc(ascentRef);
       if (!ascentSnap.exists()) {
-        throw new Error("Ascent not found");
+        throw new Error('Ascent not found');
       }
 
       const ascentData = ascentSnap.data();
       if (ascentData.userId !== user.uid) {
-        throw new Error("You can only delete your own ascents");
+        throw new Error('You can only delete your own ascents');
       }
 
       // Delete associated beta video if it exists
       if (ascentData.betaVideo && ascentData.betaVideo.videoId) {
         try {
           await videoService.deleteBetaVideo(locationId, problemId, ascentData.betaVideo.videoId);
-          console.log("Beta video deleted with ascent");
+          console.log('Beta video deleted with ascent');
         } catch (videoError) {
-          console.warn("Error deleting beta video (continuing with ascent deletion):", videoError);
+          console.warn('Error deleting beta video (continuing with ascent deletion):', videoError);
           // Continue with ascent deletion even if video deletion fails
         }
       }
 
       await deleteDoc(ascentRef);
-      console.log("Ascent deleted successfully");
+      console.log('Ascent deleted successfully');
     } catch (error) {
-      console.error("Error deleting ascent:", error);
+      console.error('Error deleting ascent:', error);
       throw error;
     }
   },
@@ -297,9 +297,9 @@ export const ascentService = {
         totalAscents: ascents.length,
         uniqueClimbers: new Set(ascents.map((a) => a.userId)).size,
         attemptTypes: {
-          flash: ascents.filter((a) => a.attemptType === "flash").length,
-          second: ascents.filter((a) => a.attemptType === "second").length,
-          multiple: ascents.filter((a) => a.attemptType === "multiple").length,
+          flash: ascents.filter((a) => a.attemptType === 'flash').length,
+          second: ascents.filter((a) => a.attemptType === 'second').length,
+          multiple: ascents.filter((a) => a.attemptType === 'multiple').length,
         },
         averageUserGrade: null,
         userGrades: ascents.filter((a) => a.userGrade).map((a) => a.userGrade),
@@ -313,7 +313,7 @@ export const ascentService = {
 
       return stats;
     } catch (error) {
-      console.error("Error calculating ascent stats:", error);
+      console.error('Error calculating ascent stats:', error);
       throw error;
     }
   },

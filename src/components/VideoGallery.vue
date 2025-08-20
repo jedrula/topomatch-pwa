@@ -60,8 +60,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { videoService } from "../services/videoService.js";
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { videoService } from '../services/videoService.js';
 
 const props = defineProps({
   videos: {
@@ -78,7 +78,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["close", "video-change"]);
+const emit = defineEmits(['close', 'video-change']);
 
 // State
 const currentIndex = ref(0);
@@ -88,7 +88,7 @@ const currentVideo = computed(() => props.videos[currentIndex.value] || null);
 
 // Methods
 const closeGallery = () => {
-  emit("close");
+  emit('close');
 };
 
 const closeOnBackdrop = (event) => {
@@ -99,7 +99,7 @@ const closeOnBackdrop = (event) => {
 
 const onVideoLoaded = (event) => {
   // Video metadata loaded
-  console.log("Video loaded:", event.target.duration);
+  console.log('Video loaded:', event.target.duration);
 };
 
 const formatDate = (dateString) => {
@@ -124,25 +124,25 @@ watch(
 );
 
 watch(currentIndex, (newIndex) => {
-  emit("video-change", newIndex, currentVideo.value);
+  emit('video-change', newIndex, currentVideo.value);
 });
 
 // Focus management
 onMounted(() => {
   if (props.isOpen) {
-    document.addEventListener("keydown", handleKeydown);
+    document.addEventListener('keydown', handleKeydown);
   }
 });
 
 onUnmounted(() => {
-  document.removeEventListener("keydown", handleKeydown);
+  document.removeEventListener('keydown', handleKeydown);
 });
 
 const handleKeydown = (event) => {
   if (!props.isOpen) return;
 
   switch (event.key) {
-    case "Escape":
+    case 'Escape':
       closeGallery();
       break;
   }
@@ -152,11 +152,11 @@ watch(
   () => props.isOpen,
   (isOpen) => {
     if (isOpen) {
-      document.addEventListener("keydown", handleKeydown);
-      document.body.style.overflow = "hidden";
+      document.addEventListener('keydown', handleKeydown);
+      document.body.style.overflow = 'hidden';
     } else {
-      document.removeEventListener("keydown", handleKeydown);
-      document.body.style.overflow = "";
+      document.removeEventListener('keydown', handleKeydown);
+      document.body.style.overflow = '';
     }
   }
 );

@@ -179,8 +179,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
-import { videoService } from "@/services/videoService";
+import { ref, computed, watch } from 'vue';
+import { videoService } from '@/services/videoService';
 
 const props = defineProps({
   modelValue: {
@@ -206,7 +206,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["update:modelValue", "upload-start", "upload-complete", "upload-error"]);
+const emit = defineEmits(['update:modelValue', 'upload-start', 'upload-complete', 'upload-error']);
 
 // Reactive state
 const fileInput = ref(null);
@@ -226,14 +226,14 @@ const clearFile = () => {
   uploadProgress.value = 0;
 
   if (fileInput.value) {
-    fileInput.value.value = "";
+    fileInput.value.value = '';
   }
 };
 
 // Computed
 const videoData = computed({
   get: () => props.modelValue,
-  set: (value) => emit("update:modelValue", value),
+  set: (value) => emit('update:modelValue', value),
 });
 
 // Watch for external changes to modelValue
@@ -277,7 +277,7 @@ const uploadVideo = async () => {
     uploadProgress.value = 0;
 
     // Emit upload start event
-    emit("upload-start");
+    emit('upload-start');
 
     let result;
 
@@ -309,11 +309,11 @@ const uploadVideo = async () => {
     videoData.value = result;
     selectedFile.value = null;
 
-    emit("upload-complete", result);
+    emit('upload-complete', result);
   } catch (err) {
-    console.error("Error uploading video:", err);
-    error.value = err.message || "Failed to upload video";
-    emit("upload-error", err);
+    console.error('Error uploading video:', err);
+    error.value = err.message || 'Failed to upload video';
+    emit('upload-error', err);
   } finally {
     isUploading.value = false;
     uploadProgress.value = 0;
@@ -340,7 +340,7 @@ const formatDuration = (duration) => {
 };
 
 const formatUploadDate = (dateString) => {
-  if (!dateString) return "Unknown";
+  if (!dateString) return 'Unknown';
   return new Date(dateString).toLocaleDateString();
 };
 

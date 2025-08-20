@@ -183,7 +183,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from "vue";
+import { ref, onMounted, nextTick } from 'vue';
 
 defineProps({
   imageUrl: {
@@ -192,18 +192,18 @@ defineProps({
   },
   imageAlt: {
     type: String,
-    default: "Climbing image",
+    default: 'Climbing image',
   },
 });
 
-const emit = defineEmits(["holds-created", "hold-added"]);
+const emit = defineEmits(['holds-created', 'hold-added']);
 
 // Refs
 const imageElement = ref(null);
 const drawingCanvas = ref(null);
 
 // Drawing state
-const drawingMode = ref("circle"); // 'circle', 'rectangle', 'polygon'
+const drawingMode = ref('circle'); // 'circle', 'rectangle', 'polygon'
 const isDrawing = ref(false);
 const currentShape = ref(null);
 const polygonPoints = ref([]);
@@ -234,7 +234,7 @@ const onImageLoad = async () => {
   drawingCanvas.value.width = canvasWidth.value;
   drawingCanvas.value.height = canvasHeight.value;
 
-  console.log("Canvas initialized:", { width: canvasWidth.value, height: canvasHeight.value });
+  console.log('Canvas initialized:', { width: canvasWidth.value, height: canvasHeight.value });
 };
 
 const getMousePos = (event) => {
@@ -251,7 +251,7 @@ const startDrawing = (event) => {
   const pos = getMousePos(event);
   isDrawing.value = true;
 
-  if (drawingMode.value === "polygon") {
+  if (drawingMode.value === 'polygon') {
     // Add point to polygon
     polygonPoints.value.push(pos);
     drawPolygonPreview();
@@ -279,7 +279,7 @@ const continueDraw = (event) => {
 const finishDrawing = () => {
   if (!isDrawing.value) return;
 
-  if (drawingMode.value === "polygon") {
+  if (drawingMode.value === 'polygon') {
     // Polygon continues until double-click
     return;
   }
@@ -288,8 +288,8 @@ const finishDrawing = () => {
     const shape = createHoldFromShape();
     if (shape) {
       manualHolds.value.push(shape);
-      emit("hold-added", shape);
-      emit("holds-created", manualHolds.value);
+      emit('hold-added', shape);
+      emit('holds-created', manualHolds.value);
     }
   }
 
@@ -299,13 +299,13 @@ const finishDrawing = () => {
 };
 
 const finishPolygon = () => {
-  if (drawingMode.value !== "polygon" || polygonPoints.value.length < 3) return;
+  if (drawingMode.value !== 'polygon' || polygonPoints.value.length < 3) return;
 
   const shape = createPolygonHold();
   if (shape) {
     manualHolds.value.push(shape);
-    emit("hold-added", shape);
-    emit("holds-created", manualHolds.value);
+    emit('hold-added', shape);
+    emit('holds-created', manualHolds.value);
   }
 
   isDrawing.value = false;
@@ -318,7 +318,7 @@ const createHoldFromShape = () => {
 
   const { startX, startY, currentX, currentY } = currentShape.value;
 
-  if (drawingMode.value === "circle") {
+  if (drawingMode.value === 'circle') {
     const centerX = (startX + currentX) / 2;
     const centerY = (startY + currentY) / 2;
     const radius = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2)) / 2;
@@ -326,14 +326,14 @@ const createHoldFromShape = () => {
     if (radius < 5) return null; // Too small
 
     return {
-      type: "circle",
+      type: 'circle',
       cx: centerX,
       cy: centerY,
       r: radius,
       centerX,
       centerY,
       id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      detectionSource: "user_drawn",
+      detectionSource: 'user_drawn',
       svgMarkup: `<circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="rgba(34, 197, 94, 0.3)" stroke="#22c55e" stroke-width="2"/>`,
       coordinates: {
         x: centerX - radius,
@@ -342,7 +342,7 @@ const createHoldFromShape = () => {
         height: radius * 2,
       },
     };
-  } else if (drawingMode.value === "rectangle") {
+  } else if (drawingMode.value === 'rectangle') {
     const x = Math.min(startX, currentX);
     const y = Math.min(startY, currentY);
     const width = Math.abs(currentX - startX);
@@ -351,7 +351,7 @@ const createHoldFromShape = () => {
     if (width < 5 || height < 5) return null; // Too small
 
     return {
-      type: "rectangle",
+      type: 'rectangle',
       x,
       y,
       width,
@@ -359,7 +359,7 @@ const createHoldFromShape = () => {
       centerX: x + width / 2,
       centerY: y + height / 2,
       id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      detectionSource: "user_drawn",
+      detectionSource: 'user_drawn',
       svgMarkup: `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="rgba(34, 197, 94, 0.3)" stroke="#22c55e" stroke-width="2"/>`,
       coordinates: { x, y, width, height },
     };
@@ -371,7 +371,7 @@ const createHoldFromShape = () => {
 const createPolygonHold = () => {
   if (polygonPoints.value.length < 3) return null;
 
-  const points = polygonPoints.value.map((p) => `${p.x},${p.y}`).join(" ");
+  const points = polygonPoints.value.map((p) => `${p.x},${p.y}`).join(' ');
 
   // Calculate center and bounding box
   const xs = polygonPoints.value.map((p) => p.x);
@@ -384,12 +384,12 @@ const createPolygonHold = () => {
   const centerY = (minY + maxY) / 2;
 
   return {
-    type: "polygon",
+    type: 'polygon',
     points,
     centerX,
     centerY,
     id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    detectionSource: "user_drawn",
+    detectionSource: 'user_drawn',
     svgMarkup: `<polygon points="${points}" fill="rgba(34, 197, 94, 0.3)" stroke="#22c55e" stroke-width="2"/>`,
     coordinates: {
       x: minX,
@@ -403,16 +403,16 @@ const createPolygonHold = () => {
 const drawShapePreview = () => {
   if (!drawingCanvas.value || !currentShape.value) return;
 
-  const ctx = drawingCanvas.value.getContext("2d");
+  const ctx = drawingCanvas.value.getContext('2d');
   clearCanvas();
 
   const { startX, startY, currentX, currentY } = currentShape.value;
 
-  ctx.strokeStyle = "#22c55e";
-  ctx.fillStyle = "rgba(34, 197, 94, 0.3)";
+  ctx.strokeStyle = '#22c55e';
+  ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
   ctx.lineWidth = 2;
 
-  if (drawingMode.value === "circle") {
+  if (drawingMode.value === 'circle') {
     const centerX = (startX + currentX) / 2;
     const centerY = (startY + currentY) / 2;
     const radius = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2)) / 2;
@@ -421,7 +421,7 @@ const drawShapePreview = () => {
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
     ctx.fill();
     ctx.stroke();
-  } else if (drawingMode.value === "rectangle") {
+  } else if (drawingMode.value === 'rectangle') {
     const x = Math.min(startX, currentX);
     const y = Math.min(startY, currentY);
     const width = Math.abs(currentX - startX);
@@ -435,11 +435,11 @@ const drawShapePreview = () => {
 const drawPolygonPreview = () => {
   if (!drawingCanvas.value || polygonPoints.value.length === 0) return;
 
-  const ctx = drawingCanvas.value.getContext("2d");
+  const ctx = drawingCanvas.value.getContext('2d');
   clearCanvas();
 
-  ctx.strokeStyle = "#22c55e";
-  ctx.fillStyle = "rgba(34, 197, 94, 0.3)";
+  ctx.strokeStyle = '#22c55e';
+  ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
   ctx.lineWidth = 2;
 
   if (polygonPoints.value.length > 0) {
@@ -460,7 +460,7 @@ const drawPolygonPreview = () => {
     polygonPoints.value.forEach((point) => {
       ctx.beginPath();
       ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
-      ctx.fillStyle = "#16a34a";
+      ctx.fillStyle = '#16a34a';
       ctx.fill();
     });
   }
@@ -468,13 +468,13 @@ const drawPolygonPreview = () => {
 
 const clearCanvas = () => {
   if (!drawingCanvas.value) return;
-  const ctx = drawingCanvas.value.getContext("2d");
+  const ctx = drawingCanvas.value.getContext('2d');
   ctx.clearRect(0, 0, canvasWidth.value, canvasHeight.value);
 };
 
 const removeManualHold = (index) => {
   manualHolds.value.splice(index, 1);
-  emit("holds-created", manualHolds.value);
+  emit('holds-created', manualHolds.value);
 };
 
 // Expose methods
@@ -482,7 +482,7 @@ defineExpose({
   clearAllHolds: () => {
     manualHolds.value = [];
     clearCanvas();
-    emit("holds-created", []);
+    emit('holds-created', []);
   },
   getHolds: () => manualHolds.value,
 });

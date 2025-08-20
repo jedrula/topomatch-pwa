@@ -9,18 +9,18 @@
  */
 export function pathPointsToPathData(pathPoints) {
   if (!pathPoints || pathPoints.length === 0) {
-    return "";
+    return '';
   }
 
   const commands = pathPoints.map((point, index) => {
-    const command = index === 0 ? "M" : "L";
+    const command = index === 0 ? 'M' : 'L';
     return `${command} ${point.x} ${point.y}`;
   });
 
   // Auto-close the path
-  commands.push("Z");
+  commands.push('Z');
 
-  return commands.join(" ");
+  return commands.join(' ');
 }
 
 /**
@@ -34,10 +34,10 @@ export function pathPointsToPathData(pathPoints) {
  */
 export function pathPointsToSvgMarkup(pathPoints, options = {}) {
   if (!pathPoints || pathPoints.length === 0) {
-    return "";
+    return '';
   }
 
-  const { fill = "rgba(34, 197, 94, 0.3)", stroke = "#22c55e", strokeWidth = 2 } = options;
+  const { fill = 'rgba(34, 197, 94, 0.3)', stroke = '#22c55e', strokeWidth = 2 } = options;
 
   const pathData = pathPointsToPathData(pathPoints);
 

@@ -1,13 +1,13 @@
-import "./assets/main.css";
-import "floating-vue/dist/style.css";
+import './assets/main.css';
+import 'floating-vue/dist/style.css';
 
-import { createApp } from "vue";
-import { createPinia } from "pinia";
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 
-import FloatingVue from "floating-vue";
+import FloatingVue from 'floating-vue';
 
-import App from "./App.vue";
-import router from "./router";
+import App from './App.vue';
+import router from './router';
 
 // import * as ort from "onnxruntime-web/dist/ort-web.min.js";
 
@@ -26,10 +26,14 @@ import router from "./router";
 const pinia = createPinia();
 const app = createApp(App);
 
-console.log("a change4");
-
 app.use(router);
 app.use(FloatingVue);
 app.use(pinia);
 
-app.mount("#app");
+// Eagerly initialize inference store to start loading AI models immediately
+import { useInferenceStore } from './stores/inferenceStore';
+useInferenceStore(); // This will trigger the session creation immediately
+
+console.log('a change4');
+
+app.mount('#app');

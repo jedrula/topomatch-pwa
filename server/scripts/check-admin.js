@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-const { initializeApp } = require("firebase-admin/app");
-const { getAuth } = require("firebase-admin/auth");
-const { getFirestore } = require("firebase-admin/firestore");
+const { initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+const { getFirestore } = require('firebase-admin/firestore');
 
 // Initialize Firebase Admin with project ID
 initializeApp({
-  projectId: "demo-offline-vue-pwa",
+  projectId: 'demo-offline-vue-pwa',
 });
 
 const auth = getAuth();
@@ -33,7 +33,7 @@ async function checkUserAdmin(email) {
     console.log(`👑 Is admin:`, userRecord.customClaims?.admin === true);
 
     // Check Firestore document
-    const userDoc = await db.collection("users").doc(userRecord.uid).get();
+    const userDoc = await db.collection('users').doc(userRecord.uid).get();
     if (userDoc.exists) {
       console.log(`💾 Firestore document:`, userDoc.data());
     } else {

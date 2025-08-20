@@ -3,19 +3,19 @@
  * Copyright (c) Microsoft Corporation. All rights reserved.
  * Licensed under the MIT License.
  */
-("use strict");
+('use strict');
 var ort = (() => {
   var bn = Object.defineProperty;
   var Vu = Object.getOwnPropertyDescriptor;
   var Nu = Object.getOwnPropertyNames;
   var Lu = Object.prototype.hasOwnProperty;
   var _n = ((e) =>
-    typeof require < "u"
+    typeof require < 'u'
       ? require
-      : typeof Proxy < "u"
-      ? new Proxy(e, { get: (t, n) => (typeof require < "u" ? require : t)[n] })
+      : typeof Proxy < 'u'
+      ? new Proxy(e, { get: (t, n) => (typeof require < 'u' ? require : t)[n] })
       : e)(function (e) {
-    if (typeof require < "u") return require.apply(this, arguments);
+    if (typeof require < 'u') return require.apply(this, arguments);
     throw Error('Dynamic require of "' + e + '" is not supported');
   });
   var E = (e, t) => () => (e && (t = e((e = 0))), t);
@@ -23,28 +23,28 @@ var ort = (() => {
       for (var n in t) bn(e, n, { get: t[n], enumerable: !0 });
     },
     Gu = (e, t, n, r) => {
-      if ((t && typeof t == "object") || typeof t == "function")
+      if ((t && typeof t == 'object') || typeof t == 'function')
         for (let o of Nu(t))
           !Lu.call(e, o) &&
             o !== n &&
             bn(e, o, { get: () => t[o], enumerable: !(r = Vu(t, o)) || r.enumerable });
       return e;
     };
-  var at = (e) => Gu(bn({}, "__esModule", { value: !0 }), e);
+  var at = (e) => Gu(bn({}, '__esModule', { value: !0 }), e);
   var $t,
     Fe,
     Ne,
     Wu,
     hr,
     wn = E(() => {
-      "use strict";
+      'use strict';
       ($t = new Map()),
         (Fe = []),
         (Ne = (e, t, n) => {
           if (
             t &&
-            typeof t.init == "function" &&
-            typeof t.createInferenceSessionHandler == "function"
+            typeof t.init == 'function' &&
+            typeof t.createInferenceSessionHandler == 'function'
           ) {
             let r = $t.get(e);
             if (r === void 0) $t.set(e, { backend: t, priority: n });
@@ -65,11 +65,11 @@ var ort = (() => {
             }
             return;
           }
-          throw new TypeError("not a valid backend");
+          throw new TypeError('not a valid backend');
         }),
         (Wu = async (e) => {
           let t = $t.get(e);
-          if (!t) return "backend not found.";
+          if (!t) return 'backend not found.';
           if (t.initialized) return t.backend;
           if (t.aborted) return t.error;
           {
@@ -90,48 +90,48 @@ var ort = (() => {
         }),
         (hr = async (e) => {
           let t = e.executionProviders || [],
-            n = t.map((u) => (typeof u == "string" ? u : u.name)),
+            n = t.map((u) => (typeof u == 'string' ? u : u.name)),
             r = n.length === 0 ? Fe : n,
             o,
             i = [],
             s = new Set();
           for (let u of r) {
             let d = await Wu(u);
-            typeof d == "string"
+            typeof d == 'string'
               ? i.push({ name: u, err: d })
               : (o || (o = d), o === d && s.add(u));
           }
           if (!o)
             throw new Error(
-              `no available backend found. ERR: ${i.map((u) => `[${u.name}] ${u.err}`).join(", ")}`
+              `no available backend found. ERR: ${i.map((u) => `[${u.name}] ${u.err}`).join(', ')}`
             );
           for (let { name: u, err: d } of i)
             n.includes(u) &&
               console.warn(
                 `removing requested execution provider "${u}" from session options because it is not available: ${d}`
               );
-          let a = t.filter((u) => s.has(typeof u == "string" ? u : u.name));
+          let a = t.filter((u) => s.has(typeof u == 'string' ? u : u.name));
           return [
             o,
-            new Proxy(e, { get: (u, d) => (d === "executionProviders" ? a : Reflect.get(u, d)) }),
+            new Proxy(e, { get: (u, d) => (d === 'executionProviders' ? a : Reflect.get(u, d)) }),
           ];
         });
     });
   var gr = E(() => {
-    "use strict";
+    'use strict';
     wn();
   });
   var yr,
     br = E(() => {
-      "use strict";
-      yr = "1.22.0";
+      'use strict';
+      yr = '1.22.0';
     });
   var _r,
     ge,
     $n = E(() => {
-      "use strict";
+      'use strict';
       br();
-      (_r = "warning"),
+      (_r = 'warning'),
         (ge = {
           wasm: {},
           webgl: {},
@@ -140,8 +140,8 @@ var ort = (() => {
           set logLevel(e) {
             if (e !== void 0) {
               if (
-                typeof e != "string" ||
-                ["verbose", "info", "warning", "error", "fatal"].indexOf(e) === -1
+                typeof e != 'string' ||
+                ['verbose', 'info', 'warning', 'error', 'fatal'].indexOf(e) === -1
               )
                 throw new Error(`Unsupported logging level: ${e}`);
               _r = e;
@@ -151,41 +151,41 @@ var ort = (() => {
             return _r;
           },
         });
-      Object.defineProperty(ge, "logLevel", { enumerable: !0 });
+      Object.defineProperty(ge, 'logLevel', { enumerable: !0 });
     });
   var te,
     wr = E(() => {
-      "use strict";
+      'use strict';
       $n();
       te = ge;
     });
   var $r,
     vr,
     xr = E(() => {
-      "use strict";
+      'use strict';
       ($r = (e, t) => {
         let n =
-          typeof document < "u" ? document.createElement("canvas") : new OffscreenCanvas(1, 1);
+          typeof document < 'u' ? document.createElement('canvas') : new OffscreenCanvas(1, 1);
         (n.width = e.dims[3]), (n.height = e.dims[2]);
-        let r = n.getContext("2d");
+        let r = n.getContext('2d');
         if (r != null) {
           let o, i;
-          t?.tensorLayout !== void 0 && t.tensorLayout === "NHWC"
+          t?.tensorLayout !== void 0 && t.tensorLayout === 'NHWC'
             ? ((o = e.dims[2]), (i = e.dims[3]))
             : ((o = e.dims[3]), (i = e.dims[2]));
-          let s = t?.format !== void 0 ? t.format : "RGB",
+          let s = t?.format !== void 0 ? t.format : 'RGB',
             a = t?.norm,
             u,
             d;
           a === void 0 || a.mean === void 0
             ? (u = [255, 255, 255, 255])
-            : typeof a.mean == "number"
+            : typeof a.mean == 'number'
             ? (u = [a.mean, a.mean, a.mean, a.mean])
             : ((u = [a.mean[0], a.mean[1], a.mean[2], 0]),
               a.mean[3] !== void 0 && (u[3] = a.mean[3])),
             a === void 0 || a.bias === void 0
               ? (d = [0, 0, 0, 0])
-              : typeof a.bias == "number"
+              : typeof a.bias == 'number'
               ? (d = [a.bias, a.bias, a.bias, a.bias])
               : ((d = [a.bias[0], a.bias[1], a.bias[2], 0]),
                 a.bias[3] !== void 0 && (d[3] = a.bias[3]));
@@ -194,56 +194,56 @@ var ort = (() => {
             p = l,
             f = l * 2,
             m = -1;
-          s === "RGBA"
+          s === 'RGBA'
             ? ((c = 0), (p = l), (f = l * 2), (m = l * 3))
-            : s === "RGB"
+            : s === 'RGB'
             ? ((c = 0), (p = l), (f = l * 2))
-            : s === "RBG" && ((c = 0), (f = l), (p = l * 2));
+            : s === 'RBG' && ((c = 0), (f = l), (p = l * 2));
           for (let h = 0; h < i; h++)
             for (let b = 0; b < o; b++) {
               let y = (e.data[c++] - d[0]) * u[0],
                 g = (e.data[p++] - d[1]) * u[1],
                 _ = (e.data[f++] - d[2]) * u[2],
                 w = m === -1 ? 255 : (e.data[m++] - d[3]) * u[3];
-              (r.fillStyle = "rgba(" + y + "," + g + "," + _ + "," + w + ")"),
+              (r.fillStyle = 'rgba(' + y + ',' + g + ',' + _ + ',' + w + ')'),
                 r.fillRect(b, h, 1, 1);
             }
-          if ("toDataURL" in n) return n.toDataURL();
-          throw new Error("toDataURL is not supported");
-        } else throw new Error("Can not access image data");
+          if ('toDataURL' in n) return n.toDataURL();
+          throw new Error('toDataURL is not supported');
+        } else throw new Error('Can not access image data');
       }),
         (vr = (e, t) => {
           let n =
-              typeof document < "u"
-                ? document.createElement("canvas").getContext("2d")
-                : new OffscreenCanvas(1, 1).getContext("2d"),
+              typeof document < 'u'
+                ? document.createElement('canvas').getContext('2d')
+                : new OffscreenCanvas(1, 1).getContext('2d'),
             r;
           if (n != null) {
             let o, i, s;
-            t?.tensorLayout !== void 0 && t.tensorLayout === "NHWC"
+            t?.tensorLayout !== void 0 && t.tensorLayout === 'NHWC'
               ? ((o = e.dims[2]), (i = e.dims[1]), (s = e.dims[3]))
               : ((o = e.dims[3]), (i = e.dims[2]), (s = e.dims[1]));
-            let a = t !== void 0 && t.format !== void 0 ? t.format : "RGB",
+            let a = t !== void 0 && t.format !== void 0 ? t.format : 'RGB',
               u = t?.norm,
               d,
               l;
             u === void 0 || u.mean === void 0
               ? (d = [255, 255, 255, 255])
-              : typeof u.mean == "number"
+              : typeof u.mean == 'number'
               ? (d = [u.mean, u.mean, u.mean, u.mean])
               : ((d = [u.mean[0], u.mean[1], u.mean[2], 255]),
                 u.mean[3] !== void 0 && (d[3] = u.mean[3])),
               u === void 0 || u.bias === void 0
                 ? (l = [0, 0, 0, 0])
-                : typeof u.bias == "number"
+                : typeof u.bias == 'number'
                 ? (l = [u.bias, u.bias, u.bias, u.bias])
                 : ((l = [u.bias[0], u.bias[1], u.bias[2], 0]),
                   u.bias[3] !== void 0 && (l[3] = u.bias[3]));
             let c = i * o;
             if (
               t !== void 0 &&
-              ((t.format !== void 0 && s === 4 && t.format !== "RGBA") ||
-                (s === 3 && t.format !== "RGB" && t.format !== "BGR"))
+              ((t.format !== void 0 && s === 4 && t.format !== 'RGBA') ||
+                (s === 3 && t.format !== 'RGB' && t.format !== 'BGR'))
             )
               throw new Error("Tensor format doesn't match input tensor dims");
             let p = 4,
@@ -255,18 +255,18 @@ var ort = (() => {
               g = c,
               _ = c * 2,
               w = -1;
-            a === "RGBA"
+            a === 'RGBA'
               ? ((y = 0), (g = c), (_ = c * 2), (w = c * 3))
-              : a === "RGB"
+              : a === 'RGB'
               ? ((y = 0), (g = c), (_ = c * 2))
-              : a === "RBG" && ((y = 0), (_ = c), (g = c * 2)),
+              : a === 'RBG' && ((y = 0), (_ = c), (g = c * 2)),
               (r = n.createImageData(o, i));
             for (let v = 0; v < i * o; f += p, m += p, h += p, b += p, v++)
               (r.data[f] = (e.data[y++] - l[0]) * d[0]),
                 (r.data[m] = (e.data[g++] - l[1]) * d[1]),
                 (r.data[h] = (e.data[_++] - l[2]) * d[2]),
                 (r.data[b] = w === -1 ? 255 : (e.data[w++] - l[3]) * d[3]);
-          } else throw new Error("Can not access image data");
+          } else throw new Error('Can not access image data');
           return r;
         });
     });
@@ -277,27 +277,27 @@ var ort = (() => {
     Cr,
     Ar,
     kr = E(() => {
-      "use strict";
+      'use strict';
       vt();
       (vn = (e, t) => {
-        if (e === void 0) throw new Error("Image buffer must be defined");
+        if (e === void 0) throw new Error('Image buffer must be defined');
         if (t.height === void 0 || t.width === void 0)
-          throw new Error("Image height and width must be defined");
-        if (t.tensorLayout === "NHWC") throw new Error("NHWC Tensor layout is not supported yet");
+          throw new Error('Image height and width must be defined');
+        if (t.tensorLayout === 'NHWC') throw new Error('NHWC Tensor layout is not supported yet');
         let { height: n, width: r } = t,
           o = t.norm ?? { mean: 255, bias: 0 },
           i,
           s;
-        typeof o.mean == "number"
+        typeof o.mean == 'number'
           ? (i = [o.mean, o.mean, o.mean, o.mean])
           : (i = [o.mean[0], o.mean[1], o.mean[2], o.mean[3] ?? 255]),
-          typeof o.bias == "number"
+          typeof o.bias == 'number'
             ? (s = [o.bias, o.bias, o.bias, o.bias])
             : (s = [o.bias[0], o.bias[1], o.bias[2], o.bias[3] ?? 0]);
-        let a = t.format !== void 0 ? t.format : "RGBA",
-          u = t.tensorFormat !== void 0 && t.tensorFormat !== void 0 ? t.tensorFormat : "RGB",
+        let a = t.format !== void 0 ? t.format : 'RGBA',
+          u = t.tensorFormat !== void 0 && t.tensorFormat !== void 0 ? t.tensorFormat : 'RGB',
           d = n * r,
-          l = u === "RGBA" ? new Float32Array(d * 4) : new Float32Array(d * 3),
+          l = u === 'RGBA' ? new Float32Array(d * 4) : new Float32Array(d * 3),
           c = 4,
           p = 0,
           f = 1,
@@ -307,37 +307,37 @@ var ort = (() => {
           y = d,
           g = d * 2,
           _ = -1;
-        a === "RGB" && ((c = 3), (p = 0), (f = 1), (m = 2), (h = -1)),
-          u === "RGBA"
+        a === 'RGB' && ((c = 3), (p = 0), (f = 1), (m = 2), (h = -1)),
+          u === 'RGBA'
             ? (_ = d * 3)
-            : u === "RBG"
+            : u === 'RBG'
             ? ((b = 0), (g = d), (y = d * 2))
-            : u === "BGR" && ((g = 0), (y = d), (b = d * 2));
+            : u === 'BGR' && ((g = 0), (y = d), (b = d * 2));
         for (let v = 0; v < d; v++, p += c, m += c, f += c, h += c)
           (l[b++] = (e[p] + s[0]) / i[0]),
             (l[y++] = (e[f] + s[1]) / i[1]),
             (l[g++] = (e[m] + s[2]) / i[2]),
             _ !== -1 && h !== -1 && (l[_++] = (e[h] + s[3]) / i[3]);
-        return u === "RGBA"
-          ? new pe("float32", l, [1, 4, n, r])
-          : new pe("float32", l, [1, 3, n, r]);
+        return u === 'RGBA'
+          ? new pe('float32', l, [1, 4, n, r])
+          : new pe('float32', l, [1, 3, n, r]);
       }),
         (Sr = async (e, t) => {
-          let n = typeof HTMLImageElement < "u" && e instanceof HTMLImageElement,
-            r = typeof ImageData < "u" && e instanceof ImageData,
-            o = typeof ImageBitmap < "u" && e instanceof ImageBitmap,
-            i = typeof e == "string",
+          let n = typeof HTMLImageElement < 'u' && e instanceof HTMLImageElement,
+            r = typeof ImageData < 'u' && e instanceof ImageData,
+            o = typeof ImageBitmap < 'u' && e instanceof ImageBitmap,
+            i = typeof e == 'string',
             s,
             a = t ?? {},
             u = () => {
-              if (typeof document < "u") return document.createElement("canvas");
-              if (typeof OffscreenCanvas < "u") return new OffscreenCanvas(1, 1);
-              throw new Error("Canvas is not supported");
+              if (typeof document < 'u') return document.createElement('canvas');
+              if (typeof OffscreenCanvas < 'u') return new OffscreenCanvas(1, 1);
+              throw new Error('Canvas is not supported');
             },
             d = (l) =>
-              (typeof HTMLCanvasElement < "u" && l instanceof HTMLCanvasElement) ||
+              (typeof HTMLCanvasElement < 'u' && l instanceof HTMLCanvasElement) ||
               l instanceof OffscreenCanvas
-                ? l.getContext("2d")
+                ? l.getContext('2d')
                 : null;
           if (n) {
             let l = u();
@@ -354,11 +354,11 @@ var ort = (() => {
                 t !== void 0)
               ) {
                 if (((a = t), t.tensorFormat !== void 0))
-                  throw new Error("Image input config format must be RGBA for HTMLImageElement");
-                (a.tensorFormat = "RGBA"), (a.height = p), (a.width = f);
-              } else (a.tensorFormat = "RGBA"), (a.height = p), (a.width = f);
+                  throw new Error('Image input config format must be RGBA for HTMLImageElement');
+                (a.tensorFormat = 'RGBA'), (a.height = p), (a.width = f);
+              } else (a.tensorFormat = 'RGBA'), (a.height = p), (a.width = f);
               c.drawImage(e, 0, 0), (s = c.getImageData(0, 0, f, p).data);
-            } else throw new Error("Can not access image data");
+            } else throw new Error('Can not access image data');
           } else if (r) {
             let l, c;
             if (
@@ -366,7 +366,7 @@ var ort = (() => {
                 ? ((l = t.resizedHeight), (c = t.resizedWidth))
                 : ((l = e.height), (c = e.width)),
               t !== void 0 && (a = t),
-              (a.format = "RGBA"),
+              (a.format = 'RGBA'),
               (a.height = l),
               (a.width = c),
               t !== void 0)
@@ -375,11 +375,11 @@ var ort = (() => {
               (p.width = c), (p.height = l);
               let f = d(p);
               if (f != null) f.putImageData(e, 0, 0), (s = f.getImageData(0, 0, c, l).data);
-              else throw new Error("Can not access image data");
+              else throw new Error('Can not access image data');
             } else s = e.data;
           } else if (o) {
             if (t === void 0)
-              throw new Error("Please provide image config with format for Imagebitmap");
+              throw new Error('Please provide image config with format for Imagebitmap');
             let l = u();
             (l.width = e.width), (l.height = e.height);
             let c = d(l);
@@ -393,7 +393,7 @@ var ort = (() => {
                 (a.width = f),
                 vn(s, a)
               );
-            } else throw new Error("Can not access image data");
+            } else throw new Error('Can not access image data');
           } else {
             if (i)
               return new Promise((l, c) => {
@@ -401,7 +401,7 @@ var ort = (() => {
                   f = d(p);
                 if (!e || !f) return c();
                 let m = new Image();
-                (m.crossOrigin = "Anonymous"),
+                (m.crossOrigin = 'Anonymous'),
                   (m.src = e),
                   (m.onload = () => {
                     (p.width = m.width),
@@ -411,17 +411,17 @@ var ort = (() => {
                     (a.height = p.height), (a.width = p.width), l(vn(h.data, a));
                   });
               });
-            throw new Error("Input data provided is not supported - aborted tensor creation");
+            throw new Error('Input data provided is not supported - aborted tensor creation');
           }
           if (s !== void 0) return vn(s, a);
-          throw new Error("Input data provided is not supported - aborted tensor creation");
+          throw new Error('Input data provided is not supported - aborted tensor creation');
         }),
         (Tr = (e, t) => {
           let { width: n, height: r, download: o, dispose: i } = t,
             s = [1, r, n, 4];
           return new pe({
-            location: "texture",
-            type: "float32",
+            location: 'texture',
+            type: 'float32',
             texture: e,
             dims: s,
             download: o,
@@ -431,8 +431,8 @@ var ort = (() => {
         (Ir = (e, t) => {
           let { dataType: n, dims: r, download: o, dispose: i } = t;
           return new pe({
-            location: "gpu-buffer",
-            type: n ?? "float32",
+            location: 'gpu-buffer',
+            type: n ?? 'float32',
             gpuBuffer: e,
             dims: r,
             download: o,
@@ -442,8 +442,8 @@ var ort = (() => {
         (Cr = (e, t) => {
           let { dataType: n, dims: r, download: o, dispose: i } = t;
           return new pe({
-            location: "ml-tensor",
-            type: n ?? "float32",
+            location: 'ml-tensor',
+            type: n ?? 'float32',
             mlTensor: e,
             dims: r,
             download: o,
@@ -451,61 +451,61 @@ var ort = (() => {
           });
         }),
         (Ar = (e, t, n) =>
-          new pe({ location: "cpu-pinned", type: e, data: t, dims: n ?? [t.length] }));
+          new pe({ location: 'cpu-pinned', type: e, data: t, dims: n ?? [t.length] }));
     });
   var Ke,
     ut,
     Er,
     Pr,
     zr = E(() => {
-      "use strict";
+      'use strict';
       (Ke = new Map([
-        ["float32", Float32Array],
-        ["uint8", Uint8Array],
-        ["int8", Int8Array],
-        ["uint16", Uint16Array],
-        ["int16", Int16Array],
-        ["int32", Int32Array],
-        ["bool", Uint8Array],
-        ["float64", Float64Array],
-        ["uint32", Uint32Array],
-        ["int4", Uint8Array],
-        ["uint4", Uint8Array],
+        ['float32', Float32Array],
+        ['uint8', Uint8Array],
+        ['int8', Int8Array],
+        ['uint16', Uint16Array],
+        ['int16', Int16Array],
+        ['int32', Int32Array],
+        ['bool', Uint8Array],
+        ['float64', Float64Array],
+        ['uint32', Uint32Array],
+        ['int4', Uint8Array],
+        ['uint4', Uint8Array],
       ])),
         (ut = new Map([
-          [Float32Array, "float32"],
-          [Uint8Array, "uint8"],
-          [Int8Array, "int8"],
-          [Uint16Array, "uint16"],
-          [Int16Array, "int16"],
-          [Int32Array, "int32"],
-          [Float64Array, "float64"],
-          [Uint32Array, "uint32"],
+          [Float32Array, 'float32'],
+          [Uint8Array, 'uint8'],
+          [Int8Array, 'int8'],
+          [Uint16Array, 'uint16'],
+          [Int16Array, 'int16'],
+          [Int32Array, 'int32'],
+          [Float64Array, 'float64'],
+          [Uint32Array, 'uint32'],
         ])),
         (Er = !1),
         (Pr = () => {
           if (!Er) {
             Er = !0;
-            let e = typeof BigInt64Array < "u" && BigInt64Array.from,
-              t = typeof BigUint64Array < "u" && BigUint64Array.from,
+            let e = typeof BigInt64Array < 'u' && BigInt64Array.from,
+              t = typeof BigUint64Array < 'u' && BigUint64Array.from,
               n = globalThis.Float16Array,
-              r = typeof n < "u" && n.from;
-            e && (Ke.set("int64", BigInt64Array), ut.set(BigInt64Array, "int64")),
-              t && (Ke.set("uint64", BigUint64Array), ut.set(BigUint64Array, "uint64")),
-              r ? (Ke.set("float16", n), ut.set(n, "float16")) : Ke.set("float16", Uint16Array);
+              r = typeof n < 'u' && n.from;
+            e && (Ke.set('int64', BigInt64Array), ut.set(BigInt64Array, 'int64')),
+              t && (Ke.set('uint64', BigUint64Array), ut.set(BigUint64Array, 'uint64')),
+              r ? (Ke.set('float16', n), ut.set(n, 'float16')) : Ke.set('float16', Uint16Array);
           }
         });
     });
   var Or,
     Dr,
     Br = E(() => {
-      "use strict";
+      'use strict';
       vt();
       (Or = (e) => {
         let t = 1;
         for (let n = 0; n < e.length; n++) {
           let r = e[n];
-          if (typeof r != "number" || !Number.isSafeInteger(r))
+          if (typeof r != 'number' || !Number.isSafeInteger(r))
             throw new TypeError(`dims[${n}] must be an integer, got: ${r}`);
           if (r < 0) throw new RangeError(`dims[${n}] must be a non-negative integer, got: ${r}`);
           t *= r;
@@ -514,21 +514,21 @@ var ort = (() => {
       }),
         (Dr = (e, t) => {
           switch (e.location) {
-            case "cpu":
+            case 'cpu':
               return new pe(e.type, e.data, t);
-            case "cpu-pinned":
-              return new pe({ location: "cpu-pinned", data: e.data, type: e.type, dims: t });
-            case "texture":
-              return new pe({ location: "texture", texture: e.texture, type: e.type, dims: t });
-            case "gpu-buffer":
+            case 'cpu-pinned':
+              return new pe({ location: 'cpu-pinned', data: e.data, type: e.type, dims: t });
+            case 'texture':
+              return new pe({ location: 'texture', texture: e.texture, type: e.type, dims: t });
+            case 'gpu-buffer':
               return new pe({
-                location: "gpu-buffer",
+                location: 'gpu-buffer',
                 gpuBuffer: e.gpuBuffer,
                 type: e.type,
                 dims: t,
               });
-            case "ml-tensor":
-              return new pe({ location: "ml-tensor", mlTensor: e.mlTensor, type: e.type, dims: t });
+            case 'ml-tensor':
+              return new pe({ location: 'ml-tensor', mlTensor: e.mlTensor, type: e.type, dims: t });
             default:
               throw new Error(`tensorReshape: tensor location ${e.location} is not supported`);
           }
@@ -536,7 +536,7 @@ var ort = (() => {
     });
   var pe,
     vt = E(() => {
-      "use strict";
+      'use strict';
       xr();
       kr();
       zr();
@@ -545,9 +545,9 @@ var ort = (() => {
         constructor(t, n, r) {
           Pr();
           let o, i;
-          if (typeof t == "object" && "location" in t)
+          if (typeof t == 'object' && 'location' in t)
             switch (((this.dataLocation = t.location), (o = t.type), (i = t.dims), t.location)) {
-              case "cpu-pinned": {
+              case 'cpu-pinned': {
                 let a = Ke.get(o);
                 if (!a)
                   throw new TypeError(
@@ -558,25 +558,25 @@ var ort = (() => {
                 this.cpuData = t.data;
                 break;
               }
-              case "texture": {
-                if (o !== "float32")
+              case 'texture': {
+                if (o !== 'float32')
                   throw new TypeError(`unsupported type "${o}" to create tensor from texture`);
                 (this.gpuTextureData = t.texture),
                   (this.downloader = t.download),
                   (this.disposer = t.dispose);
                 break;
               }
-              case "gpu-buffer": {
+              case 'gpu-buffer': {
                 if (
-                  o !== "float32" &&
-                  o !== "float16" &&
-                  o !== "int32" &&
-                  o !== "int64" &&
-                  o !== "uint32" &&
-                  o !== "uint8" &&
-                  o !== "bool" &&
-                  o !== "uint4" &&
-                  o !== "int4"
+                  o !== 'float32' &&
+                  o !== 'float16' &&
+                  o !== 'int32' &&
+                  o !== 'int64' &&
+                  o !== 'uint32' &&
+                  o !== 'uint8' &&
+                  o !== 'bool' &&
+                  o !== 'uint4' &&
+                  o !== 'int4'
                 )
                   throw new TypeError(`unsupported type "${o}" to create tensor from gpu buffer`);
                 (this.gpuBufferData = t.gpuBuffer),
@@ -584,19 +584,19 @@ var ort = (() => {
                   (this.disposer = t.dispose);
                 break;
               }
-              case "ml-tensor": {
+              case 'ml-tensor': {
                 if (
-                  o !== "float32" &&
-                  o !== "float16" &&
-                  o !== "int32" &&
-                  o !== "int64" &&
-                  o !== "uint32" &&
-                  o !== "uint64" &&
-                  o !== "int8" &&
-                  o !== "uint8" &&
-                  o !== "bool" &&
-                  o !== "uint4" &&
-                  o !== "int4"
+                  o !== 'float32' &&
+                  o !== 'float16' &&
+                  o !== 'int32' &&
+                  o !== 'int64' &&
+                  o !== 'uint32' &&
+                  o !== 'uint64' &&
+                  o !== 'int8' &&
+                  o !== 'uint8' &&
+                  o !== 'bool' &&
+                  o !== 'uint4' &&
+                  o !== 'int4'
                 )
                   throw new TypeError(`unsupported type "${o}" to create tensor from MLTensor`);
                 (this.mlTensorData = t.mlTensor),
@@ -609,8 +609,8 @@ var ort = (() => {
             }
           else {
             let a, u;
-            if (typeof t == "string")
-              if (((o = t), (u = r), t === "string")) {
+            if (typeof t == 'string')
+              if (((o = t), (u = r), t === 'string')) {
                 if (!Array.isArray(n))
                   throw new TypeError("A string tensor's data must be a string array.");
                 a = n;
@@ -618,28 +618,28 @@ var ort = (() => {
                 let d = Ke.get(t);
                 if (d === void 0) throw new TypeError(`Unsupported tensor type: ${t}.`);
                 if (Array.isArray(n)) {
-                  if ((t === "float16" && d === Uint16Array) || t === "uint4" || t === "int4")
+                  if ((t === 'float16' && d === Uint16Array) || t === 'uint4' || t === 'int4')
                     throw new TypeError(
                       `Creating a ${t} tensor from number array is not supported. Please use ${d.name} as data.`
                     );
-                  t === "uint64" || t === "int64" ? (a = d.from(n, BigInt)) : (a = d.from(n));
+                  t === 'uint64' || t === 'int64' ? (a = d.from(n, BigInt)) : (a = d.from(n));
                 } else if (n instanceof d) a = n;
                 else if (n instanceof Uint8ClampedArray)
-                  if (t === "uint8") a = Uint8Array.from(n);
+                  if (t === 'uint8') a = Uint8Array.from(n);
                   else
                     throw new TypeError("A Uint8ClampedArray tensor's data must be type of uint8");
-                else if (t === "float16" && n instanceof Uint16Array && d !== Uint16Array)
+                else if (t === 'float16' && n instanceof Uint16Array && d !== Uint16Array)
                   a = new globalThis.Float16Array(n.buffer, n.byteOffset, n.length);
                 else throw new TypeError(`A ${o} tensor's data must be type of ${d}`);
               }
             else if (((u = n), Array.isArray(t))) {
               if (t.length === 0)
-                throw new TypeError("Tensor type cannot be inferred from an empty array.");
+                throw new TypeError('Tensor type cannot be inferred from an empty array.');
               let d = typeof t[0];
-              if (d === "string") (o = "string"), (a = t);
-              else if (d === "boolean") (o = "bool"), (a = Uint8Array.from(t));
+              if (d === 'string') (o = 'string'), (a = t);
+              else if (d === 'boolean') (o = 'bool'), (a = Uint8Array.from(t));
               else throw new TypeError(`Invalid element type of data array: ${d}.`);
-            } else if (t instanceof Uint8ClampedArray) (o = "uint8"), (a = Uint8Array.from(t));
+            } else if (t instanceof Uint8ClampedArray) (o = 'uint8'), (a = Uint8Array.from(t));
             else {
               let d = ut.get(t.constructor);
               if (d === void 0)
@@ -649,13 +649,13 @@ var ort = (() => {
             if (u === void 0) u = [a.length];
             else if (!Array.isArray(u))
               throw new TypeError("A tensor's dims must be a number array");
-            (i = u), (this.cpuData = a), (this.dataLocation = "cpu");
+            (i = u), (this.cpuData = a), (this.dataLocation = 'cpu');
           }
           let s = Or(i);
           if (
             this.cpuData &&
             s !== this.cpuData.length &&
-            !((o === "uint4" || o === "int4") && Math.ceil(s / 2) === this.cpuData.length)
+            !((o === 'uint4' || o === 'int4') && Math.ceil(s / 2) === this.cpuData.length)
           )
             throw new Error(
               `Tensor's size(${s}) does not match data length(${this.cpuData.length}).`
@@ -686,7 +686,7 @@ var ort = (() => {
         get data() {
           if ((this.ensureValid(), !this.cpuData))
             throw new Error(
-              "The data is not on CPU. Use `getData()` to download GPU data to CPU, or use `texture` or `gpuBuffer` property to access the GPU data directly."
+              'The data is not on CPU. Use `getData()` to download GPU data to CPU, or use `texture` or `gpuBuffer` property to access the GPU data directly.'
             );
           return this.cpuData;
         }
@@ -695,38 +695,38 @@ var ort = (() => {
         }
         get texture() {
           if ((this.ensureValid(), !this.gpuTextureData))
-            throw new Error("The data is not stored as a WebGL texture.");
+            throw new Error('The data is not stored as a WebGL texture.');
           return this.gpuTextureData;
         }
         get gpuBuffer() {
           if ((this.ensureValid(), !this.gpuBufferData))
-            throw new Error("The data is not stored as a WebGPU buffer.");
+            throw new Error('The data is not stored as a WebGPU buffer.');
           return this.gpuBufferData;
         }
         get mlTensor() {
           if ((this.ensureValid(), !this.mlTensorData))
-            throw new Error("The data is not stored as a WebNN MLTensor.");
+            throw new Error('The data is not stored as a WebNN MLTensor.');
           return this.mlTensorData;
         }
         async getData(t) {
           switch ((this.ensureValid(), this.dataLocation)) {
-            case "cpu":
-            case "cpu-pinned":
+            case 'cpu':
+            case 'cpu-pinned':
               return this.data;
-            case "texture":
-            case "gpu-buffer":
-            case "ml-tensor": {
+            case 'texture':
+            case 'gpu-buffer':
+            case 'ml-tensor': {
               if (!this.downloader)
                 throw new Error(
-                  "The current tensor is not created with a specified data downloader."
+                  'The current tensor is not created with a specified data downloader.'
                 );
-              if (this.isDownloading) throw new Error("The current tensor is being downloaded.");
+              if (this.isDownloading) throw new Error('The current tensor is being downloaded.');
               try {
                 this.isDownloading = !0;
                 let n = await this.downloader();
                 return (
                   (this.downloader = void 0),
-                  (this.dataLocation = "cpu"),
+                  (this.dataLocation = 'cpu'),
                   (this.cpuData = n),
                   t && this.disposer && (this.disposer(), (this.disposer = void 0)),
                   n
@@ -740,7 +740,7 @@ var ort = (() => {
           }
         }
         dispose() {
-          if (this.isDownloading) throw new Error("The current tensor is being downloaded.");
+          if (this.isDownloading) throw new Error('The current tensor is being downloaded.');
           this.disposer && (this.disposer(), (this.disposer = void 0)),
             (this.cpuData = void 0),
             (this.gpuTextureData = void 0),
@@ -748,21 +748,21 @@ var ort = (() => {
             (this.mlTensorData = void 0),
             (this.downloader = void 0),
             (this.isDownloading = void 0),
-            (this.dataLocation = "none");
+            (this.dataLocation = 'none');
         }
         ensureValid() {
-          if (this.dataLocation === "none") throw new Error("The tensor is disposed.");
+          if (this.dataLocation === 'none') throw new Error('The tensor is disposed.');
         }
         reshape(t) {
           if ((this.ensureValid(), this.downloader || this.disposer))
-            throw new Error("Cannot reshape a tensor that owns GPU resource.");
+            throw new Error('Cannot reshape a tensor that owns GPU resource.');
           return Dr(this, t);
         }
       };
     });
   var $e,
     xn = E(() => {
-      "use strict";
+      'use strict';
       vt();
       $e = pe;
     });
@@ -771,34 +771,34 @@ var ort = (() => {
     fe,
     me,
     Sn = E(() => {
-      "use strict";
+      'use strict';
       $n();
       (dt = (e, t) => {
-        (typeof ge.trace > "u" ? !ge.wasm.trace : !ge.trace) ||
+        (typeof ge.trace > 'u' ? !ge.wasm.trace : !ge.trace) ||
           console.timeStamp(`${e}::ORT::${t}`);
       }),
         (Mr = (e, t) => {
           let n = new Error().stack?.split(/\r\n|\r|\n/g) || [],
             r = !1;
           for (let o = 0; o < n.length; o++) {
-            if (r && !n[o].includes("TRACE_FUNC")) {
-              let i = `FUNC_${e}::${n[o].trim().split(" ")[1]}`;
-              t && (i += `::${t}`), dt("CPU", i);
+            if (r && !n[o].includes('TRACE_FUNC')) {
+              let i = `FUNC_${e}::${n[o].trim().split(' ')[1]}`;
+              t && (i += `::${t}`), dt('CPU', i);
               return;
             }
-            n[o].includes("TRACE_FUNC") && (r = !0);
+            n[o].includes('TRACE_FUNC') && (r = !0);
           }
         }),
         (fe = (e) => {
-          (typeof ge.trace > "u" ? !ge.wasm.trace : !ge.trace) || Mr("BEGIN", e);
+          (typeof ge.trace > 'u' ? !ge.wasm.trace : !ge.trace) || Mr('BEGIN', e);
         }),
         (me = (e) => {
-          (typeof ge.trace > "u" ? !ge.wasm.trace : !ge.trace) || Mr("END", e);
+          (typeof ge.trace > 'u' ? !ge.wasm.trace : !ge.trace) || Mr('END', e);
         });
     });
   var xt,
     Rr = E(() => {
-      "use strict";
+      'use strict';
       wn();
       xn();
       Sn();
@@ -810,26 +810,26 @@ var ort = (() => {
           fe();
           let o = {},
             i = {};
-          if (typeof t != "object" || t === null || t instanceof $e || Array.isArray(t))
+          if (typeof t != 'object' || t === null || t instanceof $e || Array.isArray(t))
             throw new TypeError(
               "'feeds' must be an object that use input names as keys and OnnxValue as corresponding values."
             );
           let s = !0;
-          if (typeof n == "object") {
-            if (n === null) throw new TypeError("Unexpected argument[1]: cannot be null.");
+          if (typeof n == 'object') {
+            if (n === null) throw new TypeError('Unexpected argument[1]: cannot be null.');
             if (n instanceof $e) throw new TypeError("'fetches' cannot be a Tensor");
             if (Array.isArray(n)) {
               if (n.length === 0) throw new TypeError("'fetches' cannot be an empty array.");
               s = !1;
               for (let d of n) {
-                if (typeof d != "string")
+                if (typeof d != 'string')
                   throw new TypeError("'fetches' must be a string array or an object.");
                 if (this.outputNames.indexOf(d) === -1)
                   throw new RangeError(`'fetches' contains invalid output name: ${d}.`);
                 o[d] = null;
               }
-              if (typeof r == "object" && r !== null) i = r;
-              else if (typeof r < "u") throw new TypeError("'options' must be an object.");
+              if (typeof r == 'object' && r !== null) i = r;
+              else if (typeof r < 'u') throw new TypeError("'options' must be an object.");
             } else {
               let d = !1,
                 l = Object.getOwnPropertyNames(n);
@@ -839,14 +839,14 @@ var ort = (() => {
                   (p === null || p instanceof $e) && ((d = !0), (s = !1), (o[c] = p));
                 }
               if (d) {
-                if (typeof r == "object" && r !== null) i = r;
-                else if (typeof r < "u") throw new TypeError("'options' must be an object.");
+                if (typeof r == 'object' && r !== null) i = r;
+                else if (typeof r < 'u') throw new TypeError("'options' must be an object.");
               } else i = n;
             }
-          } else if (typeof n < "u")
+          } else if (typeof n < 'u')
             throw new TypeError("Unexpected argument[1]: must be 'fetches' or 'options'.");
           for (let d of this.inputNames)
-            if (typeof t[d] > "u") throw new Error(`input '${d}' is missing in 'feeds'.`);
+            if (typeof t[d] > 'u') throw new Error(`input '${d}' is missing in 'feeds'.`);
           if (s) for (let d of this.outputNames) o[d] = null;
           let a = await this.handler.run(t, o, i),
             u = {};
@@ -864,34 +864,34 @@ var ort = (() => {
           fe();
           let i,
             s = {};
-          if (typeof t == "string") {
-            if (((i = t), typeof n == "object" && n !== null)) s = n;
-            else if (typeof n < "u") throw new TypeError("'options' must be an object.");
+          if (typeof t == 'string') {
+            if (((i = t), typeof n == 'object' && n !== null)) s = n;
+            else if (typeof n < 'u') throw new TypeError("'options' must be an object.");
           } else if (t instanceof Uint8Array) {
-            if (((i = t), typeof n == "object" && n !== null)) s = n;
-            else if (typeof n < "u") throw new TypeError("'options' must be an object.");
+            if (((i = t), typeof n == 'object' && n !== null)) s = n;
+            else if (typeof n < 'u') throw new TypeError("'options' must be an object.");
           } else if (
             t instanceof ArrayBuffer ||
-            (typeof SharedArrayBuffer < "u" && t instanceof SharedArrayBuffer)
+            (typeof SharedArrayBuffer < 'u' && t instanceof SharedArrayBuffer)
           ) {
             let l = t,
               c = 0,
               p = t.byteLength;
-            if (typeof n == "object" && n !== null) s = n;
-            else if (typeof n == "number") {
+            if (typeof n == 'object' && n !== null) s = n;
+            else if (typeof n == 'number') {
               if (((c = n), !Number.isSafeInteger(c)))
                 throw new RangeError("'byteOffset' must be an integer.");
               if (c < 0 || c >= l.byteLength)
                 throw new RangeError(`'byteOffset' is out of range [0, ${l.byteLength}).`);
-              if (((p = t.byteLength - c), typeof r == "number")) {
+              if (((p = t.byteLength - c), typeof r == 'number')) {
                 if (((p = r), !Number.isSafeInteger(p)))
                   throw new RangeError("'byteLength' must be an integer.");
                 if (p <= 0 || c + p > l.byteLength)
                   throw new RangeError(`'byteLength' is out of range (0, ${l.byteLength - c}].`);
-                if (typeof o == "object" && o !== null) s = o;
-                else if (typeof o < "u") throw new TypeError("'options' must be an object.");
-              } else if (typeof r < "u") throw new TypeError("'byteLength' must be a number.");
-            } else if (typeof n < "u") throw new TypeError("'options' must be an object.");
+                if (typeof o == 'object' && o !== null) s = o;
+                else if (typeof o < 'u') throw new TypeError("'options' must be an object.");
+              } else if (typeof r < 'u') throw new TypeError("'byteLength' must be a number.");
+            } else if (typeof n < 'u') throw new TypeError("'options' must be an object.");
             i = new Uint8Array(l, c, p);
           } else throw new TypeError("Unexpected argument[0]: must be 'path' or 'buffer'.");
           let [a, u] = await hr(s),
@@ -920,21 +920,21 @@ var ort = (() => {
     });
   var Ur,
     Vr = E(() => {
-      "use strict";
+      'use strict';
       Rr();
       Ur = xt;
     });
   var Nr = E(() => {
-    "use strict";
+    'use strict';
   });
   var Lr = E(() => {
-    "use strict";
+    'use strict';
   });
   var Gr = E(() => {
-    "use strict";
+    'use strict';
   });
   var Wr = E(() => {
-    "use strict";
+    'use strict';
   });
   var Tn = {};
   et(Tn, {
@@ -947,7 +947,7 @@ var ort = (() => {
     registerBackend: () => Ne,
   });
   var ve = E(() => {
-    "use strict";
+    'use strict';
     gr();
     wr();
     Vr();
@@ -959,7 +959,7 @@ var ort = (() => {
     Wr();
   });
   var St = E(() => {
-    "use strict";
+    'use strict';
   });
   var Kr = {};
   et(Kr, { default: () => Hu });
@@ -967,17 +967,17 @@ var ort = (() => {
     Fr,
     Hu,
     jr = E(() => {
-      "use strict";
+      'use strict';
       In();
       Le();
       Tt();
-      (qr = "ort-wasm-proxy-worker"), (Fr = globalThis.self?.name === qr);
+      (qr = 'ort-wasm-proxy-worker'), (Fr = globalThis.self?.name === qr);
       Fr &&
         (self.onmessage = (e) => {
           let { type: t, in: n } = e.data;
           try {
             switch (t) {
-              case "init-wasm":
+              case 'init-wasm':
                 It(n.wasm).then(
                   () => {
                     Ct(n).then(
@@ -994,7 +994,7 @@ var ort = (() => {
                   }
                 );
                 break;
-              case "init-ep": {
+              case 'init-ep': {
                 let { epName: r, env: o } = n;
                 At(o, r).then(
                   () => {
@@ -1006,13 +1006,13 @@ var ort = (() => {
                 );
                 break;
               }
-              case "copy-from": {
+              case 'copy-from': {
                 let { buffer: r } = n,
                   o = lt(r);
                 postMessage({ type: t, out: o });
                 break;
               }
-              case "create": {
+              case 'create': {
                 let { model: r, options: o } = n;
                 kt(r, o).then(
                   (i) => {
@@ -1024,17 +1024,17 @@ var ort = (() => {
                 );
                 break;
               }
-              case "release":
+              case 'release':
                 Et(n), postMessage({ type: t });
                 break;
-              case "run": {
+              case 'run': {
                 let { sessionId: r, inputIndices: o, inputs: i, outputIndices: s, options: a } = n;
                 Pt(r, o, i, s, new Array(s.length).fill(null), a).then(
                   (u) => {
-                    u.some((d) => d[3] !== "cpu")
+                    u.some((d) => d[3] !== 'cpu')
                       ? postMessage({
                           type: t,
-                          err: "Proxy does not support non-cpu tensor location.",
+                          err: 'Proxy does not support non-cpu tensor location.',
                         })
                       : postMessage({ type: t, out: u }, Ot([...i, ...u]));
                   },
@@ -1044,7 +1044,7 @@ var ort = (() => {
                 );
                 break;
               }
-              case "end-profiling":
+              case 'end-profiling':
                 zt(n), postMessage({ type: t });
                 break;
               default:
@@ -1053,7 +1053,7 @@ var ort = (() => {
             postMessage({ type: t, err: r });
           }
         });
-      Hu = Fr ? null : (e) => new Worker(e ?? ye, { type: "classic", name: qr });
+      Hu = Fr ? null : (e) => new Worker(e ?? ye, { type: 'classic', name: qr });
     });
   var qu,
     Fu,
@@ -1069,20 +1069,20 @@ var ort = (() => {
     Qr,
     Jr,
     Tt = E(() => {
-      "use strict";
+      'use strict';
       St();
-      (qu = typeof location > "u" ? void 0 : location.origin),
+      (qu = typeof location > 'u' ? void 0 : location.origin),
         (Fu = () => {
           if (!!1)
-            return typeof document < "u"
+            return typeof document < 'u'
               ? document.currentScript?.src
-              : typeof self < "u"
+              : typeof self < 'u'
               ? self.location?.href
               : void 0;
         }),
         (ye = Fu()),
         (Dt = () => {
-          if (ye && !ye.startsWith("blob:")) return ye.substring(0, ye.lastIndexOf("/") + 1);
+          if (ye && !ye.startsWith('blob:')) return ye.substring(0, ye.lastIndexOf('/') + 1);
         }),
         (Cn = (e, t) => {
           try {
@@ -1100,16 +1100,16 @@ var ort = (() => {
             return;
           }
         }),
-        (ju = (e, t) => `${t ?? "./"}${e}`),
+        (ju = (e, t) => `${t ?? './'}${e}`),
         (Xr = async (e) => {
-          let n = await (await fetch(e, { credentials: "same-origin" })).blob();
+          let n = await (await fetch(e, { credentials: 'same-origin' })).blob();
           return URL.createObjectURL(n);
         }),
         (Zu = async (e) => (await import(/*webpackIgnore:true*/ e)).default),
         (Zr = (jr(), at(Kr)).default),
         (Yr = async () => {
           if (!ye)
-            throw new Error("Failed to load proxy worker: cannot determine the script source URL.");
+            throw new Error('Failed to load proxy worker: cannot determine the script source URL.');
           if (Cn(ye)) return [void 0, Zr()];
           let e = await Xr(ye);
           return [e, Zr(e)];
@@ -1118,7 +1118,7 @@ var ort = (() => {
         (Jr = async (e, t, n) => {
           if (!e && !t && Qr && ye && Cn(ye)) return [void 0, Qr];
           {
-            let r = "ort-wasm-simd-threaded.jsep.mjs",
+            let r = 'ort-wasm-simd-threaded.jsep.mjs',
               o = e ?? Ku(r, t),
               i = !!1 && n && o && !Cn(o, t),
               s = i ? await Xr(o) : o ?? ju(r, t);
@@ -1136,16 +1136,16 @@ var ort = (() => {
     It,
     ne,
     Le = E(() => {
-      "use strict";
+      'use strict';
       Tt();
       (kn = !1),
         (Bt = !1),
         (eo = !1),
         (Qu = () => {
-          if (typeof SharedArrayBuffer > "u") return !1;
+          if (typeof SharedArrayBuffer > 'u') return !1;
           try {
             return (
-              typeof MessageChannel < "u" &&
+              typeof MessageChannel < 'u' &&
                 new MessageChannel().port1.postMessage(new SharedArrayBuffer(1)),
               WebAssembly.validate(
                 new Uint8Array([
@@ -1191,30 +1191,30 @@ var ort = (() => {
           let t = e.initTimeout,
             n = e.numThreads;
           if (e.simd !== !1) {
-            if (e.simd === "relaxed") {
+            if (e.simd === 'relaxed') {
               if (!Yu())
                 throw new Error(
-                  "Relaxed WebAssembly SIMD is not supported in the current environment."
+                  'Relaxed WebAssembly SIMD is not supported in the current environment.'
                 );
             } else if (!Xu())
-              throw new Error("WebAssembly SIMD is not supported in the current environment.");
+              throw new Error('WebAssembly SIMD is not supported in the current environment.');
           }
           let r = Qu();
           n > 1 &&
             !r &&
-            (typeof self < "u" &&
+            (typeof self < 'u' &&
               !self.crossOriginIsolated &&
               console.warn(
-                "env.wasm.numThreads is set to " +
+                'env.wasm.numThreads is set to ' +
                   n +
-                  ", but this will not work unless you enable crossOriginIsolated mode. See https://web.dev/cross-origin-isolation-guide/ for more info."
+                  ', but this will not work unless you enable crossOriginIsolated mode. See https://web.dev/cross-origin-isolation-guide/ for more info.'
               ),
             console.warn(
-              "WebAssembly multi-threading is not supported in the current environment. Falling back to single-threading."
+              'WebAssembly multi-threading is not supported in the current environment. Falling back to single-threading.'
             ),
             (e.numThreads = n = 1));
           let o = e.wasmPaths,
-            i = typeof o == "string" ? o : void 0,
+            i = typeof o == 'string' ? o : void 0,
             s = o?.mjs,
             a = s?.href ?? s,
             u = o?.wasm,
@@ -1237,7 +1237,7 @@ var ort = (() => {
                 let y = { numThreads: n };
                 if (l) y.wasmBinary = l;
                 else if (d || i) y.locateFile = (g) => d ?? i + g;
-                else if (a && a.indexOf("blob:") !== 0) y.locateFile = (g) => new URL(g, a).href;
+                else if (a && a.indexOf('blob:') !== 0) y.locateFile = (g) => new URL(g, a).href;
                 else if (c) {
                   let g = Dt();
                   g && (y.locateFile = (_) => g + _);
@@ -1259,14 +1259,14 @@ var ort = (() => {
         }),
         (ne = () => {
           if (kn && An) return An;
-          throw new Error("WebAssembly is not initialized yet.");
+          throw new Error('WebAssembly is not initialized yet.');
         });
     });
   var be,
     ct,
     Y,
     Mt = E(() => {
-      "use strict";
+      'use strict';
       Le();
       (be = (e, t) => {
         let n = ne(),
@@ -1275,15 +1275,15 @@ var ort = (() => {
         return n.stringToUTF8(e, o, r), t.push(o), o;
       }),
         (ct = (e, t, n, r) => {
-          if (typeof e == "object" && e !== null) {
-            if (n.has(e)) throw new Error("Circular reference in options");
+          if (typeof e == 'object' && e !== null) {
+            if (n.has(e)) throw new Error('Circular reference in options');
             n.add(e);
           }
           Object.entries(e).forEach(([o, i]) => {
             let s = t ? t + o : o;
-            if (typeof i == "object") ct(i, s + ".", n, r);
-            else if (typeof i == "string" || typeof i == "number") r(s, i.toString());
-            else if (typeof i == "boolean") r(s, i ? "1" : "0");
+            if (typeof i == 'object') ct(i, s + '.', n, r);
+            else if (typeof i == 'string' || typeof i == 'number') r(s, i.toString());
+            else if (typeof i == 'boolean') r(s, i ? '1' : '0');
             else throw new Error(`Can't handle extra config type: ${typeof i}`);
           });
         }),
@@ -1294,9 +1294,9 @@ var ort = (() => {
             let r = t.PTR_SIZE,
               o = t.stackAlloc(2 * r);
             t._OrtGetLastError(o, o + r);
-            let i = Number(t.getValue(o, r === 4 ? "i32" : "i64")),
-              s = t.getValue(o + r, "*"),
-              a = s ? t.UTF8ToString(s) : "";
+            let i = Number(t.getValue(o, r === 4 ? 'i32' : 'i64')),
+              s = t.getValue(o + r, '*'),
+              a = s ? t.UTF8ToString(s) : '';
             throw new Error(`${e} ERROR_CODE: ${i}, ERROR_MESSAGE: ${a}`);
           } finally {
             t.stackRestore(n);
@@ -1305,7 +1305,7 @@ var ort = (() => {
     });
   var to,
     no = E(() => {
-      "use strict";
+      'use strict';
       Le();
       Mt();
       to = (e) => {
@@ -1316,14 +1316,14 @@ var ort = (() => {
         try {
           if (e?.logSeverityLevel === void 0) o.logSeverityLevel = 2;
           else if (
-            typeof e.logSeverityLevel != "number" ||
+            typeof e.logSeverityLevel != 'number' ||
             !Number.isInteger(e.logSeverityLevel) ||
             e.logSeverityLevel < 0 ||
             e.logSeverityLevel > 4
           )
             throw new Error(`log serverity level is not valid: ${e.logSeverityLevel}`);
           if (e?.logVerbosityLevel === void 0) o.logVerbosityLevel = 0;
-          else if (typeof e.logVerbosityLevel != "number" || !Number.isInteger(e.logVerbosityLevel))
+          else if (typeof e.logVerbosityLevel != 'number' || !Number.isInteger(e.logVerbosityLevel))
             throw new Error(`log verbosity level is not valid: ${e.logVerbosityLevel}`);
           e?.terminate === void 0 && (o.terminate = !1);
           let i = 0;
@@ -1332,7 +1332,7 @@ var ort = (() => {
             (n = t._OrtCreateRunOptions(o.logSeverityLevel, o.logVerbosityLevel, !!o.terminate, i)),
             n === 0 && Y("Can't create run options."),
             e?.extra !== void 0 &&
-              ct(e.extra, "", new WeakSet(), (s, a) => {
+              ct(e.extra, '', new WeakSet(), (s, a) => {
                 let u = be(s, r),
                   d = be(a, r);
                 t._OrtAddRunConfigEntry(n, u, d) !== 0 &&
@@ -1352,18 +1352,18 @@ var ort = (() => {
     nd,
     ro,
     oo = E(() => {
-      "use strict";
+      'use strict';
       Le();
       Mt();
       (Ju = (e) => {
         switch (e) {
-          case "disabled":
+          case 'disabled':
             return 0;
-          case "basic":
+          case 'basic':
             return 1;
-          case "extended":
+          case 'extended':
             return 2;
-          case "all":
+          case 'all':
             return 99;
           default:
             throw new Error(`unsupported graph optimization level: ${e}`);
@@ -1371,9 +1371,9 @@ var ort = (() => {
       }),
         (ed = (e) => {
           switch (e) {
-            case "sequential":
+            case 'sequential':
               return 0;
-            case "parallel":
+            case 'parallel':
               return 1;
             default:
               throw new Error(`unsupported execution mode: ${e}`);
@@ -1382,9 +1382,9 @@ var ort = (() => {
         (td = (e) => {
           e.extra || (e.extra = {}), e.extra.session || (e.extra.session = {});
           let t = e.extra.session;
-          t.use_ort_model_bytes_directly || (t.use_ort_model_bytes_directly = "1"),
+          t.use_ort_model_bytes_directly || (t.use_ort_model_bytes_directly = '1'),
             e.executionProviders &&
-              e.executionProviders.some((n) => (typeof n == "string" ? n : n.name) === "webgpu") &&
+              e.executionProviders.some((n) => (typeof n == 'string' ? n : n.name) === 'webgpu') &&
               (e.enableMemPattern = !1);
         }),
         (Rt = (e, t, n, r) => {
@@ -1395,29 +1395,29 @@ var ort = (() => {
         }),
         (nd = async (e, t, n) => {
           for (let r of t) {
-            let o = typeof r == "string" ? r : r.name,
+            let o = typeof r == 'string' ? r : r.name,
               i = [];
             switch (o) {
-              case "webnn":
-                if (((o = "WEBNN"), typeof r != "string")) {
+              case 'webnn':
+                if (((o = 'WEBNN'), typeof r != 'string')) {
                   let c = r?.deviceType;
-                  c && Rt(e, "deviceType", c, n);
+                  c && Rt(e, 'deviceType', c, n);
                 }
                 break;
-              case "webgpu":
-                if (((o = "JS"), typeof r != "string")) {
+              case 'webgpu':
+                if (((o = 'JS'), typeof r != 'string')) {
                   let l = r;
                   if (l?.preferredLayout) {
-                    if (l.preferredLayout !== "NCHW" && l.preferredLayout !== "NHWC")
+                    if (l.preferredLayout !== 'NCHW' && l.preferredLayout !== 'NHWC')
                       throw new Error(
                         `preferredLayout must be either 'NCHW' or 'NHWC': ${l.preferredLayout}`
                       );
-                    Rt(e, "preferredLayout", l.preferredLayout, n);
+                    Rt(e, 'preferredLayout', l.preferredLayout, n);
                   }
                 }
                 break;
-              case "wasm":
-              case "cpu":
+              case 'wasm':
+              case 'cpu':
                 continue;
               default:
                 throw new Error(`not supported execution provider: ${o}`);
@@ -1432,8 +1432,8 @@ var ort = (() => {
                 (d = ne()._malloc(a * ne().PTR_SIZE)),
                 n.push(d);
               for (let l = 0; l < a; l++)
-                ne().setValue(u + l * ne().PTR_SIZE, i[l][0], "*"),
-                  ne().setValue(d + l * ne().PTR_SIZE, i[l][1], "*");
+                ne().setValue(u + l * ne().PTR_SIZE, i[l][0], '*'),
+                  ne().setValue(d + l * ne().PTR_SIZE, i[l][1], '*');
             }
             (await ne()._OrtAppendExecutionProvider(e, s, u, d, a)) !== 0 &&
               Y(`Can't append execution provider: ${o}.`);
@@ -1446,9 +1446,9 @@ var ort = (() => {
             o = e || {};
           td(o);
           try {
-            let i = Ju(o.graphOptimizationLevel ?? "all"),
-              s = ed(o.executionMode ?? "sequential"),
-              a = typeof o.logId == "string" ? be(o.logId, r) : 0,
+            let i = Ju(o.graphOptimizationLevel ?? 'all'),
+              s = ed(o.executionMode ?? 'sequential'),
+              a = typeof o.logId == 'string' ? be(o.logId, r) : 0,
               u = o.logSeverityLevel ?? 2;
             if (!Number.isInteger(u) || u < 0 || u > 4)
               throw new Error(`log serverity level is not valid: ${u}`);
@@ -1456,7 +1456,7 @@ var ort = (() => {
             if (!Number.isInteger(d) || d < 0 || d > 4)
               throw new Error(`log verbosity level is not valid: ${d}`);
             let l =
-              typeof o.optimizedModelFilePath == "string" ? be(o.optimizedModelFilePath, r) : 0;
+              typeof o.optimizedModelFilePath == 'string' ? be(o.optimizedModelFilePath, r) : 0;
             if (
               ((n = t._OrtCreateSessionOptions(
                 i,
@@ -1474,17 +1474,17 @@ var ort = (() => {
               o.executionProviders && (await nd(n, o.executionProviders, r)),
               o.enableGraphCapture !== void 0)
             ) {
-              if (typeof o.enableGraphCapture != "boolean")
+              if (typeof o.enableGraphCapture != 'boolean')
                 throw new Error(
                   `enableGraphCapture must be a boolean value: ${o.enableGraphCapture}`
                 );
-              Rt(n, "enableGraphCapture", o.enableGraphCapture.toString(), r);
+              Rt(n, 'enableGraphCapture', o.enableGraphCapture.toString(), r);
             }
             if (o.freeDimensionOverrides)
               for (let [c, p] of Object.entries(o.freeDimensionOverrides)) {
-                if (typeof c != "string")
+                if (typeof c != 'string')
                   throw new Error(`free dimension override name must be a string: ${c}`);
-                if (typeof p != "number" || !Number.isInteger(p) || p < 0)
+                if (typeof p != 'number' || !Number.isInteger(p) || p < 0)
                   throw new Error(
                     `free dimension override value must be a non-negative integer: ${p}`
                   );
@@ -1494,7 +1494,7 @@ var ort = (() => {
               }
             return (
               o.extra !== void 0 &&
-                ct(o.extra, "", new WeakSet(), (c, p) => {
+                ct(o.extra, '', new WeakSet(), (c, p) => {
                   Rt(n, c, p, r);
                 }),
               [n, r]
@@ -1519,38 +1519,38 @@ var ort = (() => {
     Vt,
     En,
     V = E(() => {
-      "use strict";
+      'use strict';
       (Ge = (e) => {
         switch (e) {
-          case "int8":
+          case 'int8':
             return 3;
-          case "uint8":
+          case 'uint8':
             return 2;
-          case "bool":
+          case 'bool':
             return 9;
-          case "int16":
+          case 'int16':
             return 5;
-          case "uint16":
+          case 'uint16':
             return 4;
-          case "int32":
+          case 'int32':
             return 6;
-          case "uint32":
+          case 'uint32':
             return 12;
-          case "float16":
+          case 'float16':
             return 10;
-          case "float32":
+          case 'float32':
             return 1;
-          case "float64":
+          case 'float64':
             return 11;
-          case "string":
+          case 'string':
             return 8;
-          case "int64":
+          case 'int64':
             return 7;
-          case "uint64":
+          case 'uint64':
             return 13;
-          case "int4":
+          case 'int4':
             return 22;
-          case "uint4":
+          case 'uint4':
             return 21;
           default:
             throw new Error(`unsupported data type: ${e}`);
@@ -1559,35 +1559,35 @@ var ort = (() => {
         (ke = (e) => {
           switch (e) {
             case 3:
-              return "int8";
+              return 'int8';
             case 2:
-              return "uint8";
+              return 'uint8';
             case 9:
-              return "bool";
+              return 'bool';
             case 5:
-              return "int16";
+              return 'int16';
             case 4:
-              return "uint16";
+              return 'uint16';
             case 6:
-              return "int32";
+              return 'int32';
             case 12:
-              return "uint32";
+              return 'uint32';
             case 10:
-              return "float16";
+              return 'float16';
             case 1:
-              return "float32";
+              return 'float32';
             case 11:
-              return "float64";
+              return 'float64';
             case 8:
-              return "string";
+              return 'string';
             case 7:
-              return "int64";
+              return 'int64';
             case 13:
-              return "uint64";
+              return 'uint64';
             case 22:
-              return "int4";
+              return 'int4';
             case 21:
-              return "uint4";
+              return 'uint4';
             default:
               throw new Error(`unsupported data type: ${e}`);
           }
@@ -1596,34 +1596,34 @@ var ort = (() => {
           let n = [
               -1, 4, 1, 1, 2, 2, 4, 8, -1, 1, 2, 8, 4, 8, -1, -1, -1, -1, -1, -1, -1, 0.5, 0.5,
             ][e],
-            r = typeof t == "number" ? t : t.reduce((o, i) => o * i, 1);
+            r = typeof t == 'number' ? t : t.reduce((o, i) => o * i, 1);
           return n > 0 ? Math.ceil(r * n) : void 0;
         }),
         (tt = (e) => {
           switch (e) {
-            case "float16":
-              return typeof Float16Array < "u" && Float16Array.from ? Float16Array : Uint16Array;
-            case "float32":
+            case 'float16':
+              return typeof Float16Array < 'u' && Float16Array.from ? Float16Array : Uint16Array;
+            case 'float32':
               return Float32Array;
-            case "uint8":
+            case 'uint8':
               return Uint8Array;
-            case "int8":
+            case 'int8':
               return Int8Array;
-            case "uint16":
+            case 'uint16':
               return Uint16Array;
-            case "int16":
+            case 'int16':
               return Int16Array;
-            case "int32":
+            case 'int32':
               return Int32Array;
-            case "bool":
+            case 'bool':
               return Uint8Array;
-            case "float64":
+            case 'float64':
               return Float64Array;
-            case "uint32":
+            case 'uint32':
               return Uint32Array;
-            case "int64":
+            case 'int64':
               return BigInt64Array;
-            case "uint64":
+            case 'uint64':
               return BigUint64Array;
             default:
               throw new Error(`unsupported type: ${e}`);
@@ -1631,55 +1631,55 @@ var ort = (() => {
         }),
         (pt = (e) => {
           switch (e) {
-            case "verbose":
+            case 'verbose':
               return 0;
-            case "info":
+            case 'info':
               return 1;
-            case "warning":
+            case 'warning':
               return 2;
-            case "error":
+            case 'error':
               return 3;
-            case "fatal":
+            case 'fatal':
               return 4;
             default:
               throw new Error(`unsupported logging level: ${e}`);
           }
         }),
         (Ut = (e) =>
-          e === "float32" ||
-          e === "float16" ||
-          e === "int32" ||
-          e === "int64" ||
-          e === "uint32" ||
-          e === "uint8" ||
-          e === "bool" ||
-          e === "uint4" ||
-          e === "int4"),
+          e === 'float32' ||
+          e === 'float16' ||
+          e === 'int32' ||
+          e === 'int64' ||
+          e === 'uint32' ||
+          e === 'uint8' ||
+          e === 'bool' ||
+          e === 'uint4' ||
+          e === 'int4'),
         (Vt = (e) =>
-          e === "float32" ||
-          e === "float16" ||
-          e === "int32" ||
-          e === "int64" ||
-          e === "uint32" ||
-          e === "uint64" ||
-          e === "int8" ||
-          e === "uint8" ||
-          e === "bool" ||
-          e === "uint4" ||
-          e === "int4"),
+          e === 'float32' ||
+          e === 'float16' ||
+          e === 'int32' ||
+          e === 'int64' ||
+          e === 'uint32' ||
+          e === 'uint64' ||
+          e === 'int8' ||
+          e === 'uint8' ||
+          e === 'bool' ||
+          e === 'uint4' ||
+          e === 'int4'),
         (En = (e) => {
           switch (e) {
-            case "none":
+            case 'none':
               return 0;
-            case "cpu":
+            case 'cpu':
               return 1;
-            case "cpu-pinned":
+            case 'cpu-pinned':
               return 2;
-            case "texture":
+            case 'texture':
               return 3;
-            case "gpu-buffer":
+            case 'gpu-buffer':
               return 4;
-            case "ml-tensor":
+            case 'ml-tensor':
               return 5;
             default:
               throw new Error(`unsupported data location: ${e}`);
@@ -1688,17 +1688,17 @@ var ort = (() => {
     });
   var mt,
     Pn = E(() => {
-      "use strict";
+      'use strict';
       St();
       mt = async (e) => {
-        if (typeof e == "string")
+        if (typeof e == 'string')
           if (!1)
             try {
-              let { readFile: t } = _n("node:fs/promises");
+              let { readFile: t } = _n('node:fs/promises');
               return new Uint8Array(await t(e));
             } catch (t) {
-              if (t.code === "ERR_FS_FILE_TOO_LARGE") {
-                let { createReadStream: n } = _n("node:fs"),
+              if (t.code === 'ERR_FS_FILE_TOO_LARGE') {
+                let { createReadStream: n } = _n('node:fs'),
                   r = n(e),
                   o = [];
                 for await (let i of r) o.push(i);
@@ -1709,7 +1709,7 @@ var ort = (() => {
           else {
             let t = await fetch(e);
             if (!t.ok) throw new Error(`failed to load external data file: ${e}`);
-            let n = t.headers.get("Content-Length"),
+            let n = t.headers.get('Content-Length'),
               r = n ? parseInt(n, 10) : 0;
             if (r < 1073741824) return new Uint8Array(await t.arrayBuffer());
             {
@@ -1751,9 +1751,9 @@ var ort = (() => {
     id,
     j,
     Ee = E(() => {
-      "use strict";
+      'use strict';
       V();
-      (rd = ["V", "I", "W", "E", "F"]),
+      (rd = ['V', 'I', 'W', 'E', 'F']),
         (od = (e, t) => {
           console.log(`[${rd[e]},${new Date().toISOString()}]${t}`);
         }),
@@ -1763,7 +1763,7 @@ var ort = (() => {
         (id = (e, t) => {
           let n = pt(e),
             r = pt(io);
-          n >= r && od(n, typeof t == "function" ? t() : t);
+          n >= r && od(n, typeof t == 'function' ? t() : t);
         }),
         (j = (...e) => {
           so && id(...e);
@@ -1777,7 +1777,7 @@ var ort = (() => {
     ao,
     uo,
     q = E(() => {
-      "use strict";
+      'use strict';
       (zn = class {
         static calcMatMulShape(t, n) {
           return t[1] !== n[0] ? void 0 : [t[0], n[1]];
@@ -1832,7 +1832,7 @@ var ort = (() => {
                 o[i] = t[i] / n;
                 break;
               }
-              if (n % t[i] !== 0) throw new Error("cannot convert shape");
+              if (n % t[i] !== 0) throw new Error('cannot convert shape');
               (o[i] = 1), (n /= t[i]), i--;
             }
             for (i--; i >= 0; i--) o[i] = t[i];
@@ -1857,7 +1857,7 @@ var ort = (() => {
             for (let i = n; i < r; i++) {
               if (t[i] < 0)
                 throw new Error(
-                  "cannot get valid size from specified dimension range. Most likely the range contains negative values in them."
+                  'cannot get valid size from specified dimension range. Most likely the range contains negative values in them.'
                 );
               o *= Number(t[i]);
             }
@@ -1873,7 +1873,7 @@ var ort = (() => {
             return r;
           }
           static normalizeAxis(t, n) {
-            if (t < -n && t >= n) throw new Error("unsupported axis for this operation.");
+            if (t < -n && t >= n) throw new Error('unsupported axis for this operation.');
             return t < 0 ? t + n : t;
           }
           static normalizeAxes(t, n) {
@@ -1894,37 +1894,37 @@ var ort = (() => {
           static adjustPoolAttributes(t, n, r, o, i, s) {
             if (!t && r.length !== n.length - 2)
               throw new Error(
-                "length of specified kernel shapes should be 2 less than length of input dimensions"
+                'length of specified kernel shapes should be 2 less than length of input dimensions'
               );
             if (t)
               for (let a = 0; a < n.length - 2; a++)
                 a >= r.length ? r.push(n[a + 2]) : (r[a] = n[a + 2]);
             for (let a = 0; a < r.length; a++)
               if (a < o.length) {
-                if (o[a] < 0) throw new Error("strides should be greater than or equal to 1");
+                if (o[a] < 0) throw new Error('strides should be greater than or equal to 1');
               } else o.push(1);
             for (let a = 0; a < r.length; a++)
               if (a < i.length) {
-                if (i[a] < 0) throw new Error("dilations should be greater than or equal to 1");
+                if (i[a] < 0) throw new Error('dilations should be greater than or equal to 1');
               } else i.push(1);
             for (let a = 0; a < r.length * 2; a++)
               if (a < s.length) {
-                if (s[a] < 0) throw new Error("pad should be greater than or equal to 1");
+                if (s[a] < 0) throw new Error('pad should be greater than or equal to 1');
               } else s.push(0);
             for (let a = 0; a < r.length; a++) {
-              if (r[a] <= 0) throw new Error("kernel shapes need to be greater than 0");
+              if (r[a] <= 0) throw new Error('kernel shapes need to be greater than 0');
               if (s[a] >= r[a] || s[a + r.length] >= r[a])
-                throw new Error("pads should be smaller than kernel");
+                throw new Error('pads should be smaller than kernel');
             }
           }
           static adjustPadsBasedOnAutoPad(t, n, r, o, i, s, a) {
             if (a) {
               if (i.length !== 2 * (t.length - 2))
-                throw new Error("length of pads should be twice the length of data dimensions");
+                throw new Error('length of pads should be twice the length of data dimensions');
               if (n.length !== t.length - 2)
-                throw new Error("length of strides should be the length of data dimensions");
+                throw new Error('length of strides should be the length of data dimensions');
               if (o.length !== t.length - 2)
-                throw new Error("length of kernel shapes should be the length of data dimensions");
+                throw new Error('length of kernel shapes should be the length of data dimensions');
               for (let u = 0; u < t.length - 2; u++)
                 e.adjustPadAndReturnShape(
                   t[u + (s ? 1 : 2)],
@@ -1939,13 +1939,13 @@ var ort = (() => {
             }
           }
           static computePoolOutputShape(t, n, r, o, i, s, a) {
-            if (n.length <= 0) throw new Error("input shape must be of size greater than 0");
+            if (n.length <= 0) throw new Error('input shape must be of size greater than 0');
             let u = [n[0], n[1]];
             return e.computeShapeHelper(t, n, u, r, o, i, s, a), u;
           }
           static computeConvOutputShape(t, n, r, o, i, s, a) {
             if (t.length <= 0 || n.length <= 0)
-              throw new Error("invalid input tensor dims or invalid filter tensor dims");
+              throw new Error('invalid input tensor dims or invalid filter tensor dims');
             let u = [t[0], n[0]];
             return e.computeShapeHelper(!1, t, u, r, o, i, s, a), u;
           }
@@ -1959,39 +1959,39 @@ var ort = (() => {
           }
           static adjustPadAndReturnShape(t, n, r, o, i, s, a, u) {
             let d = r * (o - 1) + 1;
-            if (u && u !== "NOTSET")
+            if (u && u !== 'NOTSET')
               switch (u) {
-                case "VALID":
+                case 'VALID':
                   return (i[s] = 0), (i[a] = 0), Math.floor((t - d) / n + 1);
-                case "SAME_LOWER":
-                case "SAME_UPPER":
+                case 'SAME_LOWER':
+                case 'SAME_UPPER':
                   if (r !== 1)
-                    throw new Error("Dilation not supported for SAME_UPPER or SAME_LOWER");
+                    throw new Error('Dilation not supported for SAME_UPPER or SAME_LOWER');
                   {
                     let c = ((t + n - 1) / n - 1) * n + o - t;
                     return (
-                      (i[s] = Math.floor(u === "SAME_LOWER" ? (c + 1) / 2 : c / 2)),
+                      (i[s] = Math.floor(u === 'SAME_LOWER' ? (c + 1) / 2 : c / 2)),
                       (i[a] = c - i[s]),
                       Math.floor((t + c - o) / n + 1)
                     );
                   }
                 default:
-                  throw new Error("Unsupported AutoPad type");
+                  throw new Error('Unsupported AutoPad type');
               }
             else return Math.floor((t + i[s] + i[a] - d) / n + 1);
           }
         }),
         (Lt = class {
           static getShapeOfGemmResult(t, n, r, o, i) {
-            if (t.length !== 2 || r.length !== 2) throw new Error("shape need to be of size 2");
+            if (t.length !== 2 || r.length !== 2) throw new Error('shape need to be of size 2');
             let s, a, u;
             n ? ((s = t[1]), (a = t[0])) : ((s = t[0]), (a = t[1]));
             let d = -1;
             if ((o ? ((u = r[0]), (d = 1)) : ((u = r[1]), (d = 0)), r[d] !== a))
-              throw new Error("dimension mismatch");
-            if (s <= 0 || u <= 0 || a <= 0) throw new Error("invalid shape specified");
+              throw new Error('dimension mismatch');
+            if (s <= 0 || u <= 0 || a <= 0) throw new Error('invalid shape specified');
             if (i && !Pe.isValidBroadcast(i, [s, u]))
-              throw new Error("gemm: invalid bias shape for broadcast");
+              throw new Error('gemm: invalid bias shape for broadcast');
             return [s, u, a];
           }
         }),
@@ -2000,7 +2000,7 @@ var ort = (() => {
     });
   var Gt,
     On = E(() => {
-      "use strict";
+      'use strict';
       V();
       Gt = (e, t) => new (tt(t))(e);
     });
@@ -2016,23 +2016,23 @@ var ort = (() => {
     Dn,
     fo,
     ho = E(() => {
-      "use strict";
+      'use strict';
       V();
       Ee();
       (co = new Map([
-        ["float32", 32],
-        ["float16", 16],
-        ["int32", 32],
-        ["uint32", 32],
-        ["int64", 64],
-        ["uint64", 64],
-        ["int8", 8],
-        ["uint8", 8],
-        ["int4", 4],
-        ["uint4", 4],
+        ['float32', 32],
+        ['float16', 16],
+        ['int32', 32],
+        ['uint32', 32],
+        ['int64', 64],
+        ['uint64', 64],
+        ['int8', 8],
+        ['uint8', 8],
+        ['int4', 4],
+        ['uint4', 4],
       ])),
         (Bn = (e, t) => {
-          if (t === "int32") return e;
+          if (t === 'int32') return e;
           let n = co.get(t);
           if (!n) throw new Error(`WebNN backend does not support data type: ${t}`);
           let r = n / 8;
@@ -2041,22 +2041,22 @@ var ort = (() => {
           let o = e.byteLength / r,
             i = new (tt(t))(e.buffer, e.byteOffset, o);
           switch (t) {
-            case "int64":
-            case "uint64": {
+            case 'int64':
+            case 'uint64': {
               let s = new Int32Array(o);
               for (let a = 0; a < o; a++) {
                 let u = i[a];
                 if (u > 2147483647n || u < -2147483648n)
-                  throw new Error("Can not convert int64 data to int32 - value out of range.");
+                  throw new Error('Can not convert int64 data to int32 - value out of range.');
                 s[a] = Number(u);
               }
               return new Uint8Array(s.buffer);
             }
-            case "int8":
-            case "uint8":
-            case "uint32": {
-              if (t === "uint32" && i.some((a) => a > 2147483647))
-                throw new Error("Can not convert uint32 data to int32 - value out of range.");
+            case 'int8':
+            case 'uint8':
+            case 'uint32': {
+              if (t === 'uint32' && i.some((a) => a > 2147483647))
+                throw new Error('Can not convert uint32 data to int32 - value out of range.');
               let s = Int32Array.from(i, Number);
               return new Uint8Array(s.buffer);
             }
@@ -2065,36 +2065,36 @@ var ort = (() => {
           }
         }),
         (po = (e, t) => {
-          if (t === "int32") return e;
+          if (t === 'int32') return e;
           if (e.byteLength % 4 !== 0)
-            throw new Error("Invalid Uint8Array length - must be a multiple of 4 (int32).");
+            throw new Error('Invalid Uint8Array length - must be a multiple of 4 (int32).');
           let n = e.byteLength / 4,
             r = new Int32Array(e.buffer, e.byteOffset, n);
           switch (t) {
-            case "int64": {
+            case 'int64': {
               let o = BigInt64Array.from(r, BigInt);
               return new Uint8Array(o.buffer);
             }
-            case "uint64": {
+            case 'uint64': {
               if (r.some((i) => i < 0))
-                throw new Error("Can not convert int32 data to uin64 - negative value found.");
+                throw new Error('Can not convert int32 data to uin64 - negative value found.');
               let o = BigUint64Array.from(r, BigInt);
               return new Uint8Array(o.buffer);
             }
-            case "int8": {
+            case 'int8': {
               if (r.some((i) => i < -128 || i > 127))
-                throw new Error("Can not convert int32 data to int8 - value out of range.");
+                throw new Error('Can not convert int32 data to int8 - value out of range.');
               let o = Int8Array.from(r, Number);
               return new Uint8Array(o.buffer);
             }
-            case "uint8": {
+            case 'uint8': {
               if (r.some((o) => o < 0 || o > 255))
-                throw new Error("Can not convert int32 data to uint8 - value out of range.");
+                throw new Error('Can not convert int32 data to uint8 - value out of range.');
               return Uint8Array.from(r, Number);
             }
-            case "uint32": {
+            case 'uint32': {
               if (r.some((i) => i < 0))
-                throw new Error("Can not convert int32 data to uint32 - negative value found.");
+                throw new Error('Can not convert int32 data to uint32 - negative value found.');
               let o = Uint32Array.from(r, Number);
               return new Uint8Array(o.buffer);
             }
@@ -2105,10 +2105,10 @@ var ort = (() => {
         (sd = 1),
         (lo = () => sd++),
         (ad = new Map([
-          ["int8", "int32"],
-          ["uint8", "int32"],
-          ["uint32", "int32"],
-          ["int64", "int32"],
+          ['int8', 'int32'],
+          ['uint8', 'int32'],
+          ['uint32', 'int32'],
+          ['int64', 'int32'],
         ])),
         (mo = (e, t) => {
           let n = co.get(e);
@@ -2149,7 +2149,7 @@ var ort = (() => {
             return mo(this.dataType, this.tensorShape);
           }
           destroy() {
-            j("verbose", () => "[WebNN] TensorWrapper.destroy"), this.mlTensor.destroy();
+            j('verbose', () => '[WebNN] TensorWrapper.destroy'), this.mlTensor.destroy();
           }
           write(t) {
             this.mlContext.writeTensor(this.mlTensor, t);
@@ -2201,7 +2201,7 @@ var ort = (() => {
               if (((s = ad.get(n)), !s || !i.opSupportLimits().input.dataTypes.includes(s)))
                 throw new Error(`WebNN backend does not support data type: ${n}`);
               j(
-                "verbose",
+                'verbose',
                 () => `[WebNN] TensorIdTracker.ensureTensor: fallback dataType from ${n} to ${s}`
               );
             }
@@ -2209,12 +2209,12 @@ var ort = (() => {
               if (this.wrapper.canReuseTensor(i, n, r)) return this.wrapper.tensor;
               if (o) {
                 if (this.wrapper.byteLength !== mo(n, r))
-                  throw new Error("Unable to copy data to tensor with different size.");
+                  throw new Error('Unable to copy data to tensor with different size.');
                 this.activeUpload = new Uint8Array(await this.wrapper.read());
               }
               this.tensorManager.releaseTensor(this.wrapper);
             }
-            let a = typeof MLTensorUsage > "u" ? void 0 : MLTensorUsage.READ | MLTensorUsage.WRITE;
+            let a = typeof MLTensorUsage > 'u' ? void 0 : MLTensorUsage.READ | MLTensorUsage.WRITE;
             return (
               (this.wrapper = await this.tensorManager.getCachedTensor(t, n, r, a, !0, !0, s)),
               o &&
@@ -2227,7 +2227,7 @@ var ort = (() => {
             let n = t;
             if (this.wrapper) {
               if (this.wrapper.fallbackType)
-                if (this.wrapper.fallbackType === "int32")
+                if (this.wrapper.fallbackType === 'int32')
                   (n = Bn(t, this.wrapper.type)), this.wrapper.setIsDataConverted(!0);
                 else
                   throw new Error(`Unsupported fallback data type: ${this.wrapper.fallbackType}`);
@@ -2235,7 +2235,7 @@ var ort = (() => {
                 this.wrapper.write(n);
                 return;
               } else
-                j("verbose", () => "Data size does not match tensor size. Releasing tensor."),
+                j('verbose', () => 'Data size does not match tensor size. Releasing tensor.'),
                   this.releaseTensor();
             }
             this.activeUpload ? this.activeUpload.set(n) : (this.activeUpload = new Uint8Array(n));
@@ -2252,7 +2252,7 @@ var ort = (() => {
                 return;
               } else return n.buffer;
             }
-            if (!this.wrapper) throw new Error("Tensor has not been created.");
+            if (!this.wrapper) throw new Error('Tensor has not been created.');
             return t ? this.wrapper.read(t) : this.wrapper.read();
           }
         }),
@@ -2265,7 +2265,7 @@ var ort = (() => {
           }
           getMLContext(t) {
             let n = this.backend.getMLContext(t);
-            if (!n) throw new Error("MLContext not found for session.");
+            if (!n) throw new Error('MLContext not found for session.');
             return n;
           }
           reserveTensorId() {
@@ -2280,26 +2280,26 @@ var ort = (() => {
           }
           async ensureTensor(t, n, r, o, i) {
             j(
-              "verbose",
+              'verbose',
               () =>
                 `[WebNN] TensorManager.ensureTensor {tensorId: ${n}, dataType: ${r}, shape: ${o}, copyOld: ${i}}`
             );
             let s = this.tensorTrackersById.get(n);
-            if (!s) throw new Error("Tensor not found.");
+            if (!s) throw new Error('Tensor not found.');
             return s.ensureTensor(t, r, o, i);
           }
           upload(t, n) {
             let r = this.tensorTrackersById.get(t);
-            if (!r) throw new Error("Tensor not found.");
+            if (!r) throw new Error('Tensor not found.');
             r.upload(n);
           }
           async download(t, n) {
             j(
-              "verbose",
+              'verbose',
               () => `[WebNN] TensorManager.download {tensorId: ${t}, dstBuffer: ${n?.byteLength}}`
             );
             let r = this.tensorTrackersById.get(t);
-            if (!r) throw new Error("Tensor not found.");
+            if (!r) throw new Error('Tensor not found.');
             return r.download(n);
           }
           releaseTensorsForSession(t) {
@@ -2317,20 +2317,20 @@ var ort = (() => {
             for (let [l, c] of this.freeTensors.entries())
               if (c.canReuseTensor(u, n, r)) {
                 j(
-                  "verbose",
+                  'verbose',
                   () =>
                     `[WebNN] Reusing tensor {dataType: ${n}, ${
-                      a ? `fallbackDataType: ${a},` : ""
+                      a ? `fallbackDataType: ${a},` : ''
                     } shape: ${r}`
                 );
                 let p = this.freeTensors.splice(l, 1)[0];
                 return (p.sessionId = t), p;
               }
             j(
-              "verbose",
+              'verbose',
               () =>
                 `[WebNN] MLContext.createTensor {dataType: ${n}, ${
-                  a ? `fallbackDataType: ${a},` : ""
+                  a ? `fallbackDataType: ${a},` : ''
                 } shape: ${r}}`
             );
             let d = await u.createTensor({
@@ -2360,24 +2360,24 @@ var ort = (() => {
     ud,
     Ft,
     go = E(() => {
-      "use strict";
+      'use strict';
       V();
       Le();
       On();
       ho();
       Ee();
       (qt = new Map([
-        [1, "float32"],
-        [10, "float16"],
-        [6, "int32"],
-        [12, "uint32"],
-        [7, "int64"],
-        [13, "uint64"],
-        [22, "int4"],
-        [21, "uint4"],
-        [3, "int8"],
-        [2, "uint8"],
-        [9, "uint8"],
+        [1, 'float32'],
+        [10, 'float16'],
+        [6, 'int32'],
+        [12, 'uint32'],
+        [7, 'int64'],
+        [13, 'uint64'],
+        [22, 'int4'],
+        [21, 'uint4'],
+        [3, 'int8'],
+        [2, 'uint8'],
+        [9, 'uint8'],
       ])),
         (ud = (e, t) => {
           if (e === t) return !0;
@@ -2400,18 +2400,18 @@ var ort = (() => {
             Nt(t.logLevel, !!t.debug);
           }
           get currentSessionId() {
-            if (this.activeSessionId === void 0) throw new Error("No active session");
+            if (this.activeSessionId === void 0) throw new Error('No active session');
             return this.activeSessionId;
           }
           onRunStart(t) {
-            j("verbose", () => `[WebNN] onRunStart {sessionId: ${t}}`), (this.activeSessionId = t);
+            j('verbose', () => `[WebNN] onRunStart {sessionId: ${t}}`), (this.activeSessionId = t);
           }
           onRunEnd(t) {
-            j("verbose", () => `[WebNN] onRunEnd {sessionId: ${t}}`);
+            j('verbose', () => `[WebNN] onRunEnd {sessionId: ${t}}`);
             let n = this.temporarySessionTensorIds.get(t);
             if (n) {
               for (let r of n)
-                j("verbose", () => `[WebNN] releasing temporary tensor {tensorId: ${r}}`),
+                j('verbose', () => `[WebNN] releasing temporary tensor {tensorId: ${r}}`),
                   this.tensorManager.releaseTensorId(r);
               this.temporarySessionTensorIds.delete(t), (this.activeSessionId = void 0);
             }
@@ -2472,7 +2472,7 @@ var ort = (() => {
             return this.tensorManager.reserveTensorId();
           }
           releaseTensorId(t) {
-            j("verbose", () => `[WebNN] releaseTensorId {tensorId: ${t}}`),
+            j('verbose', () => `[WebNN] releaseTensorId {tensorId: ${t}}`),
               this.tensorManager.releaseTensorId(t);
           }
           async ensureTensor(t, n, r, o, i) {
@@ -2481,7 +2481,7 @@ var ort = (() => {
             return this.tensorManager.ensureTensor(t ?? this.currentSessionId, n, s, o, i);
           }
           async createTemporaryTensor(t, n, r) {
-            j("verbose", () => `[WebNN] createTemporaryTensor {onnxDataType: ${n}, shape: ${r}}`);
+            j('verbose', () => `[WebNN] createTemporaryTensor {onnxDataType: ${n}, shape: ${r}}`);
             let o = qt.get(n);
             if (!o) throw new Error(`Unsupported ONNX data type: ${n}`);
             let i = this.tensorManager.reserveTensorId();
@@ -2492,9 +2492,9 @@ var ort = (() => {
           uploadTensor(t, n) {
             if (!ne().shouldTransferToMLTensor)
               throw new Error(
-                "Trying to upload to a MLTensor while shouldTransferToMLTensor is false"
+                'Trying to upload to a MLTensor while shouldTransferToMLTensor is false'
               );
-            j("verbose", () => `[WebNN] uploadTensor {tensorId: ${t}, data: ${n.byteLength}}`),
+            j('verbose', () => `[WebNN] uploadTensor {tensorId: ${t}, data: ${n.byteLength}}`),
               this.tensorManager.upload(t, n);
           }
           async downloadTensor(t, n) {
@@ -2512,7 +2512,7 @@ var ort = (() => {
             let s = this.tensorManager.registerTensor(t, n, i, o);
             return (
               j(
-                "verbose",
+                'verbose',
                 () =>
                   `[WebNN] registerMLTensor {tensor: ${n}, dataType: ${i}, dimensions: ${o}} -> {tensorId: ${s}}`
               ),
@@ -2520,48 +2520,48 @@ var ort = (() => {
             );
           }
           registerMLConstant(t, n, r, o, i, s, a = !1) {
-            if (!s) throw new Error("External mounted files are not available.");
+            if (!s) throw new Error('External mounted files are not available.');
             let u = t;
-            t.startsWith("./") && (u = t.substring(2));
+            t.startsWith('./') && (u = t.substring(2));
             let d = s.get(u);
             if (!d) throw new Error(`File with name ${u} not found in preloaded files.`);
             if (n + r > d.byteLength)
               throw new Error(
-                "Out of bounds: data offset and length exceed the external file data size."
+                'Out of bounds: data offset and length exceed the external file data size.'
               );
             let l = d.slice(n, n + r).buffer,
               c;
             switch (i.dataType) {
-              case "float32":
+              case 'float32':
                 c = new Float32Array(l);
                 break;
-              case "float16":
+              case 'float16':
                 c =
-                  typeof Float16Array < "u" && Float16Array.from
+                  typeof Float16Array < 'u' && Float16Array.from
                     ? new Float16Array(l)
                     : new Uint16Array(l);
                 break;
-              case "int32":
+              case 'int32':
                 c = new Int32Array(l);
                 break;
-              case "uint32":
+              case 'uint32':
                 c = new Uint32Array(l);
                 break;
-              case "int64":
+              case 'int64':
                 if (a) {
-                  let p = Bn(new Uint8Array(l), "int64");
-                  (c = new Int32Array(p.buffer)), (i.dataType = "int32");
+                  let p = Bn(new Uint8Array(l), 'int64');
+                  (c = new Int32Array(p.buffer)), (i.dataType = 'int32');
                 } else c = new BigInt64Array(l);
                 break;
-              case "uint64":
+              case 'uint64':
                 c = new BigUint64Array(l);
                 break;
-              case "int8":
+              case 'int8':
                 c = new Int8Array(l);
                 break;
-              case "int4":
-              case "uint4":
-              case "uint8":
+              case 'int4':
+              case 'uint4':
+              case 'uint8':
                 c = new Uint8Array(l);
                 break;
               default:
@@ -2571,10 +2571,10 @@ var ort = (() => {
             }
             return (
               j(
-                "verbose",
+                'verbose',
                 () =>
                   `[WebNN] registerMLConstant {dataType: ${i.dataType}, shape: ${i.shape}}} ${
-                    a ? "(Note: it was int64 data type and registered to int32 as workaround)" : ""
+                    a ? '(Note: it was int64 data type and registered to int32 as workaround)' : ''
                   }`
               ),
               o.constant(i, c)
@@ -2597,7 +2597,7 @@ var ort = (() => {
           isGraphInputOutputTypeSupported(t, n, r = !0) {
             let o = this.mlContextBySessionId.get(t),
               i = qt.get(Ge(n));
-            return typeof i > "u"
+            return typeof i > 'u'
               ? !1
               : r
               ? !!o?.opSupportLimits().input.dataTypes.includes(i)
@@ -2607,7 +2607,7 @@ var ort = (() => {
         });
     });
   var Kt = E(() => {
-    "use strict";
+    'use strict';
   });
   var yo,
     Mn,
@@ -2619,7 +2619,7 @@ var ort = (() => {
     Un,
     wo,
     $o = E(() => {
-      "use strict";
+      'use strict';
       Ee();
       Kt();
       (yo = new Map([
@@ -2700,7 +2700,7 @@ var ort = (() => {
               i = n.byteLength,
               s = Rn(i),
               a = this.storageCache.get(t);
-            if (!a) throw new Error("gpu data for uploading does not exist");
+            if (!a) throw new Error('gpu data for uploading does not exist');
             if (Number(a.originalSize) !== i)
               throw new Error(
                 `inconsistent data size. gpu data size=${a.originalSize}, data size=${i}`
@@ -2716,15 +2716,15 @@ var ort = (() => {
             l.copyBufferToBuffer(u, 0, a.gpuData.buffer, 0, s),
               this.backend.device.queue.submit([l.finish()]),
               u.destroy(),
-              j("verbose", () => `[WebGPU] GpuDataManager.upload(id=${t})`);
+              j('verbose', () => `[WebGPU] GpuDataManager.upload(id=${t})`);
           }
           memcpy(t, n) {
             let r = this.storageCache.get(t);
-            if (!r) throw new Error("source gpu data for memcpy does not exist");
+            if (!r) throw new Error('source gpu data for memcpy does not exist');
             let o = this.storageCache.get(n);
-            if (!o) throw new Error("destination gpu data for memcpy does not exist");
+            if (!o) throw new Error('destination gpu data for memcpy does not exist');
             if (r.originalSize !== o.originalSize)
-              throw new Error("inconsistent source and destination gpu data size");
+              throw new Error('inconsistent source and destination gpu data size');
             let i = Rn(r.originalSize),
               s = this.backend.getCommandEncoder();
             this.backend.endComputePass(),
@@ -2736,7 +2736,7 @@ var ort = (() => {
               if (((o = r[0]), t === r[1]))
                 return (
                   j(
-                    "verbose",
+                    'verbose',
                     () =>
                       `[WebGPU] GpuDataManager.registerExternalBuffer(size=${n}) => id=${o}, buffer is the same, skip.`
                   ),
@@ -2749,7 +2749,7 @@ var ort = (() => {
             return (
               this.storageCache.set(o, { gpuData: { id: o, type: 0, buffer: t }, originalSize: n }),
               j(
-                "verbose",
+                'verbose',
                 () =>
                   `[WebGPU] GpuDataManager.registerExternalBuffer(size=${n}) => id=${o}, registered.`
               ),
@@ -2759,7 +2759,7 @@ var ort = (() => {
           unregisterExternalBuffer(t) {
             t !== void 0 &&
               (this.storageCache.delete(t),
-              j("verbose", () => `[WebGPU] GpuDataManager.unregisterExternalBuffer() => id=${t}`));
+              j('verbose', () => `[WebGPU] GpuDataManager.unregisterExternalBuffer() => id=${t}`));
           }
           create(
             t,
@@ -2780,7 +2780,7 @@ var ort = (() => {
             let a = { id: bo(), type: 0, buffer: o };
             return (
               this.storageCache.set(a.id, { gpuData: a, originalSize: Number(t) }),
-              j("verbose", () => `[WebGPU] GpuDataManager.create(size=${t}) => id=${a.id}`),
+              j('verbose', () => `[WebGPU] GpuDataManager.create(size=${t}) => id=${a.id}`),
               a
             );
           }
@@ -2788,15 +2788,15 @@ var ort = (() => {
             return this.storageCache.get(t)?.gpuData;
           }
           release(t) {
-            let n = typeof t == "bigint" ? Number(t) : t,
+            let n = typeof t == 'bigint' ? Number(t) : t,
               r = this.storageCache.get(n);
             if (!r) {
               if (this.storageCache.size === 0) return 0;
-              throw new Error("releasing data does not exist");
+              throw new Error('releasing data does not exist');
             }
             return (
               j(
-                "verbose",
+                'verbose',
                 () => `[WebGPU] GpuDataManager.release(id=${n}), gpuDataId=${r.gpuData.id}`
               ),
               this.storageCache.delete(n),
@@ -2806,12 +2806,12 @@ var ort = (() => {
           }
           async download(t, n) {
             let r = this.storageCache.get(Number(t));
-            if (!r) throw new Error("data does not exist");
+            if (!r) throw new Error('data does not exist');
             await Vn(this.backend, r.gpuData.buffer, r.originalSize, n);
           }
           refreshPendingBuffers() {
             if (this.buffersPending.length !== 0)
-              if (this.backend.sessionStatus === "default") {
+              if (this.backend.sessionStatus === 'default') {
                 for (let t of this.buffersPending) {
                   let n = yo.get(t.size);
                   if ((t.usage & GPUBufferUsage.STORAGE) === GPUBufferUsage.STORAGE) {
@@ -2866,7 +2866,7 @@ var ort = (() => {
               this.capturedPendingBuffers.delete(t)),
               (this.sessionCount -= 1),
               this.sessionCount === 0 &&
-                (j("warning", () => "[WebGPU] Clearing webgpu buffer cache"),
+                (j('warning', () => '[WebGPU] Clearing webgpu buffer cache'),
                 this.storageCache.forEach((r) => {
                   r.gpuData.buffer.destroy();
                 }),
@@ -2878,7 +2878,7 @@ var ort = (() => {
   var Nn,
     N,
     ie = E(() => {
-      "use strict";
+      'use strict';
       (Nn = class {
         constructor(t) {
           Object.assign(this, t);
@@ -2889,7 +2889,7 @@ var ort = (() => {
               (this.key = Object.getOwnPropertyNames(this)
                 .sort()
                 .map((t) => `${this[t]}`)
-                .join(";")),
+                .join(';')),
             this.key
           );
         }
@@ -2914,45 +2914,45 @@ var ort = (() => {
     Ln,
     xo,
     K = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       (Qe = 64),
         (Gn = (e, t) => {
-          if (t === 3) throw new Error("vec3 has same alignment as vec4, use vec4 instead");
+          if (t === 3) throw new Error('vec3 has same alignment as vec4, use vec4 instead');
           switch (Number(e)) {
             case 10:
-              return t > 1 ? `vec${t}<f16>` : "f16";
+              return t > 1 ? `vec${t}<f16>` : 'f16';
             case 1:
-              return t > 1 ? `vec${t}<f32>` : "f32";
+              return t > 1 ? `vec${t}<f32>` : 'f32';
             case 6:
-              return t > 1 ? `vec${t}<i32>` : "i32";
+              return t > 1 ? `vec${t}<i32>` : 'i32';
             case 12:
-              return t > 1 ? `vec${t}<u32>` : "u32";
+              return t > 1 ? `vec${t}<u32>` : 'u32';
             case 7:
-              if (t > 1) throw new Error("currently not supported vecX of uint64 yet");
-              return ["vec2<u32>", "i32"];
+              if (t > 1) throw new Error('currently not supported vecX of uint64 yet');
+              return ['vec2<u32>', 'i32'];
             case 13:
-              if (t > 1) throw new Error("currently not supported vecX of uint64 yet");
-              return ["vec2<u32>", "u32"];
+              if (t > 1) throw new Error('currently not supported vecX of uint64 yet');
+              return ['vec2<u32>', 'u32'];
             case 9:
-              if (t !== 4) throw new Error("bool must be vec4");
-              return ["u32", "vec4<bool>"];
+              if (t !== 4) throw new Error('bool must be vec4');
+              return ['u32', 'vec4<bool>'];
             case 22:
-              return "i32";
+              return 'i32';
             case 21:
-              return "u32";
+              return 'u32';
             default:
               throw new Error(`Unknown data type: ${e}`);
           }
         }),
         (re = (e, t = 1) => {
           let n = Gn(e, t);
-          return typeof n == "string" ? n : n[0];
+          return typeof n == 'string' ? n : n[0];
         }),
         (le = (e, t = 1) => {
           let n = Gn(e, t);
-          return typeof n == "string" ? n : n[1];
+          return typeof n == 'string' ? n : n[1];
         }),
         (P = (...e) => {
           let t = [];
@@ -2965,8 +2965,8 @@ var ort = (() => {
           );
         }),
         (X = (e) => (e % 4 === 0 ? 4 : e % 2 === 0 ? 2 : 1)),
-        (Wn = (e = "f32", t, n = "0") => (!t || t === 1 ? `${e}(${n})` : `vec${t}<${e}>(${n})`)),
-        (Xe = (e, t, n) => (e === "f32" ? n : t === 1 ? `f32(${n})` : `vec${t}<f32>(${n})`)),
+        (Wn = (e = 'f32', t, n = '0') => (!t || t === 1 ? `${e}(${n})` : `vec${t}<${e}>(${n})`)),
+        (Xe = (e, t, n) => (e === 'f32' ? n : t === 1 ? `f32(${n})` : `vec${t}<f32>(${n})`)),
         (Te = (e, t) =>
           t === 4
             ? `(${e}.x + ${e}.y + ${e}.z + ${e}.w)`
@@ -2976,27 +2976,27 @@ var ort = (() => {
             ? `(${e}.x + ${e}.y + ${e}.z)`
             : e),
         (B = (e, t, n, r) =>
-          e.startsWith("uniforms.") && n > 4
-            ? typeof t == "string"
-              ? r === "f16"
+          e.startsWith('uniforms.') && n > 4
+            ? typeof t == 'string'
+              ? r === 'f16'
                 ? `${e}[(${t}) / 8][(${t}) % 8 / 4][(${t}) % 8 % 4]`
                 : `${e}[(${t}) / 4][(${t}) % 4]`
-              : r === "f16"
+              : r === 'f16'
               ? `${e}[${Math.floor(t / 8)}][${Math.floor((t % 8) / 4)}][${(t % 8) % 4}]`
               : `${e}[${Math.floor(t / 4)}][${t % 4}]`
             : n > 1
             ? `${e}[${t}]`
             : e),
         (jt = (e, t, n, r, o) => {
-          let i = typeof n == "number",
+          let i = typeof n == 'number',
             s = i ? n : n.length,
             a = [...new Array(s).keys()],
-            u = s < 2 ? "u32" : s <= 4 ? `vec${s}<u32>` : `array<u32, ${s}>`,
+            u = s < 2 ? 'u32' : s <= 4 ? `vec${s}<u32>` : `array<u32, ${s}>`,
             d = Gn(t, o),
-            l = typeof d == "string" ? d : d[1],
-            c = typeof d == "string" ? d : d[0],
+            l = typeof d == 'string' ? d : d[1],
+            c = typeof d == 'string' ? d : d[0],
             p = { indices: u, value: l, storage: c, tensor: t },
-            f = (k) => (typeof k == "string" ? k : `${k}u`),
+            f = (k) => (typeof k == 'string' ? k : `${k}u`),
             m = {
               offsetToIndices: !1,
               indicesToOffset: !1,
@@ -3006,10 +3006,10 @@ var ort = (() => {
               get: !1,
               getByIndices: !1,
             },
-            h = i ? "uniforms." : "",
+            h = i ? 'uniforms.' : '',
             b = `${h}${e}_shape`,
             y = `${h}${e}_strides`,
-            g = "";
+            g = '';
           for (let k = 0; k < s - 1; k++)
             g += `
 let dim${k} = current / ${B(y, k, s)};
@@ -3020,7 +3020,7 @@ current = rest${k};
           g += `indices[${s - 1}] = current;`;
           let _ =
               s < 2
-                ? ""
+                ? ''
                 : `
 fn o2i_${e}(offset: u32) -> ${p.indices} {
 var indices: ${p.indices};
@@ -3033,13 +3033,13 @@ return indices;
           if (s >= 2) for (let k = s - 1; k >= 0; k--) v.push(`${B(y, k, s)} * (indices[${k}])`);
           let $ =
               s < 2
-                ? ""
+                ? ''
                 : `
 fn i2o_${e}(indices: ${p.indices}) -> u32 {
-return ${v.join("+")};
+return ${v.join('+')};
 }`,
             T = (k) => ((m.indicesToOffset = !0), s < 2 ? k : `i2o_${e}(${k})`),
-            I = (...k) => (s === 0 ? "0u" : `${p.indices}(${k.map(f).join(",")})`),
+            I = (...k) => (s === 0 ? '0u' : `${p.indices}(${k.map(f).join(',')})`),
             A = (k, L) => (s < 2 ? `${k}` : `${B(k, L, s)}`),
             z = (k, L, oe) => (s < 2 ? `${k}=${oe};` : `${B(k, L, s)}=${oe};`),
             M = {},
@@ -3049,12 +3049,12 @@ return ${v.join("+")};
               if (oe in M) return `${oe}(${k})`;
               let we = [];
               for (let Se = s - 1; Se >= 0; Se--) {
-                let ue = L.indicesGet("outputIndices", Se + L.rank - s);
+                let ue = L.indicesGet('outputIndices', Se + L.rank - s);
                 we.push(`${A(y, Se)} * (${ue} % ${A(b, Se)})`);
               }
               return (
                 (M[oe] = `fn ${oe}(outputIndices: ${L.type.indices}) -> u32 {
-  return ${we.length > 0 ? we.join("+") : "0u"};
+  return ${we.length > 0 ? we.join('+') : '0u'};
 }`),
                 `${oe}(${k})`
               );
@@ -3062,11 +3062,11 @@ return ${v.join("+")};
             W = (k, L) =>
               (() => {
                 if (p.storage === p.value) return `${e}[${k}]=${L};`;
-                if (p.storage === "vec2<u32>" && p.value === "i32")
+                if (p.storage === 'vec2<u32>' && p.value === 'i32')
                   return `${e}[${k}]=vec2<u32>(u32(${L}), select(0u, 0xFFFFFFFFu, ${L} < 0));`;
-                if (p.storage === "vec2<u32>" && p.value === "u32")
+                if (p.storage === 'vec2<u32>' && p.value === 'u32')
                   return `${e}[${k}]=vec2<u32>(u32(${L}), 0u);`;
-                if (p.storage === "u32" && p.value === "vec4<bool>")
+                if (p.storage === 'u32' && p.value === 'vec4<bool>')
                   return `${e}[${k}]=dot(vec4<u32>(0x1, 0x100, 0x10000, 0x1000000), vec4<u32>(${L}));`;
                 throw new Error(
                   `not supported combination of storage type ${p.storage} and value type ${p.value} yet`
@@ -3075,9 +3075,9 @@ return ${v.join("+")};
             O = (k) =>
               (() => {
                 if (p.storage === p.value) return `${e}[${k}]`;
-                if (p.storage === "vec2<u32>" && p.value === "i32") return `i32(${e}[${k}].x)`;
-                if (p.storage === "vec2<u32>" && p.value === "u32") return `u32(${e}[${k}].x)`;
-                if (p.storage === "u32" && p.value === "vec4<bool>")
+                if (p.storage === 'vec2<u32>' && p.value === 'i32') return `i32(${e}[${k}].x)`;
+                if (p.storage === 'vec2<u32>' && p.value === 'u32') return `u32(${e}[${k}].x)`;
+                if (p.storage === 'u32' && p.value === 'vec4<bool>')
                   return `vec4<bool>(bool(${e}[${k}] & 0xFFu), bool(${e}[${k}] & 0xFF00u), bool(${e}[${k}] & 0xFF0000u), bool(${e}[${k}] & 0xFF000000u))`;
                 throw new Error(
                   `not supported combination of storage type ${p.storage} and value type ${p.value} yet`
@@ -3085,17 +3085,17 @@ return ${v.join("+")};
               })(),
             ee =
               s < 2
-                ? ""
+                ? ''
                 : `
 fn get_${e}ByIndices(indices: ${p.indices}) -> ${l} {
 return ${O(`i2o_${e}(indices)`)};
 }`,
             G =
               s < 2
-                ? ""
+                ? ''
                 : (() => {
-                    let k = a.map((oe) => `d${oe}: u32`).join(", "),
-                      L = a.map((oe) => `d${oe}`).join(", ");
+                    let k = a.map((oe) => `d${oe}: u32`).join(', '),
+                      L = a.map((oe) => `d${oe}`).join(', ');
                     return `
 fn get_${e}(${k}) -> ${l} {
 return get_${e}ByIndices(${I(L)});
@@ -3103,9 +3103,9 @@ return get_${e}ByIndices(${I(L)});
                   })(),
             D = (...k) => {
               if (k.length !== s) throw new Error(`indices length must be ${s}`);
-              let L = k.map(f).join(",");
+              let L = k.map(f).join(',');
               return s === 0
-                ? O("0u")
+                ? O('0u')
                 : s === 1
                 ? O(L[0])
                 : ((m.get = !0), (m.getByIndices = !0), (m.indicesToOffset = !0), `get_${e}(${L})`);
@@ -3116,17 +3116,17 @@ return get_${e}ByIndices(${I(L)});
                 : ((m.getByIndices = !0), (m.indicesToOffset = !0), `get_${e}ByIndices(${k})`),
             U =
               s < 2
-                ? ""
+                ? ''
                 : `
 fn set_${e}ByIndices(indices: ${p.indices}, value: ${l}) {
-${W(`i2o_${e}(indices)`, "value")}
+${W(`i2o_${e}(indices)`, 'value')}
 }`,
             Q =
               s < 2
-                ? ""
+                ? ''
                 : (() => {
-                    let k = a.map((oe) => `d${oe}: u32`).join(", "),
-                      L = a.map((oe) => `d${oe}`).join(", ");
+                    let k = a.map((oe) => `d${oe}: u32`).join(', '),
+                      L = a.map((oe) => `d${oe}`).join(', ');
                     return `
 fn set_${e}(${k}, value: ${l}) {
 set_${e}ByIndices(${I(L)}, value);
@@ -3148,8 +3148,8 @@ set_${e}ByIndices(${I(L)}, value);
                 !i &&
                   L &&
                   k.unshift(
-                    `const ${b} = ${p.indices}(${n.join(",")});`,
-                    `const ${y} = ${p.indices}(${x.computeStrides(n).join(",")});`
+                    `const ${b} = ${p.indices}(${n.join(',')});`,
+                    `const ${y} = ${p.indices}(${x.computeStrides(n).join(',')});`
                   ),
                 k.join(`
 `)
@@ -3165,10 +3165,10 @@ set_${e}ByIndices(${I(L)}, value);
             set: (...k) => {
               if (k.length !== s + 1) throw new Error(`indices length must be ${s}`);
               let L = k[s];
-              if (typeof L != "string") throw new Error("value must be string");
-              let oe = k.slice(0, s).map(f).join(",");
+              if (typeof L != 'string') throw new Error('value must be string');
+              let oe = k.slice(0, s).map(f).join(',');
               return s === 0
-                ? W("0u", L)
+                ? W('0u', L)
                 : s === 1
                 ? W(oe[0], L)
                 : ((m.set = !0),
@@ -3193,10 +3193,10 @@ set_${e}ByIndices(${I(L)}, value);
             rank: s,
           };
         }),
-        (S = (e, t, n, r = 1) => jt(e, t, n, "input", r)),
-        (C = (e, t, n, r = 1) => jt(e, t, n, "output", r)),
-        (vo = (e, t, n) => jt(e, t, n, "atomicOutput", 1)),
-        (Zt = (e, t, n, r = 1) => jt(e, t, n, "internal", r)),
+        (S = (e, t, n, r = 1) => jt(e, t, n, 'input', r)),
+        (C = (e, t, n, r = 1) => jt(e, t, n, 'output', r)),
+        (vo = (e, t, n) => jt(e, t, n, 'atomicOutput', 1)),
+        (Zt = (e, t, n, r = 1) => jt(e, t, n, 'internal', r)),
         (Ln = class {
           constructor(t, n) {
             this.normalizedDispatchGroup = t;
@@ -3207,12 +3207,12 @@ set_${e}ByIndices(${I(L)}, value);
             this.variableIndex = 0;
           }
           guardAgainstOutOfBoundsWorkgroupSizes(t) {
-            return `if (global_idx >= ${typeof t == "number" ? `${t}u` : t}) { return; }`;
+            return `if (global_idx >= ${typeof t == 'number' ? `${t}u` : t}) { return; }`;
           }
           mainStart(t = Qe) {
-            let n = typeof t == "number" ? t : t[0],
-              r = typeof t == "number" ? 1 : t[1],
-              o = typeof t == "number" ? 1 : t[2];
+            let n = typeof t == 'number' ? t : t[0],
+              r = typeof t == 'number' ? 1 : t[1],
+              o = typeof t == 'number' ? 1 : t[2];
             if (
               n > this.limits.maxComputeWorkgroupSizeX ||
               r > this.limits.maxComputeWorkgroupSizeY ||
@@ -3249,27 +3249,27 @@ ${a}
           }
           appendVariableUniforms(t) {
             t.rank !== 0 &&
-              (t.shape.startsWith("uniforms.") &&
+              (t.shape.startsWith('uniforms.') &&
                 this.uniforms.push({
-                  name: t.shape.replace("uniforms.", ""),
-                  type: "u32",
+                  name: t.shape.replace('uniforms.', ''),
+                  type: 'u32',
                   length: t.rank,
                 }),
-              t.strides.startsWith("uniforms.") &&
+              t.strides.startsWith('uniforms.') &&
                 this.uniforms.push({
-                  name: t.strides.replace("uniforms.", ""),
-                  type: "u32",
+                  name: t.strides.replace('uniforms.', ''),
+                  type: 'u32',
                   length: t.rank,
                 }));
           }
           declareVariable(t, n) {
-            if (t.usage === "internal")
+            if (t.usage === 'internal')
               throw new Error(
-                "cannot use internal variable with declareVariable(). use registerInternalVariables() instead."
+                'cannot use internal variable with declareVariable(). use registerInternalVariables() instead.'
               );
             this.variables.push(t), this.appendVariableUniforms(t);
-            let r = t.usage === "input" ? "read" : "read_write",
-              o = t.usage === "atomicOutput" ? "atomic<i32>" : t.type.storage;
+            let r = t.usage === 'input' ? 'read' : 'read_write',
+              o = t.usage === 'atomicOutput' ? 'atomic<i32>' : t.type.storage;
             return `@group(0) @binding(${n}) var<storage, ${r}> ${t.name}: array<${o}>;`;
           }
           declareVariables(...t) {
@@ -3277,9 +3277,9 @@ ${a}
 `);
           }
           registerInternalVariable(t) {
-            if (t.usage !== "internal")
+            if (t.usage !== 'internal')
               throw new Error(
-                "cannot use input or output variable with registerInternalVariable(). use declareVariables() instead."
+                'cannot use input or output variable with registerInternalVariable(). use declareVariables() instead.'
               );
             this.internalVariables.push(t), this.appendVariableUniforms(t);
           }
@@ -3293,11 +3293,11 @@ ${a}
             return (this.uniforms = this.uniforms.concat(t)), this;
           }
           uniformDeclaration() {
-            if (this.uniforms.length === 0) return "";
+            if (this.uniforms.length === 0) return '';
             let t = [];
             for (let { name: n, type: r, length: o } of this.uniforms)
               if (o && o > 4)
-                r === "f16"
+                r === 'f16'
                   ? t.push(`@align(16) ${n}:array<mat2x4<${r}>, ${Math.ceil(o / 8)}>`)
                   : t.push(`${n}:array<vec4<${r}>, ${Math.ceil(o / 4)}>`);
               else {
@@ -3305,7 +3305,7 @@ ${a}
                 t.push(`${n}:${i}`);
               }
             return `
-struct Uniforms { ${t.join(", ")} };
+struct Uniforms { ${t.join(', ')} };
 @group(0) @binding(${this.variableIndex}) var<uniform> uniforms: Uniforms;`;
           }
           get additionalImplementations() {
@@ -3319,7 +3319,7 @@ struct Uniforms { ${t.join(", ")} };
           }
           get variablesInfo() {
             if (this.uniforms.length === 0) return;
-            let t = (n) => [12, 10, 1, 6][["u32", "f16", "f32", "i32"].indexOf(n)];
+            let t = (n) => [12, 10, 1, 6][['u32', 'f16', 'f32', 'i32'].indexOf(n)];
             return this.uniforms.map((n) => [t(n.type), n.length ?? 1]);
           }
         }),
@@ -3335,13 +3335,13 @@ struct Uniforms { ${t.join(", ")} };
     To,
     Io,
     Re = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (cd = (e, t) => {
-        if (!e || e.length !== 1) throw new Error("Transpose requires 1 input.");
+        if (!e || e.length !== 1) throw new Error('Transpose requires 1 input.');
         if (t.length !== 0 && t.length !== e[0].dims.length)
           throw new Error(`perm size ${t.length} does not match input rank ${e[0].dims.length}`);
       }),
@@ -3351,7 +3351,7 @@ struct Uniforms { ${t.join(", ")} };
           let o = `fn perm(i: ${r.type.indices}) -> ${n.type.indices} {
 var a: ${n.type.indices};`;
           for (let i = 0; i < t; ++i) o += `a[${e[i]}]=i[${i}];`;
-          return (o += "return a;}");
+          return (o += 'return a;}');
         }),
         (fd = (e, t) => {
           let n = [],
@@ -3381,18 +3381,18 @@ var a: ${n.type.indices};`;
           if (u)
             return (
               (d = (h) => {
-                let b = S("input", n, s, 4),
-                  y = C("output", n, a, 4);
+                let b = S('input', n, s, 4),
+                  y = C('output', n, a, 4);
                 return `
-${h.registerUniform("output_size", "u32").declareVariables(b, y)}
+${h.registerUniform('output_size', 'u32').declareVariables(b, y)}
 ${h.mainStart()}
-${h.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${h.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 output[global_idx] = input[global_idx];
 }`;
               }),
               {
-                name: "TransposeCopy",
-                shaderCache: { inputDependencies: ["type"] },
+                name: 'TransposeCopy',
+                shaderCache: { inputDependencies: ['type'] },
                 getRunData: () => {
                   let h = x.size(i);
                   return {
@@ -3412,10 +3412,10 @@ output[global_idx] = input[global_idx];
             let h = 16;
             return (
               (d = (b) => {
-                let y = S("a", n, s.length),
-                  g = C("output", n, a.length);
+                let y = S('a', n, s.length),
+                  g = C('output', n, a.length);
                 return `
-${b.registerUniform("output_size", "u32").declareVariables(y, g)}
+${b.registerUniform('output_size', 'u32').declareVariables(y, g)}
 var<workgroup> tile : array<array<${g.type.value}, ${h + 1}>, ${h}>;
 ${b.mainStart([h, h, 1])}
 let stride = (uniforms.output_shape[1] - 1) / ${h} + 1;
@@ -3431,13 +3431,13 @@ workgroupBarrier();
 let output_col = workgroup_id_x * ${h}u + local_id.x;
 let output_row = workgroup_id_y * ${h}u + local_id.y;
 if (output_row < uniforms.output_shape[0] && output_col < uniforms.output_shape[1]) {
-${g.setByIndices(`${g.type.indices}(output_row, output_col)`, "tile[local_id.x][local_id.y]")}
+${g.setByIndices(`${g.type.indices}(output_row, output_col)`, 'tile[local_id.x][local_id.y]')}
 }
 }`;
               }),
               {
-                name: "TransposeShared",
-                shaderCache: { inputDependencies: ["type"] },
+                name: 'TransposeShared',
+                shaderCache: { inputDependencies: ['type'] },
                 getRunData: () => {
                   let b = x.size(i);
                   return {
@@ -3452,25 +3452,25 @@ ${g.setByIndices(`${g.type.indices}(output_row, output_col)`, "tile[local_id.x][
           }
           return (
             (d = (h) => {
-              let b = S("a", n, s.length),
-                y = C("output", n, a.length);
+              let b = S('a', n, s.length),
+                y = C('output', n, a.length);
               return `
-${h.registerUniform("output_size", "u32").declareVariables(b, y)}
+${h.registerUniform('output_size', 'u32').declareVariables(b, y)}
 
 ${md(o, r, b, y)}
 
 ${h.mainStart()}
-${h.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${h.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 
-let indices = ${y.offsetToIndices("global_idx")};
+let indices = ${y.offsetToIndices('global_idx')};
 let aIndices = perm(indices);
 
-${y.setByOffset("global_idx", b.getByIndices("aIndices"))}
+${y.setByOffset('global_idx', b.getByIndices('aIndices'))}
 }`;
             }),
             {
-              name: "Transpose",
-              shaderCache: { hint: `${t}`, inputDependencies: ["rank"] },
+              name: 'Transpose',
+              shaderCache: { hint: `${t}`, inputDependencies: ['rank'] },
               getRunData: () => {
                 let h = x.size(i);
                 return {
@@ -3510,58 +3510,58 @@ ${y.setByOffset("global_idx", b.getByIndices("aIndices"))}
     Bo,
     Mo,
     Ro = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       Qt();
       Re();
       (gd = {
-        max: "select(bestValue, candidate, candidate > bestValue)",
-        min: "select(bestValue, candidate, candidate < bestValue)",
-        mean: "bestValue + candidate",
-        sum: "bestValue + candidate",
-        prod: "bestValue * candidate",
-        sumSquare: "bestValue + candidate * candidate",
-        logSumExp: "bestValue + exp(candidate)",
-        l1: "bestValue + abs(candidate)",
-        l2: "bestValue + candidate * candidate",
-        logSum: "bestValue + candidate",
+        max: 'select(bestValue, candidate, candidate > bestValue)',
+        min: 'select(bestValue, candidate, candidate < bestValue)',
+        mean: 'bestValue + candidate',
+        sum: 'bestValue + candidate',
+        prod: 'bestValue * candidate',
+        sumSquare: 'bestValue + candidate * candidate',
+        logSumExp: 'bestValue + exp(candidate)',
+        l1: 'bestValue + abs(candidate)',
+        l2: 'bestValue + candidate * candidate',
+        logSum: 'bestValue + candidate',
       }),
         (yd = {
-          max: "select(bestValue, candidate, candidate > bestValue)",
-          min: "select(bestValue, candidate, candidate < bestValue)",
-          mean: "bestValue + candidate",
-          sum: "bestValue + candidate",
-          prod: "bestValue * candidate",
-          sumSquare: "bestValue + candidate",
-          logSumExp: "bestValue + candidate",
-          l1: "bestValue + candidate",
-          l2: "bestValue + candidate",
-          logSum: "bestValue + candidate",
+          max: 'select(bestValue, candidate, candidate > bestValue)',
+          min: 'select(bestValue, candidate, candidate < bestValue)',
+          mean: 'bestValue + candidate',
+          sum: 'bestValue + candidate',
+          prod: 'bestValue * candidate',
+          sumSquare: 'bestValue + candidate',
+          logSumExp: 'bestValue + candidate',
+          l1: 'bestValue + candidate',
+          l2: 'bestValue + candidate',
+          logSum: 'bestValue + candidate',
         }),
         (bd = {
-          max: "_A[offset]",
-          min: "_A[offset]",
-          mean: "0",
-          sum: "0",
-          prod: "1",
-          sumSquare: "0",
-          logSumExp: "0",
-          l1: "0",
-          l2: "0",
-          logSum: "0",
+          max: '_A[offset]',
+          min: '_A[offset]',
+          mean: '0',
+          sum: '0',
+          prod: '1',
+          sumSquare: '0',
+          logSumExp: '0',
+          l1: '0',
+          l2: '0',
+          logSum: '0',
         }),
         (_d = {
-          max: "bestValue",
-          min: "bestValue",
-          sum: "bestValue",
-          prod: "bestValue",
-          sumSquare: "bestValue",
-          logSumExp: "log(bestValue)",
-          l1: "bestValue",
-          l2: "sqrt(bestValue)",
-          logSum: "log(bestValue)",
+          max: 'bestValue',
+          min: 'bestValue',
+          sum: 'bestValue',
+          prod: 'bestValue',
+          sumSquare: 'bestValue',
+          logSumExp: 'log(bestValue)',
+          l1: 'bestValue',
+          l2: 'sqrt(bestValue)',
+          logSum: 'log(bestValue)',
         }),
         (wd = (e, t) => {
           let n = [];
@@ -3598,15 +3598,15 @@ ${y.setByOffset("global_idx", b.getByIndices("aIndices"))}
           let a = n[0].dims,
             u = x.size(i),
             d = x.size(s),
-            l = S("_A", n[0].dataType, a),
-            c = C("output", o, i),
+            l = S('_A', n[0].dataType, a),
+            c = C('output', o, i),
             p = 64;
           u === 1 && (p = 256);
           let f = `
 var<workgroup> aBestValues : array<f32, ${p}>;
 `,
             m = (h) => `
-${h.registerUniform("reduceSize", "u32").declareVariables(l, c)}
+${h.registerUniform('reduceSize', 'u32').declareVariables(l, c)}
 ${f}
 fn DIV_CEIL(a : u32, b : u32) -> u32 {
 return ((a - 1u) / b + 1u);
@@ -3619,7 +3619,7 @@ let offset = outputIndex * uniforms.reduceSize;
 var bestValue = f32(${bd[r]});
 let Length = uniforms.reduceSize;
 for (var k = local_idx; k < Length; k = k + ${p}) {
-let candidate = f32(${l.getByOffset("offset + k")});
+let candidate = f32(${l.getByOffset('offset + k')});
 bestValue = ${gd[r]};
 }
 aBestValues[local_idx] = bestValue;
@@ -3640,9 +3640,9 @@ workgroupBarrier();
 
 if (local_idx == 0u) {
 ${c.setByOffset(
-  "outputIndex",
+  'outputIndex',
   `${
-    r === "mean"
+    r === 'mean'
       ? `${c.type.storage}(bestValue / f32(uniforms.reduceSize))`
       : `${c.type.storage}(${_d[r]})`
   }`
@@ -3651,7 +3651,7 @@ ${c.setByOffset(
 }`;
           return {
             name: e,
-            shaderCache: { hint: `${t};${p}`, inputDependencies: ["type"] },
+            shaderCache: { hint: `${t};${p}`, inputDependencies: ['type'] },
             getShaderSource: m,
             getRunData: () => ({
               outputs: [{ dims: i, dataType: o }],
@@ -3677,34 +3677,34 @@ ${c.setByOffset(
             e.compute(Td(t, o.cacheKey, [u], r, e.inputs[0].dataType, p, c), { inputs: [u] });
         }),
         (Co = (e, t) => {
-          ze(e, "ReduceMeanShared", t, "mean");
+          ze(e, 'ReduceMeanShared', t, 'mean');
         }),
         (Ao = (e, t) => {
-          ze(e, "ReduceL1Shared", t, "l1");
+          ze(e, 'ReduceL1Shared', t, 'l1');
         }),
         (ko = (e, t) => {
-          ze(e, "ReduceL2Shared", t, "l2");
+          ze(e, 'ReduceL2Shared', t, 'l2');
         }),
         (Eo = (e, t) => {
-          ze(e, "ReduceLogSumExpShared", t, "logSumExp");
+          ze(e, 'ReduceLogSumExpShared', t, 'logSumExp');
         }),
         (Po = (e, t) => {
-          ze(e, "ReduceMaxShared", t, "max");
+          ze(e, 'ReduceMaxShared', t, 'max');
         }),
         (zo = (e, t) => {
-          ze(e, "ReduceMinShared", t, "min");
+          ze(e, 'ReduceMinShared', t, 'min');
         }),
         (Oo = (e, t) => {
-          ze(e, "ReduceProdShared", t, "prod");
+          ze(e, 'ReduceProdShared', t, 'prod');
         }),
         (Do = (e, t) => {
-          ze(e, "ReduceSumShared", t, "sum");
+          ze(e, 'ReduceSumShared', t, 'sum');
         }),
         (Bo = (e, t) => {
-          ze(e, "ReduceSumSquareShared", t, "sumSquare");
+          ze(e, 'ReduceSumSquareShared', t, 'sumSquare');
         }),
         (Mo = (e, t) => {
-          ze(e, "ReduceLogSumShared", t, "logSum");
+          ze(e, 'ReduceLogSumShared', t, 'logSum');
         });
     });
   var Oe,
@@ -3734,7 +3734,7 @@ ${c.setByOffset(
     Fo,
     Ko,
     Qt = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
@@ -3742,10 +3742,10 @@ ${c.setByOffset(
       Ro();
       (Oe = (e) => {
         if (!e || e.length === 0 || e.length > 2)
-          throw new Error("Reduce op requires 1 or 2 inputs.");
-        if (e.length === 2 && e[1].dims.length !== 1) throw new Error("Invalid axes input dims.");
+          throw new Error('Reduce op requires 1 or 2 inputs.');
+        if (e.length === 2 && e[1].dims.length !== 1) throw new Error('Invalid axes input dims.');
       }),
-        (Id = (e) => ["", "", `var value = ${e.getByIndices("input_indices")};`, ""]),
+        (Id = (e) => ['', '', `var value = ${e.getByIndices('input_indices')};`, '']),
         (Xt = (e, t, n, r, o, i, s = !1, a = !1) => {
           let u = [],
             d = n[0].dims,
@@ -3762,30 +3762,30 @@ ${c.setByOffset(
             shaderCache: t,
             getShaderSource: (b) => {
               let y = [],
-                g = S("_A", n[0].dataType, l),
-                _ = C("output", i, f),
+                g = S('_A', n[0].dataType, l),
+                _ = C('output', i, f),
                 w = r(g, _, c),
                 v = w[2];
               for (let $ = 0, T = 0; $ < l; $++)
                 p || c.indexOf($) >= 0
                   ? (s && T++,
                     (v = `for(var j${$}: u32 = 0; j${$} < ${d[$]}; j${$}++) {
-       ${w[2].includes("last_index") ? `let last_index = j${$};` : ""}
-       ${g.indicesSet("input_indices", $, `j${$}`)}
+       ${w[2].includes('last_index') ? `let last_index = j${$};` : ''}
+       ${g.indicesSet('input_indices', $, `j${$}`)}
        ${v}
      }`))
                   : (y.push(
-                      `${g.indicesSet("input_indices", $, _.indicesGet("output_indices", T))};`
+                      `${g.indicesSet('input_indices', $, _.indicesGet('output_indices', T))};`
                     ),
                     T++);
               return `
 
-${b.registerUniform("output_size", "u32").declareVariables(g, _)}
+${b.registerUniform('output_size', 'u32').declareVariables(g, _)}
 
 ${b.mainStart()}
-${b.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${b.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 var input_indices: ${g.type.indices};
-let output_indices = ${_.offsetToIndices("global_idx")};
+let output_indices = ${_.offsetToIndices('global_idx')};
 
 ${y.join(`
 `)}
@@ -3795,7 +3795,7 @@ ${v}
 ${w[3]}
 ${
   w.length === 4
-    ? _.setByOffset("global_idx", "value")
+    ? _.setByOffset('global_idx', 'value')
     : w.slice(4).join(`
 `)
 }
@@ -3821,7 +3821,7 @@ ${
           e.compute(
             Xt(
               t,
-              { hint: i.cacheKey, inputDependencies: ["rank"] },
+              { hint: i.cacheKey, inputDependencies: ['rank'] },
               [o[0]],
               i.noopWithEmptyAxes && i.axes.length === 0 ? Id : r,
               i.axes,
@@ -3834,110 +3834,110 @@ ${
         }),
         (Cd = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceLogSum", t, (r, o) => [
+            De(e, 'ReduceLogSum', t, (r, o) => [
               `var value = ${o.type.storage}(0);`,
-              "",
-              `value += ${r.getByIndices("input_indices")};`,
-              "value = log(value);",
+              '',
+              `value += ${r.getByIndices('input_indices')};`,
+              'value = log(value);',
             ]);
         }),
         (Ad = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceL1", t, (r, o) => [
+            De(e, 'ReduceL1', t, (r, o) => [
               `var value = ${o.type.storage}(0);`,
-              "",
-              `value += abs(${r.getByIndices("input_indices")});`,
-              "",
+              '',
+              `value += abs(${r.getByIndices('input_indices')});`,
+              '',
             ]);
         }),
         (kd = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceL2", t, (r, o) => [
+            De(e, 'ReduceL2', t, (r, o) => [
               `var t = ${o.type.value}(0); var value = ${o.type.value}(0);`,
-              "",
-              `t = ${r.getByIndices("input_indices")}; value += (t * t);`,
-              "value = sqrt(value);",
+              '',
+              `t = ${r.getByIndices('input_indices')}; value += (t * t);`,
+              'value = sqrt(value);',
             ]);
         }),
         (Ed = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceLogSumExp", t, (r, o) => [
+            De(e, 'ReduceLogSumExp', t, (r, o) => [
               `var value = ${o.type.storage}(0);`,
-              "",
-              `value += exp(${r.getByIndices("input_indices")});`,
-              "value = log(value);",
+              '',
+              `value += exp(${r.getByIndices('input_indices')});`,
+              'value = log(value);',
             ]);
         }),
         (Pd = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceMax", t, (r, o, i) => {
+            De(e, 'ReduceMax', t, (r, o, i) => {
               let s = [];
               for (let a = 0; a < r.rank; a++)
                 (i.indexOf(a) >= 0 || i.length === 0) &&
-                  s.push(r.indicesSet("input_indices", a, 0));
+                  s.push(r.indicesSet('input_indices', a, 0));
               return [
                 `${s.join(`
 `)}`,
-                `var value = ${r.getByIndices("input_indices")};`,
-                `value = max(value, ${r.getByIndices("input_indices")});`,
-                "",
+                `var value = ${r.getByIndices('input_indices')};`,
+                `value = max(value, ${r.getByIndices('input_indices')});`,
+                '',
               ];
             });
         }),
         (zd = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceMean", t, (r, o, i) => {
+            De(e, 'ReduceMean', t, (r, o, i) => {
               let s = 1;
               for (let a = 0; a < r.rank; a++)
                 (i.indexOf(a) >= 0 || i.length === 0) && (s *= e.inputs[0].dims[a]);
               return [
-                "var sum = f32(0);",
-                "",
-                `sum += f32(${r.getByIndices("input_indices")});`,
+                'var sum = f32(0);',
+                '',
+                `sum += f32(${r.getByIndices('input_indices')});`,
                 `let value = ${o.type.value}(sum / ${s});`,
               ];
             });
         }),
         (Od = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceMin", t, (r, o, i) => {
+            De(e, 'ReduceMin', t, (r, o, i) => {
               let s = [];
               for (let a = 0; a < r.rank; a++)
                 (i.indexOf(a) >= 0 || i.length === 0) && s.push(`input_indices[${a}] = 0;`);
               return [
                 `${s.join(`
 `)}`,
-                `var value = ${r.getByIndices("input_indices")};`,
-                `value = min(value, ${r.getByIndices("input_indices")});`,
-                "",
+                `var value = ${r.getByIndices('input_indices')};`,
+                `value = min(value, ${r.getByIndices('input_indices')});`,
+                '',
               ];
             });
         }),
         (Dd = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceProd", t, (r, o) => [
+            De(e, 'ReduceProd', t, (r, o) => [
               `var value = ${o.type.storage}(1);`,
-              "",
-              `value *= ${r.getByIndices("input_indices")};`,
-              "",
+              '',
+              `value *= ${r.getByIndices('input_indices')};`,
+              '',
             ]);
         }),
         (Bd = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceSum", t, (r, o) => [
+            De(e, 'ReduceSum', t, (r, o) => [
               `var value = ${o.type.storage}(0);`,
-              "",
-              `value += ${r.getByIndices("input_indices")};`,
-              "",
+              '',
+              `value += ${r.getByIndices('input_indices')};`,
+              '',
             ]);
         }),
         (Md = (e, t) => {
           Oe(e.inputs),
-            De(e, "ReduceSumSquare", t, (r, o) => [
+            De(e, 'ReduceSumSquare', t, (r, o) => [
               `var t = ${o.type.value}(0); var value = ${o.type.value}(0);`,
-              "",
-              `t = ${r.getByIndices("input_indices")}; value += t * t;`,
-              "",
+              '',
+              `t = ${r.getByIndices('input_indices')}; value += t * t;`,
+              '',
             ]);
         }),
         (Be = (e, t, n) => {
@@ -3983,14 +3983,14 @@ ${
     Qo,
     qn,
     Xo = E(() => {
-      "use strict";
+      'use strict';
       V();
       ie();
       Qt();
       (jo = (e) => {
         if (!e || e.length === 0 || e.length > 2)
-          throw new Error("ArgMinMaxOp op requires 1 or 2 inputs.");
-        if (e[0].dataType !== 1) throw new Error("Invalid input type.");
+          throw new Error('ArgMinMaxOp op requires 1 or 2 inputs.');
+        if (e[0].dataType !== 1) throw new Error('Invalid input type.');
       }),
         (Zo = (e, t) => {
           jo(e.inputs);
@@ -4001,20 +4001,20 @@ ${
             return [
               `${s.join(`
 `)}`,
-              `var value = ${r.getByIndices("input_indices")};
+              `var value = ${r.getByIndices('input_indices')};
 var best_index : i32 = 0;`,
-              `if (${r.getByIndices("input_indices")} ${t.selectLastIndex > 0 ? "<=" : "<"} value) {
-value = ${r.getByIndices("input_indices")};
+              `if (${r.getByIndices('input_indices')} ${t.selectLastIndex > 0 ? '<=' : '<'} value) {
+value = ${r.getByIndices('input_indices')};
 best_index = i32(last_index);
 }`,
-              "",
-              o.setByOffset("global_idx", "best_index"),
+              '',
+              o.setByOffset('global_idx', 'best_index'),
             ];
           };
           e.compute(
             Xt(
-              "ArgMin",
-              { hint: t.cacheKey, inputDependencies: ["rank"] },
+              'ArgMin',
+              { hint: t.cacheKey, inputDependencies: ['rank'] },
               [e.inputs[0]],
               n,
               [t.axis],
@@ -4033,20 +4033,20 @@ best_index = i32(last_index);
             return [
               `${s.join(`
 `)}`,
-              `var value = ${r.getByIndices("input_indices")};
+              `var value = ${r.getByIndices('input_indices')};
 var best_index : i32 = 0;`,
-              `if (${r.getByIndices("input_indices")} ${t.selectLastIndex > 0 ? ">=" : ">"} value) {
-value = ${r.getByIndices("input_indices")};
+              `if (${r.getByIndices('input_indices')} ${t.selectLastIndex > 0 ? '>=' : '>'} value) {
+value = ${r.getByIndices('input_indices')};
 best_index = i32(last_index);
 }`,
-              "",
-              o.setByOffset("global_idx", "best_index"),
+              '',
+              o.setByOffset('global_idx', 'best_index'),
             ];
           };
           e.compute(
             Xt(
-              "argMax",
-              { hint: t.cacheKey, inputDependencies: ["rank"] },
+              'argMax',
+              { hint: t.cacheKey, inputDependencies: ['rank'] },
               [e.inputs[0]],
               n,
               [t.axis],
@@ -4067,7 +4067,7 @@ best_index = i32(last_index);
     Ld,
     Yo,
     Yt = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       Kt();
@@ -4079,7 +4079,7 @@ best_index = i32(last_index);
           i = e[3],
           s = e[4],
           a = e[5];
-        if (s && a) throw new Error("Attention cannot have both past and attention_bias");
+        if (s && a) throw new Error('Attention cannot have both past and attention_bias');
         if (n.dims.length !== 3) throw new Error('Input "input" must have 3 dimensions');
         let u = n.dims[0],
           d = n.dims[1],
@@ -4088,7 +4088,7 @@ best_index = i32(last_index);
         if (r.dims.length !== 2)
           throw new Error('Input "weights" is expected to have 2 dimensions');
         if (r.dims[0] !== l)
-          throw new Error("Input 1 dimension 0 should have same length as dimension 2 of input 0");
+          throw new Error('Input 1 dimension 0 should have same length as dimension 2 of input 0');
         if (o.dims[0] !== r.dims[1])
           throw new Error(
             'Input "bias" dimension 0 should have same length as dimension 1 of input "weights"'
@@ -4098,14 +4098,14 @@ best_index = i32(last_index);
           f = p;
         if (t.qkvHiddenSizes.length > 0) {
           if (t.qkvHiddenSizes.length !== 3)
-            throw new Error("qkv_hidden_sizes attribute should have 3 elements");
+            throw new Error('qkv_hidden_sizes attribute should have 3 elements');
           for (let _ of t.qkvHiddenSizes)
             if (_ % t.numHeads !== 0)
-              throw new Error("qkv_hidden_sizes should be divisible by num_heads");
+              throw new Error('qkv_hidden_sizes should be divisible by num_heads');
           (c = t.qkvHiddenSizes[0]), (p = t.qkvHiddenSizes[1]), (f = t.qkvHiddenSizes[2]);
         }
         let m = d;
-        if (c !== p) throw new Error("qkv_hidden_sizes first element should be same as the second");
+        if (c !== p) throw new Error('qkv_hidden_sizes first element should be same as the second');
         if (o.dims[0] !== c + p + f)
           throw new Error(
             'Input "bias" dimension 0 should have same length as sum of Q/K/V hidden sizes'
@@ -4125,8 +4125,8 @@ best_index = i32(last_index);
         let b = m + h,
           y = -1,
           g = 0;
-        if (i) throw new Error("Mask not supported");
-        if (s) throw new Error("past is not supported");
+        if (i) throw new Error('Mask not supported');
+        if (s) throw new Error('past is not supported');
         if (a) {
           if (a.dims.length !== 4) throw new Error('Input "attention_bias" must have 4 dimensions');
           if (a.dims[0] !== u || a.dims[1] !== t.numHeads || a.dims[2] !== d || a.dims[3] !== b)
@@ -4160,18 +4160,18 @@ best_index = i32(last_index);
         (Fn = (e, t, n) =>
           t && e
             ? `
-let total_sequence_length_input = u32(${t.getByOffset("0")});
+let total_sequence_length_input = u32(${t.getByOffset('0')});
 let present_sequence_length = max(total_sequence_length_input, uniforms.past_sequence_length);
 let is_subsequent_prompt: bool = sequence_length > 1 && sequence_length != total_sequence_length_input;
 let is_first_prompt: bool = is_subsequent_prompt == false && sequence_length == total_sequence_length_input;
-total_sequence_length = u32(${e?.getByOffset("batchIdx")}) + 1;
+total_sequence_length = u32(${e?.getByOffset('batchIdx')}) + 1;
 var past_sequence_length: u32 = 0;
 if (is_first_prompt == false) {
 past_sequence_length = total_sequence_length - sequence_length;
 }
 `
             : `
-${n ? "let past_sequence_length = uniforms.past_sequence_length" : ""};
+${n ? 'let past_sequence_length = uniforms.past_sequence_length' : ''};
 let present_sequence_length = total_sequence_length;
 `),
         (Ud = (e, t, n, r, o, i, s, a) => {
@@ -4190,23 +4190,23 @@ let present_sequence_length = total_sequence_length;
             ],
             f = re(e.dataType, u),
             m = le(1, u),
-            h = ["type"];
-          s && h.push("type"), a && h.push("type");
+            h = ['type'];
+          s && h.push('type'), a && h.push('type');
           let b = (y) => {
-            let g = C("x", e.dataType, e.dims, u),
+            let g = C('x', e.dataType, e.dims, u),
               _ = [g],
-              w = s ? S("seq_lens", s.dataType, s.dims) : void 0;
+              w = s ? S('seq_lens', s.dataType, s.dims) : void 0;
             w && _.push(w);
-            let v = a ? S("total_sequence_length_input", a.dataType, a.dims) : void 0;
+            let v = a ? S('total_sequence_length_input', a.dataType, a.dims) : void 0;
             v && _.push(v);
             let $ = le(e.dataType),
               T = [
-                { name: "batch_size", type: "u32" },
-                { name: "num_heads", type: "u32" },
-                { name: "past_sequence_length", type: "u32" },
-                { name: "sequence_length", type: "u32" },
-                { name: "total_sequence_length", type: "u32" },
-                { name: "elements_per_thread", type: "u32" },
+                { name: 'batch_size', type: 'u32' },
+                { name: 'num_heads', type: 'u32' },
+                { name: 'past_sequence_length', type: 'u32' },
+                { name: 'sequence_length', type: 'u32' },
+                { name: 'total_sequence_length', type: 'u32' },
+                { name: 'elements_per_thread', type: 'u32' },
               ];
             return `
 var<workgroup> thread_max: array<f32, ${d}>;
@@ -4221,7 +4221,7 @@ ${Fn(w, v, !1)}
 let local_offset = local_idx * uniforms.elements_per_thread;
 let offset = (global_idx / ${d}) * uniforms.total_sequence_length + local_offset;
 let seq_causal_length = ${
-              s ? "u32(past_sequence_length + workgroup_id.y + 1)" : "total_sequence_length"
+              s ? 'u32(past_sequence_length + workgroup_id.y + 1)' : 'total_sequence_length'
             };
 var thread_max_vector = ${m}(-3.402823e+38f);
 for (var i: u32 = 0; i < uniforms.elements_per_thread && i + local_offset < seq_causal_length; i++) {
@@ -4230,11 +4230,11 @@ thread_max_vector = max(${m}(x[offset + i]), thread_max_vector);
 thread_max[local_idx] = ${(() => {
               switch (u) {
                 case 1:
-                  return "thread_max_vector";
+                  return 'thread_max_vector';
                 case 2:
-                  return "max(thread_max_vector.x, thread_max_vector.y)";
+                  return 'max(thread_max_vector.x, thread_max_vector.y)';
                 case 4:
-                  return "max(max(thread_max_vector.x, thread_max_vector.y), max(thread_max_vector.z, thread_max_vector.w))";
+                  return 'max(max(thread_max_vector.x, thread_max_vector.y), max(thread_max_vector.z, thread_max_vector.w))';
                 default:
                   throw new Error(`Unsupported components: ${u}`);
               }
@@ -4253,11 +4253,11 @@ sum_vector += exp(${m}(x[offset + i]) - max_value);
 thread_sum[local_idx] = ${(() => {
               switch (u) {
                 case 1:
-                  return "sum_vector";
+                  return 'sum_vector';
                 case 2:
-                  return "sum_vector.x + sum_vector.y";
+                  return 'sum_vector.x + sum_vector.y';
                 case 4:
-                  return "sum_vector.x + sum_vector.y + sum_vector.z + sum_vector.w";
+                  return 'sum_vector.x + sum_vector.y + sum_vector.z + sum_vector.w';
                 default:
                   throw new Error(`Unsupported components: ${u}`);
               }
@@ -4285,12 +4285,12 @@ ${
 for (var total_seq_id: u32 = seq_causal_length; total_seq_id + local_offset < uniforms.total_sequence_length; total_seq_id++) {
 x[offset + total_seq_id] = ${g.type.value}(${$}(0));
 }`
-    : ""
+    : ''
 };
 }`;
           };
           return {
-            name: "AttentionProbsSoftmax",
+            name: 'AttentionProbsSoftmax',
             shaderCache: { hint: `${d};${f};${u}`, inputDependencies: h },
             getShaderSource: b,
             getRunData: () => ({
@@ -4328,37 +4328,37 @@ x[offset + total_seq_id] = ${g.type.value}(${$}(0));
               { type: 12, data: m },
             ],
             v = c && r && x.size(r.dims) > 0,
-            $ = ["type", "type"];
-          v && $.push("type"), o && $.push("type"), a && $.push("type"), u && $.push("type");
+            $ = ['type', 'type'];
+          v && $.push('type'), o && $.push('type'), a && $.push('type'), u && $.push('type');
           let T = [{ dims: l, dataType: t.dataType, gpuDataType: 0 }];
           c && T.push({ dims: f, dataType: t.dataType, gpuDataType: 0 });
           let I = (A) => {
-            let z = S("q", t.dataType, t.dims, b),
-              M = S("key", n.dataType, n.dims, b),
+            let z = S('q', t.dataType, t.dims, b),
+              M = S('key', n.dataType, n.dims, b),
               R = [z, M];
             if (v) {
-              let U = S("past_key", r.dataType, r.dims, b);
+              let U = S('past_key', r.dataType, r.dims, b);
               R.push(U);
             }
-            o && R.push(S("attention_bias", o.dataType, o.dims));
-            let W = a ? S("seq_lens", a.dataType, a.dims) : void 0;
+            o && R.push(S('attention_bias', o.dataType, o.dims));
+            let W = a ? S('seq_lens', a.dataType, a.dims) : void 0;
             W && R.push(W);
-            let O = u ? S("total_sequence_length_input", u.dataType, u.dims) : void 0;
+            let O = u ? S('total_sequence_length_input', u.dataType, u.dims) : void 0;
             O && R.push(O);
-            let ee = C("output", t.dataType, l),
+            let ee = C('output', t.dataType, l),
               G = [ee];
-            c && G.push(C("present_key", t.dataType, f, b));
+            c && G.push(C('present_key', t.dataType, f, b));
             let D = le(1, b),
               Z = [
-                { name: "M", type: "u32" },
-                { name: "K", type: "u32" },
-                { name: "N", type: "u32" },
-                { name: "num_heads", type: "u32" },
-                { name: "head_size", type: "u32" },
-                { name: "alpha", type: "f32" },
-                { name: "past_sequence_length", type: "u32" },
-                { name: "kv_sequence_length", type: "u32" },
-                { name: "n_reps", type: "u32" },
+                { name: 'M', type: 'u32' },
+                { name: 'K', type: 'u32' },
+                { name: 'N', type: 'u32' },
+                { name: 'num_heads', type: 'u32' },
+                { name: 'head_size', type: 'u32' },
+                { name: 'alpha', type: 'f32' },
+                { name: 'past_sequence_length', type: 'u32' },
+                { name: 'kv_sequence_length', type: 'u32' },
+                { name: 'n_reps', type: 'u32' },
               ];
             return `
 const TILE_SIZE = ${g}u;
@@ -4369,8 +4369,8 @@ ${A.registerUniforms(Z).declareVariables(...R, ...G)}
 ${A.mainStart([g, g, 1])}
 // x holds the N and y holds the M
 let headIdx = workgroup_id.z % uniforms.num_heads;
-let kvHeadIdx = ${m === 1 ? "headIdx" : "headIdx / uniforms.n_reps"};
-let kv_num_heads = ${m === 1 ? "uniforms.num_heads" : "uniforms.num_heads / uniforms.n_reps"};
+let kvHeadIdx = ${m === 1 ? 'headIdx' : 'headIdx / uniforms.n_reps'};
+let kv_num_heads = ${m === 1 ? 'uniforms.num_heads' : 'uniforms.num_heads / uniforms.n_reps'};
 let batchIdx = workgroup_id.z / uniforms.num_heads;
 let m = workgroup_id.y * TILE_SIZE;
 let n = workgroup_id.x * TILE_SIZE;
@@ -4379,9 +4379,9 @@ var total_sequence_length = uniforms.N;
 ${Fn(W, O, !0)}
 let absKvHeadIdx = batchIdx * kv_num_heads + kvHeadIdx;
 let qOffset = workgroup_id.z * uniforms.M * uniforms.K + m * uniforms.K;
-${v && c ? "let pastKeyOffset = absKvHeadIdx * uniforms.past_sequence_length * uniforms.K;" : ""};
+${v && c ? 'let pastKeyOffset = absKvHeadIdx * uniforms.past_sequence_length * uniforms.K;' : ''};
 let kOffset = absKvHeadIdx * uniforms.kv_sequence_length * uniforms.K;
-${c ? "let presentKeyOffset = absKvHeadIdx * uniforms.N * uniforms.K;" : ""}
+${c ? 'let presentKeyOffset = absKvHeadIdx * uniforms.N * uniforms.K;' : ''}
 var value = ${D}(0);
 for (var w: u32 = 0u; w < uniforms.K; w += TILE_SIZE) {
 if (global_id.y < uniforms.M && w + local_id.x < uniforms.K) {
@@ -4407,7 +4407,7 @@ ${
     ? `if (n + local_id.y < present_sequence_length) {
 present_key[presentKeyOffset + (n + local_id.y) * uniforms.K + w + local_id.x] = tileK[idx];
 }`
-    : ""
+    : ''
 }
 }
 workgroupBarrier();
@@ -4425,23 +4425,23 @@ let outputIdx = headOffset + global_id.y * uniforms.N + global_id.x;
 var sum: f32 = ${(() => {
               switch (b) {
                 case 1:
-                  return "value";
+                  return 'value';
                 case 2:
-                  return "value.x + value.y";
+                  return 'value.x + value.y';
                 case 4:
-                  return "value.x + value.y + value.z + value.w";
+                  return 'value.x + value.y + value.z + value.w';
                 default:
                   throw new Error(`Unsupported components: ${b}`);
               }
             })()};
 output[outputIdx] = ${ee.type.value} (sum * uniforms.alpha) + ${
-              o ? "attention_bias[outputIdx]" : "0.0"
+              o ? 'attention_bias[outputIdx]' : '0.0'
             };
 }
 }`;
           };
           return {
-            name: "AttentionProbs",
+            name: 'AttentionProbs',
             shaderCache: {
               hint: `${b};${o !== void 0};${r !== void 0};${e}`,
               inputDependencies: $,
@@ -4476,31 +4476,31 @@ output[outputIdx] = ${ee.type.value} (sum * uniforms.alpha) + ${
               { type: 12, data: d },
             ],
             g = c && r && x.size(r.dims) > 0,
-            _ = ["type", "type"];
-          g && _.push("type"), s && _.push("type"), a && _.push("type");
+            _ = ['type', 'type'];
+          g && _.push('type'), s && _.push('type'), a && _.push('type');
           let w = [{ dims: m, dataType: t.dataType, gpuDataType: 0 }];
           c && w.push({ dims: f, dataType: t.dataType, gpuDataType: 0 });
           let v = ($) => {
-            let T = S("probs", t.dataType, t.dims),
-              I = S("v", n.dataType, n.dims),
+            let T = S('probs', t.dataType, t.dims),
+              I = S('v', n.dataType, n.dims),
               A = [T, I];
-            g && A.push(S("past_value", r.dataType, r.dims));
-            let z = s ? S("seq_lens", s.dataType, s.dims) : void 0;
+            g && A.push(S('past_value', r.dataType, r.dims));
+            let z = s ? S('seq_lens', s.dataType, s.dims) : void 0;
             s && A.push(z);
-            let M = a ? S("total_sequence_length_input", a.dataType, a.dims) : void 0;
+            let M = a ? S('total_sequence_length_input', a.dataType, a.dims) : void 0;
             a && A.push(M);
-            let W = [C("output", t.dataType, m)];
-            c && W.push(C("present_value", t.dataType, f));
+            let W = [C('output', t.dataType, m)];
+            c && W.push(C('present_value', t.dataType, f));
             let O = [
-              { name: "M", type: "u32" },
-              { name: "K", type: "u32" },
-              { name: "N", type: "u32" },
-              { name: "num_heads", type: "u32" },
-              { name: "head_size", type: "u32" },
-              { name: "v_hidden_size", type: "u32" },
-              { name: "past_sequence_length", type: "u32" },
-              { name: "kv_sequence_length", type: "u32" },
-              { name: "n_reps", type: "u32" },
+              { name: 'M', type: 'u32' },
+              { name: 'K', type: 'u32' },
+              { name: 'N', type: 'u32' },
+              { name: 'num_heads', type: 'u32' },
+              { name: 'head_size', type: 'u32' },
+              { name: 'v_hidden_size', type: 'u32' },
+              { name: 'past_sequence_length', type: 'u32' },
+              { name: 'kv_sequence_length', type: 'u32' },
+              { name: 'n_reps', type: 'u32' },
             ];
             return `
 const TILE_SIZE = ${h}u;
@@ -4510,8 +4510,8 @@ ${$.registerUniforms(O).declareVariables(...A, ...W)}
 ${$.mainStart([h, h, 1])}
 let headIdx = workgroup_id.z % uniforms.num_heads;
 let batchIdx = workgroup_id.z / uniforms.num_heads;
-let kvHeadIdx = ${d === 1 ? "headIdx" : "headIdx / uniforms.n_reps"};
-let kv_num_heads = ${d === 1 ? "uniforms.num_heads" : "uniforms.num_heads / uniforms.n_reps"};
+let kvHeadIdx = ${d === 1 ? 'headIdx' : 'headIdx / uniforms.n_reps'};
+let kv_num_heads = ${d === 1 ? 'uniforms.num_heads' : 'uniforms.num_heads / uniforms.n_reps'};
 let m = global_id.y;
 let n = global_id.x;
 let sequence_length = uniforms.M;
@@ -4521,11 +4521,11 @@ let offsetA = workgroup_id.z * uniforms.M * uniforms.K + m * uniforms.K;
 let absKvHeadIdx = batchIdx * kv_num_heads + kvHeadIdx; // kvHeadIdx is relative to the batch
 ${
   g && c
-    ? "let pastValueOffset = absKvHeadIdx * uniforms.N * uniforms.past_sequence_length + n;"
-    : ""
+    ? 'let pastValueOffset = absKvHeadIdx * uniforms.N * uniforms.past_sequence_length + n;'
+    : ''
 };
 let vOffset = absKvHeadIdx * uniforms.N * uniforms.kv_sequence_length + n;
-${c ? "let presentValueOffset = absKvHeadIdx * uniforms.N * uniforms.K + n;" : ""}
+${c ? 'let presentValueOffset = absKvHeadIdx * uniforms.N * uniforms.K + n;' : ''}
 var value = ${T.type.storage}(0);
 for (var w: u32 = 0u; w < uniforms.K; w += TILE_SIZE) {
 if (m < uniforms.M && w + local_id.x < uniforms.K) {
@@ -4553,7 +4553,7 @@ ${
  if (w + local_id.y < present_sequence_length) {
 present_value[presentValueOffset + (w + local_id.y) * uniforms.N] = tileV[idx];
 }`
-    : ""
+    : ''
 }
 }
 workgroupBarrier();
@@ -4572,7 +4572,7 @@ output[outputIdx] = value;
 }`;
           };
           return {
-            name: "AttentionScore",
+            name: 'AttentionScore',
             shaderCache: { hint: `${r !== void 0};${e}`, inputDependencies: _ },
             getRunData: () => ({ outputs: w, dispatchGroup: b, programUniforms: y }),
             getShaderSource: v,
@@ -4624,21 +4624,21 @@ output[outputIdx] = value;
               { type: 12, data: t.hiddenSize + t.hiddenSize + t.vHiddenSize },
             ],
             l = (c) => {
-              let p = C("output_q", u[0].dataType, n),
-                f = C("output_k", u[0].dataType, n),
-                m = C("output_v", u[0].dataType, n),
-                h = S("input", u[0].dataType, u[0].dims),
-                b = S("weight", u[1].dataType, u[1].dims),
-                y = S("bias", u[2].dataType, u[2].dims),
+              let p = C('output_q', u[0].dataType, n),
+                f = C('output_k', u[0].dataType, n),
+                m = C('output_v', u[0].dataType, n),
+                h = S('input', u[0].dataType, u[0].dims),
+                b = S('weight', u[1].dataType, u[1].dims),
+                y = S('bias', u[2].dataType, u[2].dims),
                 g = h.type.storage,
                 _ = [
-                  { name: "M", type: "u32" },
-                  { name: "K", type: "u32" },
-                  { name: "N", type: "u32" },
-                  { name: "num_heads", type: "u32" },
-                  { name: "head_size", type: "u32" },
-                  { name: "hidden_size", type: "u32" },
-                  { name: "ldb", type: "u32" },
+                  { name: 'M', type: 'u32' },
+                  { name: 'K', type: 'u32' },
+                  { name: 'N', type: 'u32' },
+                  { name: 'num_heads', type: 'u32' },
+                  { name: 'head_size', type: 'u32' },
+                  { name: 'hidden_size', type: 'u32' },
+                  { name: 'ldb', type: 'u32' },
                 ];
               return `
 const TILE_SIZE = ${s}u;
@@ -4699,8 +4699,8 @@ output_v[outputIdx] = valueV;
             };
           return e.compute(
             {
-              name: "AttentionPrepare",
-              shaderCache: { inputDependencies: ["type", "type", "type"] },
+              name: 'AttentionPrepare',
+              shaderCache: { inputDependencies: ['type', 'type', 'type'] },
               getRunData: () => ({
                 outputs: [
                   { dims: n, dataType: e.inputs[0].dataType, gpuDataType: 0 },
@@ -4726,14 +4726,14 @@ output_v[outputIdx] = valueV;
     Hd,
     Jo,
     ei = E(() => {
-      "use strict";
+      'use strict';
       ve();
       V();
       q();
       ie();
       K();
       (Gd = (e, t) => {
-        if (!e || e.length !== 5) throw new Error("BatchNormalization requires 5 inputs");
+        if (!e || e.length !== 5) throw new Error('BatchNormalization requires 5 inputs');
         let n = (r, o, i) => {
           let s = o.length;
           if (s !== r.length) throw new Error(`${i}: num dimensions != ${s}`);
@@ -4743,77 +4743,77 @@ output_v[outputIdx] = valueV;
         };
         if (e[0].dims.length > 1) {
           let r =
-            t.format === "NHWC"
+            t.format === 'NHWC'
               ? t.spatial
                 ? e[0].dims.slice(-1)
                 : e[0].dims.slice(-1).concat(e[0].dims.slice(1, e[0].dims.length - 1))
               : e[0].dims.slice(1, t.spatial ? 2 : void 0);
-          n(e[1].dims, r, "Invalid input scale"),
-            n(e[2].dims, r, "Invalid input B"),
-            n(e[3].dims, r, "Invalid input mean"),
-            n(e[4].dims, r, "Invalid input var");
+          n(e[1].dims, r, 'Invalid input scale'),
+            n(e[2].dims, r, 'Invalid input B'),
+            n(e[3].dims, r, 'Invalid input mean'),
+            n(e[4].dims, r, 'Invalid input var');
         } else
-          n(e[1].dims, [1], "Invalid input scale"),
-            n(e[2].dims, [1], "Invalid input B"),
-            n(e[3].dims, [1], "Invalid input mean"),
-            n(e[4].dims, [1], "Invalid input var");
+          n(e[1].dims, [1], 'Invalid input scale'),
+            n(e[2].dims, [1], 'Invalid input B'),
+            n(e[3].dims, [1], 'Invalid input mean'),
+            n(e[4].dims, [1], 'Invalid input var');
       }),
         (Wd = (e, t) => {
           let { epsilon: n, spatial: r, format: o } = t,
             i = e[0].dims,
             s = r ? X(i[i.length - 1]) : 1,
-            a = o === "NHWC" && i.length > 1 ? s : 1,
+            a = o === 'NHWC' && i.length > 1 ? s : 1,
             u = x.size(i) / s,
             d = r,
             l = d ? i.length : i,
-            c = S("x", e[0].dataType, e[0].dims, s),
-            p = S("scale", e[1].dataType, e[1].dims, a),
-            f = S("bias", e[2].dataType, e[2].dims, a),
-            m = S("inputMean", e[3].dataType, e[3].dims, a),
-            h = S("inputVar", e[4].dataType, e[4].dims, a),
-            b = C("y", e[0].dataType, l, s),
+            c = S('x', e[0].dataType, e[0].dims, s),
+            p = S('scale', e[1].dataType, e[1].dims, a),
+            f = S('bias', e[2].dataType, e[2].dims, a),
+            m = S('inputMean', e[3].dataType, e[3].dims, a),
+            h = S('inputVar', e[4].dataType, e[4].dims, a),
+            b = C('y', e[0].dataType, l, s),
             y = () => {
-              let _ = "";
+              let _ = '';
               if (r)
                 _ = `let cOffset = ${
                   i.length === 1
-                    ? "0u"
-                    : o === "NHWC"
+                    ? '0u'
+                    : o === 'NHWC'
                     ? `outputIndices[${i.length - 1}] / ${s}`
-                    : "outputIndices[1]"
+                    : 'outputIndices[1]'
                 };`;
-              else if (o === "NCHW")
+              else if (o === 'NCHW')
                 _ = `
- ${b.indicesSet("outputIndices", "0", "0")}
- let cOffset = ${b.indicesToOffset("outputIndices")};`;
+ ${b.indicesSet('outputIndices', '0', '0')}
+ let cOffset = ${b.indicesToOffset('outputIndices')};`;
               else {
                 _ = `var cIndices = ${p.type.indices}(0);
             cIndices[0] = outputIndices[${i.length - 1}];`;
                 for (let w = 1; w < p.rank; w++) _ += `cIndices[${w}] = outputIndices[${w}];`;
-                _ += `let cOffset = ${p.indicesToOffset("cIndices")};`;
+                _ += `let cOffset = ${p.indicesToOffset('cIndices')};`;
               }
               return _;
             },
             g = (_) => `
 const epsilon = ${n};
-${_.registerUniform("outputSize", "u32").declareVariables(c, p, f, m, h, b)}
+${_.registerUniform('outputSize', 'u32').declareVariables(c, p, f, m, h, b)}
 ${_.mainStart()}
-${_.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+${_.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
 var outputIndices = ${b.offsetToIndices(`global_idx * ${s}`)};
 ${y()}
-let scale = ${p.getByOffset("cOffset")};
-let bias = ${f.getByOffset("cOffset")};
-let inputMean = ${m.getByOffset("cOffset")};
-let inputVar = ${h.getByOffset("cOffset")};
-let x = ${c.getByOffset("global_idx")};
+let scale = ${p.getByOffset('cOffset')};
+let bias = ${f.getByOffset('cOffset')};
+let inputMean = ${m.getByOffset('cOffset')};
+let inputVar = ${h.getByOffset('cOffset')};
+let x = ${c.getByOffset('global_idx')};
 let value = (x - inputMean) * inverseSqrt(inputVar + epsilon) * scale + bias;
-${b.setByOffset("global_idx", "value")}
+${b.setByOffset('global_idx', 'value')}
 }`;
           return {
-            name: "BatchNormalization",
+            name: 'BatchNormalization',
             shaderCache: {
               hint: `${t.epsilon}_${t.format}_${r}_${s}`,
-              inputDependencies: d ? ["rank", "type", "type", "type", "type"] : void 0,
+              inputDependencies: d ? ['rank', 'type', 'type', 'type', 'type'] : void 0,
             },
             getShaderSource: g,
             getRunData: () => ({
@@ -4828,7 +4828,7 @@ ${b.setByOffset("global_idx", "value")}
           let { inputs: n, outputCount: r } = e,
             o = Hd({ ...t, outputCount: r });
           if ((te.webgpu.validateInputContent && Gd(n, o), t.trainingMode))
-            throw new Error("BatchNormalization trainingMode is not supported yet.");
+            throw new Error('BatchNormalization trainingMode is not supported yet.');
           e.compute(Wd(n, o));
         });
     });
@@ -4836,28 +4836,28 @@ ${b.setByOffset("global_idx", "value")}
     Fd,
     ti,
     ni = E(() => {
-      "use strict";
+      'use strict';
       q();
       K();
       (qd = (e) => {
-        if (e[0].dims.length !== 3) throw new Error("input should have 3 dimensions");
+        if (e[0].dims.length !== 3) throw new Error('input should have 3 dimensions');
         if (![320, 640, 1280].includes(e[0].dims[2]))
-          throw new Error("number of channels should be 320, 640 or 1280");
-        if (e[1].dims.length !== 1) throw new Error("bias is expected to have 1 dimensions");
+          throw new Error('number of channels should be 320, 640 or 1280');
+        if (e[1].dims.length !== 1) throw new Error('bias is expected to have 1 dimensions');
         if (e[0].dims[2] !== e[1].dims[0])
-          throw new Error("last dimension of input and bias are not the same");
+          throw new Error('last dimension of input and bias are not the same');
       }),
         (Fd = (e) => {
           let t = e[0].dims,
             n = e[0].dims[2],
             r = x.size(t) / 4,
             o = e[0].dataType,
-            i = S("input", o, t, 4),
-            s = S("bias", o, [n], 4),
-            a = S("residual", o, t, 4),
-            u = C("output", o, t, 4);
+            i = S('input', o, t, 4),
+            s = S('bias', o, [n], 4),
+            a = S('residual', o, t, 4),
+            u = C('output', o, t, 4);
           return {
-            name: "BiasAdd",
+            name: 'BiasAdd',
             getRunData: () => ({
               outputs: [{ dims: t, dataType: e[0].dataType }],
               dispatchGroup: { x: Math.ceil(r / 64) },
@@ -4868,9 +4868,9 @@ ${l.declareVariables(i, s, a, u)}
 
 ${l.mainStart()}
 ${l.guardAgainstOutOfBoundsWorkgroupSizes(r)}
-let value = ${i.getByOffset("global_idx")}
-+ ${s.getByOffset("global_idx % channels")} + ${a.getByOffset("global_idx")};
-${u.setByOffset("global_idx", "value")}
+let value = ${i.getByOffset('global_idx')}
++ ${s.getByOffset('global_idx % channels')} + ${a.getByOffset('global_idx')};
+${u.setByOffset('global_idx', 'value')}
 }`,
           };
         }),
@@ -4924,30 +4924,30 @@ ${u.setByOffset("global_idx", "value")}
     Qd,
     Ui,
     en = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (Kd = (e, t, n, r, o, i, s) => {
         let a = Math.ceil(t / 4),
-          u = "";
-        typeof o == "string" ? (u = `${o}(a)`) : (u = o("a"));
-        let d = S("inputData", n, [a], 4),
-          l = C("outputData", r, [a], 4),
-          c = [{ name: "vec_size", type: "u32" }];
+          u = '';
+        typeof o == 'string' ? (u = `${o}(a)`) : (u = o('a'));
+        let d = S('inputData', n, [a], 4),
+          l = C('outputData', r, [a], 4),
+          c = [{ name: 'vec_size', type: 'u32' }];
         return (
           s && c.push(...s),
           `
 ${e.registerUniforms(c).declareVariables(d, l)}
 
-${i ?? ""}
+${i ?? ''}
 
 ${e.mainStart()}
-${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.vec_size")}
+${e.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.vec_size')}
 
-let a = ${d.getByOffset("global_idx")};
-${l.setByOffset("global_idx", u)}
+let a = ${d.getByOffset('global_idx')};
+${l.setByOffset('global_idx', u)}
 }`
         );
       }),
@@ -4957,7 +4957,7 @@ ${l.setByOffset("global_idx", u)}
             s && u.push(...s),
             {
               name: t,
-              shaderCache: { hint: o, inputDependencies: ["type"] },
+              shaderCache: { hint: o, inputDependencies: ['type'] },
               getShaderSource: (d) => Kd(d, x.size(e.dims), e.dataType, i, n, r, a),
               getRunData: (d) => ({
                 outputs: [{ dims: e.dims, dataType: i }],
@@ -4968,51 +4968,51 @@ ${l.setByOffset("global_idx", u)}
           );
         }),
         (ri = (e) => {
-          e.compute(J(e.inputs[0], "Abs", "abs"));
+          e.compute(J(e.inputs[0], 'Abs', 'abs'));
         }),
         (oi = (e) => {
-          e.compute(J(e.inputs[0], "Acos", "acos"));
+          e.compute(J(e.inputs[0], 'Acos', 'acos'));
         }),
         (ii = (e) => {
-          e.compute(J(e.inputs[0], "Acosh", "acosh"));
+          e.compute(J(e.inputs[0], 'Acosh', 'acosh'));
         }),
         (si = (e) => {
-          e.compute(J(e.inputs[0], "Asin", "asin"));
+          e.compute(J(e.inputs[0], 'Asin', 'asin'));
         }),
         (ai = (e) => {
-          e.compute(J(e.inputs[0], "Asinh", "asinh"));
+          e.compute(J(e.inputs[0], 'Asinh', 'asinh'));
         }),
         (ui = (e) => {
-          e.compute(J(e.inputs[0], "Atan", "atan"));
+          e.compute(J(e.inputs[0], 'Atan', 'atan'));
         }),
         (di = (e) => {
-          e.compute(J(e.inputs[0], "Atanh", "atanh"));
+          e.compute(J(e.inputs[0], 'Atanh', 'atanh'));
         }),
         (li = (e) => N(e)),
         (ci = (e, t) => {
           let n;
           switch (t.to) {
             case 10:
-              n = "vec4<f16>";
+              n = 'vec4<f16>';
               break;
             case 1:
-              n = "vec4<f32>";
+              n = 'vec4<f32>';
               break;
             case 12:
-              n = "vec4<u32>";
+              n = 'vec4<u32>';
               break;
             case 6:
-              n = "vec4<i32>";
+              n = 'vec4<i32>';
               break;
             case 9:
-              n = "vec4<bool>";
+              n = 'vec4<bool>';
               break;
             default:
               throw new RangeError(
                 `not supported type (specified in attribute 'to' from 'Cast' operator): ${t.to}`
               );
           }
-          e.compute(J(e.inputs[0], "Cast", n, void 0, t.cacheKey, t.to));
+          e.compute(J(e.inputs[0], 'Cast', n, void 0, t.cacheKey, t.to));
         }),
         (jd = (e) => {
           let t,
@@ -5029,7 +5029,7 @@ ${l.setByOffset("global_idx", u)}
                 (n = o ? e[2].getUint16Array()[0] : 31743);
               break;
             default:
-              throw new Error("Unsupport data type");
+              throw new Error('Unsupport data type');
           }
           return N({ min: t, max: n });
         }),
@@ -5039,7 +5039,7 @@ ${l.setByOffset("global_idx", u)}
           e.compute(
             J(
               e.inputs[0],
-              "Clip",
+              'Clip',
               (o) => `clamp(${o}, vec4<${r}>(uniforms.min), vec4<${r}>(uniforms.max))`,
               void 0,
               n.cacheKey,
@@ -5049,21 +5049,21 @@ ${l.setByOffset("global_idx", u)}
                 { type: e.inputs[0].dataType, data: n.max },
               ],
               [
-                { name: "min", type: r },
-                { name: "max", type: r },
+                { name: 'min', type: r },
+                { name: 'max', type: r },
               ]
             ),
             { inputs: [0] }
           );
         }),
         (mi = (e) => {
-          e.compute(J(e.inputs[0], "Ceil", "ceil"));
+          e.compute(J(e.inputs[0], 'Ceil', 'ceil'));
         }),
         (fi = (e) => {
-          e.compute(J(e.inputs[0], "Cos", "cos"));
+          e.compute(J(e.inputs[0], 'Cos', 'cos'));
         }),
         (hi = (e) => {
-          e.compute(J(e.inputs[0], "Cosh", "cosh"));
+          e.compute(J(e.inputs[0], 'Cosh', 'cosh'));
         }),
         (ft = (e) => N(e)),
         (gi = (e, t) => {
@@ -5071,7 +5071,7 @@ ${l.setByOffset("global_idx", u)}
           e.compute(
             J(
               e.inputs[0],
-              "Elu",
+              'Elu',
               (r) => `elu_vf32(${r})`,
               `
 const elu_alpha_ = ${n}(${t.alpha});
@@ -5087,7 +5087,7 @@ return vec4(elu_f32(v.x), elu_f32(v.y), elu_f32(v.z), elu_f32(v.w));
             )
           );
         }),
-        (Jt = (e = "f32") => `
+        (Jt = (e = 'f32') => `
 const r0: ${e} = 0.3275911;
 const r1: ${e} = 0.254829592;
 const r2: ${e} = -0.284496736;
@@ -5102,20 +5102,20 @@ return sign(v) * (1.0 - ((((r5 * x + r4) * x + r3) * x + r2) * x + r1) * x * exp
 }`),
         (yi = (e) => {
           let t = le(e.inputs[0].dataType);
-          e.compute(J(e.inputs[0], "Erf", (n) => `erf_vf32(${n})`, Jt(t)));
+          e.compute(J(e.inputs[0], 'Erf', (n) => `erf_vf32(${n})`, Jt(t)));
         }),
         (bi = (e) => {
-          e.compute(J(e.inputs[0], "Exp", "exp"));
+          e.compute(J(e.inputs[0], 'Exp', 'exp'));
         }),
         (_i = (e) => {
-          e.compute(J(e.inputs[0], "Floor", "floor"));
+          e.compute(J(e.inputs[0], 'Floor', 'floor'));
         }),
         (wi = (e) => {
           let t = le(e.inputs[0].dataType);
           e.compute(
             J(
               e.inputs[0],
-              "Gelu",
+              'Gelu',
               (n) => `0.5 * ${n} * (1.0 + erf_vf32(${n} * 0.7071067811865475))`,
               Jt(t)
             )
@@ -5126,7 +5126,7 @@ return sign(v) * (1.0 - ((((r5 * x + r4) * x + r3) * x + r2) * x + r1) * x * exp
           e.compute(
             J(
               e.inputs[0],
-              "LeakyRelu",
+              'LeakyRelu',
               (r) => `select(leaky_relu_alpha_ * ${r}, ${r}, ${r} >= vec4<${n}>(0.0))`,
               `const leaky_relu_alpha_ = ${n}(${t.alpha});`,
               t.cacheKey
@@ -5134,22 +5134,22 @@ return sign(v) * (1.0 - ((((r5 * x + r4) * x + r3) * x + r2) * x + r1) * x * exp
           );
         }),
         (vi = (e) => {
-          e.compute(J(e.inputs[0], "Not", (t) => `!${t}`));
+          e.compute(J(e.inputs[0], 'Not', (t) => `!${t}`));
         }),
         (xi = (e) => {
-          e.compute(J(e.inputs[0], "Neg", (t) => `-${t}`));
+          e.compute(J(e.inputs[0], 'Neg', (t) => `-${t}`));
         }),
         (Si = (e) => {
-          e.compute(J(e.inputs[0], "Reciprocal", (t) => `1.0/${t}`));
+          e.compute(J(e.inputs[0], 'Reciprocal', (t) => `1.0/${t}`));
         }),
         (Ti = (e) => {
           let t = le(e.inputs[0].dataType);
           e.compute(
-            J(e.inputs[0], "Relu", (n) => `select(vec4<${t}>(0.0), ${n}, ${n} > vec4<${t}>(0.0))`)
+            J(e.inputs[0], 'Relu', (n) => `select(vec4<${t}>(0.0), ${n}, ${n} > vec4<${t}>(0.0))`)
           );
         }),
         (Ii = (e) => {
-          e.compute(J(e.inputs[0], "Sigmoid", (t) => `(1.0 / (1.0 + exp(-${t})))`));
+          e.compute(J(e.inputs[0], 'Sigmoid', (t) => `(1.0 / (1.0 + exp(-${t})))`));
         }),
         (Ci = (e) => N(e)),
         (Ai = (e, t) => {
@@ -5157,7 +5157,7 @@ return sign(v) * (1.0 - ((((r5 * x + r4) * x + r3) * x + r2) * x + r1) * x * exp
           e.compute(
             J(
               e.inputs[0],
-              "HardSigmoid",
+              'HardSigmoid',
               (r) =>
                 `max(vec4<${n}>(0.0), min(vec4<${n}>(1.0), ${t.alpha} * ${r} + vec4<${n}>(${t.beta})))`,
               void 0,
@@ -5166,35 +5166,35 @@ return sign(v) * (1.0 - ((((r5 * x + r4) * x + r3) * x + r2) * x + r1) * x * exp
           );
         }),
         (ki = (e) => {
-          e.compute(J(e.inputs[0], "Sin", "sin"));
+          e.compute(J(e.inputs[0], 'Sin', 'sin'));
         }),
         (Ei = (e) => {
-          e.compute(J(e.inputs[0], "Sinh", "sinh"));
+          e.compute(J(e.inputs[0], 'Sinh', 'sinh'));
         }),
         (Pi = (e) => {
-          e.compute(J(e.inputs[0], "Sqrt", "sqrt"));
+          e.compute(J(e.inputs[0], 'Sqrt', 'sqrt'));
         }),
         (zi = (e) => {
-          e.compute(J(e.inputs[0], "Tan", "tan"));
+          e.compute(J(e.inputs[0], 'Tan', 'tan'));
         }),
         (Oi = (e) => `sign(${e}) * (1 - exp(-2 * abs(${e}))) / (1 + exp(-2 * abs(${e})))`),
         (Di = (e) => {
-          e.compute(J(e.inputs[0], "Tanh", Oi));
+          e.compute(J(e.inputs[0], 'Tanh', Oi));
         }),
-        (Kn = (e = "f32") => `
+        (Kn = (e = 'f32') => `
 const fast_gelu_a: ${e} = 0.5;
 const fast_gelu_b: ${e} = 0.7978845608028654;
 const fast_gelu_c: ${e} = 0.035677408136300125;
 
 fn tanh_v(v: vec4<${e}>) -> vec4<${e}> {
-return ${Oi("v")};
+return ${Oi('v')};
 }
 `),
         (jn = (e) =>
           `(fast_gelu_a + fast_gelu_a * tanh_v(${e} * (fast_gelu_c * ${e} * ${e} + fast_gelu_b))) * ${e}`),
         (Bi = (e) => {
           let t = le(e.inputs[0].dataType);
-          e.compute(J(e.inputs[0], "FastGelu", jn, Kn(t), void 0, e.inputs[0].dataType));
+          e.compute(J(e.inputs[0], 'FastGelu', jn, Kn(t), void 0, e.inputs[0].dataType));
         }),
         (Mi = (e, t) => {
           let n = le(e.inputs[0].dataType);
@@ -5202,7 +5202,7 @@ return ${Oi("v")};
             e.compute(
               J(
                 e.inputs[0],
-                "ThresholdedRelu",
+                'ThresholdedRelu',
                 (r) => `select(vec4<${n}>(0.0), ${r}, ${r} > thresholded_relu_alpha_)`,
                 `const thresholded_relu_alpha_ = vec4<${n}>(${t.alpha});`,
                 t.cacheKey
@@ -5212,7 +5212,7 @@ return ${Oi("v")};
           );
         }),
         (Ri = (e) => {
-          e.compute(J(e.inputs[0], "Log", "log"));
+          e.compute(J(e.inputs[0], 'Log', 'log'));
         }),
         (Zd = (e, t) => `
 const alpha = vec4<${e}>(${t});
@@ -5236,7 +5236,7 @@ return x * x1;
         (Ui = (e, t) => {
           let n = le(e.inputs[0].dataType);
           e.compute(
-            J(e.inputs[0], "QuickGelu", Qd, Zd(n, t.alpha), t.cacheKey, e.inputs[0].dataType)
+            J(e.inputs[0], 'QuickGelu', Qd, Zd(n, t.alpha), t.cacheKey, e.inputs[0].dataType)
           );
         });
     });
@@ -5244,28 +5244,28 @@ return x * x1;
     Yd,
     Ni,
     Li = E(() => {
-      "use strict";
+      'use strict';
       q();
       K();
       en();
       (Xd = (e) => {
-        if (e[0].dims.length !== 3) throw new Error("input should have 3 dimensions");
+        if (e[0].dims.length !== 3) throw new Error('input should have 3 dimensions');
         if (![2560, 5120, 10240].includes(e[0].dims[2]))
-          throw new Error("hidden state should be 2560, 5120 or 10240");
-        if (e[1].dims.length !== 1) throw new Error("bias is expected to have 1 dimensions");
+          throw new Error('hidden state should be 2560, 5120 or 10240');
+        if (e[1].dims.length !== 1) throw new Error('bias is expected to have 1 dimensions');
         if (e[0].dims[2] !== e[1].dims[0])
-          throw new Error("last dimension of input and bias are not the same");
+          throw new Error('last dimension of input and bias are not the same');
       }),
         (Yd = (e) => {
           let t = e[0].dims.slice();
           t[2] = t[2] / 2;
-          let n = S("input", e[0].dataType, e[0].dims, 4),
-            r = S("bias", e[0].dataType, [e[0].dims[2]], 4),
-            o = C("output", e[0].dataType, t, 4),
+          let n = S('input', e[0].dataType, e[0].dims, 4),
+            r = S('bias', e[0].dataType, [e[0].dims[2]], 4),
+            o = C('output', e[0].dataType, t, 4),
             i = x.size(t) / 4,
             s = re(e[0].dataType);
           return {
-            name: "BiasSplitGelu",
+            name: 'BiasSplitGelu',
             getRunData: () => ({
               outputs: [{ dims: t, dataType: e[0].dataType }],
               dispatchGroup: { x: Math.ceil(i / 64) },
@@ -5287,7 +5287,7 @@ let valueLeft = input[inputOffset] + bias[biasIdx];
 let valueRight = input[inputOffset + halfChannels] + bias[biasIdx + halfChannels];
 let geluRight = valueRight * 0.5 * (erf_vf32(valueRight / M_SQRT2) + 1);
 
-${o.setByOffset("global_idx", "valueLeft * geluRight")}
+${o.setByOffset('global_idx', 'valueLeft * geluRight')}
 }`,
           };
         }),
@@ -5309,20 +5309,20 @@ ${o.setByOffset("global_idx", "valueLeft * geluRight")}
     Qi,
     Xi,
     Yi = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       (Jd = (e, t, n, r, o, i, s, a, u, d, l, c) => {
         let p, f;
-        typeof a == "string"
+        typeof a == 'string'
           ? (p = f = (g, _) => `${a}((${g}),(${_}))`)
-          : typeof a == "function"
+          : typeof a == 'function'
           ? (p = f = a)
           : ((p = a.scalar), (f = a.vector));
-        let m = C("outputData", l, r.length, 4),
-          h = S("aData", u, t.length, 4),
-          b = S("bData", d, n.length, 4),
+        let m = C('outputData', l, r.length, 4),
+          h = S('aData', u, t.length, 4),
+          b = S('bData', d, n.length, 4),
           y;
         if (o)
           if (i) {
@@ -5332,39 +5332,39 @@ ${o.setByOffset("global_idx", "valueLeft * geluRight")}
               v = n.length > 0 && n[n.length - 1] % 4 === 0;
             g || _
               ? (y = m.setByOffset(
-                  "global_idx",
+                  'global_idx',
                   f(
-                    g ? `${h.type.value}(${h.getByOffset("0")}.x)` : h.getByOffset("global_idx"),
-                    _ ? `${b.type.value}(${b.getByOffset("0")}.x)` : b.getByOffset("global_idx")
+                    g ? `${h.type.value}(${h.getByOffset('0')}.x)` : h.getByOffset('global_idx'),
+                    _ ? `${b.type.value}(${b.getByOffset('0')}.x)` : b.getByOffset('global_idx')
                   )
                 ))
               : (y = `
- let outputIndices = ${m.offsetToIndices("global_idx * 4u")};
- let offsetA = ${h.broadcastedIndicesToOffset("outputIndices", m)};
- let offsetB = ${b.broadcastedIndicesToOffset("outputIndices", m)};
+ let outputIndices = ${m.offsetToIndices('global_idx * 4u')};
+ let offsetA = ${h.broadcastedIndicesToOffset('outputIndices', m)};
+ let offsetB = ${b.broadcastedIndicesToOffset('outputIndices', m)};
  ${m.setByOffset(
-   "global_idx",
+   'global_idx',
    f(
      s || w
-       ? h.getByOffset("offsetA / 4u")
-       : `${h.type.value}(${h.getByOffset("offsetA / 4u")}[offsetA % 4u])`,
+       ? h.getByOffset('offsetA / 4u')
+       : `${h.type.value}(${h.getByOffset('offsetA / 4u')}[offsetA % 4u])`,
      s || v
-       ? b.getByOffset("offsetB / 4u")
-       : `${b.type.value}(${b.getByOffset("offsetB / 4u")}[offsetB % 4u])`
+       ? b.getByOffset('offsetB / 4u')
+       : `${b.type.value}(${b.getByOffset('offsetB / 4u')}[offsetB % 4u])`
    )
  )}
 `);
           } else
             y = m.setByOffset(
-              "global_idx",
-              f(h.getByOffset("global_idx"), b.getByOffset("global_idx"))
+              'global_idx',
+              f(h.getByOffset('global_idx'), b.getByOffset('global_idx'))
             );
         else {
           if (!i)
             throw new Error(
-              "no necessary to use scalar implementation for element-wise binary op implementation."
+              'no necessary to use scalar implementation for element-wise binary op implementation.'
             );
-          let g = (_, w, v = "") => {
+          let g = (_, w, v = '') => {
             let $ = `aData[indexA${w}][componentA${w}]`,
               T = `bData[indexB${w}][componentB${w}]`;
             return `
@@ -5381,25 +5381,25 @@ ${o.setByOffset("global_idx", "valueLeft * geluRight")}
           l === 9
             ? (y = `
  var data = vec4<u32>(0);
- ${g("data", 0, "u32")}
- ${g("data", 1, "u32")}
- ${g("data", 2, "u32")}
- ${g("data", 3, "u32")}
+ ${g('data', 0, 'u32')}
+ ${g('data', 1, 'u32')}
+ ${g('data', 2, 'u32')}
+ ${g('data', 3, 'u32')}
  outputData[global_idx] = dot(vec4<u32>(0x1, 0x100, 0x10000, 0x1000000), vec4<u32>(data));`)
             : (y = `
- ${g("outputData[global_idx]", 0)}
- ${g("outputData[global_idx]", 1)}
- ${g("outputData[global_idx]", 2)}
- ${g("outputData[global_idx]", 3)}
+ ${g('outputData[global_idx]', 0)}
+ ${g('outputData[global_idx]', 1)}
+ ${g('outputData[global_idx]', 2)}
+ ${g('outputData[global_idx]', 3)}
 `);
         }
         return `
-${e.registerUniform("vec_size", "u32").declareVariables(h, b, m)}
+${e.registerUniform('vec_size', 'u32').declareVariables(h, b, m)}
 
-${c ?? ""}
+${c ?? ''}
 
 ${e.mainStart()}
-${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.vec_size")}
+${e.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.vec_size')}
 ${y}
 }`;
       }),
@@ -5435,8 +5435,8 @@ ${y}
             {
               name: e,
               shaderCache: {
-                hint: t + m.map((h) => h.toString()).join("_"),
-                inputDependencies: ["rank", "rank"],
+                hint: t + m.map((h) => h.toString()).join('_'),
+                inputDependencies: ['rank', 'rank'],
               },
               getShaderSource: (h) => Jd(h, a, u, l, p, d, f, o, n.dataType, r.dataType, s, i),
               getRunData: () => ({
@@ -5448,18 +5448,18 @@ ${y}
           );
         }),
         (Me = (e, t, n, r, o, i) => {
-          e.compute(el(t, o ?? "", e.inputs[0], e.inputs[1], n, r, i));
+          e.compute(el(t, o ?? '', e.inputs[0], e.inputs[1], n, r, i));
         }),
         (Gi = (e) => {
-          Me(e, "Add", (t, n) => `${t}+${n}`);
+          Me(e, 'Add', (t, n) => `${t}+${n}`);
         }),
         (Wi = (e) => {
-          Me(e, "Div", (t, n) => `${t}/${n}`);
+          Me(e, 'Div', (t, n) => `${t}/${n}`);
         }),
         (Hi = (e) => {
           Me(
             e,
-            "Equal",
+            'Equal',
             { scalar: (t, n) => `u32(${t}==${n})`, vector: (t, n) => `vec4<u32>(${t}==${n})` },
             void 0,
             void 0,
@@ -5467,13 +5467,13 @@ ${y}
           );
         }),
         (qi = (e) => {
-          Me(e, "Mul", (t, n) => `${t}*${n}`);
+          Me(e, 'Mul', (t, n) => `${t}*${n}`);
         }),
         (Fi = (e) => {
-          let t = S("input", e.inputs[0].dataType, e.inputs[0].dims).type.value;
+          let t = S('input', e.inputs[0].dataType, e.inputs[0].dims).type.value;
           Me(
             e,
-            "Pow",
+            'Pow',
             {
               scalar: (r, o) => `pow_custom(${r},${o})`,
               vector: (r, o) => `pow_vector_custom(${r},${o})`,
@@ -5486,7 +5486,7 @@ return ${t}(1.0);
 return ${t}(pow(f32(a), f32(b))); // NaN
 }
 return select(sign(a), ${t}(1.0), round(f32(abs(b) % ${t}(2.0))) != 1.0) * ${t}(${
-              t === "i32" ? "round" : ""
+              t === 'i32' ? 'round' : ''
             }(pow(f32(abs(a)), f32(b))));
 }
 fn pow_vector_custom(a : vec4<${t}>, b : vec4<${t}>) -> vec4<${t}> {
@@ -5497,12 +5497,12 @@ return vec4<${t}>(pow_custom(a.x, b.x), pow_custom(a.y, b.y), pow_custom(a.z, b.
           );
         }),
         (Ki = (e) => {
-          Me(e, "Sub", (t, n) => `${t}-${n}`);
+          Me(e, 'Sub', (t, n) => `${t}-${n}`);
         }),
         (ji = (e) => {
           Me(
             e,
-            "Greater",
+            'Greater',
             { scalar: (t, n) => `u32(${t}>${n})`, vector: (t, n) => `vec4<u32>(${t}>${n})` },
             void 0,
             void 0,
@@ -5512,7 +5512,7 @@ return vec4<${t}>(pow_custom(a.x, b.x), pow_custom(a.y, b.y), pow_custom(a.z, b.
         (Zi = (e) => {
           Me(
             e,
-            "Less",
+            'Less',
             { scalar: (t, n) => `u32(${t}<${n})`, vector: (t, n) => `vec4<u32>(${t}<${n})` },
             void 0,
             void 0,
@@ -5522,7 +5522,7 @@ return vec4<${t}>(pow_custom(a.x, b.x), pow_custom(a.y, b.y), pow_custom(a.z, b.
         (Qi = (e) => {
           Me(
             e,
-            "GreaterOrEqual",
+            'GreaterOrEqual',
             { scalar: (t, n) => `u32(${t}>=${n})`, vector: (t, n) => `vec4<u32>(${t}>=${n})` },
             void 0,
             void 0,
@@ -5532,7 +5532,7 @@ return vec4<${t}>(pow_custom(a.x, b.x), pow_custom(a.y, b.y), pow_custom(a.z, b.
         (Xi = (e) => {
           Me(
             e,
-            "LessOrEqual",
+            'LessOrEqual',
             { scalar: (t, n) => `u32(${t}<=${n})`, vector: (t, n) => `vec4<u32>(${t}<=${n})` },
             void 0,
             void 0,
@@ -5547,23 +5547,23 @@ return vec4<${t}>(pow_custom(a.x, b.x), pow_custom(a.y, b.y), pow_custom(a.z, b.
     Ji,
     es,
     ts = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (nl = (e, t) => {
-        if (!e || e.length < 1) throw new Error("too few inputs");
+        if (!e || e.length < 1) throw new Error('too few inputs');
         let n = 0,
           r = e[n],
           o = r.dataType,
           i = r.dims.length;
         e.forEach((s, a) => {
           if (a !== n) {
-            if (s.dataType !== o) throw new Error("input tensors should be one type");
-            if (s.dims.length !== i) throw new Error("input tensors should have the same shape");
+            if (s.dataType !== o) throw new Error('input tensors should be one type');
+            if (s.dims.length !== i) throw new Error('input tensors should have the same shape');
             s.dims.forEach((u, d) => {
-              if (d !== t && u !== r.dims[d]) throw new Error("non concat dimensions must match");
+              if (d !== t && u !== r.dims[d]) throw new Error('non concat dimensions must match');
             });
           }
         });
@@ -5582,7 +5582,7 @@ return ${e}u;
           let n = e.length,
             r = [];
           for (let o = 0; o < n; ++o) {
-            let i = t.setByOffset("global_idx", e[o].getByIndices("indices"));
+            let i = t.setByOffset('global_idx', e[o].getByIndices('indices'));
             n === 1
               ? r.push(i)
               : o === 0
@@ -5607,29 +5607,29 @@ return ${e}u;
               (i[h] = a),
               d.push(e[h].dims.length),
               (s[h] = S(`input${h}`, r, d[h])),
-              u.push("rank"),
+              u.push('rank'),
               l.push({ type: 12, data: i[h] });
           for (let h = 0; h < e.length; ++h) l.push(...P(e[h].dims));
           l.push(...P(n));
-          let c = C("output", r, n.length),
-            p = c.indicesGet("indices", t),
+          let c = C('output', r, n.length),
+            p = c.indicesGet('indices', t),
             f = Array.from(Array(i.length).keys())
               .map((h) => `uniforms.sizeInConcatAxis${h}`)
-              .join(","),
+              .join(','),
             m = (h) => `
 
 ${(() => {
-  h.registerUniform("outputSize", "u32");
-  for (let b = 0; b < e.length; b++) h.registerUniform(`sizeInConcatAxis${b}`, "u32");
+  h.registerUniform('outputSize', 'u32');
+  for (let b = 0; b < e.length; b++) h.registerUniform(`sizeInConcatAxis${b}`, 'u32');
   return h.declareVariables(...s, c);
 })()}
 
 ${rl(i.length, f)}
 
 ${h.mainStart()}
-${h.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+${h.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
 
-var indices = ${c.offsetToIndices("global_idx")};
+var indices = ${c.offsetToIndices('global_idx')};
 
 let inputIndex = calculateInputIndex(${p});
 if (inputIndex != 0u) {
@@ -5640,7 +5640,7 @@ ${p} -= sizeInConcatAxis[inputIndex - 1u];
 ${ol(s, c)}
 }`;
           return {
-            name: "Concat",
+            name: 'Concat',
             shaderCache: { hint: `${t}`, inputDependencies: u },
             getRunData: () => ({
               outputs: [{ dims: n, dataType: r }],
@@ -5667,54 +5667,54 @@ ${ol(s, c)}
     Ae,
     tn,
     He = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
-      (Ie = (e, t, n = "f32") => {
+      (Ie = (e, t, n = 'f32') => {
         switch (e.activation) {
-          case "Relu":
+          case 'Relu':
             return `value = max(value, ${t}(0.0));`;
-          case "Sigmoid":
+          case 'Sigmoid':
             return `value = (${t}(1.0) / (${t}(1.0) + exp(-value)));`;
-          case "Clip":
+          case 'Clip':
             return `value = clamp(value, ${t}(${n}(uniforms.clip_min)), ${t}(${n}(uniforms.clip_max)));`;
-          case "HardSigmoid":
+          case 'HardSigmoid':
             return `value = max(${t}(0.0), min(${t}(1.0), ${n}(uniforms.alpha) * value + ${n}(uniforms.beta)));`;
-          case "LeakyRelu":
+          case 'LeakyRelu':
             return `value = select(${n}(uniforms.alpha) * value, value, value >= ${t}(0.0));`;
-          case "Tanh":
+          case 'Tanh':
             return `let e2x = exp(-2.0 * abs(value));
    value = sign(value) * (1.0 - e2x) / (1.0 + e2x);
 `;
-          case "":
-            return "";
+          case '':
+            return '';
           default:
             throw new Error(`Unsupported activation ${e.activation}`);
         }
       }),
         (Ce = (e, t) => {
-          e.activation === "Clip"
+          e.activation === 'Clip'
             ? t.push({ type: 1, data: e.clipMax }, { type: 1, data: e.clipMin })
-            : e.activation === "HardSigmoid"
+            : e.activation === 'HardSigmoid'
             ? t.push({ type: 1, data: e.alpha }, { type: 1, data: e.beta })
-            : e.activation === "LeakyRelu" && t.push({ type: 1, data: e.alpha });
+            : e.activation === 'LeakyRelu' && t.push({ type: 1, data: e.alpha });
         }),
         (Ae = (e, t) => {
-          e.activation === "Clip"
-            ? t.push({ name: "clip_max", type: "f32" }, { name: "clip_min", type: "f32" })
-            : e.activation === "HardSigmoid"
-            ? t.push({ name: "alpha", type: "f32" }, { name: "beta", type: "f32" })
-            : e.activation === "LeakyRelu" && t.push({ name: "alpha", type: "f32" });
+          e.activation === 'Clip'
+            ? t.push({ name: 'clip_max', type: 'f32' }, { name: 'clip_min', type: 'f32' })
+            : e.activation === 'HardSigmoid'
+            ? t.push({ name: 'alpha', type: 'f32' }, { name: 'beta', type: 'f32' })
+            : e.activation === 'LeakyRelu' && t.push({ name: 'alpha', type: 'f32' });
         }),
         (tn = (e) => {
-          let t = e?.activation || "";
-          if (t === "HardSigmoid") {
+          let t = e?.activation || '';
+          if (t === 'HardSigmoid') {
             let [n, r] = e?.activation_params || [0.2, 0.5];
             return { activation: t, alpha: n, beta: r };
-          } else if (t === "Clip") {
+          } else if (t === 'Clip') {
             let [n, r] = e?.activation_params || [ao, uo];
             return { activation: t, clipMax: r, clipMin: n };
-          } else if (t === "LeakyRelu") {
+          } else if (t === 'LeakyRelu') {
             let [n] = e?.activation_params || [0.01];
             return { activation: t, alpha: n };
           }
@@ -5724,7 +5724,7 @@ ${ol(s, c)}
   var de,
     ns,
     nn = E(() => {
-      "use strict";
+      'use strict';
       (de = (e, t) => {
         switch (e) {
           case 1:
@@ -5740,12 +5740,12 @@ ${ol(s, c)}
         }
       }),
         (ns = (e) => `
-${e ? "value = value + getBiasByOutputCoords(coords);" : ""}
+${e ? 'value = value + getBiasByOutputCoords(coords);' : ''}
 `);
     });
   var rs,
     os = E(() => {
-      "use strict";
+      'use strict';
       rs = (e) => `
 fn getIndexFromCoords4D(coords : vec4<i32>, shape : vec4<i32>) -> i32 {
 return dot(coords, vec4<i32>(
@@ -5760,7 +5760,7 @@ i32(${e}.x), i32(${e}.y), i32(${e}.z), 1));
   var ht,
     rn,
     on = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
@@ -5777,7 +5777,7 @@ ${t.indicesSet(e, a, B(o, a + i, r))}
 ${t.indicesSet(e, a, 0)}
 }`
   )
-  .join("")}
+  .join('')}
 `;
       }),
         (rn = (e, t, n, r, o = !1, i) => {
@@ -5801,26 +5801,26 @@ ${t.indicesSet(e, a, 0)}
             ];
           Ce(t, _), _.push(...P(b, s, a)), h && _.push(...P(e[2].dims)), _.push(...P(g));
           let w = (v) => {
-            let $ = Zt("batch_dims", e[0].dataType, b.length),
-              T = S("a", e[0].dataType, s.length, p),
-              I = S("b", e[1].dataType, a.length, c),
-              A = C("output", e[0].dataType, g.length, c),
+            let $ = Zt('batch_dims', e[0].dataType, b.length),
+              T = S('a', e[0].dataType, s.length, p),
+              I = S('b', e[1].dataType, a.length, c),
+              A = C('output', e[0].dataType, g.length, c),
               z = re(A.type.tensor),
               M = Ie(t, A.type.value, z),
               R = [T, I],
-              W = "";
+              W = '';
             if (h) {
               let G = o ? c : 1;
-              R.push(S("bias", e[2].dataType, e[2].dims.length, G)),
+              R.push(S('bias', e[2].dataType, e[2].dims.length, G)),
                 (W = `${
                   o ? `value += bias[col / ${G}];` : `value += ${A.type.value}(bias[row + i]);`
                 }`);
             }
             let O = [
-              { name: "output_size", type: "u32" },
-              { name: "M", type: "u32" },
-              { name: "N", type: "u32" },
-              { name: "K", type: "u32" },
+              { name: 'output_size', type: 'u32' },
+              { name: 'M', type: 'u32' },
+              { name: 'N', type: 'u32' },
+              { name: 'K', type: 'u32' },
             ];
             Ae(t, O);
             let ee = () => {
@@ -5832,7 +5832,7 @@ ${t.indicesSet(e, a, 0)}
                 G += `a_data = a[(a_offset + (row + ${D}) * uniforms.K + k) / ${p}];`;
                 for (let Z = 0; Z < p; Z++)
                   G += `
- values[${D}] = fma(${I.type.value}(a_data${p === 1 ? "" : `[${Z}]`}), b_data${Z}, values[${D}]);
+ values[${D}] = fma(${I.type.value}(a_data${p === 1 ? '' : `[${Z}]`}), b_data${Z}, values[${D}]);
 `;
               }
               return G;
@@ -5843,26 +5843,26 @@ ${v
   .registerInternalVariables($)
   .declareVariables(...R, A)}
 ${v.mainStart()}
-${v.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${v.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 let col = (global_idx % (uniforms.N / ${c})) * ${c};
 var index1 = global_idx / (uniforms.N / ${c});
 let stride1 = uniforms.M / ${f};
 let row = (index1 % stride1) * ${f};
 let batch = index1 / stride1;
 
-${n.length === 2 ? "" : `let batch_indices = ${$.offsetToIndices("batch")};`}
+${n.length === 2 ? '' : `let batch_indices = ${$.offsetToIndices('batch')};`}
 
 var a_indices: ${T.type.indices};
-${ht("a_indices", T, T.rank - 2, $.rank, "batch_indices")}
-${T.indicesSet("a_indices", T.rank - 2, 0)}
-${T.indicesSet("a_indices", T.rank - 1, 0)}
-let a_offset = ${T.indicesToOffset("a_indices")};
+${ht('a_indices', T, T.rank - 2, $.rank, 'batch_indices')}
+${T.indicesSet('a_indices', T.rank - 2, 0)}
+${T.indicesSet('a_indices', T.rank - 1, 0)}
+let a_offset = ${T.indicesToOffset('a_indices')};
 
 var b_indices: ${I.type.indices};
-${ht("b_indices", I, I.rank - 2, $.rank, "batch_indices")}
-${I.indicesSet("b_indices", I.rank - 2, 0)}
-${I.indicesSet("b_indices", I.rank - 1, 0)}
-let b_offset = ${I.indicesToOffset("b_indices")};
+${ht('b_indices', I, I.rank - 2, $.rank, 'batch_indices')}
+${I.indicesSet('b_indices', I.rank - 2, 0)}
+${I.indicesSet('b_indices', I.rank - 1, 0)}
+let b_offset = ${I.indicesToOffset('b_indices')};
 var values: array<${A.type.value}, ${f}>;
 for (var k: u32 = 0u; k < uniforms.K; k = k + ${p}) {
 ${ee()}
@@ -5872,17 +5872,17 @@ var value = values[i];
 ${W}
 ${M}
 let cur_indices = ${A.type.indices}(batch, row + i, col);
-let offset = ${A.indicesToOffset("cur_indices")};
-${A.setByOffset(`offset / ${c}`, "value")};
+let offset = ${A.indicesToOffset('cur_indices')};
+${A.setByOffset(`offset / ${c}`, 'value')};
 }
 }
 `;
           };
           return {
-            name: "MatMulNaive",
+            name: 'MatMulNaive',
             shaderCache: {
               hint: `${t.activation};${c};${p};${f};${o}`,
-              inputDependencies: h ? ["rank", "rank", "rank"] : ["rank", "rank"],
+              inputDependencies: h ? ['rank', 'rank', 'rank'] : ['rank', 'rank'],
             },
             getRunData: () => ({
               outputs: [{ dims: i ? i(n) : n, dataType: e[0].dataType }],
@@ -5902,7 +5902,7 @@ ${A.setByOffset(`offset / ${c}`, "value")};
     dl,
     gt,
     sn = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
@@ -5914,12 +5914,12 @@ ${A.setByOffset(`offset / ${c}`, "value")};
           ? `
 mm_Asub[inputRow][inputCol] = mm_readA(batch,
 kStart + inputRow,
-globalRowStart / innerElementSize + inputCol${t ? ", batchIndices" : ""});
+globalRowStart / innerElementSize + inputCol${t ? ', batchIndices' : ''});
 `
           : `
 mm_Asub[inputRow][inputCol] = mm_readA(batch,
 globalRow + innerRow,
-kStart / innerElementSize + inputCol${t ? ", batchIndices" : ""});
+kStart / innerElementSize + inputCol${t ? ', batchIndices' : ''});
 `),
         (al = (e, t) =>
           e
@@ -5927,12 +5927,12 @@ kStart / innerElementSize + inputCol${t ? ", batchIndices" : ""});
 let ACached0 = mm_Asub[k * innerElementSize][localRow];
 let ACached1 = mm_Asub[k * innerElementSize + 1][localRow];
 let ACached2 = mm_Asub[k * innerElementSize + 2][localRow];
-${t === 3 ? "" : "let ACached3 = mm_Asub[k * innerElementSize + 3][localRow];"}
+${t === 3 ? '' : 'let ACached3 = mm_Asub[k * innerElementSize + 3][localRow];'}
 for (var i = 0; i < rowPerThread; i = i + 1) {
 acc[i] = BCached0 * ACached0[i] + acc[i];
 acc[i] = BCached1 * ACached1[i] + acc[i];
 acc[i] = BCached2 * ACached2[i] + acc[i];
-${t === 3 ? "" : "acc[i] = BCached3 * ACached3[i] + acc[i];"}
+${t === 3 ? '' : 'acc[i] = BCached3 * ACached3[i] + acc[i];'}
 }`
             : `
 for (var i = 0; i < rowPerThread; i = i + 1) {
@@ -5940,9 +5940,9 @@ let ACached = mm_Asub[tileRow + i][k];
 acc[i] = BCached0 * ACached.x + acc[i];
 acc[i] = BCached1 * ACached.y + acc[i];
 acc[i] = BCached2 * ACached.z + acc[i];
-${t === 3 ? "" : "acc[i] = BCached3 * ACached.w + acc[i];"}
+${t === 3 ? '' : 'acc[i] = BCached3 * ACached.w + acc[i];'}
 }`),
-        (Zn = (e, t, n = "f32", r, o = !1, i = 32, s = !1, a = 32) => {
+        (Zn = (e, t, n = 'f32', r, o = !1, i = 32, s = !1, a = 32) => {
           let u = t[1] * e[1],
             d = t[0] * e[0],
             l = o ? u : i,
@@ -5979,12 +5979,12 @@ let tileCol = i32(localId.x);
 
 let globalRow =i32(globalId.y) * rowPerThread;
 let globalCol = i32(globalId.x);
-let batch = ${s ? "0" : "i32(globalId.z)"};
-${r ? `let batchIndices = ${r.offsetToIndices("u32(batch)")};` : ""}
+let batch = ${s ? '0' : 'i32(globalId.z)'};
+${r ? `let batchIndices = ${r.offsetToIndices('u32(batch)')};` : ''}
 let globalRowStart = i32(workgroupId.y) * ${u};
 
-let num_tiles = ${s ? `${Math.ceil(a / i)}` : "(uniforms.dim_inner - 1) / tileInner + 1"};
-var kStart = ${s ? `i32(globalId.z) * ${a}` : "0"};
+let num_tiles = ${s ? `${Math.ceil(a / i)}` : '(uniforms.dim_inner - 1) / tileInner + 1'};
+var kStart = ${s ? `i32(globalId.z) * ${a}` : '0'};
 
 var acc: array<vec4<${n}>, rowPerThread>;
 
@@ -6003,7 +6003,7 @@ for (var innerRow = 0; innerRow < ${f}; innerRow = innerRow + 1) {
 let inputRow = tileRowB + innerRow;
 let inputCol = tileCol;
 mm_Bsub[inputRow][inputCol] = mm_readB(batch, kStart + inputRow, globalCol${
-            r ? ", batchIndices" : ""
+            r ? ', batchIndices' : ''
           });
 }
 kStart = kStart + tileInner;
@@ -6014,7 +6014,7 @@ for (var k = 0; k < tileInner / innerElementSize; k = k + 1) {
 let BCached0 = mm_Bsub[k * innerElementSize][tileCol];
 let BCached1 = mm_Bsub[k * innerElementSize + 1][tileCol];
 let BCached2 = mm_Bsub[k * innerElementSize + 2][tileCol];
-${p === 3 ? "" : "let BCached3 = mm_Bsub[k * innerElementSize + 3][tileCol];"}
+${p === 3 ? '' : 'let BCached3 = mm_Bsub[k * innerElementSize + 3][tileCol];'}
 
 ${al(o, p)}
 }
@@ -6032,18 +6032,18 @@ mm_write(batch, globalRow + innerRow, globalCol, acc[innerRow]);
             ? `
  mm_Asub[inputRow][inputCol] = mm_readA(batch,
    kStart + inputRow,
-   globalRowStart + inputCol${t ? ", batchIndices" : ""});
+   globalRowStart + inputCol${t ? ', batchIndices' : ''});
  `
             : `
  mm_Asub[inputRow][inputCol] = mm_readA(batch,
    globalRowStart + inputRow,
-   kStart + inputCol${t ? ", batchIndices" : ""});
+   kStart + inputCol${t ? ', batchIndices' : ''});
  `),
         (ul = (e) =>
           e
-            ? "let ACached = mm_Asub[k][tileRow + innerRow];"
-            : "let ACached = mm_Asub[tileRow + innerRow][k];"),
-        (Qn = (e, t, n = "f32", r, o = !1, i = 32, s = !1, a = 32, u = !1) => {
+            ? 'let ACached = mm_Asub[k][tileRow + innerRow];'
+            : 'let ACached = mm_Asub[tileRow + innerRow][k];'),
+        (Qn = (e, t, n = 'f32', r, o = !1, i = 32, s = !1, a = 32, u = !1) => {
           let d = e[1] * t[1],
             l = e[0] * t[0],
             c = o ? d : i,
@@ -6075,7 +6075,7 @@ for (var inputRow = localRow; inputRow < ${i}; inputRow = inputRow + ${t[1]}) {
  for (var inputCol = localCol; inputCol < ${l}; inputCol = inputCol + ${t[0]}) {
 mm_Bsub[inputRow][inputCol] = mm_readB(batch,
  kStart + inputRow,
- globalColStart + inputCol${r ? ", batchIndices" : ""});
+ globalColStart + inputCol${r ? ', batchIndices' : ''});
 }
 }
 kStart = kStart + tileInner;
@@ -6138,7 +6138,7 @@ let inputRow = tileRowB + innerRow;
 let inputCol = tileCol + innerCol;
 mm_Bsub[inputRow][inputCol] = mm_readB(batch,
 kStart + inputRow,
-globalCol + innerCol${r ? ", batchIndices" : ""});
+globalCol + innerCol${r ? ', batchIndices' : ''});
 }
 }
 kStart = kStart + tileInner;
@@ -6180,10 +6180,10 @@ const tileInner = ${i};
 fn main(@builtin(local_invocation_id) localId : vec3<u32>,
 @builtin(global_invocation_id) globalId : vec3<u32>,
 @builtin(workgroup_id) workgroupId : vec3<u32>) {
-let batch = ${s ? "0" : "i32(globalId.z)"};
-${r ? `let batchIndices = ${r.offsetToIndices("u32(batch)")};` : ""}
-let num_tiles = ${s ? `${Math.ceil(a / i)}` : "(uniforms.dim_inner - 1) / tileInner + 1"};
-var kStart = ${s ? `i32(globalId.z) * ${a}` : "0"};
+let batch = ${s ? '0' : 'i32(globalId.z)'};
+${r ? `let batchIndices = ${r.offsetToIndices('u32(batch)')};` : ''}
+let num_tiles = ${s ? `${Math.ceil(a / i)}` : '(uniforms.dim_inner - 1) / tileInner + 1'};
+var kStart = ${s ? `i32(globalId.z) * ${a}` : '0'};
 
 var acc : array<array<${n}, colPerThread>, rowPerThread>;
 ${b}
@@ -6200,10 +6200,10 @@ let col = colIn * ${e};
 if(row < uniforms.dim_a_outer && col < uniforms.dim_inner)
 {
 var aIndices: ${s.type.indices};
-${ht("aIndices", s, s.rank - 2, i.rank, "batchIndices")}
-${s.indicesSet("aIndices", s.rank - 2, "u32(row)")}
-${s.indicesSet("aIndices", s.rank - 1, "u32(colIn)")}
-value = ${s.getByIndices("aIndices")};
+${ht('aIndices', s, s.rank - 2, i.rank, 'batchIndices')}
+${s.indicesSet('aIndices', s.rank - 2, 'u32(row)')}
+${s.indicesSet('aIndices', s.rank - 1, 'u32(colIn)')}
+value = ${s.getByIndices('aIndices')};
 }
 return value;
 }
@@ -6214,10 +6214,10 @@ let col = colIn * ${e};
 if(row < uniforms.dim_inner && col < uniforms.dim_b_outer)
 {
 var bIndices: ${a.type.indices};
-${ht("bIndices", a, a.rank - 2, i.rank, "batchIndices")}
-${a.indicesSet("bIndices", a.rank - 2, "u32(row)")}
-${a.indicesSet("bIndices", a.rank - 1, "u32(colIn)")}
-value = ${a.getByIndices("bIndices")};
+${ht('bIndices', a, a.rank - 2, i.rank, 'batchIndices')}
+${a.indicesSet('bIndices', a.rank - 2, 'u32(row)')}
+${a.indicesSet('bIndices', a.rank - 1, 'u32(colIn)')}
+value = ${a.getByIndices('bIndices')};
 }
 return value;
 }
@@ -6227,9 +6227,9 @@ let col = colIn * ${e};
 if (row < uniforms.dim_a_outer && col < uniforms.dim_b_outer) {
 var value = valueIn;
 let coords = vec3<i32>(batch, row, colIn);
-${t ? `value = value + ${o ? "bias[colIn]" : `${de(e, d)}(bias[row])`};` : ""}
+${t ? `value = value + ${o ? 'bias[colIn]' : `${de(e, d)}(bias[row])`};` : ''}
 ${n}
-${u.setByIndices("vec3<u32>(coords)", "value")}
+${u.setByIndices('vec3<u32>(coords)', 'value')}
 }
 }
 `;
@@ -6264,25 +6264,25 @@ ${u.setByIndices("vec3<u32>(coords)", "value")}
               { type: 6, data: f },
             ];
           Ce(t, A), A.push(...P(l, w, $));
-          let z = ["rank", "rank"],
+          let z = ['rank', 'rank'],
             M = e.length > 2;
-          M && (A.push(...P(e[2].dims)), z.push("rank")), A.push(...P(I));
+          M && (A.push(...P(e[2].dims)), z.push('rank')), A.push(...P(I));
           let R = (W) => {
             let O = l.length,
-              ee = Zt("batchDims", e[0].dataType, O, 1),
+              ee = Zt('batchDims', e[0].dataType, O, 1),
               G = re(e[0].dataType),
-              D = S("a", e[0].dataType, v, _),
-              Z = S("b", e[1].dataType, T, _),
-              U = C("result", e[0].dataType, I.length, _),
+              D = S('a', e[0].dataType, v, _),
+              Z = S('b', e[1].dataType, T, _),
+              U = C('result', e[0].dataType, I.length, _),
               Q = [D, Z];
             if (M) {
               let L = o ? _ : 1;
-              Q.push(S("bias", e[2].dataType, e[2].dims.length, L));
+              Q.push(S('bias', e[2].dataType, e[2].dims.length, L));
             }
             let _e = [
-              { name: "dim_a_outer", type: "i32" },
-              { name: "dim_b_outer", type: "i32" },
-              { name: "dim_inner", type: "i32" },
+              { name: 'dim_a_outer', type: 'i32' },
+              { name: 'dim_b_outer', type: 'i32' },
+              { name: 'dim_inner', type: 'i32' },
             ];
             Ae(t, _e);
             let se = re(U.type.tensor),
@@ -6297,7 +6297,7 @@ ${h ? Zn(b, y, G, ee) : Qn(b, y, G, ee)}
         `;
           };
           return {
-            name: "MatMul",
+            name: 'MatMul',
             shaderCache: { hint: `${b};${t.activation};${h};${o}`, inputDependencies: z },
             getRunData: () => ({
               outputs: [{ dims: i ? i(n) : n, dataType: e[0].dataType }],
@@ -6311,7 +6311,7 @@ ${h ? Zn(b, y, G, ee) : Qn(b, y, G, ee)}
   var ll,
     ss,
     as = E(() => {
-      "use strict";
+      'use strict';
       V();
       Ee();
       K();
@@ -6319,15 +6319,15 @@ ${h ? Zn(b, y, G, ee) : Qn(b, y, G, ee)}
       nn();
       os();
       sn();
-      (ll = (e, t, n, r, o = !1, i, s = 4, a = 4, u = 4, d = "f32") => {
+      (ll = (e, t, n, r, o = !1, i, s = 4, a = 4, u = 4, d = 'f32') => {
         let l = (z) => {
             switch (z) {
               case 1:
-                return "resData = x[xIndex];";
+                return 'resData = x[xIndex];';
               case 3:
                 return `resData = vec3<${d}>(x[xIndex], x[xIndex + 1], x[xIndex + 2]);`;
               case 4:
-                return "resData = x[xIndex / 4];";
+                return 'resData = x[xIndex / 4];';
               default:
                 throw new Error(`innerElementSize ${z} is not supported.`);
             }
@@ -6335,9 +6335,9 @@ ${h ? Zn(b, y, G, ee) : Qn(b, y, G, ee)}
           c = (z) => {
             switch (z) {
               case 1:
-                return "return w[row * i32(uniforms.w_shape[3]) + colIn];";
+                return 'return w[row * i32(uniforms.w_shape[3]) + colIn];';
               case 4:
-                return "return w[row * i32(uniforms.w_shape[3]) / 4 + colIn];";
+                return 'return w[row * i32(uniforms.w_shape[3]) / 4 + colIn];';
               default:
                 throw new Error(`innerElementSize ${z} is not supported.`);
             }
@@ -6364,13 +6364,13 @@ row,
 col / outWidth,
 col % outWidth);
 `,
-          m = e ? "i32(uniforms.x_shape[1])" : "i32(uniforms.x_shape[2])",
-          h = e ? "i32(uniforms.x_shape[2])" : "i32(uniforms.x_shape[3])",
-          b = e ? "row" : "col",
-          y = e ? "col" : "row",
+          m = e ? 'i32(uniforms.x_shape[1])' : 'i32(uniforms.x_shape[2])',
+          h = e ? 'i32(uniforms.x_shape[2])' : 'i32(uniforms.x_shape[3])',
+          b = e ? 'row' : 'col',
+          y = e ? 'col' : 'row',
           g = `
 let inChannels = i32(uniforms.w_shape[2]);
-let outWidth = ${e ? "i32(uniforms.result_shape[2])" : "i32(uniforms.result_shape[3])"};
+let outWidth = ${e ? 'i32(uniforms.result_shape[2])' : 'i32(uniforms.result_shape[3])'};
 let outRow = ${b} / outWidth;
 let outCol = ${b} % outWidth;
 
@@ -6442,7 +6442,7 @@ let col = colIn * ${u};
 if (row < uniforms.dim_a_outer && col < uniforms.dim_b_outer)
 {
 var value = valueIn;
-let outWidth = ${e ? "i32(uniforms.result_shape[2])" : "i32(uniforms.result_shape[3])"};
+let outWidth = ${e ? 'i32(uniforms.result_shape[2])' : 'i32(uniforms.result_shape[3])'};
 ${f}
 ${ns(o)}
 ${I}
@@ -6451,7 +6451,7 @@ setOutputAtCoords(coords[0], coords[1], coords[2], coords[3], value);
 }`;
       }),
         (ss = (e, t, n, r, o, i, s, a, u) => {
-          let d = t.format === "NHWC",
+          let d = t.format === 'NHWC',
             l = d ? e[0].dims[3] : e[0].dims[1],
             c = n[0],
             p = d ? n[2] : n[3],
@@ -6467,7 +6467,7 @@ setOutputAtCoords(coords[0], coords[1], coords[2], coords[3], value);
               Math.ceil(y / g[1] / _[1]),
               Math.ceil(c / g[2] / _[2]),
             ];
-          j("verbose", () => `[conv2d_mm_webgpu] dispatch = ${w}`);
+          j('verbose', () => `[conv2d_mm_webgpu] dispatch = ${w}`);
           let v = h ? (d && l % 4 !== 0 ? 3 : 4) : 1,
             $ = g[1] * _[1],
             T = g[0] * _[0],
@@ -6485,16 +6485,16 @@ setOutputAtCoords(coords[0], coords[1], coords[2], coords[3], value);
               { type: 6, data: t.dilations },
             ];
           Ce(t, W), W.push(...P(e[0].dims, e[1].dims));
-          let O = ["rank", "rank"];
-          s && (W.push(...P(e[2].dims)), O.push("rank")), W.push(...P(n));
+          let O = ['rank', 'rank'];
+          s && (W.push(...P(e[2].dims)), O.push('rank')), W.push(...P(n));
           let ee = (G) => {
             let D = [
-              { name: "dim_a_outer", type: "i32" },
-              { name: "dim_b_outer", type: "i32" },
-              { name: "dim_inner", type: "i32" },
-              { name: "pad", type: "i32", length: 2 },
-              { name: "stride", type: "i32", length: 2 },
-              { name: "dilation", type: "i32", length: 2 },
+              { name: 'dim_a_outer', type: 'i32' },
+              { name: 'dim_b_outer', type: 'i32' },
+              { name: 'dim_inner', type: 'i32' },
+              { name: 'pad', type: 'i32', length: 2 },
+              { name: 'stride', type: 'i32', length: 2 },
+              { name: 'dilation', type: 'i32', length: 2 },
             ];
             Ae(t, D);
             let Z = h ? 4 : 1,
@@ -6505,22 +6505,22 @@ result[flatIndex] = ${h ? `vec4<${U}>` : U}(value);
 }
 fn setOutputAtCoords(d0 : i32, d1 : i32, d2 : i32, d3 : i32, value : ${h ? `vec4<${U}>` : U}) {
 let flatIndex = getOutputIndexFromCoords(vec4<i32>(d0, d1, d2, d3));
-setOutputAtIndex(flatIndex ${h ? "/ 4" : ""}, value);
+setOutputAtIndex(flatIndex ${h ? '/ 4' : ''}, value);
 }`,
-              _e = S("x", e[0].dataType, e[0].dims.length, v === 3 ? 1 : v),
-              se = S("w", e[1].dataType, e[1].dims.length, Z),
+              _e = S('x', e[0].dataType, e[0].dims.length, v === 3 ? 1 : v),
+              se = S('w', e[1].dataType, e[1].dims.length, Z),
               H = [_e, se],
-              k = C("result", e[0].dataType, n.length, Z);
+              k = C('result', e[0].dataType, n.length, Z);
             if (s) {
-              let L = S("bias", e[2].dataType, e[2].dims.length, Z);
+              let L = S('bias', e[2].dataType, e[2].dims.length, Z);
               H.push(L),
                 (Q += `
 fn getBiasByOutputCoords(coords : vec4<i32>) -> ${h ? `vec4<${U}>` : U} {
-return bias[coords.${d ? "w" : "y"}${h ? "/ 4" : ""}];
+return bias[coords.${d ? 'w' : 'y'}${h ? '/ 4' : ''}];
 }`);
             }
             return `
-${rs("uniforms.result_strides")}
+${rs('uniforms.result_strides')}
 //struct Uniforms { xShape : vec4<i32>, wShape : vec4<i32>, outShape : vec4<i32>,
 //  outShapeStrides: vec3<i32>, filterDims : vec2<i32>, pad : vec2<i32>, stride : vec2<i32>,
 //  dilation : vec2<i32>, dimAOuter : i32, dimBOuter : i32, dimInner : i32 };
@@ -6530,7 +6530,7 @@ ${ll(d, A, z, M, s, t, R[0], R[1], R[2], U)}
 ${h ? Zn(_, g, U, void 0, !d, I) : Qn(_, g, U, void 0, !d, I, !1, void 0, a)}`;
           };
           return {
-            name: "Conv2DMatMul",
+            name: 'Conv2DMatMul',
             shaderCache: {
               hint: `${t.cacheKey};${v};${h};${A};${z};${M};${$};${T};${I}`,
               inputDependencies: O,
@@ -6553,7 +6553,7 @@ ${h ? Zn(_, g, U, void 0, !d, I) : Qn(_, g, U, void 0, !d, I, !1, void 0, a)}`;
     ls,
     cs,
     ps = E(() => {
-      "use strict";
+      'use strict';
       V();
       Ee();
       q();
@@ -6565,7 +6565,7 @@ ${h ? Zn(_, g, U, void 0, !d, I) : Qn(_, g, U, void 0, !d, I, !1, void 0, a)}`;
         for (let n = 0; n < e.length; n++) t *= e[n];
         return t;
       }),
-        (us = (e) => (typeof e == "number" ? [e, e, e] : e)),
+        (us = (e) => (typeof e == 'number' ? [e, e, e] : e)),
         (an = (e, t) => (t <= 1 ? e : e + (e - 1) * (t - 1))),
         (pl = (e, t, n, r = 1) => {
           let o = an(t, r);
@@ -6580,7 +6580,7 @@ ${h ? Zn(_, g, U, void 0, !d, I) : Qn(_, g, U, void 0, !d, I, !1, void 0, a)}`;
         }),
         (ml = (e, t, n, r, o, i, s, a, u, d) => {
           let l, c, p, f;
-          if ((e === "VALID" && (e = 0), typeof e == "number")) {
+          if ((e === 'VALID' && (e = 0), typeof e == 'number')) {
             l = { top: e, bottom: e, left: e, right: e, front: e, back: e };
             let m = ds([t, n, r, 1], [a, u, d], 1, [o, i, s], e);
             (c = m[0]), (p = m[1]), (f = m[2]);
@@ -6590,7 +6590,7 @@ ${h ? Zn(_, g, U, void 0, !d, I) : Qn(_, g, U, void 0, !d, I, !1, void 0, a)}`;
             l = { top: e[0], bottom: e[1], left: e[2], right: e[3], front: e[4], back: e[5] };
             let m = ds([t, n, r, 1], [a, u, d], 1, [o, i, s], e[0]);
             (c = m[0]), (p = m[1]), (f = m[2]);
-          } else if (e === "SAME_UPPER") {
+          } else if (e === 'SAME_UPPER') {
             (c = Math.ceil(t / o)), (p = Math.ceil(n / i)), (f = Math.ceil(r / s));
             let m = (c - 1) * o + a - t,
               h = (p - 1) * i + u - n,
@@ -6605,10 +6605,10 @@ ${h ? Zn(_, g, U, void 0, !d, I) : Qn(_, g, U, void 0, !d, I, !1, void 0, a)}`;
           } else throw Error(`Unknown padding parameter: ${e}`);
           return { padInfo: l, outDepth: c, outHeight: p, outWidth: f };
         }),
-        (ls = (e, t, n, r, o, i = !1, s = "channelsLast") => {
+        (ls = (e, t, n, r, o, i = !1, s = 'channelsLast') => {
           let a, u, d, l, c;
-          if (s === "channelsLast") [a, u, d, l, c] = e;
-          else if (s === "channelsFirst") [a, c, u, d, l] = e;
+          if (s === 'channelsLast') [a, u, d, l, c] = e;
+          else if (s === 'channelsFirst') [a, c, u, d, l] = e;
           else throw new Error(`Unknown dataFormat ${s}`);
           let [p, , f, m, h] = t,
             [b, y, g] = us(n),
@@ -6625,9 +6625,9 @@ ${h ? Zn(_, g, U, void 0, !d, I) : Qn(_, g, U, void 0, !d, I, !1, void 0, a)}`;
             W = i ? p * c : p,
             O = [0, 0, 0, 0, 0];
           return (
-            s === "channelsFirst"
+            s === 'channelsFirst'
               ? (O = [a, W, z, M, R])
-              : s === "channelsLast" && (O = [a, z, M, R, W]),
+              : s === 'channelsLast' && (O = [a, z, M, R, W]),
             {
               batchSize: a,
               dataFormat: s,
@@ -6659,13 +6659,13 @@ ${h ? Zn(_, g, U, void 0, !d, I) : Qn(_, g, U, void 0, !d, I, !1, void 0, a)}`;
           );
         }),
         (cs = (e, t, n, r, o, i) => {
-          let s = i === "channelsLast",
+          let s = i === 'channelsLast',
             a = s ? e[0].dims[3] : e[0].dims[1],
             u = !1,
             d = [64, 1, 1],
             l = { x: n.map((g, _) => _) },
             c = [Math.ceil(cl(l.x.map((g) => n[g])) / d[0]), 1, 1];
-          j("verbose", () => `[conv3d_naive_webgpu] dispatch = ${c}`);
+          j('verbose', () => `[conv3d_naive_webgpu] dispatch = ${c}`);
           let p = u ? (s && a % 4 !== 0 ? 3 : 4) : 1,
             f = x.size(n),
             m = [
@@ -6676,31 +6676,31 @@ ${h ? Zn(_, g, U, void 0, !d, I) : Qn(_, g, U, void 0, !d, I, !1, void 0, a)}`;
               { type: 12, data: t.dilations },
             ];
           Ce(t, m), m.push(...P(e[0].dims, e[1].dims));
-          let h = ["rank", "rank"],
+          let h = ['rank', 'rank'],
             b = e.length === 3;
-          b && (m.push(...P(e[2].dims)), h.push("rank")), m.push(...P(n));
+          b && (m.push(...P(e[2].dims)), h.push('rank')), m.push(...P(n));
           let y = (g) => {
             let _ = [
-              { name: "output_size", type: "u32" },
-              { name: "filter_dims", type: "u32", length: r.length },
-              { name: "pads", type: "u32", length: o.length },
-              { name: "strides", type: "u32", length: t.strides.length },
-              { name: "dilations", type: "u32", length: t.dilations.length },
+              { name: 'output_size', type: 'u32' },
+              { name: 'filter_dims', type: 'u32', length: r.length },
+              { name: 'pads', type: 'u32', length: o.length },
+              { name: 'strides', type: 'u32', length: t.strides.length },
+              { name: 'dilations', type: 'u32', length: t.dilations.length },
             ];
             Ae(t, _);
             let w = u ? 4 : 1,
               v = re(e[0].dataType),
-              $ = S("x", e[0].dataType, e[0].dims.length, p === 3 ? 1 : p),
-              T = S("W", e[1].dataType, e[1].dims.length, w),
+              $ = S('x', e[0].dataType, e[0].dims.length, p === 3 ? 1 : p),
+              T = S('W', e[1].dataType, e[1].dims.length, w),
               I = [$, T],
-              A = C("result", e[0].dataType, n.length, w),
-              z = "";
+              A = C('result', e[0].dataType, n.length, w),
+              z = '';
             if (b) {
-              let W = S("bias", e[2].dataType, e[2].dims.length, w);
+              let W = S('bias', e[2].dataType, e[2].dims.length, w);
               I.push(W),
                 (z += `
 fn getBiasByOutputCoords(coords : array<u32, 5>) -> ${u ? `vec4<${v}>` : v} {
-return bias[${s ? B("coords", 4, 5) : B("coords", 1, 5)}${u ? "/ 4" : ""}];
+return bias[${s ? B('coords', 4, 5) : B('coords', 1, 5)}${u ? '/ 4' : ''}];
 }`);
             }
             let M = de(p, v),
@@ -6709,28 +6709,28 @@ return bias[${s ? B("coords", 4, 5) : B("coords", 1, 5)}${u ? "/ 4" : ""}];
  ${z}
  fn getX(d0 : u32, d1 : u32, d2 : u32, d3 : u32, d4 : u32) -> f32 {
    let aIndices = array<u32, 5>(d0, d1, d2, d3, d4);
-   return ${$.getByIndices("aIndices")};
+   return ${$.getByIndices('aIndices')};
  }
  fn getW(d0 : u32, d1 : u32, d2 : u32, d3 : u32, d4 : u32) -> f32 {
    let aIndices = array<u32, 5>(d0, d1, d2, d3, d4);
-   return ${T.getByIndices("aIndices")};
+   return ${T.getByIndices('aIndices')};
  }
 ${g.registerUniforms(_).declareVariables(...I, A)}
 ${g.mainStart()}
-${g.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
-   let coords = ${A.offsetToIndices("global_idx")};
-   let batch = ${B("coords", 0, $.rank)};
-   let d2 = ${s ? B("coords", $.rank - 1, $.rank) : B("coords", 1, $.rank)};
-   let xFRCCorner = vec3<u32>(${s ? B("coords", 1, $.rank) : B("coords", 2, $.rank)},
-   ${s ? B("coords", 2, $.rank) : B("coords", 3, $.rank)},
-   ${s ? B("coords", 3, $.rank) : B("coords", 4, $.rank)}) * uniforms.strides - uniforms.pads;
+${g.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
+   let coords = ${A.offsetToIndices('global_idx')};
+   let batch = ${B('coords', 0, $.rank)};
+   let d2 = ${s ? B('coords', $.rank - 1, $.rank) : B('coords', 1, $.rank)};
+   let xFRCCorner = vec3<u32>(${s ? B('coords', 1, $.rank) : B('coords', 2, $.rank)},
+   ${s ? B('coords', 2, $.rank) : B('coords', 3, $.rank)},
+   ${s ? B('coords', 3, $.rank) : B('coords', 4, $.rank)}) * uniforms.strides - uniforms.pads;
    let xFCorner = xFRCCorner.x;
    let xRCorner = xFRCCorner.y;
    let xCCorner = xFRCCorner.z;
-   let xShapeY = ${s ? B("uniforms.x_shape", 1, $.rank) : B("uniforms.x_shape", 2, $.rank)};
-   let xShapeZ = ${s ? B("uniforms.x_shape", 2, $.rank) : B("uniforms.x_shape", 3, $.rank)};
-   let xShapeW = ${s ? B("uniforms.x_shape", 3, $.rank) : B("uniforms.x_shape", 4, $.rank)};
-   let xShapeU = ${s ? B("uniforms.x_shape", 4, $.rank) : B("uniforms.x_shape", 1, $.rank)};
+   let xShapeY = ${s ? B('uniforms.x_shape', 1, $.rank) : B('uniforms.x_shape', 2, $.rank)};
+   let xShapeZ = ${s ? B('uniforms.x_shape', 2, $.rank) : B('uniforms.x_shape', 3, $.rank)};
+   let xShapeW = ${s ? B('uniforms.x_shape', 3, $.rank) : B('uniforms.x_shape', 4, $.rank)};
+   let xShapeU = ${s ? B('uniforms.x_shape', 4, $.rank) : B('uniforms.x_shape', 1, $.rank)};
    let inputDepthNearestVec4 = (xShapeU / 4) * 4;
    let inputDepthVec4Remainder = xShapeU % 4;
 
@@ -6823,13 +6823,13 @@ ${g.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
        }
      }
    }
-   ${b ? "value = value + getBiasByOutputCoords(coords)" : ""};
+   ${b ? 'value = value + getBiasByOutputCoords(coords)' : ''};
    ${R}
    result[global_idx] = f32(value);
 }`;
           };
           return {
-            name: "Conv3DNaive",
+            name: 'Conv3DNaive',
             shaderCache: { hint: `${t.cacheKey};${s};${p};${b}`, inputDependencies: h },
             getRunData: () => ({
               outputs: [{ dims: n, dataType: e[0].dataType }],
@@ -6843,17 +6843,17 @@ ${g.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
   var ms,
     fs,
     hs = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       He();
       (ms = (e, t, n, r) => {
         let o = e.length > 2,
-          i = o ? "value += b[output_channel];" : "",
+          i = o ? 'value += b[output_channel];' : '',
           s = e[0].dims,
           a = e[1].dims,
-          u = t.format === "NHWC",
+          u = t.format === 'NHWC',
           d = u ? n[3] : n[1],
           l = d / t.group,
           c = u && l >= 4 ? X(d) : 1,
@@ -6866,22 +6866,22 @@ ${g.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
             { type: 12, data: l },
           ];
         Ce(t, f), f.push(...P(s, [a[0], a[1], a[2], a[3] / c]));
-        let m = o ? ["rank", "rank", "rank"] : ["rank", "rank"];
+        let m = o ? ['rank', 'rank', 'rank'] : ['rank', 'rank'];
         f.push(...P([n[0], n[1], n[2], n[3] / c]));
         let h = (b) => {
-          let y = C("output", e[0].dataType, n.length, c),
+          let y = C('output', e[0].dataType, n.length, c),
             g = re(y.type.tensor),
             _ = Ie(t, y.type.value, g),
-            w = S("x", e[0].dataType, s.length),
-            v = S("w", e[1].dataType, a.length, c),
+            w = S('x', e[0].dataType, s.length),
+            v = S('w', e[1].dataType, a.length, c),
             $ = [w, v];
-          o && $.push(S("b", e[2].dataType, e[2].dims, c));
+          o && $.push(S('b', e[2].dataType, e[2].dims, c));
           let T = [
-            { name: "output_size", type: "u32" },
-            { name: "dilations", type: "u32", length: t.dilations.length },
-            { name: "strides", type: "u32", length: 2 },
-            { name: "pads", type: "u32", length: 2 },
-            { name: "output_channels_per_group", type: "u32" },
+            { name: 'output_size', type: 'u32' },
+            { name: 'dilations', type: 'u32', length: t.dilations.length },
+            { name: 'strides', type: 'u32', length: 2 },
+            { name: 'pads', type: 'u32', length: 2 },
+            { name: 'output_channels_per_group', type: 'u32' },
           ];
           Ae(t, T);
           let I = u
@@ -6901,8 +6901,8 @@ if (xWidth < 0u || xWidth >= uniforms.x_shape[2]) {
 
 for (var wInChannel: u32 = 0u; wInChannel < uniforms.w_shape[2]; wInChannel++) {
  let input_channel = in_channel_offset + wInChannel;
- let xVal = ${w.get("batch", "xHeight", "xWidth", "input_channel")};
- let wVal = ${v.get("wHeight", "wWidth", "wInChannel", "output_channel")};
+ let xVal = ${w.get('batch', 'xHeight', 'xWidth', 'input_channel')};
+ let wVal = ${v.get('wHeight', 'wWidth', 'wInChannel', 'output_channel')};
  value += xVal * wVal;
 }
 }
@@ -6924,8 +6924,8 @@ for (var wWidth: u32 = 0u; wWidth < uniforms.w_shape[3]; wWidth++) {
    continue;
  }
 
- let xVal = ${w.get("batch", "input_channel", "xHeight", "xWidth")};
- let wVal = ${v.get("output_channel", "wInChannel", "wHeight", "wWidth")};
+ let xVal = ${w.get('batch', 'input_channel', 'xHeight', 'xWidth')};
+ let wVal = ${v.get('output_channel', 'wInChannel', 'wHeight', 'wWidth')};
  value += xVal * wVal;
 }
 }
@@ -6935,9 +6935,9 @@ for (var wWidth: u32 = 0u; wWidth < uniforms.w_shape[3]; wWidth++) {
 ${b.registerUniforms(T).declareVariables(...$, y)}
 
 ${b.mainStart()}
-${b.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${b.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 
-let outputIndices = ${y.offsetToIndices("global_idx")};
+let outputIndices = ${y.offsetToIndices('global_idx')};
 let batch: u32 = outputIndices[0];
 let output_channel: u32 = outputIndices[${u ? 3 : 1}];
 let xRCCorner: vec2<u32> = vec2<u32>(outputIndices[${u ? 1 : 2}], outputIndices[${
@@ -6950,11 +6950,11 @@ var value: ${y.type.value} = ${y.type.value}(0);
 ${I}
 ${i}
 ${_}
-${y.setByOffset("global_idx", "value")}
+${y.setByOffset('global_idx', 'value')}
 }`;
         };
         return {
-          name: "GroupedConv",
+          name: 'GroupedConv',
           shaderCache: { hint: `${t.cacheKey}_${c}`, inputDependencies: m },
           getRunData: () => ({
             outputs: [{ dims: r ? r(n) : n, dataType: e[0].dataType }],
@@ -6980,25 +6980,25 @@ ${y.setByOffset("global_idx", "value")}
           Ce(t, c), c.push(...P(u, d, l));
           let p = (s - 1) * t.strides[1] + d[1],
             f = (m) => {
-              let h = C("output", e[0].dataType, l.length, i),
+              let h = C('output', e[0].dataType, l.length, i),
                 b = re(h.type.tensor),
                 y = Ie(t, h.type.value, b),
-                g = S("x", e[0].dataType, u.length, i),
-                _ = S("w", e[1].dataType, d.length, i),
+                g = S('x', e[0].dataType, u.length, i),
+                _ = S('w', e[1].dataType, d.length, i),
                 w = [g, _];
-              o && w.push(S("b", e[2].dataType, e[2].dims, i));
-              let v = o ? "value += b[output_channel];" : "",
+              o && w.push(S('b', e[2].dataType, e[2].dims, i));
+              let v = o ? 'value += b[output_channel];' : '',
                 $ = [
-                  { name: "output_size", type: "u32" },
-                  { name: "strides", type: "i32", length: 2 },
-                  { name: "pads", type: "i32", length: 2 },
+                  { name: 'output_size', type: 'u32' },
+                  { name: 'strides', type: 'i32', length: 2 },
+                  { name: 'pads', type: 'i32', length: 2 },
                 ];
               return (
                 Ae(t, $),
                 `
 ${m.registerUniforms($).declareVariables(...w, h)}
 ${m.mainStart()}
-${m.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${m.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 let width0 = uniforms.output_shape[3];
 let output_channel = global_idx % width0;
 var index1 = global_idx / width0;
@@ -7020,13 +7020,13 @@ if (x_height >= 0 && u32(x_height) < uniforms.x_shape[1]) {
 for (var i = 0; i < ${p}; i++) {
 let x_width = x_corner.y + i;
 if (x_width >= 0 && u32(x_width) < uniforms.x_shape[2]) {
- x_vals[i] = ${g.get("batch", "u32(x_height)", "u32(x_width)", "input_channel")};
+ x_vals[i] = ${g.get('batch', 'u32(x_height)', 'u32(x_width)', 'input_channel')};
 } else {
  x_vals[i] = ${g.type.value}(0);
 }
 }
 for (var w_width: u32 = 0u; w_width < ${d[1]}; w_width++) {
-let w_val = ${_.get("w_height", "w_width", "0", "output_channel")};
+let w_val = ${_.get('w_height', 'w_width', '0', 'output_channel')};
 for (var i = 0u; i < ${s}u; i++) {
  values[i] = fma(x_vals[i * u32(uniforms.strides[1]) + w_width], w_val, values[i]);
 }
@@ -7038,16 +7038,16 @@ for (var i = 0u; i < ${s}u; i++) {
 var value = values[i];
 ${v}
 ${y}
-${h.set("batch", "row", "col + i", "output_channel", "value")};
+${h.set('batch', 'row', 'col + i', 'output_channel', 'value')};
 }
 }`
               );
             };
           return {
-            name: "GroupedConv-Vectorize",
+            name: 'GroupedConv-Vectorize',
             shaderCache: {
               hint: `${t.cacheKey};${i};${s};${p};${d[0]};${d[1]}`,
-              inputDependencies: o ? ["rank", "rank", "type"] : ["rank", "rank"],
+              inputDependencies: o ? ['rank', 'rank', 'type'] : ['rank', 'rank'],
             },
             getRunData: () => ({
               outputs: [{ dims: r ? r(n) : n, dataType: e[0].dataType }],
@@ -7068,7 +7068,7 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
     yl,
     er,
     ys = E(() => {
-      "use strict";
+      'use strict';
       q();
       as();
       ps();
@@ -7091,21 +7091,21 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
         (Xn = [2, 3, 1, 0]),
         (hl = (e, t) => {
           if (!e || (e.length !== 2 && e.length !== 3))
-            throw new Error("Conv requires 2 or 3 inputs");
-          if (e[0].dims.length > 5) throw new Error("greater than 5D is not supported");
+            throw new Error('Conv requires 2 or 3 inputs');
+          if (e[0].dims.length > 5) throw new Error('greater than 5D is not supported');
           if (e[0].dims.length !== e[1].dims.length)
-            throw new Error("filter does not have same dimension as input");
-          let n = e[0].dims[t.format === "NHWC" ? e[0].dims.length - 1 : 1],
+            throw new Error('filter does not have same dimension as input');
+          let n = e[0].dims[t.format === 'NHWC' ? e[0].dims.length - 1 : 1],
             r = e[1].dims[1] * t.group;
-          if (n !== r) throw new Error("FILTER_IN_CHANNEL should be equal to DATA_CHANNEL");
+          if (n !== r) throw new Error('FILTER_IN_CHANNEL should be equal to DATA_CHANNEL');
           if (e.length === 3 && (e[2].dims.length !== 1 || e[1].dims[0] !== e[2].dims[0]))
-            throw new Error("invalid bias");
+            throw new Error('invalid bias');
           let o = e[0].dims.length - 2;
           if (t.dilations.length !== o) throw new Error(`dilations should be ${o}D`);
           if (t.strides.length !== o) throw new Error(`strides should be ${o}D`);
           if (t.pads.length !== o * 2) throw new Error(`pads should be ${o * 2}D`);
           if (t.kernelShape.length !== 0 && t.kernelShape.length !== e[1].dims.length - 2)
-            throw new Error("invalid kernel shape");
+            throw new Error('invalid kernel shape');
         }),
         (Yn = (e, t) => {
           let n = e.kernelShape.slice();
@@ -7119,7 +7119,7 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
             e.dilations,
             n,
             r,
-            e.format === "NHWC",
+            e.format === 'NHWC',
             e.autoPad
           );
           let o = Object.assign({}, e);
@@ -7128,7 +7128,7 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
         (Jn = (e) => {
           let t = tn(e),
             n = e.format,
-            r = ["NOTSET", "VALID", "SAME_UPPER", "SAME_LOWER"][e.auto_pad],
+            r = ['NOTSET', 'VALID', 'SAME_UPPER', 'SAME_LOWER'][e.auto_pad],
             o = e.dilations,
             i = e.group,
             s = e.kernel_shape,
@@ -7149,7 +7149,7 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
           };
         }),
         (gs = (e, t, n, r) => {
-          let o = n.format === "NHWC",
+          let o = n.format === 'NHWC',
             i = fl(t[0].dims, t[1].dims, n.dilations, n.pads, n.strides, o);
           if (n.group !== 1) {
             let $ = [t[0]];
@@ -7160,7 +7160,7 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
               n.wIsConst && !e.kernelCustomData.wT && (e.kernelCustomData.wT = I), $.push(I);
             } else $.push(t[1]);
             t.length === 3 && $.push(t[2]),
-              !e.adapterInfo.isArchitecture("ampere") &&
+              !e.adapterInfo.isArchitecture('ampere') &&
               o &&
               t[1].dims[0] === n.group &&
               t[1].dims[1] === 1 &&
@@ -7233,7 +7233,7 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
           e.compute(ss(g, n, i, _, w, v, s, b, r), { inputs: g });
         }),
         (gl = (e, t) => {
-          let n = t.format === "NHWC",
+          let n = t.format === 'NHWC',
             r = [
               e.inputs[0].reshape(
                 n
@@ -7256,9 +7256,9 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
           gs(e, r, u, (d) => (n ? [d[0], d[2], d[3]] : [d[0], d[1], d[3]]));
         }),
         (yl = (e, t, n) => {
-          let r = n.format === "NHWC" ? "channelsLast" : "channelsFirst",
+          let r = n.format === 'NHWC' ? 'channelsLast' : 'channelsFirst',
             o = Yn(n, t),
-            i = n.autoPad === "NOTSET" ? n.pads : n.autoPad,
+            i = n.autoPad === 'NOTSET' ? n.pads : n.autoPad,
             s = ls(t[0].dims, t[1].dims, n.strides, n.dilations, i, !1, r);
           e.compute(
             cs(
@@ -7282,7 +7282,7 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
     });
   var bs,
     _s = E(() => {
-      "use strict";
+      'use strict';
       V();
       Ee();
       q();
@@ -7290,7 +7290,7 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
       bs = (e, t, n) => {
         let r = e.length > 2,
           o = t.outputShape,
-          i = t.format === "NHWC",
+          i = t.format === 'NHWC',
           s = t.group,
           a = e[1].dims,
           u = a[2] / s,
@@ -7303,8 +7303,8 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
           h = i ? (d === 1 ? l : m) : 1,
           b = x.size(o) / m,
           y = [Math.ceil(b / 64), 1, 1];
-        j("verbose", () => `[conv2d_backprop_webgpu] dispatch = ${y}`);
-        let g = ["rank", "rank"],
+        j('verbose', () => `[conv2d_backprop_webgpu] dispatch = ${y}`);
+        let g = ['rank', 'rank'],
           _ = [t.strides[0], t.strides[1]],
           w = [t.kernelShape[i ? 1 : 2], t.kernelShape[i ? 2 : 3]],
           v = [t.dilations[0], t.dilations[1]],
@@ -7330,56 +7330,56 @@ ${h.set("batch", "row", "col + i", "output_channel", "value")};
             { type: 12, data: d },
             ...P(e[0].dims, e[1].dims),
           ];
-        r && (I.push(...P(e[2].dims)), g.push("rank")), I.push(...P(o));
+        r && (I.push(...P(e[2].dims)), g.push('rank')), I.push(...P(o));
         let A = (z) => {
           let M = [
-              { name: "output_size", type: "u32" },
-              { name: "strides", type: "u32", length: _.length },
-              { name: "filter_dims", type: "u32", length: w.length },
-              { name: "dilations", type: "u32", length: w.length },
-              { name: "effective_filter_dims", type: "u32", length: $.length },
-              { name: "pads", type: "i32", length: T.length },
-              { name: "input_channels_per_group_int", type: "u32" },
-              { name: "input_channels_per_group", type: "u32" },
-              { name: "output_channels_per_group", type: "u32" },
+              { name: 'output_size', type: 'u32' },
+              { name: 'strides', type: 'u32', length: _.length },
+              { name: 'filter_dims', type: 'u32', length: w.length },
+              { name: 'dilations', type: 'u32', length: w.length },
+              { name: 'effective_filter_dims', type: 'u32', length: $.length },
+              { name: 'pads', type: 'i32', length: T.length },
+              { name: 'input_channels_per_group_int', type: 'u32' },
+              { name: 'input_channels_per_group', type: 'u32' },
+              { name: 'output_channels_per_group', type: 'u32' },
             ],
             R = re(e[0].dataType),
             W = i ? 1 : 2,
             O = i ? 2 : 3,
             ee = i ? 3 : 1,
-            G = S("W", e[1].dataType, e[1].dims.length, h),
-            D = S("Dy", e[0].dataType, e[0].dims.length, l),
+            G = S('W', e[1].dataType, e[1].dims.length, h),
+            D = S('Dy', e[0].dataType, e[0].dims.length, l),
             Z = [D, G];
-          r && Z.push(S("bias", e[2].dataType, [o[ee]].length, m));
-          let U = C("result", e[0].dataType, o.length, m),
+          r && Z.push(S('bias', e[2].dataType, [o[ee]].length, m));
+          let U = C('result', e[0].dataType, o.length, m),
             Q = () => {
-              let H = "";
+              let H = '';
               if (c)
                 l === 4
                   ? (H += `
-let xValue = ${D.getByOffset("x_offset")};
-let wValue = ${G.getByOffset("w_offset")};
+let xValue = ${D.getByOffset('x_offset')};
+let wValue = ${G.getByOffset('w_offset')};
 dotProd = dotProd + dot(xValue, wValue);
 x_offset += 1u;
 w_offset += 1u;`)
                   : l === 2
                   ? (H += `
-dotProd = dotProd + dot(vec4<${R}>(${D.getByOffset("x_offset")}, ${D.getByOffset(
-                      "x_offset + 1u"
-                    )}), vec4<${R}>(${G.getByOffset("w_offset")}, ${G.getByOffset(
-                      "w_offset + 1u"
+dotProd = dotProd + dot(vec4<${R}>(${D.getByOffset('x_offset')}, ${D.getByOffset(
+                      'x_offset + 1u'
+                    )}), vec4<${R}>(${G.getByOffset('w_offset')}, ${G.getByOffset(
+                      'w_offset + 1u'
                     )}));
 x_offset += 2u;
 w_offset += 2u;`)
                   : l === 1 &&
                     (H += `
-dotProd = dotProd + dot(vec4<${R}>(${D.getByOffset("x_offset")}, ${D.getByOffset(
-                      "x_offset + 1u"
-                    )}, ${D.getByOffset("x_offset + 2u")}, ${D.getByOffset(
-                      "x_offset + 3u"
-                    )}), vec4<${R}>(${G.getByOffset("w_offset")}, ${G.getByOffset(
-                      "w_offset + 1u"
-                    )}, ${G.getByOffset("w_offset + 2u")}, ${G.getByOffset("w_offset + 3u")}));
+dotProd = dotProd + dot(vec4<${R}>(${D.getByOffset('x_offset')}, ${D.getByOffset(
+                      'x_offset + 1u'
+                    )}, ${D.getByOffset('x_offset + 2u')}, ${D.getByOffset(
+                      'x_offset + 3u'
+                    )}), vec4<${R}>(${G.getByOffset('w_offset')}, ${G.getByOffset(
+                      'w_offset + 1u'
+                    )}, ${G.getByOffset('w_offset + 2u')}, ${G.getByOffset('w_offset + 3u')}));
 x_offset += 4u;
 w_offset += 4u;`);
               else if (
@@ -7389,7 +7389,7 @@ w_offset += 4u;`);
            ? D.getByOffset(
                `${D.indicesToOffset(`${D.type.indices}(batch, idyR, idyC, inputChannel)`)} / ${l}`
              )
-           : D.get("batch", "inputChannel", "idyR", "idyC")
+           : D.get('batch', 'inputChannel', 'idyR', 'idyC')
        };
 `),
                 l === 1)
@@ -7412,30 +7412,30 @@ dotProd = dotProd + xValue * wValue;`;
               return H;
             },
             _e = () => {
-              if (f === 0) return "";
+              if (f === 0) return '';
               if (!c) throw new Error(`packInputAs4 ${c} is not true.`);
-              let H = "";
+              let H = '';
               if (l === 1) {
-                H += "dotProd = dotProd";
+                H += 'dotProd = dotProd';
                 for (let k = 0; k < f; k++)
                   H += `
  + ${D.getByOffset(`x_offset + ${k}`)} * ${G.getByOffset(`w_offset + ${k}`)}`;
-                H += ";";
+                H += ';';
               } else if (l === 2) {
                 if (f !== 2) throw new Error(`Invalid inputChannelsRemainder ${f}.`);
                 H += `
-let xValue = ${D.getByOffset("x_offset")};
-let wValue = ${G.getByOffset("w_offset")};
+let xValue = ${D.getByOffset('x_offset')};
+let wValue = ${G.getByOffset('w_offset')};
 dotProd = dotProd + dot(xValue, wValue);`;
               }
               return H;
             },
             se = `
  let outputIndices = ${U.offsetToIndices(`global_idx * ${m}`)};
- let batch = ${U.indicesGet("outputIndices", 0)};
- let d1 = ${U.indicesGet("outputIndices", ee)};
- let r = ${U.indicesGet("outputIndices", W)};
- let c = ${U.indicesGet("outputIndices", O)};
+ let batch = ${U.indicesGet('outputIndices', 0)};
+ let d1 = ${U.indicesGet('outputIndices', ee)};
+ let r = ${U.indicesGet('outputIndices', W)};
+ let c = ${U.indicesGet('outputIndices', O)};
  let dyCorner = vec2<i32>(i32(r), i32(c)) - uniforms.pads;
  let dyRCorner = dyCorner.x;
  let dyCCorner = dyCorner.y;
@@ -7487,7 +7487,7 @@ dotProd = dotProd + dot(xValue, wValue);`;
        `${G.type.indices}(wRPerm, wCPerm, inputChannel, wOutChannel)`
      )} / ${h};
        `
-         : ""
+         : ''
      }
      for (var d2: u32 = 0; d2 < uniforms.input_channels_per_group_int; d2 = d2 + ${c ? 4 : l}) {
        ${Q()}
@@ -7498,17 +7498,17 @@ dotProd = dotProd + dot(xValue, wValue);`;
    }
    wR = wR + uniforms.strides[0] - 1;
  }
- let value = dotProd${r ? ` + bias[d1 / ${m}]` : ""};
- ${U.setByOffset("global_idx", "value")};
+ let value = dotProd${r ? ` + bias[d1 / ${m}]` : ''};
+ ${U.setByOffset('global_idx', 'value')};
 `;
           return `
 ${z.registerUniforms(M).declareVariables(...Z, U)}
 ${z.mainStart()}
-${z.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")};
+${z.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')};
 ${se}}`;
         };
         return {
-          name: "ConvTranspose2D",
+          name: 'ConvTranspose2D',
           shaderCache: { hint: `${t.cacheKey};${l}${h}${m}${c}${f}`, inputDependencies: g },
           getRunData: () => ({
             dispatchGroup: { x: y[0], y: y[1], z: y[2] },
@@ -7529,16 +7529,16 @@ ${se}}`;
     vl,
     xs,
     Ss = E(() => {
-      "use strict";
+      'use strict';
       _s();
       He();
       Re();
       (bl = (e, t, n, r, o, i) => (e - 1) * t + n + (r - 1) * o + 1 - i),
         (_l = (e, t, n, r, o) => {
           let i = Math.floor(e / 2);
-          t === "SAME_UPPER"
+          t === 'SAME_UPPER'
             ? ((n[r] = i), (n[o] = e - i))
-            : t === "SAME_LOWER" && ((n[r] = e - i), (n[o] = i));
+            : t === 'SAME_LOWER' && ((n[r] = e - i), (n[o] = i));
         }),
         (wl = (e, t, n, r, o, i, s, a, u, d) => {
           let l = e.length - 2,
@@ -7561,7 +7561,7 @@ ${se}}`;
             n.length = 0;
             for (let c = 2; c < t[1].dims.length; ++c) n.push(t[1].dims[c]);
           }
-          let r = e.format === "NHWC";
+          let r = e.format === 'NHWC';
           n.splice(0, 0, t[1].dims[0]), n.splice(r ? 3 : 1, 0, t[1].dims[1]);
           let o = e.pads.slice(),
             i = e.outputShape.slice(),
@@ -7594,8 +7594,8 @@ ${se}}`;
         ($s = (e) => {
           let t = tn(e),
             n = e.format,
-            r = ["NOTSET", "VALID", "SAME_UPPER", "SAME_LOWER"][
-              typeof e.autoPad > "u" ? 0 : e.autoPad
+            r = ['NOTSET', 'VALID', 'SAME_UPPER', 'SAME_LOWER'][
+              typeof e.autoPad > 'u' ? 0 : e.autoPad
             ],
             o = e.dilations,
             i = e.group,
@@ -7622,17 +7622,17 @@ ${se}}`;
         }),
         ($l = (e, t) => {
           if (!e || (e.length !== 2 && e.length !== 3))
-            throw new Error("Conv requires 2 or 3 inputs");
+            throw new Error('Conv requires 2 or 3 inputs');
           if (e[0].dims.length !== 4 && e[0].dims.length !== 3)
-            throw new Error("currently only support 2-dimensional conv");
+            throw new Error('currently only support 2-dimensional conv');
           if (e[0].dims.length !== e[1].dims.length)
-            throw new Error("filter does not have same dimension as input");
-          let n = e[0].dims[t.format === "NHWC" ? e[0].dims.length - 1 : 1],
+            throw new Error('filter does not have same dimension as input');
+          let n = e[0].dims[t.format === 'NHWC' ? e[0].dims.length - 1 : 1],
             r = e[1].dims[0];
-          if (n !== r) throw new Error("FILTER_IN_CHANNEL should be equal to DATA_CHANNEL");
+          if (n !== r) throw new Error('FILTER_IN_CHANNEL should be equal to DATA_CHANNEL');
           let o = e[1].dims[1] * t.group;
           if (e.length === 3 && (e[2].dims.length !== 1 || e[2].dims[0] !== o))
-            throw new Error("invalid bias");
+            throw new Error('invalid bias');
           let i = e[0].dims.length - 2;
           if (t.dilations.reduce((l, c) => l + c, 0) > 0 && t.dilations.length !== i)
             throw new Error(`dilations should be ${i}D`);
@@ -7647,9 +7647,9 @@ ${se}}`;
             t.kernelShape.length !== 0 &&
             t.kernelShape.length !== e[1].dims.length - 2
           )
-            throw new Error("invalid kernel shape");
+            throw new Error('invalid kernel shape');
           if (t.outputShape.length !== 0 && t.outputShape.length !== e[0].dims.length - 2)
-            throw new Error("invalid output shape");
+            throw new Error('invalid output shape');
         }),
         (vs = (e, t, n, r) => {
           let o =
@@ -7660,7 +7660,7 @@ ${se}}`;
           t.length === 3 && i.push(t[2]), e.compute(bs(i, n, r), { inputs: i });
         }),
         (vl = (e, t) => {
-          let n = t.format === "NHWC",
+          let n = t.format === 'NHWC',
             r = [
               e.inputs[0].reshape(
                 n
@@ -7707,7 +7707,7 @@ ${se}}`;
     Ts,
     Is,
     Cs = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
@@ -7715,33 +7715,33 @@ ${se}}`;
       (xl = (e, t, n, r) => {
         let o = x.size(t),
           i = t.length,
-          s = S("input", e, i),
-          a = C("output", e, i),
+          s = S('input', e, i),
+          a = C('output', e, i),
           u = n.dataType === 6 ? n.getInt32Array()[0] : Number(n.getBigInt64Array()[0]),
           d = x.normalizeAxis(u, i),
           l = (c) => {
-            let p = ` i32(${s.indicesGet("inputIndices", "uniforms.axis")}) `,
-              f = B("uniforms.input_shape", "uniforms.axis", i),
-              m = r.reverse ? p + (r.exclusive ? " + 1" : "") : "0",
-              h = r.reverse ? f : p + (r.exclusive ? "" : " + 1");
+            let p = ` i32(${s.indicesGet('inputIndices', 'uniforms.axis')}) `,
+              f = B('uniforms.input_shape', 'uniforms.axis', i),
+              m = r.reverse ? p + (r.exclusive ? ' + 1' : '') : '0',
+              h = r.reverse ? f : p + (r.exclusive ? '' : ' + 1');
             return `
-     ${c.registerUniform("outputSize", "u32").registerUniform("axis", "u32").declareVariables(s, a)}
+     ${c.registerUniform('outputSize', 'u32').registerUniform('axis', 'u32').declareVariables(s, a)}
      ${c.mainStart()}
-       ${c.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
-       var inputIndices = ${a.offsetToIndices("global_idx")};
+       ${c.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
+       var inputIndices = ${a.offsetToIndices('global_idx')};
        var sum = ${a.type.value}(0);
        let first : i32 = ${m};
        let last : i32 = ${h};
        for (var i : i32 = first; i < last; i++) {
-         ${s.indicesSet("inputIndices", "uniforms.axis", "u32(i)")};
-         sum = sum + ${s.getByIndices("inputIndices")};
+         ${s.indicesSet('inputIndices', 'uniforms.axis', 'u32(i)')};
+         sum = sum + ${s.getByIndices('inputIndices')};
        }
-       ${a.setByOffset("global_idx", "sum")};
+       ${a.setByOffset('global_idx', 'sum')};
      }`;
           };
         return {
-          name: "CumSum",
-          shaderCache: { hint: r.cacheKey, inputDependencies: ["rank"] },
+          name: 'CumSum',
+          shaderCache: { hint: r.cacheKey, inputDependencies: ['rank'] },
           getRunData: () => ({
             outputs: [{ dims: t, dataType: e }],
             dispatchGroup: { x: Math.ceil(o / 64) },
@@ -7768,22 +7768,22 @@ ${se}}`;
     As,
     ks,
     Es = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (Sl = (e) => {
-        if (!e || e.length !== 1) throw new Error("DepthToSpace requires 1 input.");
-        if (e[0].dims.length !== 4) throw new Error("DepthToSpace requires 4D input.");
+        if (!e || e.length !== 1) throw new Error('DepthToSpace requires 1 input.');
+        if (e[0].dims.length !== 4) throw new Error('DepthToSpace requires 4D input.');
       }),
         (Tl = (e, t, n, r) => {
           let o = [];
           o.push(`fn perm(i: ${r.type.indices}) -> ${n.type.indices} {
 var a: ${n.type.indices};`);
-          for (let i = 0; i < t; ++i) o.push(n.indicesSet("a", e[i], `i[${i}]`));
+          for (let i = 0; i < t; ++i) o.push(n.indicesSet('a', e[i], `i[${i}]`));
           return (
-            o.push("return a;}"),
+            o.push('return a;}'),
             o.join(`
 `)
           );
@@ -7795,9 +7795,9 @@ var a: ${n.type.indices};`);
             i,
             s,
             a,
-            u = t.format === "NHWC",
+            u = t.format === 'NHWC',
             d = t.blocksize,
-            l = t.mode === "DCR";
+            l = t.mode === 'DCR';
           u
             ? (([n, r, o, i] = e.dims),
               (s = l ? [n, r, o, d, d, i / d ** 2] : [n, r, o, i / d ** 2, d, d]),
@@ -7808,26 +7808,26 @@ var a: ${n.type.indices};`);
           let c = e.reshape(s),
             p = c.dims.length,
             f = e.dataType,
-            m = S("a", f, p),
-            h = C("output", f, p),
+            m = S('a', f, p),
+            h = C('output', f, p),
             b = (y) => `
-${y.registerUniform("output_size", "u32").declareVariables(m, h)}
+${y.registerUniform('output_size', 'u32').declareVariables(m, h)}
 
 ${Tl(a, p, m, h)}
 
 ${y.mainStart()}
-${y.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${y.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 
-let indices = ${h.offsetToIndices("global_idx")};
+let indices = ${h.offsetToIndices('global_idx')};
 let aIndices = perm(indices);
 
-${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
+${h.setByOffset('global_idx', m.getByIndices('aIndices'))}
 }`;
           return {
-            name: "DepthToSpace",
+            name: 'DepthToSpace',
             shaderCache: {
               hint: `${e.dims};${t.blocksize};${t.mode}`,
-              inputDependencies: ["rank"],
+              inputDependencies: ['rank'],
             },
             getRunData: (y) => {
               let g = u ? [n, r * d, o * d, i / d ** 2] : [n, i / d ** 2, r * d, o * d],
@@ -7860,16 +7860,16 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
     Os,
     Ds,
     Bs = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
-      (tr = "[a-zA-Z]|\\.\\.\\."),
-        (un = "(" + tr + ")+"),
-        (Ps = "^" + un + "$"),
-        (Cl = "(" + un + ",)*" + un),
-        (Al = "^" + Cl + "$"),
+      (tr = '[a-zA-Z]|\\.\\.\\.'),
+        (un = '(' + tr + ')+'),
+        (Ps = '^' + un + '$'),
+        (Cl = '(' + un + ',)*' + un),
+        (Al = '^' + Cl + '$'),
         (nr = class {
           constructor(t = -1) {
             (this.symbolToIndices = new Map()), (this.inputIndex = t);
@@ -7886,27 +7886,27 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
               (this.symbolToInfo = new Map()),
               (this.lhs = new Array()),
               (this.outputDims = []);
-            let [r, o] = n.includes("->") ? n.split("->", 2) : [n, ""];
-            if (!r.match(RegExp(Al))) throw new Error("Invalid LHS term");
+            let [r, o] = n.includes('->') ? n.split('->', 2) : [n, ''];
+            if (!r.match(RegExp(Al))) throw new Error('Invalid LHS term');
             if (
-              (r.split(",").forEach((a, u) => {
+              (r.split(',').forEach((a, u) => {
                 let d = t[u].dims.slice();
-                if (!a.match(RegExp(Ps))) throw new Error("Invalid LHS term");
+                if (!a.match(RegExp(Ps))) throw new Error('Invalid LHS term');
                 let l = this.processTerm(a, !0, d, u);
                 this.lhs.push(l);
               }),
-              o === "")
+              o === '')
             )
               o += [...this.symbolToInfo.entries()]
-                .filter(([a, u]) => u.count === 1 || a === "...")
+                .filter(([a, u]) => u.count === 1 || a === '...')
                 .map(([a]) => a)
-                .join("");
-            else if (!o.match(RegExp(un))) throw new Error("Invalid RHS");
-            o.match(RegExp(tr, "g"))?.forEach((a) => {
-              if (a === "...") this.outputDims = this.outputDims.concat(this.ellipsisDims);
+                .join('');
+            else if (!o.match(RegExp(un))) throw new Error('Invalid RHS');
+            o.match(RegExp(tr, 'g'))?.forEach((a) => {
+              if (a === '...') this.outputDims = this.outputDims.concat(this.ellipsisDims);
               else {
                 let u = this.symbolToInfo.get(a);
-                if (u === void 0) throw new Error("Invalid RHS symbol");
+                if (u === void 0) throw new Error('Invalid RHS symbol');
                 this.outputDims.push(u.dimValue);
               }
             }),
@@ -7915,7 +7915,7 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
           addSymbol(t, n, r) {
             let o = this.symbolToInfo.get(t);
             if (o !== void 0) {
-              if (o.dimValue !== n && o.count !== 1) throw new Error("Dimension mismatch");
+              if (o.dimValue !== n && o.count !== 1) throw new Error('Dimension mismatch');
               o.count++, o.inputIndices.push(r);
             } else o = { count: 1, dimValue: n, inputIndices: [r] };
             this.symbolToInfo.set(t, o);
@@ -7925,24 +7925,24 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
               s = !1,
               a = [],
               u = 0;
-            if (!t.match(RegExp(Ps)) && !n && t !== "") throw new Error("Invalid LHS term");
-            let d = t.match(RegExp(tr, "g")),
+            if (!t.match(RegExp(Ps)) && !n && t !== '') throw new Error('Invalid LHS term');
+            let d = t.match(RegExp(tr, 'g')),
               l = new nr(o);
             return (
               d?.forEach((c, p) => {
-                if (c === "...") {
-                  if (s) throw new Error("Only one ellipsis is allowed per input term");
+                if (c === '...') {
+                  if (s) throw new Error('Only one ellipsis is allowed per input term');
                   s = !0;
                   let f = i - d.length + 1;
-                  if (f < 0) throw new Error("Ellipsis out of bounds");
+                  if (f < 0) throw new Error('Ellipsis out of bounds');
                   if (((a = r.slice(u, u + f)), this.hasEllipsis)) {
                     if (
                       this.ellipsisDims.length !== a.length ||
                       this.ellipsisDims.toString() !== a.toString()
                     )
-                      throw new Error("Ellipsis dimensions mismatch");
+                      throw new Error('Ellipsis dimensions mismatch');
                   } else if (n) (this.hasEllipsis = !0), (this.ellipsisDims = a);
-                  else throw new Error("Ellipsis must be specified in the LHS");
+                  else throw new Error('Ellipsis must be specified in the LHS');
                   for (let m = 0; m < a.length; m++) {
                     let h = String.fromCharCode(48 + m);
                     l.addSymbol(h, p + m), this.addSymbol(h, r[u++], o);
@@ -7955,17 +7955,17 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
             );
           }
         }),
-        (zs = (e) => e + "_max"),
+        (zs = (e) => e + '_max'),
         (kl = (e, t, n, r) => {
           let i = e.map((l) => l.length).map((l, c) => S(`input${c}`, t, l)),
             s = x.size(r),
-            a = C("output", t, r.length),
+            a = C('output', t, r.length),
             u = [...n.symbolToInfo.keys()].filter((l) => !n.rhs.symbolToIndices.has(l)),
             d = (l) => {
               let c = [],
-                p = "var prod = 1.0;",
-                f = "var sum = 0.0;",
-                m = "sum += prod;",
+                p = 'var prod = 1.0;',
+                f = 'var sum = 0.0;',
+                m = 'sum += prod;',
                 h = [],
                 b = [],
                 y = [],
@@ -7978,13 +7978,13 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
                     n.lhs.forEach((I, A) => {
                       if (v.inputIndices.includes(A)) {
                         let z = I.symbolToIndices.get($);
-                        if (z === void 0) throw new Error("Invalid symbol error");
+                        if (z === void 0) throw new Error('Invalid symbol error');
                         z.forEach((M) => {
                           c.push(
                             `${i[A].indicesSet(
                               `input${A}Indices`,
                               M,
-                              a.indicesGet("outputIndices", T)
+                              a.indicesGet('outputIndices', T)
                             )}`
                           );
                         });
@@ -7994,7 +7994,7 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
                   n.lhs.forEach((T, I) => {
                     if (v.inputIndices.includes(I)) {
                       let A = T.symbolToIndices.get($);
-                      if (A === void 0) throw new Error("Invalid symbol error");
+                      if (A === void 0) throw new Error('Invalid symbol error');
                       A.forEach((z) => {
                         h.push(`${i[I].indicesSet(`input${I}Indices`, z, `${$}`)}`);
                       }),
@@ -8002,33 +8002,33 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
                     }
                   }),
                     b.push(`for(var ${$}: u32 = 0; ${$} < uniforms.${zs($)}; ${$}++) {`),
-                    y.push("}");
+                    y.push('}');
               });
               let w = _
                 ? [
                     ...c,
-                    `let sum = ${i.map((v, $) => v.getByIndices(`input${$}Indices`)).join(" * ")};`,
+                    `let sum = ${i.map((v, $) => v.getByIndices(`input${$}Indices`)).join(' * ')};`,
                   ]
                 : [...c, f, ...b, ...h, p, ...g, m, ...y];
               return `
  ${l
-   .registerUniforms(u.map((v) => ({ name: `${zs(v)}`, type: "u32" })))
-   .registerUniform("outputSize", "u32")
+   .registerUniforms(u.map((v) => ({ name: `${zs(v)}`, type: 'u32' })))
+   .registerUniform('outputSize', 'u32')
    .declareVariables(...i, a)}
 
  ${l.mainStart()}
- ${l.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
- var outputIndices = ${a.offsetToIndices("global_idx")};
+ ${l.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
+ var outputIndices = ${a.offsetToIndices('global_idx')};
  ${i.map((v, $) => `var input${$}Indices: ${i[$].type.indices};`).join(`
 `)}
  ${w.join(`
 `)};
- ${a.setByOffset("global_idx", "sum")};
+ ${a.setByOffset('global_idx', 'sum')};
 }`;
             };
           return {
-            name: "Einsum",
-            shaderCache: { hint: n.equation, inputDependencies: e.map(() => "rank") },
+            name: 'Einsum',
+            shaderCache: { hint: n.equation, inputDependencies: e.map(() => 'rank') },
             getRunData: () => {
               let l = u
                 .filter((p) => n.symbolToInfo.has(p))
@@ -8054,7 +8054,7 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
           e.compute(kl(o, e.inputs[0].dataType, n, r));
         }),
         (Ds = (e) => {
-          let t = e.equation.replace(/\s+/g, "");
+          let t = e.equation.replace(/\s+/g, '');
           return N({ equation: t });
         });
     });
@@ -8064,19 +8064,19 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
     zl,
     Rs,
     Us = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       (El = (e) => {
-        if (!e || e.length !== 2) throw new Error("Expand requires 2 input.");
+        if (!e || e.length !== 2) throw new Error('Expand requires 2 input.');
         let t = e[0].dims,
           n = Array.from(e[1].getBigInt64Array(), Number),
           r = n.length < t.length ? 0 : n.length - t.length,
           o = t.length < n.length ? 0 : t.length - n.length;
         for (; r < n.length && o < t.length; ++r, ++o)
           if (n[r] !== t[o] && n[r] !== 1 && t[o] !== 1)
-            throw new Error("Expand requires shape to be broadcastable to input");
+            throw new Error('Expand requires shape to be broadcastable to input');
       }),
         (Ms = (e, t) => {
           let n = e.length - t.length,
@@ -8096,11 +8096,11 @@ ${h.setByOffset("global_idx", m.getByIndices("aIndices"))}
             a = i || (r.length > 0 && r[r.length - 1] % 4 === 0) ? 4 : 1,
             u = Math.ceil(x.size(r) / a),
             d = (c) => {
-              let p = S("input", o, t.length, s),
-                f = C("output", o, r.length, a),
+              let p = S('input', o, t.length, s),
+                f = C('output', o, r.length, a),
                 m;
               if (o === 9) {
-                let h = (b, y, g = "") => `
+                let h = (b, y, g = '') => `
 let outputIndices${y} = ${f.offsetToIndices(`outputOffset + ${y}u`)};
 let offset${y} = ${p.broadcastedIndicesToOffset(`outputIndices${y}`, f)};
 let index${y} = offset${y} / 4u;
@@ -8110,29 +8110,29 @@ ${b}[${y}] = ${g}(${p.getByOffset(`index${y}`)}[component${y}]);
                 m = `
 let outputOffset = global_idx * ${a};
 var data = vec4<u32>(0);
-${h("data", 0, "u32")}
-${h("data", 1, "u32")}
-${h("data", 2, "u32")}
-${h("data", 3, "u32")}
-${f.setByOffset("global_idx", "data")}
+${h('data', 0, 'u32')}
+${h('data', 1, 'u32')}
+${h('data', 2, 'u32')}
+${h('data', 3, 'u32')}
+${f.setByOffset('global_idx', 'data')}
 }`;
               } else
                 m = `
 let outputIndices = ${f.offsetToIndices(`global_idx * ${a}`)};
-let inputOffset = ${p.broadcastedIndicesToOffset("outputIndices", f)};
+let inputOffset = ${p.broadcastedIndicesToOffset('outputIndices', f)};
 let data = ${f.type.value}(${p.getByOffset(`inputOffset / ${s}`)});
-${f.setByOffset("global_idx", "data")}
+${f.setByOffset('global_idx', 'data')}
 }`;
               return `
-${c.registerUniform("vec_size", "u32").declareVariables(p, f)}
+${c.registerUniform('vec_size', 'u32').declareVariables(p, f)}
 ${c.mainStart()}
-${c.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.vec_size")}
+${c.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.vec_size')}
 ${m}`;
             },
             l = [{ type: 12, data: u }, ...P(t, r)];
           return {
-            name: "Expand",
-            shaderCache: { hint: `${r.length};${s}${a}`, inputDependencies: ["rank"] },
+            name: 'Expand',
+            shaderCache: { hint: `${r.length};${s}${a}`, inputDependencies: ['rank'] },
             getShaderSource: d,
             getRunData: () => ({
               outputs: [{ dims: r, dataType: e[0].dataType }],
@@ -8148,7 +8148,7 @@ ${m}`;
   var Ol,
     Vs,
     Ns = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
@@ -8159,19 +8159,19 @@ ${m}`;
           r = x.size(e[1].dims),
           o = r % 4 === 0,
           i = (s) => {
-            let a = S("x", t, [1], 4),
-              u = S("bias", t, [1], 4),
-              d = C("y", t, [1], 4),
+            let a = S('x', t, [1], 4),
+              u = S('bias', t, [1], 4),
+              d = C('y', t, [1], 4),
               l = [
-                { name: "output_vec_size", type: "u32" },
-                { name: "bias_size", type: "u32" },
+                { name: 'output_vec_size', type: 'u32' },
+                { name: 'bias_size', type: 'u32' },
               ],
               c = (f) => `
 let bias${f}_offset: u32 = (global_idx * 4 + ${f}) % uniforms.bias_size;
 let bias${f} = ${u.getByOffset(`bias${f}_offset / 4`)}[bias${f}_offset % 4];`,
               p = o
                 ? `
-let bias = ${u.getByOffset("global_idx % (uniforms.bias_size / 4)")};`
+let bias = ${u.getByOffset('global_idx % (uniforms.bias_size / 4)')};`
                 : `${c(0)}${c(1)}${c(2)}${c(3)}
 let bias = ${a.type.value}(bias0, bias1, bias2, bias3);`;
             return `${s.registerUniforms(l).declareVariables(a, u, d)}
@@ -8179,17 +8179,17 @@ let bias = ${a.type.value}(bias0, bias1, bias2, bias3);`;
 ${Kn(le(t))}
 
 ${s.mainStart(Qe)}
-${s.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_vec_size")}
+${s.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_vec_size')}
 
-let x = ${a.getByOffset("global_idx")};
+let x = ${a.getByOffset('global_idx')};
 ${p}
 let x_in = x + bias;
-${d.setByOffset("global_idx", jn("x_in"))}
+${d.setByOffset('global_idx', jn('x_in'))}
 }`;
           };
         return {
-          name: "FastGeluWithBias",
-          shaderCache: { hint: `${o}`, inputDependencies: ["type", "type"] },
+          name: 'FastGeluWithBias',
+          shaderCache: { hint: `${o}`, inputDependencies: ['type', 'type'] },
           getShaderSource: i,
           getRunData: (s) => ({
             outputs: [{ dims: s[0].dims, dataType: s[0].dataType }],
@@ -8210,13 +8210,13 @@ ${d.setByOffset("global_idx", jn("x_in"))}
     Ls,
     Gs,
     Ws = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (Dl = (e) => {
-        if (!e || e.length !== 2) throw new Error("Gather requires 2 inputs.");
+        if (!e || e.length !== 2) throw new Error('Gather requires 2 inputs.');
       }),
         (Bl = (e, t) => {
           let n = e[0].dims,
@@ -8235,9 +8235,9 @@ ${d.setByOffset("global_idx", jn("x_in"))}
               ...P(e[0].dims, e[1].dims, s),
             ],
             c = (p) => {
-              let f = S("data", e[0].dataType, e[0].dims.length, u),
-                m = S("inputIndices", e[1].dataType, e[1].dims.length),
-                h = C("output", e[0].dataType, s.length, u),
+              let f = S('data', e[0].dataType, e[0].dims.length, u),
+                m = S('inputIndices', e[1].dataType, e[1].dims.length),
+                h = C('output', e[0].dataType, s.length, u),
                 b = (g) => {
                   let _ = r.length,
                     w = `var indicesIndices${g}  = ${m.type.indices}(0);`;
@@ -8266,7 +8266,7 @@ var dataIndices${g} : ${f.type.indices};
                 },
                 y;
               if (e[0].dataType === 9) {
-                let g = (_, w, v = "") => `
+                let g = (_, w, v = '') => `
 let outputIndices${w} = ${h.offsetToIndices(`outputOffset + ${w}u`)};
 ${b(w)};
 let offset${w} = ${f.indicesToOffset(`dataIndices${w}`)};
@@ -8277,33 +8277,33 @@ ${_}[${w}] = ${v}(${f.getByOffset(`index${w}`)}[component${w}]);
                 y = `
 let outputOffset = global_idx * ${u};
 var value = vec4<u32>(0);
-${g("value", 0, "u32")}
-${g("value", 1, "u32")}
-${g("value", 2, "u32")}
-${g("value", 3, "u32")}
-${h.setByOffset("global_idx", "value")}
+${g('value', 0, 'u32')}
+${g('value', 1, 'u32')}
+${g('value', 2, 'u32')}
+${g('value', 3, 'u32')}
+${h.setByOffset('global_idx', 'value')}
 `;
               } else
                 y = `
-let outputIndices = ${h.offsetToIndices("global_idx")};
-${b("")};
-let value = ${f.getByIndices("dataIndices")};
-${h.setByOffset("global_idx", "value")};
+let outputIndices = ${h.offsetToIndices('global_idx')};
+${b('')};
+let value = ${f.getByIndices('dataIndices')};
+${h.setByOffset('global_idx', 'value')};
 `;
               return `
 ${p
-  .registerUniform("outputSize", "u32")
-  .registerUniform("axisDimLimit", "i32")
-  .registerUniform("axis", "u32")
+  .registerUniform('outputSize', 'u32')
+  .registerUniform('axisDimLimit', 'i32')
+  .registerUniform('axis', 'u32')
   .declareVariables(f, m, h)}
 ${p.mainStart()}
-${p.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+${p.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
 ${y}
 }`;
             };
           return {
-            name: "Gather",
-            shaderCache: { hint: t.cacheKey, inputDependencies: ["rank", "rank"] },
+            name: 'Gather',
+            shaderCache: { hint: t.cacheKey, inputDependencies: ['rank', 'rank'] },
             getRunData: () => ({
               outputs: [{ dims: s, dataType: e[0].dataType }],
               dispatchGroup: { x: Math.ceil(d / 64) },
@@ -8322,7 +8322,7 @@ ${y}
     Hs,
     qs,
     Fs = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
@@ -8339,22 +8339,22 @@ ${y}
           l = [i];
         d.push(...P(t.dims, l));
         let c = (p) => {
-          let f = S("indices_data", t.dataType, t.dims.length),
-            m = C("input_slice_offsets_data", 12, 1, 1),
+          let f = S('indices_data', t.dataType, t.dims.length),
+            m = C('input_slice_offsets_data', 12, 1, 1),
             h = [f, m],
             b = [
-              { name: "output_size", type: "u32" },
-              { name: "batch_dims", type: "u32" },
-              { name: "input_dims", type: "u32", length: o.length },
-              { name: "sizes_from_slice_dims_data", type: "u32", length: n.length },
-              { name: "num_slices_per_batch", type: "u32" },
-              { name: "input_batch_stride", type: "u32" },
-              { name: "num_slice_dims", type: "u32" },
+              { name: 'output_size', type: 'u32' },
+              { name: 'batch_dims', type: 'u32' },
+              { name: 'input_dims', type: 'u32', length: o.length },
+              { name: 'sizes_from_slice_dims_data', type: 'u32', length: n.length },
+              { name: 'num_slices_per_batch', type: 'u32' },
+              { name: 'input_batch_stride', type: 'u32' },
+              { name: 'num_slice_dims', type: 'u32' },
             ];
           return `
 ${p.registerUniforms(b).declareVariables(...h)}
 ${p.mainStart()}
-${p.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${p.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 let batch_idx = global_idx / uniforms.num_slices_per_batch;
 let base_offset = batch_idx * uniforms.input_batch_stride;
 
@@ -8366,14 +8366,14 @@ let input_dim_idx = uniforms.batch_dims + dim_idx;
 if (index < 0) {
 ${
   o.length === 1
-    ? "index += i32(uniforms.input_dims);"
-    : "index += i32(uniforms.input_dims[input_dim_idx]);"
+    ? 'index += i32(uniforms.input_dims);'
+    : 'index += i32(uniforms.input_dims[input_dim_idx]);'
 }
 }
 ${
   n.length === 1
-    ? "relative_slice_offset += index * i32(uniforms.sizes_from_slice_dims_data);"
-    : "relative_slice_offset += index * i32(uniforms.sizes_from_slice_dims_data[dim_idx]);"
+    ? 'relative_slice_offset += index * i32(uniforms.sizes_from_slice_dims_data);'
+    : 'relative_slice_offset += index * i32(uniforms.sizes_from_slice_dims_data[dim_idx]);'
 }
 }
 
@@ -8382,8 +8382,8 @@ input_slice_offsets_data[global_idx] =  base_offset + u32(relative_slice_offset)
         };
         return e.compute(
           {
-            name: "computeSliceOffsets",
-            shaderCache: { hint: `${o.length}_${n.length}`, inputDependencies: ["rank"] },
+            name: 'computeSliceOffsets',
+            shaderCache: { hint: `${o.length}_${n.length}`, inputDependencies: ['rank'] },
             getRunData: () => ({
               outputs: [{ dims: l, dataType: e.inputs[1].dataType }],
               dispatchGroup: { x: Math.ceil(i / 64) },
@@ -8412,30 +8412,30 @@ input_slice_offsets_data[global_idx] =  base_offset + u32(relative_slice_offset)
             h = t.batchDims + s;
           if (h > r.length)
             throw new Error(
-              "last dimension of indices must not be larger than rank of input tensor"
+              'last dimension of indices must not be larger than rank of input tensor'
             );
           let b = i.slice(0, -1).concat(r.slice(h)),
             y = x.size(b),
             g = [{ type: 12, data: y }, { type: 12, data: u }, ...P(n[0].dims, m.dims, b)],
             _ = (w) => {
-              let v = S("data", n[0].dataType, n[0].dims.length),
-                $ = S("slice_offsets", 12, m.dims.length),
-                T = C("output", n[0].dataType, b.length);
+              let v = S('data', n[0].dataType, n[0].dims.length),
+                $ = S('slice_offsets', 12, m.dims.length),
+                T = C('output', n[0].dataType, b.length);
               return `
 ${w
-  .registerUniform("output_size", "u32")
-  .registerUniform("slice_size", "u32")
+  .registerUniform('output_size', 'u32')
+  .registerUniform('slice_size', 'u32')
   .declareVariables(v, $, T)}
  ${w.mainStart()}
- ${w.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+ ${w.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 let slice_offset = slice_offsets[global_idx / uniforms.slice_size];
 output[global_idx] = data[u32(slice_offset) + global_idx % uniforms.slice_size];
 }`;
             };
           e.compute(
             {
-              name: "GatherND",
-              shaderCache: { hint: t.cacheKey, inputDependencies: ["rank", "rank"] },
+              name: 'GatherND',
+              shaderCache: { hint: t.cacheKey, inputDependencies: ['rank', 'rank'] },
               getRunData: () => ({
                 outputs: [{ dims: b, dataType: o }],
                 dispatchGroup: { x: Math.ceil(y / 64) },
@@ -8446,21 +8446,21 @@ output[global_idx] = data[u32(slice_offset) + global_idx % uniforms.slice_size];
             { inputs: [n[0], m] }
           );
         }),
-        (qs = (e) => ({ batchDims: e.batch_dims, cacheKey: "" }));
+        (qs = (e) => ({ batchDims: e.batch_dims, cacheKey: '' }));
     });
   var Rl,
     Ul,
     Ks,
     js,
     Zs = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (Rl = (e, t) => {
         if (e.length < 3 || e.length > 4)
-          throw new Error("GatherBlockQuantized requires 3 or 4 inputs.");
+          throw new Error('GatherBlockQuantized requires 3 or 4 inputs.');
         let n = x.normalizeAxis(t.quantizeAxis, e[0].dims.length),
           r = t.blockSize,
           o = e[0],
@@ -8473,17 +8473,17 @@ output[global_idx] = data[u32(slice_offset) + global_idx % uniforms.slice_size];
             .reduce((a, u) => a && u, !0)
         )
           throw new Error(
-            "Scales must have the same rank as the input tensor and the dims should match except on gatherAxis."
+            'Scales must have the same rank as the input tensor and the dims should match except on gatherAxis.'
           );
         if (s) {
           if (s.dataType !== o.dataType)
-            throw new Error("Zero point must have the same data type as the input tensor.");
+            throw new Error('Zero point must have the same data type as the input tensor.');
           if (
             s.dims.length !== i.dims.length ||
             !s.dims.map((a, u) => a === i.dims[u]).reduce((a, u) => a && u, !0)
           )
             throw new Error(
-              "Zero point must have the same rank as the input tensor and the dims should match except on quantizeAxis."
+              'Zero point must have the same rank as the input tensor and the dims should match except on quantizeAxis.'
             );
         }
       }),
@@ -8506,85 +8506,85 @@ output[global_idx] = data[u32(slice_offset) + global_idx % uniforms.slice_size];
               ...P(...e.map((m, h) => m.dims), a),
             ],
             f = (m) => {
-              let h = S("data", e[0].dataType, e[0].dims.length),
-                b = S("inputIndices", e[1].dataType, e[1].dims.length),
-                y = S("scales", e[2].dataType, e[2].dims.length),
-                g = e.length > 3 ? S("zeroPoint", e[3].dataType, e[3].dims.length) : void 0,
-                _ = C("output", d, a.length),
+              let h = S('data', e[0].dataType, e[0].dims.length),
+                b = S('inputIndices', e[1].dataType, e[1].dims.length),
+                y = S('scales', e[2].dataType, e[2].dims.length),
+                g = e.length > 3 ? S('zeroPoint', e[3].dataType, e[3].dims.length) : void 0,
+                _ = C('output', d, a.length),
                 w = [h, b, y];
               g && w.push(g);
               let v = [
-                { name: "output_size", type: "u32" },
-                { name: "quantize_axis", type: "u32" },
-                { name: "gather_axis", type: "u32" },
-                { name: "block_size", type: "u32" },
+                { name: 'output_size', type: 'u32' },
+                { name: 'quantize_axis', type: 'u32' },
+                { name: 'gather_axis', type: 'u32' },
+                { name: 'block_size', type: 'u32' },
               ];
               return `
 ${m.registerUniforms(v).declareVariables(...w, _)}
 ${m.mainStart()}
-let output_indices = ${_.offsetToIndices("global_idx")};
+let output_indices = ${_.offsetToIndices('global_idx')};
 var indices_indices = ${b.type.indices}(0);
 ${
   r.length > 1
     ? `
 for (var i: u32 = 0; i < ${r.length}; i++) {
- let index = ${_.indicesGet("output_indices", "uniforms.gather_axis + i")};
- ${b.indicesSet("indices_indices", "i", "index")};
+ let index = ${_.indicesGet('output_indices', 'uniforms.gather_axis + i')};
+ ${b.indicesSet('indices_indices', 'i', 'index')};
 }`
-    : `indices_indices = ${_.indicesGet("output_indices", "uniforms.gather_axis")};`
+    : `indices_indices = ${_.indicesGet('output_indices', 'uniforms.gather_axis')};`
 };
 var data_indices = ${h.type.indices}(0);
 for (var i: u32 = 0; i < uniforms.gather_axis; i++) {
-let index = ${_.indicesGet("output_indices", "i")};
-${h.indicesSet("data_indices", "i", "index")};
+let index = ${_.indicesGet('output_indices', 'i')};
+${h.indicesSet('data_indices', 'i', 'index')};
 }
-var index_from_indices = ${b.getByIndices("indices_indices")};
+var index_from_indices = ${b.getByIndices('indices_indices')};
 if (index_from_indices < 0) {
 index_from_indices += ${n[i]};
 }
-${h.indicesSet("data_indices", "uniforms.gather_axis", "u32(index_from_indices)")};
+${h.indicesSet('data_indices', 'uniforms.gather_axis', 'u32(index_from_indices)')};
 for (var i = uniforms.gather_axis + 1; i < ${a.length}; i++) {
-let index = ${_.indicesGet("output_indices", `i + ${r.length} - 1`)};
-${h.indicesSet("data_indices", "i", "index")};
+let index = ${_.indicesGet('output_indices', `i + ${r.length} - 1`)};
+${h.indicesSet('data_indices', 'i', 'index')};
 }
-let data_offset = ${h.indicesToOffset("data_indices")};
+let data_offset = ${h.indicesToOffset('data_indices')};
 let data_index = data_offset % 8;
 // Convert 4-bit packed data to 8-bit packed data.
-let packed_4bit_quantized_data = ${h.getByOffset("data_offset / 8")};
+let packed_4bit_quantized_data = ${h.getByOffset('data_offset / 8')};
 let packed_8bit_quantized_data = (packed_4bit_quantized_data >> (4 * (data_index % 2))) & 0x0f0f0f0f;
-let quantized_data_vec = ${c ? "unpack4xI8" : "unpack4xU8"}(u32(packed_8bit_quantized_data));
+let quantized_data_vec = ${c ? 'unpack4xI8' : 'unpack4xU8'}(u32(packed_8bit_quantized_data));
 let quantized_data = quantized_data_vec[data_index / 2];
 var scale_indices = data_indices;
 let quantize_axis_index = ${y.indicesGet(
-                "data_indices",
-                "uniforms.quantize_axis"
+                'data_indices',
+                'uniforms.quantize_axis'
               )} / uniforms.block_size;
-${y.indicesSet("scale_indices", "uniforms.quantize_axis", "quantize_axis_index")};
-var scale = ${y.getByIndices("scale_indices")};
+${y.indicesSet('scale_indices', 'uniforms.quantize_axis', 'quantize_axis_index')};
+var scale = ${y.getByIndices('scale_indices')};
 ${
   g
     ? `
    let zero_point_indices = scale_indices;
-   let zero_point_offset = ${g.indicesToOffset("zero_point_indices")};
+   let zero_point_offset = ${g.indicesToOffset('zero_point_indices')};
    let zero_point_index = zero_point_offset % 8;
-   let packed_4bit_zero_points = ${g.getByOffset("zero_point_offset / 8")};
+   let packed_4bit_zero_points = ${g.getByOffset('zero_point_offset / 8')};
    let packed_8bit_zero_points = (packed_4bit_zero_points >> (4 * (zero_point_index % 2))) & 0x0f0f0f0f;
-   let zero_point_vec = ${c ? "unpack4xI8" : "unpack4xU8"}(u32(packed_8bit_zero_points));
+   let zero_point_vec = ${c ? 'unpack4xI8' : 'unpack4xU8'}(u32(packed_8bit_zero_points));
    let zero_point = zero_point_vec[zero_point_index / 2];`
-    : "var zero_point = 0"
+    : 'var zero_point = 0'
 };
 let dequantized_data = ${le(d)}(quantized_data - zero_point) * scale;
-${_.setByOffset("global_idx", "dequantized_data")};
+${_.setByOffset('global_idx', 'dequantized_data')};
 }`;
             };
           return {
-            name: "GatherBlockQuantized",
+            name: 'GatherBlockQuantized',
             shaderCache: {
               hint: `${t.cacheKey};${e
                 .filter((m, h) => h !== 1)
-                .map((m) => m.dims.join("_"))
-                .join(";")}`,
-              inputDependencies: Array.from({ length: e.length }, (m, h) => "rank"),
+                .map((m) => m.dims.join('_'))
+                .join(';')}`,
+              inputDependencies: Array.from({ length: e.length }, (m, h) => 'rank'),
             },
             getRunData: () => ({
               outputs: [{ dims: a, dataType: d }],
@@ -8606,15 +8606,15 @@ ${_.setByOffset("global_idx", "dequantized_data")};
     Qs,
     Xs,
     Ys = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (Vl = (e) => {
-        if (!e || e.length !== 2) throw new Error("GatherElements requires 2 inputs.");
+        if (!e || e.length !== 2) throw new Error('GatherElements requires 2 inputs.');
         if (e[0].dims.length < 1)
-          throw new Error("GatherElements requires that the data input be rank >= 1.");
+          throw new Error('GatherElements requires that the data input be rank >= 1.');
         if (e[0].dims.length !== e[1].dims.length)
           throw new Error(`GatherElements requires that the data input and
           indices input tensors be of same rank.`);
@@ -8629,9 +8629,9 @@ ${_.setByOffset("global_idx", "dequantized_data")};
             u = n[a],
             d = i.slice(0),
             l = x.size(d),
-            c = S("input", r, o),
-            p = S("indicesInput", s, i.length),
-            f = C("output", r, d.length),
+            c = S('input', r, o),
+            p = S('indicesInput', s, i.length),
+            f = C('output', r, d.length),
             m = [
               { type: 12, data: l },
               { type: 6, data: u },
@@ -8640,8 +8640,8 @@ ${_.setByOffset("global_idx", "dequantized_data")};
           return (
             m.push(...P(n, i, d)),
             {
-              name: "GatherElements",
-              shaderCache: { inputDependencies: ["rank", "rank"] },
+              name: 'GatherElements',
+              shaderCache: { inputDependencies: ['rank', 'rank'] },
               getRunData: () => ({
                 outputs: [{ dims: d, dataType: e[0].dataType }],
                 dispatchGroup: { x: Math.ceil(l / 64) },
@@ -8649,24 +8649,24 @@ ${_.setByOffset("global_idx", "dequantized_data")};
               }),
               getShaderSource: (y) => `
 ${y
-  .registerUniform("outputSize", "u32")
-  .registerUniform("axisDimLimit", "i32")
-  .registerUniform("axis", "u32")
+  .registerUniform('outputSize', 'u32')
+  .registerUniform('axisDimLimit', 'i32')
+  .registerUniform('axis', 'u32')
   .declareVariables(c, p, f)}
 ${y.mainStart()}
-${y.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+${y.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
 
-let outputIndices = ${f.offsetToIndices("global_idx")};
+let outputIndices = ${f.offsetToIndices('global_idx')};
 
-var idx = ${p.getByOffset("global_idx")};
+var idx = ${p.getByOffset('global_idx')};
 if (idx < 0) {
 idx = idx + uniforms.axisDimLimit;
 }
 var inputIndices = ${c.type.indices}(outputIndices);
-${c.indicesSet("inputIndices", "uniforms.axis", "u32(idx)")};
-let value = ${c.getByIndices("inputIndices")};
+${c.indicesSet('inputIndices', 'uniforms.axis', 'u32(idx)')};
+let value = ${c.getByIndices('inputIndices')};
 
-${f.setByOffset("global_idx", "value")};
+${f.setByOffset('global_idx', 'value')};
 }`,
             }
           );
@@ -8682,16 +8682,16 @@ ${f.setByOffset("global_idx", "value")};
     Js,
     ea,
     ta = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       (Ll = (e) => {
-        if (!e) throw new Error("Input is missing");
-        if (e.length < 2 || e.length > 3) throw new Error("Invaid input number.");
-        if (e.length === 3 && e[2].dims.length > 2) throw new Error("Invalid input shape of C");
+        if (!e) throw new Error('Input is missing');
+        if (e.length < 2 || e.length > 3) throw new Error('Invaid input number.');
+        if (e.length === 3 && e[2].dims.length > 2) throw new Error('Invalid input shape of C');
         if (e[0].dataType !== e[1].dataType || (e.length === 3 && e[0].dataType !== e[2].dataType))
-          throw new Error("Input types are mismatched");
+          throw new Error('Input types are mismatched');
       }),
         (Gl = (e, t) => {
           let n = e[0].dims.slice(),
@@ -8718,41 +8718,41 @@ ${f.setByOffset("global_idx", "value")};
               { type: 1, data: t.alpha },
               { type: 1, data: t.beta },
             ],
-            m = ["type", "type"];
-          e.length === 3 && (f.push(...P(e[2].dims)), m.push("rank")), f.push(...P(a));
+            m = ['type', 'type'];
+          e.length === 3 && (f.push(...P(e[2].dims)), m.push('rank')), f.push(...P(a));
           let h = (y) => {
-              let g = "";
+              let g = '';
               t.transA && t.transB
-                ? (g = "value += a[k * uniforms.M + m] * b[n * uniforms.K + k];")
+                ? (g = 'value += a[k * uniforms.M + m] * b[n * uniforms.K + k];')
                 : t.transA && !t.transB
-                ? (g = "value += a[k * uniforms.M + m] * b[k * uniforms.N + n];")
+                ? (g = 'value += a[k * uniforms.M + m] * b[k * uniforms.N + n];')
                 : !t.transA && t.transB
-                ? (g = "value += a[m * uniforms.K + k] * b[n * uniforms.K + k];")
+                ? (g = 'value += a[m * uniforms.K + k] * b[n * uniforms.K + k];')
                 : !t.transA &&
                   !t.transB &&
-                  (g = "value += a[m * uniforms.K + k] * b[k * uniforms.N + n];");
-              let _ = t.alpha === 1 ? "" : "value *= uniforms.alpha;",
-                w = S("a", e[0].dataType, e[0].dims),
-                v = S("b", e[1].dataType, e[1].dims),
+                  (g = 'value += a[m * uniforms.K + k] * b[k * uniforms.N + n];');
+              let _ = t.alpha === 1 ? '' : 'value *= uniforms.alpha;',
+                w = S('a', e[0].dataType, e[0].dims),
+                v = S('b', e[1].dataType, e[1].dims),
                 $ = w.type.value,
                 T = null,
                 I = [w, v];
-              e.length === 3 && ((T = S("c", e[2].dataType, e[2].dims.length)), I.push(T));
-              let A = C("output", e[0].dataType, a.length);
+              e.length === 3 && ((T = S('c', e[2].dataType, e[2].dims.length)), I.push(T));
+              let A = C('output', e[0].dataType, a.length);
               I.push(A);
               let z = [
-                { name: "output_size", type: "u32" },
-                { name: "M", type: "u32" },
-                { name: "N", type: "u32" },
-                { name: "K", type: "u32" },
-                { name: "alpha", type: "f32" },
-                { name: "beta", type: "f32" },
+                { name: 'output_size', type: 'u32' },
+                { name: 'M', type: 'u32' },
+                { name: 'N', type: 'u32' },
+                { name: 'K', type: 'u32' },
+                { name: 'alpha', type: 'f32' },
+                { name: 'beta', type: 'f32' },
               ];
               return `
 ${y.registerUniforms(z).declareVariables(...I)}
 
 ${y.mainStart()}
-${y.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${y.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 
 let m = global_idx / uniforms.N;
 let n = global_idx % uniforms.N;
@@ -8766,32 +8766,32 @@ ${_}
 ${
   T != null
     ? `let cOffset = ${T.broadcastedIndicesToOffset(
-        "vec2(m, n)",
+        'vec2(m, n)',
         A
-      )}; value += ${$}(uniforms.beta) * ${T.getByOffset("cOffset")};`
-    : ""
+      )}; value += ${$}(uniforms.beta) * ${T.getByOffset('cOffset')};`
+    : ''
 }
 output[global_idx] = value;
 }`;
             },
             b = (y) => {
-              let g = S("a", e[0].dataType, e[0].dims),
-                _ = S("b", e[1].dataType, e[1].dims),
+              let g = S('a', e[0].dataType, e[0].dims),
+                _ = S('b', e[1].dataType, e[1].dims),
                 w = null,
                 v = [g, _];
-              e.length === 3 && ((w = S("c", e[2].dataType, e[2].dims.length)), v.push(w));
-              let $ = C("output", e[0].dataType, a.length);
+              e.length === 3 && ((w = S('c', e[2].dataType, e[2].dims.length)), v.push(w));
+              let $ = C('output', e[0].dataType, a.length);
               v.push($);
               let T = [
-                  { name: "num_tile_n", type: "u32" },
-                  { name: "M", type: "u32" },
-                  { name: "N", type: "u32" },
-                  { name: "K", type: "u32" },
-                  { name: "alpha", type: "f32" },
-                  { name: "beta", type: "f32" },
+                  { name: 'num_tile_n', type: 'u32' },
+                  { name: 'M', type: 'u32' },
+                  { name: 'N', type: 'u32' },
+                  { name: 'K', type: 'u32' },
+                  { name: 'alpha', type: 'f32' },
+                  { name: 'beta', type: 'f32' },
                 ],
-                I = "",
-                A = "";
+                I = '',
+                A = '';
               t.transA && t.transB
                 ? ((A = `
 var col = tile_row_start + local_id.x;
@@ -8810,7 +8810,7 @@ tile_b[local_id.y][local_id.x] = b[row * uniforms.K + col];
 tile_b[local_id.y][local_id.x] = ${_.type.value}(0);
 }
 `),
-                  (I = "value += tile_a[k][local_id.y] * tile_b[local_id.x][k];"))
+                  (I = 'value += tile_a[k][local_id.y] * tile_b[local_id.x][k];'))
                 : t.transA && !t.transB
                 ? ((A = `
 var col = tile_row_start + local_id.x;
@@ -8829,7 +8829,7 @@ tile_b[local_id.y][local_id.x] = b[row * uniforms.N + col];
 tile_b[local_id.y][local_id.x] = ${_.type.value}(0);
 }
 `),
-                  (I = "value += tile_a[k][local_id.y] * tile_b[k][local_id.x];"))
+                  (I = 'value += tile_a[k][local_id.y] * tile_b[k][local_id.x];'))
                 : !t.transA && t.transB
                 ? ((A = `
 var col = k_start + local_id.x;
@@ -8848,7 +8848,7 @@ tile_b[local_id.y][local_id.x] = b[row * uniforms.K + col];
 tile_b[local_id.y][local_id.x] = ${_.type.value}(0);
 }
 `),
-                  (I = "value += tile_a[local_id.y][k] * tile_b[local_id.x][k];"))
+                  (I = 'value += tile_a[local_id.y][k] * tile_b[local_id.x][k];'))
                 : !t.transA &&
                   !t.transB &&
                   ((A = `
@@ -8868,8 +8868,8 @@ tile_b[local_id.y][local_id.x] = b[row * uniforms.N + col];
 tile_b[local_id.y][local_id.x] = ${_.type.value}(0);
 }
 `),
-                  (I = "value += tile_a[local_id.y][k] * tile_b[k][local_id.x];"));
-              let z = t.alpha === 1 ? "" : "value *= uniforms.alpha;";
+                  (I = 'value += tile_a[local_id.y][k] * tile_b[k][local_id.x];'));
+              let z = t.alpha === 1 ? '' : 'value *= uniforms.alpha;';
               return `
 ${y.registerUniforms(T).declareVariables(...v)}
 var<workgroup> tile_a: array<array<${g.type.storage}, ${u}>, ${u}>;
@@ -8896,10 +8896,10 @@ let m = tile_row_start + local_id.y;
 let n = tile_col_start + local_id.x;
 ${
   w != null
-    ? `let cOffset = ${w.broadcastedIndicesToOffset("vec2(m, n)", $)}; value += ${
+    ? `let cOffset = ${w.broadcastedIndicesToOffset('vec2(m, n)', $)}; value += ${
         $.type.value
-      }(uniforms.beta) * ${w.getByOffset("cOffset")};`
-    : ""
+      }(uniforms.beta) * ${w.getByOffset('cOffset')};`
+    : ''
 }
 if (m < uniforms.M && n < uniforms.N) {
 output[m * uniforms.N + n] = value;
@@ -8908,7 +8908,7 @@ output[m * uniforms.N + n] = value;
             };
           return c
             ? {
-                name: "GemmShared",
+                name: 'GemmShared',
                 shaderCache: { hint: `${t.cacheKey}`, inputDependencies: m },
                 getRunData: () => ({
                   outputs: [{ dims: a, dataType: e[0].dataType }],
@@ -8918,7 +8918,7 @@ output[m * uniforms.N + n] = value;
                 getShaderSource: b,
               }
             : {
-                name: "Gemm",
+                name: 'Gemm',
                 shaderCache: { hint: `${t.cacheKey}`, inputDependencies: m },
                 getRunData: () => ({
                   outputs: [{ dims: a, dataType: e[0].dataType }],
@@ -8960,20 +8960,20 @@ output[m * uniforms.N + n] = value;
     na,
     ra,
     oa = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       ([Ue, qe, rt, ot] = [0, 1, 2, 3]),
         (Wl = (e) => {
-          if (e[0].dims.length !== 4) throw new Error("only 4-D tensor is supported.");
+          if (e[0].dims.length !== 4) throw new Error('only 4-D tensor is supported.');
           if (e[0].dims.length !== e[1].dims.length)
-            throw new Error("input dimensions must be equal to grid dimensions");
+            throw new Error('input dimensions must be equal to grid dimensions');
           if (e[0].dims.length - 2 !== e[1].dims[e[1].dims.length - 1])
             throw new Error(`last dimension of grid must be equal to ${e[0].dims.length - 2}`);
           if (e[0].dims[0] !== e[1].dims[0])
-            throw new Error("grid batch size must match input batch size");
+            throw new Error('grid batch size must match input batch size');
         }),
         (Hl = `
 fn gs_get_cubic_coeffs(x: f32) -> vec4<f32> {
@@ -9016,7 +9016,7 @@ return (n + 1.0) / 2.0 * (f32(length - 1));
 `),
         (Kl = (e) => `
 ${
-  e.paddingMode === "reflection"
+  e.paddingMode === 'reflection'
     ? `
 fn gs_reflect(x: i32, x_min: f32, x_max: f32) -> u32 {
 var dx = 0.0;
@@ -9043,7 +9043,7 @@ if (n % 2 == 0) {
 }
 return u32(fx);
 }`
-    : ""
+    : ''
 }
 `),
         (jl = (e, t, n) =>
@@ -9055,7 +9055,7 @@ indices[${Ue}] = batch;
 indices[${qe}] = channel;` +
           (() => {
             switch (n.paddingMode) {
-              case "zeros":
+              case 'zeros':
                 return `
 if (r >= 0 && r < H && c >=0 && c < W) {
  indices[${rt}] = u32(r);
@@ -9064,12 +9064,12 @@ if (r >= 0 && r < H && c >=0 && c < W) {
  return ${t}(0);
 }
 `;
-              case "border":
+              case 'border':
                 return `
 indices[${rt}] = u32(clamp(r, 0, H - 1));
 indices[${ot}] = u32(clamp(c, 0, W - 1));
 `;
-              case "reflection":
+              case 'reflection':
                 return `
 indices[${rt}] = gs_reflect(r, border[1], border[3]);
 indices[${ot}] = gs_reflect(c, border[0], border[2]);
@@ -9079,17 +9079,17 @@ indices[${ot}] = gs_reflect(c, border[0], border[2]);
             }
           })() +
           `
-return ${e.getByIndices("indices")};
+return ${e.getByIndices('indices')};
 }
 `),
         (Zl = (e, t, n) =>
           (() => {
             switch (n.mode) {
-              case "nearest":
+              case 'nearest':
                 return `
 let result = pixel_at_grid(i32(round(y)), i32(round(x)), H_in, W_in, indices[${Ue}], indices[${qe}], border);
 `;
-              case "bilinear":
+              case 'bilinear':
                 return `
 let x1 = i32(floor(x));
 let y1 = i32(floor(y));
@@ -9107,7 +9107,7 @@ let dy2 = ${t}(f32(y2) - y);
 let dy1 = ${t}(y - f32(y1));
 let result = dy2 * (dx2 * p11 + dx1 * p12) + dy1 * (dx2 * p21 + dx1 * p22);
 `;
-              case "bicubic":
+              case 'bicubic':
                 return `
 let x0 = i32(floor(x)) - 1;
 let y0 = i32(floor(y)) - 1;
@@ -9125,21 +9125,21 @@ let result = gs_bicubic_interpolate(p, dx, dy);
               default:
                 throw new Error(`mode ${n.mode} is not supported`);
             }
-          })() + `${e.setByOffset("global_idx", "result")}`),
+          })() + `${e.setByOffset('global_idx', 'result')}`),
         (Ql = (e, t) => {
-          let n = S("x", e[0].dataType, e[0].dims.length),
+          let n = S('x', e[0].dataType, e[0].dims.length),
             r = [e[1].dims[0], e[1].dims[1], e[1].dims[2]],
-            o = S("grid", e[1].dataType, r.length, 2),
+            o = S('grid', e[1].dataType, r.length, 2),
             i = [e[0].dims[0], e[0].dims[1], e[1].dims[1], e[1].dims[2]];
-          t.format === "NHWC" &&
+          t.format === 'NHWC' &&
             ((i = [e[0].dims[0], e[1].dims[1], e[1].dims[2], e[0].dims[3]]),
             ([Ue, qe, rt, ot] = [0, 3, 1, 2]));
-          let s = C("output", e[0].dataType, i.length),
+          let s = C('output', e[0].dataType, i.length),
             a = n.type.value,
             u = x.size(i),
             d = [{ type: 12, data: u }, ...P(e[0].dims, r, i)],
             l = (c) => `
-${c.registerUniform("output_size", "u32").declareVariables(n, o, s)}
+${c.registerUniform('output_size', 'u32').declareVariables(n, o, s)}
 ${Hl}
 ${ql(a)}
 ${Fl(t)}
@@ -9147,7 +9147,7 @@ ${Kl(t)}
 ${jl(n, a, t)}
 
 ${c.mainStart()}
-${c.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${c.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 let H_in = i32(uniforms.x_shape[${rt}]);
 let W_in = i32(uniforms.x_shape[${ot}]);
 
@@ -9168,17 +9168,17 @@ let y_max = f32(H_in) - 1.0;
 };
 let border = vec4<f32>(x_min, y_min, x_max, y_max);
 
-let indices = ${s.offsetToIndices("global_idx")};
+let indices = ${s.offsetToIndices('global_idx')};
 var grid_indices = vec3<u32>(indices[${Ue}], indices[${rt}], indices[${ot}]);
-let nxy = ${o.getByIndices("grid_indices")};
+let nxy = ${o.getByIndices('grid_indices')};
 var x = gs_denormalize(f32(nxy[0]), W_in);
 var y = gs_denormalize(f32(nxy[1]), H_in);
 
 ${Zl(s, a, t)}
 }`;
           return {
-            name: "GridSample",
-            shaderCache: { hint: `${t.cacheKey}`, inputDependencies: ["type", "type"] },
+            name: 'GridSample',
+            shaderCache: { hint: `${t.cacheKey}`, inputDependencies: ['type', 'type'] },
             getRunData: (c) => {
               let p = x.size(i);
               return {
@@ -9209,7 +9209,7 @@ ${Zl(s, a, t)}
     yt,
     aa,
     or = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
@@ -9228,7 +9228,7 @@ ${Zl(s, a, t)}
             u = he(e, 6),
             d = he(e, 7);
           if (n.dims.length !== 3 && n.dims.length !== 5)
-            throw new Error("Input query is expected to have 3 or 5 dimensions");
+            throw new Error('Input query is expected to have 3 or 5 dimensions');
           let l = n.dims[0],
             c = n.dims[1],
             p = n.dims.length === 3 ? n.dims[2] : t.numHeads * n.dims[4],
@@ -9297,7 +9297,7 @@ ${Zl(s, a, t)}
             if (i.dims.length !== 1)
               throw new Error('Input "bias" is expected to have 1 dimension');
             if (r && r.dims.length === 5 && r.dims[3] === 2)
-              throw new Error("bias is not allowed for packed kv.");
+              throw new Error('bias is not allowed for packed kv.');
           }
           let g = m + f,
             _ = 0;
@@ -9314,7 +9314,7 @@ ${Zl(s, a, t)}
                 ? new Error(
                     'Input "key_padding_mask" shape shall be (batch_size) or (batch_size, total_sequence_length)'
                   )
-                : new Error("Mask not supported"))
+                : new Error('Mask not supported'))
             );
           }
           let w = !1,
@@ -9339,7 +9339,7 @@ ${Zl(s, a, t)}
             }
           }
           let $ = !1;
-          if (s && x.size(s.dims) > 0) throw new Error("Key padding mask is not supported");
+          if (s && x.size(s.dims) > 0) throw new Error('Key padding mask is not supported');
           if (a && x.size(a.dims) > 0) {
             if (a.dims.length !== 4)
               throw new Error('Input "attention_bias" is expected to have 4 dimensions');
@@ -9382,18 +9382,18 @@ ${Zl(s, a, t)}
               { type: 12, data: i },
             ],
             l = (c) => {
-              let p = C("qkv_with_bias", t.dataType, a),
-                f = S("qkv", t.dataType, a),
-                m = S("bias", n.dataType, a),
+              let p = C('qkv_with_bias', t.dataType, a),
+                f = S('qkv', t.dataType, a),
+                m = S('bias', n.dataType, a),
                 h = [
-                  { name: "output_size", type: "u32" },
-                  { name: "bias_offset", type: "u32" },
-                  { name: "hidden_size", type: "u32" },
+                  { name: 'output_size', type: 'u32' },
+                  { name: 'bias_offset', type: 'u32' },
+                  { name: 'hidden_size', type: 'u32' },
                 ];
               return `
 ${c.registerUniforms(h).declareVariables(f, m, p)}
 ${c.mainStart()}
-${c.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${c.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 let bias_offset_idx = (global_idx % uniforms.hidden_size) + uniforms.bias_offset;
 
 qkv_with_bias[global_idx] = qkv[global_idx] + bias[bias_offset_idx];
@@ -9401,8 +9401,8 @@ qkv_with_bias[global_idx] = qkv[global_idx] + bias[bias_offset_idx];
             };
           return e.compute(
             {
-              name: "MultiHeadAttentionAddBias",
-              shaderCache: { inputDependencies: ["type", "type"] },
+              name: 'MultiHeadAttentionAddBias',
+              shaderCache: { inputDependencies: ['type', 'type'] },
               getRunData: () => ({
                 outputs: [{ dims: a, dataType: t.dataType, gpuDataType: 0 }],
                 dispatchGroup: { x: Math.ceil(u / 64) },
@@ -9418,7 +9418,7 @@ qkv_with_bias[global_idx] = qkv[global_idx] + bias[bias_offset_idx];
           if (s && x.size(s.dims) > 0) {
             if (r === 1)
               throw new Error(
-                "AddBiasReshape is not implemented. Please export your model with packed QKV or KV"
+                'AddBiasReshape is not implemented. Please export your model with packed QKV or KV'
               );
             return (
               (u = ec(e, i, s, t, r, n * o, a)),
@@ -9441,12 +9441,12 @@ qkv_with_bias[global_idx] = qkv[global_idx] + bias[bias_offset_idx];
             u = he(e.inputs, 5),
             d = he(e.inputs, 6),
             l = he(e.inputs, 7);
-          if (r.dims.length === 5) throw new Error("Packed QKV is not implemented");
-          if (o?.dims.length === 5) throw new Error("Packed KV is not implemented");
+          if (r.dims.length === 5) throw new Error('Packed QKV is not implemented');
+          if (o?.dims.length === 5) throw new Error('Packed KV is not implemented');
           let c = o && i && o.dims.length === 4 && i.dims.length === 4,
             p = yt(e, n.batchSize, n.numHeads, n.sequenceLength, n.headSize, r, s, 0);
           if (c) return nt(e, p, o, i, a, void 0, d, l, u, n);
-          if (!o || !i) throw new Error("key and value must be provided");
+          if (!o || !i) throw new Error('key and value must be provided');
           let f = yt(
               e,
               n.batchSize,
@@ -9478,13 +9478,13 @@ qkv_with_bias[global_idx] = qkv[global_idx] + bias[bias_offset_idx];
     ua,
     da,
     sr = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (tc = (e) => {
-        if (!e || e.length < 1) throw new Error("too few inputs");
+        if (!e || e.length < 1) throw new Error('too few inputs');
       }),
         (nc = (e, t) => {
           let n = [],
@@ -9498,7 +9498,7 @@ qkv_with_bias[global_idx] = qkv[global_idx] + bias[bias_offset_idx];
         (rc = (e) => `
 fn calculateOutputIndex(index: u32) -> u32 {
 for (var i: u32 = 0u; i < ${e}u; i += 1u ) {
-if (index < ${B("uniforms.size_in_split_axis", "i", e)}) {
+if (index < ${B('uniforms.size_in_split_axis', 'i', e)}) {
 return i;
 }
 }
@@ -9508,7 +9508,7 @@ return ${e}u;
           let t = e.length,
             n = [];
           for (let r = 0; r < t; ++r) {
-            let o = e[r].setByIndices("indices", "input[global_idx]");
+            let o = e[r].setByIndices('indices', 'input[global_idx]');
             t === 1
               ? n.push(o)
               : r === 0
@@ -9529,7 +9529,7 @@ ${n.join(`
             o = e[0].dataType,
             i = x.normalizeAxis(t.axis, n.length),
             s = new Array(t.numOutputs),
-            a = S("input", o, n.length),
+            a = S('input', o, n.length),
             u = new Array(t.numOutputs),
             d = [],
             l = [],
@@ -9546,27 +9546,27 @@ ${n.join(`
           p.push({ type: 12, data: u }, ...P(n, ...l));
           let f = (m) => `
 ${m
-  .registerUniform("input_size", "u32")
-  .registerUniform("size_in_split_axis", "u32", u.length)
+  .registerUniform('input_size', 'u32')
+  .registerUniform('size_in_split_axis', 'u32', u.length)
   .declareVariables(a, ...s)}
 ${rc(u.length)}
 ${oc(s)}
 
 ${m.mainStart()}
-${m.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.input_size")}
+${m.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.input_size')}
 
-var indices = ${a.offsetToIndices("global_idx")};
-var index = ${a.indicesGet("indices", i)};
+var indices = ${a.offsetToIndices('global_idx')};
+var index = ${a.indicesGet('indices', i)};
 let output_number = calculateOutputIndex(index);
 if (output_number != 0) {
-index -= ${B("uniforms.size_in_split_axis", "output_number - 1u", u.length)};
-${a.indicesSet("indices", i, "index")};
+index -= ${B('uniforms.size_in_split_axis', 'output_number - 1u', u.length)};
+${a.indicesSet('indices', i, 'index')};
 }
 writeBufferData(output_number, indices, global_idx);
 }`;
           return {
-            name: "Split",
-            shaderCache: { hint: t.cacheKey, inputDependencies: ["rank"] },
+            name: 'Split',
+            shaderCache: { hint: t.cacheKey, inputDependencies: ['rank'] },
             getShaderSource: f,
             getRunData: () => ({
               outputs: d,
@@ -9584,7 +9584,7 @@ writeBufferData(output_number, indices, global_idx);
           let t = e.axis,
             n = e.splitSizes,
             r = e.numOutputs < 0 ? n.length : e.numOutputs;
-          if (r !== n.length) throw new Error("numOutputs and splitSizes lengh must be equal");
+          if (r !== n.length) throw new Error('numOutputs and splitSizes lengh must be equal');
           return N({ axis: t, numOutputs: r, splitSizes: n });
         });
     });
@@ -9592,7 +9592,7 @@ writeBufferData(output_number, indices, global_idx);
     dn,
     la,
     ar = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
@@ -9617,13 +9617,13 @@ writeBufferData(output_number, indices, global_idx);
         if (!x.areEqual(o.dims, i.dims))
           throw new Error("Inputs 'cos_cache' and 'sin_cache' are expected to have the same shape");
         if (a > 0 && s === 0)
-          throw new Error("num_heads must be provided if rotary_embedding_dim is specified");
+          throw new Error('num_heads must be provided if rotary_embedding_dim is specified');
         let u = n.dims[0],
           d = n.dims[n.dims.length - 2],
           l = o.dims[0],
           c = x.sizeFromDimension(n.dims, 1) / d,
           p = a === 0 ? o.dims[1] * 2 : c / s;
-        if (a > p) throw new Error("rotary_embedding_dim must be less than or equal to head_size");
+        if (a > p) throw new Error('rotary_embedding_dim must be less than or equal to head_size');
         if (r.dims.length === 2) {
           if (u !== r.dims[0])
             throw new Error(
@@ -9640,7 +9640,7 @@ writeBufferData(output_number, indices, global_idx);
           );
         if (d > l)
           throw new Error(
-            "Updating cos_cache and sin_cache in RotaryEmbedding is not currently supported"
+            'Updating cos_cache and sin_cache in RotaryEmbedding is not currently supported'
           );
       }),
         (dn = (e, t) => {
@@ -9662,17 +9662,17 @@ writeBufferData(output_number, indices, global_idx);
               ...P(e[0].dims, e[1].dims, e[2].dims, e[3].dims, e[0].dims),
             ],
             h = (b) => {
-              let y = S("input", e[0].dataType, e[0].dims.length),
-                g = S("position_ids", e[1].dataType, e[1].dims.length),
-                _ = S("cos_cache", e[2].dataType, e[2].dims.length),
-                w = S("sin_cache", e[3].dataType, e[3].dims.length),
-                v = C("output", e[0].dataType, e[0].dims.length);
+              let y = S('input', e[0].dataType, e[0].dims.length),
+                g = S('position_ids', e[1].dataType, e[1].dims.length),
+                _ = S('cos_cache', e[2].dataType, e[2].dims.length),
+                w = S('sin_cache', e[3].dataType, e[3].dims.length),
+                v = C('output', e[0].dataType, e[0].dims.length);
               return (
                 b.registerUniforms([
-                  { name: "scale", type: "f32" },
-                  { name: "global_shape", type: "u32", length: p.length },
-                  { name: "global_strides", type: "u32", length: f.length },
-                  { name: "input_output_strides", type: "u32", length: f.length },
+                  { name: 'scale', type: 'f32' },
+                  { name: 'global_shape', type: 'u32', length: p.length },
+                  { name: 'global_strides', type: 'u32', length: f.length },
+                  { name: 'input_output_strides', type: 'u32', length: f.length },
                 ]),
                 `
 ${b.declareVariables(y, g, _, w, v)}
@@ -9681,33 +9681,33 @@ ${b.mainStart(Qe)}
 let half_rotary_emb_dim = uniforms.${_.name}_shape[1];
 let bsnh = global_idx / uniforms.global_strides % uniforms.global_shape;
 let size = uniforms.global_shape[0] * uniforms.global_strides[0];
-${b.guardAgainstOutOfBoundsWorkgroupSizes("size")}
+${b.guardAgainstOutOfBoundsWorkgroupSizes('size')}
 
 if (bsnh[3] < half_rotary_emb_dim) {
  let position_ids_idx =
-     ${g.broadcastedIndicesToOffset("bsnh.xy", C("", g.type.tensor, 2))};
+     ${g.broadcastedIndicesToOffset('bsnh.xy', C('', g.type.tensor, 2))};
  let position_id =
-     u32(${g.getByOffset("position_ids_idx")}) + select(0, bsnh[1], position_ids_idx == 0);
+     u32(${g.getByOffset('position_ids_idx')}) + select(0, bsnh[1], position_ids_idx == 0);
  let i = dot(bsnh, uniforms.input_output_strides) + select(0, bsnh[3], ${n});
  let j = i + select(half_rotary_emb_dim, 1, ${n});
- let re = ${y.getByOffset("i")} * ${_.get("position_id", "bsnh[3]")} -
-     ${y.getByOffset("j")} * ${w.get("position_id", "bsnh[3]")};
- ${v.setByOffset("i", "re")}
- let im = ${y.getByOffset("i")} * ${w.get("position_id", "bsnh[3]")} +
-     ${y.getByOffset("j")} * ${_.get("position_id", "bsnh[3]")};
- ${v.setByOffset("j", "im")}
+ let re = ${y.getByOffset('i')} * ${_.get('position_id', 'bsnh[3]')} -
+     ${y.getByOffset('j')} * ${w.get('position_id', 'bsnh[3]')};
+ ${v.setByOffset('i', 're')}
+ let im = ${y.getByOffset('i')} * ${w.get('position_id', 'bsnh[3]')} +
+     ${y.getByOffset('j')} * ${_.get('position_id', 'bsnh[3]')};
+ ${v.setByOffset('j', 'im')}
 } else {
  let k = dot(bsnh, uniforms.input_output_strides) + half_rotary_emb_dim;
- ${v.setByOffset("k", y.getByOffset("k"))}
+ ${v.setByOffset('k', y.getByOffset('k'))}
 }
 }`
               );
             };
           return {
-            name: "RotaryEmbedding",
+            name: 'RotaryEmbedding',
             shaderCache: {
               hint: N({ interleaved: n }).cacheKey,
-              inputDependencies: ["rank", "rank", "rank", "rank"],
+              inputDependencies: ['rank', 'rank', 'rank', 'rank'],
             },
             getShaderSource: h,
             getRunData: () => ({
@@ -9727,7 +9727,7 @@ if (bsnh[3] < half_rotary_emb_dim) {
     uc,
     pa,
     ma = E(() => {
-      "use strict";
+      'use strict';
       ie();
       V();
       Yt();
@@ -9738,20 +9738,20 @@ if (bsnh[3] < half_rotary_emb_dim) {
       K();
       (sc = (e, t) => {
         if (t.doRotary && e.length <= 7)
-          throw new Error("cos_cache and sin_cache inputs are required if do_rotary is specified");
+          throw new Error('cos_cache and sin_cache inputs are required if do_rotary is specified');
         let n = e[0],
           r = e[1],
           o = e[2],
           i = e[3],
           s = e[4];
         if (t.doRotary !== 0 && e.length <= 7)
-          throw new Error("cos_cast and sin_cache are expected if do_rotary attribute is non-zero");
-        if (t.localWindowSize !== -1) throw new Error("Local attention is not supported");
-        if (t.softcap !== 0) throw new Error("Softcap is not supported");
-        if (t.rotaryInterleaved !== 0) throw new Error("Rotary interleaved is not supported");
-        if (t.smoothSoftmax) throw new Error("Smooth softmax is not supported");
+          throw new Error('cos_cast and sin_cache are expected if do_rotary attribute is non-zero');
+        if (t.localWindowSize !== -1) throw new Error('Local attention is not supported');
+        if (t.softcap !== 0) throw new Error('Softcap is not supported');
+        if (t.rotaryInterleaved !== 0) throw new Error('Rotary interleaved is not supported');
+        if (t.smoothSoftmax) throw new Error('Smooth softmax is not supported');
         if (n.dims.length !== 3 && n.dims.length !== 5)
-          throw new Error("Input query is expected to have 3 or 5 dimensions");
+          throw new Error('Input query is expected to have 3 or 5 dimensions');
         let a = !1,
           u = n.dims[0],
           d = n.dims[1],
@@ -9771,7 +9771,7 @@ if (bsnh[3] < half_rotary_emb_dim) {
           i.dims[2] === t.kvNumHeads &&
           i.dims[3] === m
         )
-          throw new Error("BSNH pastKey/pastValue is not supported");
+          throw new Error('BSNH pastKey/pastValue is not supported');
         if (h && b) {
           if (i.dims.length !== 4)
             throw new Error('Input "past_key" is expected to have 4 dimensions');
@@ -9881,7 +9881,7 @@ if (bsnh[3] < half_rotary_emb_dim) {
         }),
         (uc = (e, t, n, r) => {
           let o = 7,
-            i = ["type", "type"],
+            i = ['type', 'type'],
             s = [e * t],
             a = e * t,
             u = [
@@ -9890,25 +9890,25 @@ if (bsnh[3] < half_rotary_emb_dim) {
               { type: 12, data: e },
             ],
             d = (l) => {
-              let c = S("seq_lens", n.dataType, n.dims),
-                p = S("total_seq_lens", r.dataType, r.dims),
-                f = C("pos_ids", o, s),
+              let c = S('seq_lens', n.dataType, n.dims),
+                p = S('total_seq_lens', r.dataType, r.dims),
+                f = C('pos_ids', o, s),
                 m = [
-                  { name: "output_size", type: "u32" },
-                  { name: "sequence_length", type: "u32" },
-                  { name: "batch_size", type: "u32" },
+                  { name: 'output_size', type: 'u32' },
+                  { name: 'sequence_length', type: 'u32' },
+                  { name: 'batch_size', type: 'u32' },
                 ];
               return `
 ${l.registerUniforms(m).declareVariables(c, p, f)}
 ${l.mainStart()}
-${l.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
-let total_sequence_length = u32(${p.getByOffset("0")});
+${l.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
+let total_sequence_length = u32(${p.getByOffset('0')});
 let is_subsequent_prompt = uniforms.sequence_length > 1 && uniforms.sequence_length != total_sequence_length;
 let is_first_prompt = !is_subsequent_prompt && uniforms.sequence_length == total_sequence_length;
 let batch_idx = global_idx / uniforms.sequence_length;
 let sequence_idx = i32(global_idx % uniforms.sequence_length);
 var pos_id: i32 = 0;
-let seqlen = ${c.getByOffset("batch_idx")};
+let seqlen = ${c.getByOffset('batch_idx')};
 let total_seqlen = seqlen + 1;
 if (is_first_prompt) {
 if (sequence_idx < total_seqlen) {
@@ -9916,7 +9916,7 @@ pos_id = sequence_idx;
 } else {
 pos_id = 1;
 }
-${f.setByOffset("global_idx", "pos_id")}
+${f.setByOffset('global_idx', 'pos_id')}
 } else if (is_subsequent_prompt) {
 let past_seqlen = total_seqlen - i32(uniforms.sequence_length);
 if (past_seqlen + sequence_idx < total_seqlen) {
@@ -9924,15 +9924,15 @@ pos_id = past_seqlen + sequence_idx;
 } else {
 pos_id = 1;
 }
-${f.setByOffset("global_idx", "pos_id")}
+${f.setByOffset('global_idx', 'pos_id')}
 } else if (global_idx < uniforms.batch_size) {
-${f.setByOffset("global_idx", "seqlen")}
+${f.setByOffset('global_idx', 'seqlen')}
 };
 }
 `;
             };
           return {
-            name: "GeneratePositionIds",
+            name: 'GeneratePositionIds',
             shaderCache: { hint: `${e};${t}`, inputDependencies: i },
             getRunData: () => ({
               outputs: [{ dims: s, dataType: o }],
@@ -9944,8 +9944,8 @@ ${f.setByOffset("global_idx", "seqlen")}
         }),
         (pa = (e, t) => {
           let n = sc(e.inputs, t);
-          if (e.inputs[0].dims.length === 5) throw new Error("Packed QKV is not implemented");
-          if (e.inputs[1]?.dims.length === 5) throw new Error("Packed KV is not implemented");
+          if (e.inputs[0].dims.length === 5) throw new Error('Packed QKV is not implemented');
+          if (e.inputs[1]?.dims.length === 5) throw new Error('Packed KV is not implemented');
           let r = e.inputs[0],
             o = e.inputs[1] && e.inputs[1].dims.length > 0 ? e.inputs[1] : void 0,
             i = e.inputs[2] && e.inputs[2].dims.length > 0 ? e.inputs[2] : void 0,
@@ -10007,28 +10007,28 @@ ${f.setByOffset("global_idx", "seqlen")}
     lc,
     ha,
     ga = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       Re();
       K();
       (fa = (e, t, n, r, o, i, s, a) => {
         let u = X(i),
-          d = u === 1 ? "f32" : `vec${u}f`,
-          l = u === 1 ? "vec2f" : `mat2x${u}f`,
+          d = u === 1 ? 'f32' : `vec${u}f`,
+          l = u === 1 ? 'vec2f' : `mat2x${u}f`,
           c = o * s,
           p = 64;
         c === 1 && (p = 256);
         let f = [o, s, i / u],
           m = [o, s, 2],
-          h = ["rank", "type", "type"],
+          h = ['rank', 'type', 'type'],
           b = [];
         b.push(...P(f, m));
         let y = (g) => {
-          let _ = S("x", t.dataType, 3, u),
-            w = S("scale", n.dataType, n.dims),
-            v = S("bias", r.dataType, r.dims),
-            $ = C("output", 1, 3, 2),
+          let _ = S('x', t.dataType, 3, u),
+            w = S('scale', n.dataType, n.dims),
+            v = S('bias', r.dataType, r.dims),
+            $ = C('output', 1, 3, 2),
             T = [_, w, v, $];
           return `
 var<workgroup> workgroup_shared : array<${l}, ${p}>;
@@ -10042,7 +10042,7 @@ let hight = uniforms.x_shape[2];
 var sum = ${d}(0);
 var squared_sum = ${d}(0);
 for (var h = local_idx; h < hight; h += workgroup_size) {
-let value = ${d}(${_.get("batch", "channel", "h")});
+let value = ${d}(${_.get('batch', 'channel', 'h')});
 sum += value;
 squared_sum += value * value;
 }
@@ -10056,8 +10056,8 @@ workgroup_shared[local_idx] = workgroup_shared[local_idx] + workgroup_shared[loc
 workgroupBarrier();
 }
 if (local_idx == 0) {
-let sum_final = ${Te("workgroup_shared[0][0]", u)} / f32(hight * ${u});
-let squared_sum_final = ${Te("workgroup_shared[0][1]", u)} / f32(hight * ${u});
+let sum_final = ${Te('workgroup_shared[0][0]', u)} / f32(hight * ${u});
+let squared_sum_final = ${Te('workgroup_shared[0][1]', u)} / f32(hight * ${u});
 
 let inv_std_dev = inverseSqrt(squared_sum_final - sum_final * sum_final + f32(${a}));
 let channel_scale = inv_std_dev * f32(scale[channel]);
@@ -10068,7 +10068,7 @@ output[workgroup_index] = vec2f(channel_scale, channel_shift);
         };
         return e.compute(
           {
-            name: "InstanceNormComputeChannelScaleShift",
+            name: 'InstanceNormComputeChannelScaleShift',
             shaderCache: { hint: `${u};${a};${p}`, inputDependencies: h },
             getRunData: () => ({
               outputs: [{ dims: m, dataType: 1 }],
@@ -10092,29 +10092,29 @@ output[workgroup_index] = vec2f(channel_scale, channel_shift);
             c = fa(e, t[0], t[1], t[2], s, u, a, n.epsilon),
             p = [s, a, u / d],
             f = [s, a],
-            m = ["type", "none"],
+            m = ['type', 'none'],
             h = (b) => {
-              let y = S("x", t[0].dataType, p.length, d),
-                g = S("scale_shift", 1, f.length, 2),
-                _ = C("output", t[0].dataType, p.length, d),
+              let y = S('x', t[0].dataType, p.length, d),
+                g = S('scale_shift', 1, f.length, 2),
+                _ = C('output', t[0].dataType, p.length, d),
                 w = [y, g, _];
               return `
-${b.registerUniform("output_size", "u32").declareVariables(...w)}
+${b.registerUniform('output_size', 'u32').declareVariables(...w)}
 ${b.mainStart()}
-${b.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
-let outputIndices = ${_.offsetToIndices("global_idx")};
+${b.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
+let outputIndices = ${_.offsetToIndices('global_idx')};
 let batch = outputIndices[0];
 let channel = outputIndices[1];
-let scale_shift = ${g.getByIndices("vec2<u32>(batch, channel)")};
-let value = ${y.getByOffset("global_idx")} * ${_.type.value}(scale_shift.x) + ${
+let scale_shift = ${g.getByIndices('vec2<u32>(batch, channel)')};
+let value = ${y.getByOffset('global_idx')} * ${_.type.value}(scale_shift.x) + ${
                 _.type.value
               }(scale_shift.y);
-${_.setByOffset("global_idx", "value")};
+${_.setByOffset('global_idx', 'value')};
 }`;
             };
           e.compute(
             {
-              name: "InstanceNormalization",
+              name: 'InstanceNormalization',
               shaderCache: { hint: `${d}`, inputDependencies: m },
               getRunData: () => ({
                 outputs: [{ dims: o, dataType: t[0].dataType }],
@@ -10138,7 +10138,7 @@ ${_.setByOffset("global_idx", "value")};
               { type: 12, data: a },
               { type: 12, data: Math.floor(s / u) },
             ],
-            c = ["type", "type"],
+            c = ['type', 'type'],
             p = !1,
             f = [0, r.length - 1];
           for (let y = 0; y < r.length - 2; y++) (p = p || r[y + 1] !== 1), f.push(y + 1);
@@ -10149,10 +10149,10 @@ ${_.setByOffset("global_idx", "value")};
             h = fa(e, m, t[1], t[2], i, a, s, n.epsilon),
             b = (y) => {
               let g = re(t[0].dataType),
-                _ = u === 1 ? "vec2f" : `mat${u}x2f`,
+                _ = u === 1 ? 'vec2f' : `mat${u}x2f`,
                 w = (T) => {
-                  let I = T === 0 ? "x" : "y",
-                    A = u === 1 ? "f32" : `vec${u}f`;
+                  let I = T === 0 ? 'x' : 'y',
+                    A = u === 1 ? 'f32' : `vec${u}f`;
                   switch (u) {
                     case 1:
                       return `${g}(${A}(scale.${I}))`;
@@ -10164,8 +10164,8 @@ ${_.setByOffset("global_idx", "value")};
                       throw new Error(`Not supported compoents ${u}`);
                   }
                 },
-                v = S("input", t[0].dataType, t[0].dims, u),
-                $ = C("output", t[0].dataType, o, u);
+                v = S('input', t[0].dataType, t[0].dims, u),
+                $ = C('output', t[0].dataType, o, u);
               return `
 @group(0) @binding(0) var<storage, read> input : array<${v.type.storage}>;
 @group(0) @binding(1) var<storage, read> scale_input : array<${_}>;
@@ -10184,7 +10184,7 @@ output[global_idx] = fma(input[global_idx], ${w(0)}, ${w(1)});
             };
           e.compute(
             {
-              name: "InstanceNormalizationNHWC",
+              name: 'InstanceNormalizationNHWC',
               shaderCache: { hint: `${u}`, inputDependencies: c },
               getRunData: () => ({
                 outputs: [{ dims: o, dataType: t[0].dataType }],
@@ -10197,19 +10197,19 @@ output[global_idx] = fma(input[global_idx], ${w(0)}, ${w(1)});
           );
         }),
         (ha = (e, t) => {
-          t.format === "NHWC" ? lc(e, e.inputs, t) : dc(e, e.inputs, t);
+          t.format === 'NHWC' ? lc(e, e.inputs, t) : dc(e, e.inputs, t);
         });
     });
   var cc,
     pc,
     ya,
     ba = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       (cc = (e) => {
-        if (!e || e.length < 2) throw new Error("layerNorm requires at least 2 inputs.");
+        if (!e || e.length < 2) throw new Error('layerNorm requires at least 2 inputs.');
       }),
         (pc = (e, t, n) => {
           let r = t.simplified,
@@ -10229,57 +10229,57 @@ Got scale size of ${c} and bias size of ${p}`);
           let f = [];
           for (let v = 0; v < o.length; ++v) v < u ? f.push(o[v]) : f.push(1);
           let m = X(l),
-            h = ["type", "type"],
+            h = ['type', 'type'],
             b = [
               { type: 12, data: d },
               { type: 1, data: l },
               { type: 12, data: Math.floor(l / m) },
               { type: 1, data: t.epsilon },
             ];
-          s && h.push("type");
+          s && h.push('type');
           let y = n > 1,
             g = n > 2,
             _ = (v) => {
               let $ = re(e[0].dataType),
-                T = [S("x", e[0].dataType, e[0].dims, m), S("scale", i.dataType, i.dims, m)];
-              s && T.push(S("bias", s.dataType, s.dims, m)),
-                T.push(C("output", e[0].dataType, a, m)),
-                y && T.push(C("mean_data_output", 1, f)),
-                g && T.push(C("inv_std_output", 1, f));
+                T = [S('x', e[0].dataType, e[0].dims, m), S('scale', i.dataType, i.dims, m)];
+              s && T.push(S('bias', s.dataType, s.dims, m)),
+                T.push(C('output', e[0].dataType, a, m)),
+                y && T.push(C('mean_data_output', 1, f)),
+                g && T.push(C('inv_std_output', 1, f));
               let I = [
-                { name: "norm_count", type: "u32" },
-                { name: "norm_size", type: "f32" },
-                { name: "norm_size_vectorized", type: "u32" },
-                { name: "epsilon", type: "f32" },
+                { name: 'norm_count', type: 'u32' },
+                { name: 'norm_size', type: 'f32' },
+                { name: 'norm_size_vectorized', type: 'u32' },
+                { name: 'epsilon', type: 'f32' },
               ];
               return `
 ${v.registerUniforms(I).declareVariables(...T)}
 ${v.mainStart()}
-${v.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.norm_count")}
+${v.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.norm_count')}
 let offset = global_idx * uniforms.norm_size_vectorized;
-var mean_vector = ${Wn("f32", m)};
-var mean_square_vector = ${Wn("f32", m)};
+var mean_vector = ${Wn('f32', m)};
+var mean_square_vector = ${Wn('f32', m)};
 
 for (var h: u32 = 0u; h < uniforms.norm_size_vectorized; h++) {
-let value = ${Xe($, m, "x[h + offset]")};
+let value = ${Xe($, m, 'x[h + offset]')};
 mean_vector += value;
 mean_square_vector += value * value;
 }
-let mean = ${Te("mean_vector", m)} / uniforms.norm_size;
-let inv_std_dev = inverseSqrt(${Te("mean_square_vector", m)} / uniforms.norm_size ${
-                r ? "" : "- mean * mean"
+let mean = ${Te('mean_vector', m)} / uniforms.norm_size;
+let inv_std_dev = inverseSqrt(${Te('mean_square_vector', m)} / uniforms.norm_size ${
+                r ? '' : '- mean * mean'
               } + uniforms.epsilon);
 
 for (var j: u32 = 0; j < uniforms.norm_size_vectorized; j++) {
-let f32input = ${Xe($, m, "x[j + offset]")};
-let f32scale = ${Xe($, m, "scale[j]")};
-output[j + offset] = ${T[0].type.value}((f32input ${r ? "" : "- mean"}) * inv_std_dev * f32scale
-${s ? `+ ${Xe($, m, "bias[j]")}` : ""}
+let f32input = ${Xe($, m, 'x[j + offset]')};
+let f32scale = ${Xe($, m, 'scale[j]')};
+output[j + offset] = ${T[0].type.value}((f32input ${r ? '' : '- mean'}) * inv_std_dev * f32scale
+${s ? `+ ${Xe($, m, 'bias[j]')}` : ''}
 );
 }
 
-${y ? "mean_data_output[global_idx] = mean" : ""};
-${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
+${y ? 'mean_data_output[global_idx] = mean' : ''};
+${g ? 'inv_std_output[global_idx] = inv_std_dev' : ''};
 }`;
             },
             w = [{ dims: a, dataType: e[0].dataType }];
@@ -10287,7 +10287,7 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
             y && w.push({ dims: f, dataType: 1 }),
             g && w.push({ dims: f, dataType: 1 }),
             {
-              name: "LayerNormalization",
+              name: 'LayerNormalization',
               shaderCache: { hint: `${m};${n};${r}`, inputDependencies: h },
               getRunData: () => ({
                 outputs: w,
@@ -10305,14 +10305,14 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
   var mc,
     _a,
     wa = E(() => {
-      "use strict";
+      'use strict';
       q();
       on();
       sn();
       (mc = (e) => {
-        if (!e || e.length !== 2) throw new Error("MatMul requires 2 inputs.");
+        if (!e || e.length !== 2) throw new Error('MatMul requires 2 inputs.');
         if (e[0].dims[e[0].dims.length - 1] !== e[1].dims[e[1].dims.length - 2])
-          throw new Error("shared dimension does not match.");
+          throw new Error('shared dimension does not match.');
       }),
         (_a = (e) => {
           mc(e.inputs);
@@ -10320,7 +10320,7 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
           if (!t) throw new Error("Can't use matmul on the given tensors");
           let n = t[t.length - 1],
             r = e.inputs[0].dims[e.inputs[0].dims.length - 1];
-          if (n < 8 && r < 8) e.compute(rn(e.inputs, { activation: "" }, t));
+          if (n < 8 && r < 8) e.compute(rn(e.inputs, { activation: '' }, t));
           else {
             let o = t[t.length - 2],
               i = x.size(e.inputs[0].dims.slice(0, -2)),
@@ -10330,8 +10330,8 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
                 u = e.inputs[1].reshape([1, r, n]),
                 d = [1, i, n],
                 l = [a, u];
-              e.compute(gt(l, { activation: "" }, t, d), { inputs: l });
-            } else e.compute(gt(e.inputs, { activation: "" }, t));
+              e.compute(gt(l, { activation: '' }, t, d), { inputs: l });
+            } else e.compute(gt(e.inputs, { activation: '' }, t));
           }
         });
     });
@@ -10341,30 +10341,30 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
     $a,
     va,
     xa = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (fc = (e, t) => {
-        if (e.length < 3 || e.length > 4) throw new Error("MatMulNBits requires 3 or 4 inputs");
+        if (e.length < 3 || e.length > 4) throw new Error('MatMulNBits requires 3 or 4 inputs');
         let n = e[0],
           r = n.dims.length;
         if (n.dims[r - 1] !== t.k)
-          throw new Error("The last dim of input shape does not match the k value");
+          throw new Error('The last dim of input shape does not match the k value');
         let o = Math.floor((t.k + t.blockSize - 1) / t.blockSize),
           i = (t.blockSize / 8) * t.bits,
           s = e[1];
         if (!x.areEqual(s.dims, [t.n, o, i]))
           throw new Error(
-            "The second inputs must be 3D tensor with shape N X nBlocksPerCol X blobSize"
+            'The second inputs must be 3D tensor with shape N X nBlocksPerCol X blobSize'
           );
         let u = e[2].dims;
-        if (x.size(u) !== t.n * o) throw new Error("scales input size error.");
+        if (x.size(u) !== t.n * o) throw new Error('scales input size error.');
         if (e.length === 4) {
           let l = e[3].dims,
             c = t.bits > 4 ? t.n * o : t.n * Math.floor((o + 1) / 2);
-          if (x.size(l) !== c) throw new Error("zeroPoints input size error.");
+          if (x.size(l) !== c) throw new Error('zeroPoints input size error.');
         }
       }),
         (hc = (e, t) => {
@@ -10396,14 +10396,14 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
           _.push(...P($));
           let T = (I) => {
             let A = w.length,
-              z = S("a", e[0].dataType, A, p),
-              M = S("b", 12, v.length, f),
-              R = S("scales", e[2].dataType, e[2].dims.length),
+              z = S('a', e[0].dataType, A, p),
+              M = S('b', 12, v.length, f),
+              R = S('scales', e[2].dataType, e[2].dims.length),
               W = [z, M, R],
-              O = e.length === 4 ? S("zero_points", 12, e[3].dims.length) : void 0;
+              O = e.length === 4 ? S('zero_points', 12, e[3].dims.length) : void 0;
             O && W.push(O);
             let ee = $.length,
-              G = C("output", e[0].dataType, ee, m),
+              G = C('output', e[0].dataType, ee, m),
               D = re(e[0].dataType),
               Z = (() => {
                 switch (p) {
@@ -10423,7 +10423,7 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
  var input_offset = ${z.indicesToOffset(`${z.type.indices}(batch, row, word_offset)`)};
  var a_data: ${Z};
  for (var j: u32 = 0; j < ${8 / p}; j++) {
-   a_data[j] = ${z.getByOffset("input_offset")};
+   a_data[j] = ${z.getByOffset('input_offset')};
    input_offset++;
  }
 `;
@@ -10435,19 +10435,19 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
  b_quantized_values = ${Z}(${Array.from(
                     { length: 4 },
                     (k, L) => `${D}(b_value_lower[${L}]), ${D}(b_value_upper[${L}])`
-                  ).join(", ")});
+                  ).join(', ')});
  b_dequantized_values = ${
    p === 1
      ? `${Z}(${Array.from(
          { length: 8 },
-         (k, L) => `(b_quantized_values[${L}] - ${O ? `zero_point${H}` : "zero_point"}) * scale${H}`
-       ).join(", ")});`
+         (k, L) => `(b_quantized_values[${L}] - ${O ? `zero_point${H}` : 'zero_point'}) * scale${H}`
+       ).join(', ')});`
      : `(b_quantized_values - ${Z}(${Array(8)
-         .fill(`${O ? `zero_point${H}` : "zero_point"}`)
-         .join(",")})) * scale${H};`
+         .fill(`${O ? `zero_point${H}` : 'zero_point'}`)
+         .join(',')})) * scale${H};`
  };
  workgroup_shared[local_id.x * ${b} + ${Math.floor(H / m)}]${
-                    m > 1 ? `[${H % m}]` : ""
+                    m > 1 ? `[${H % m}]` : ''
                   } += ${Array.from(
                     { length: 8 / p },
                     (k, L) =>
@@ -10456,7 +10456,7 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
                           ? `a_data[${L}] * b_dequantized_values[${L}]`
                           : `dot(a_data[${L}], b_dequantized_values[${L}])`
                       }`
-                  ).join(" + ")};
+                  ).join(' + ')};
 `;
                 return se;
               },
@@ -10480,7 +10480,7 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
  `;
                 for (let H = 0; H < m * b; H++)
                   se += `
- let scale${H} = ${R.getByOffset("col_index * nBlocksPerCol + block")};
+ let scale${H} = ${R.getByOffset('col_index * nBlocksPerCol + block')};
  ${
    O
      ? `
@@ -10488,9 +10488,9 @@ ${g ? "inv_std_output[global_idx] = inv_std_dev" : ""};
  zero_point_word_index = zero_point_byte_count >> 0x2u;
  zero_point_byte_offset = zero_point_byte_count & 0x3u;
  zero_point_bits_offset = (zero_point_byte_offset << 3) + (zero_point_nibble_offset << 2);
- zero_point_word = ${O.getByOffset("zero_point_word_index")} >> zero_point_bits_offset;
+ zero_point_word = ${O.getByOffset('zero_point_word_index')} >> zero_point_bits_offset;
  let zero_point${H} = ${D}((zero_point_word) & 0xFu);`
-     : ""
+     : ''
  }
  col_index += 1;`;
                 return se;
@@ -10543,15 +10543,15 @@ if (local_id.x < ${b}) {
    output_value += workgroup_shared[workgroup_shared_offset];
    workgroup_shared_offset += ${b};
  }
- ${G.setByIndices(`${G.type.indices}(batch, row, col + local_id.x)`, "output_value")};
+ ${G.setByIndices(`${G.type.indices}(batch, row, col + local_id.x)`, 'output_value')};
 }
 }`;
           };
           return {
-            name: "MatMulNBits",
+            name: 'MatMulNBits',
             shaderCache: {
               hint: `${t.blockSize};${t.bits};${p};${f};${m};${b};${g}`,
-              inputDependencies: Array(e.length).fill("rank"),
+              inputDependencies: Array(e.length).fill('rank'),
             },
             getRunData: () => ({
               outputs: [{ dims: h, dataType: c }],
@@ -10593,14 +10593,14 @@ if (local_id.x < ${b}) {
           $.push(...P(A));
           let z = (M) => {
             let R = T.length,
-              W = S("a", e[0].dataType, R, p),
-              O = S("b", 12, I.length, f),
-              ee = S("scales", e[2].dataType, e[2].dims.length),
+              W = S('a', e[0].dataType, R, p),
+              O = S('b', 12, I.length, f),
+              ee = S('scales', e[2].dataType, e[2].dims.length),
               G = [W, O, ee],
-              D = e.length === 4 ? S("zero_points", 12, e[3].dims.length) : void 0;
+              D = e.length === 4 ? S('zero_points', 12, e[3].dims.length) : void 0;
             D && G.push(D);
             let Z = A.length,
-              U = C("output", e[0].dataType, Z),
+              U = C('output', e[0].dataType, Z),
               Q = re(e[0].dataType),
               _e = () => {
                 switch (p) {
@@ -10660,31 +10660,31 @@ for (var tile: u32 = 0; tile < num_tiles; tile += 1) {
  let zero_point_byte_offset = zero_point_byte_count & 0x3u;
  let zero_point_nibble_offset: u32 = block & 0x1u;
  let zero_point_bits_offset = (zero_point_byte_offset << 3) + (zero_point_nibble_offset << 2);
- let zero_point_word = ${D.getByOffset("zero_point_word_index")} >> zero_point_bits_offset;
+ let zero_point_word = ${D.getByOffset('zero_point_word_index')} >> zero_point_bits_offset;
  let zero_point = ${Q}((zero_point_word) & 0xFu);`
      : `
  // The default zero point is 8 for unsigned 4-bit quantization.
  let zero_point = ${Q}(8);`
  }
- let scale = ${ee.getByOffset("b_row * n_blocks_per_col + block")};
+ let scale = ${ee.getByOffset('b_row * n_blocks_per_col + block')};
  let b_data = ${O.getByIndices(`${O.type.indices}(b_row, block, 0)`)};
  var word_offset = local_id.x * ${t.blockSize / p};
  for (var i: u32 = 0; i < ${f}; i++) {
    ${_e()}
-   let b_value = ${f === 1 ? "b_data" : "b_data[i]"};
+   let b_value = ${f === 1 ? 'b_data' : 'b_data[i]'};
    let b_value_lower = unpack4xU8(b_value & 0x0F0F0F0Fu);
    let b_value_upper = unpack4xU8((b_value >> 4) & 0x0F0F0F0Fu);
    let b_quantized_values = mat2x4<${Q}>(${Array.from(
               { length: 4 },
               (se, H) => `${Q}(b_value_lower[${H}]), ${Q}(b_value_upper[${H}])`
-            ).join(", ")});
+            ).join(', ')});
    let b_dequantized_values = (b_quantized_values - mat2x4<${Q}>(${Array(8)
-              .fill("zero_point")
-              .join(",")})) * scale;
+              .fill('zero_point')
+              .join(',')})) * scale;
    inter_results[local_id.y][local_id.x] += ${Array.from(
      { length: 2 },
      (se, H) => `${`dot(a_data${H}, b_dequantized_values[${H}])`}`
-   ).join(" + ")};
+   ).join(' + ')};
    word_offset += ${8 / p};
  }
  workgroupBarrier();
@@ -10697,16 +10697,16 @@ if (local_idx < ${b}) {
  }
  if (col + local_idx < uniforms.output_shape[2])
  {
-   ${U.setByIndices(`${U.type.indices}(batch, row, col + local_idx)`, "output_value")}
+   ${U.setByIndices(`${U.type.indices}(batch, row, col + local_idx)`, 'output_value')}
  }
 }
 }`;
           };
           return {
-            name: "BlockwiseMatMulNBits32",
+            name: 'BlockwiseMatMulNBits32',
             shaderCache: {
               hint: `${t.blockSize};${p};${f};${y};${b}`,
-              inputDependencies: Array(e.length).fill("rank"),
+              inputDependencies: Array(e.length).fill('rank'),
             },
             getRunData: () => ({
               outputs: [{ dims: m, dataType: c }],
@@ -10719,8 +10719,8 @@ if (local_idx < ${b}) {
         ($a = (e, t) => {
           fc(e.inputs, t),
             t.blockSize === 32 &&
-            e.adapterInfo.isVendor("intel") &&
-            e.adapterInfo.isArchitecture("gen-12lp")
+            e.adapterInfo.isVendor('intel') &&
+            e.adapterInfo.isArchitecture('gen-12lp')
               ? e.compute(gc(e.inputs, t))
               : e.compute(hc(e.inputs, t));
         }),
@@ -10736,34 +10736,34 @@ if (local_idx < ${b}) {
     Sc,
     Sa,
     Ta = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       (yc = (e) => {
-        if (!e || e.length < 1) throw new Error("Too few inputs");
+        if (!e || e.length < 1) throw new Error('Too few inputs');
         if (e[0].dataType !== 1 && e[0].dataType !== 10)
-          throw new Error("Input type must be float or float16.");
+          throw new Error('Input type must be float or float16.');
         if (e.length >= 2) {
           let t = e[0].dims.length * 2 === e[1].dims[0];
           if ((e.length === 4 && (t = e[3].dims[0] * 2 === e[1].dims[0]), !t))
             throw new Error(
-              "The pads should be a 1D tensor of shape [2 * input_rank] or [2 * num_axes]."
+              'The pads should be a 1D tensor of shape [2 * input_rank] or [2 * num_axes].'
             );
         }
       }),
         (bc = (e, t, n) => {
-          let r = "";
+          let r = '';
           for (let o = t - 1; o >= 0; --o)
             r += `
- k = i32(${e.indicesGet("indices", o)}) - ${B("uniforms.pads", o, n)};
+ k = i32(${e.indicesGet('indices', o)}) - ${B('uniforms.pads', o, n)};
  if (k < 0) {
    break;
  }
- if (k >= i32(${B("uniforms.x_shape", o, t)})) {
+ if (k >= i32(${B('uniforms.x_shape', o, t)})) {
    break;
  }
- offset += k * i32(${B("uniforms.x_strides", o, t)});
+ offset += k * i32(${B('uniforms.x_strides', o, t)});
 `;
           return `
 value = ${e.type.value}(uniforms.constant_value);
@@ -10776,21 +10776,21 @@ for (var i = 0; i < 1; i++) {
 `;
         }),
         (_c = (e, t, n) => {
-          let r = "";
+          let r = '';
           for (let o = t - 1; o >= 0; --o)
             r += `
-     k = i32(${e.indicesGet("indices", o)}) - ${B("uniforms.pads", o, n)};
+     k = i32(${e.indicesGet('indices', o)}) - ${B('uniforms.pads', o, n)};
      if (k < 0) {
        k = -k;
      }
      {
-       let _2n_1 = 2 * (i32(${B("uniforms.x_shape", o, t)}) - 1);
+       let _2n_1 = 2 * (i32(${B('uniforms.x_shape', o, t)}) - 1);
        k = k % _2n_1;
-       if(k >= i32(${B("uniforms.x_shape", o, t)})) {
+       if(k >= i32(${B('uniforms.x_shape', o, t)})) {
          k = _2n_1 - k;
        }
      }
-     offset += k * i32(${B("uniforms.x_strides", o, t)});
+     offset += k * i32(${B('uniforms.x_strides', o, t)});
  `;
           return `
    var offset = 0;
@@ -10800,17 +10800,17 @@ for (var i = 0; i < 1; i++) {
 `;
         }),
         (wc = (e, t, n) => {
-          let r = "";
+          let r = '';
           for (let o = t - 1; o >= 0; --o)
             r += `
-     k = i32(${e.indicesGet("indices", o)}) - ${B("uniforms.pads", o, n)};
+     k = i32(${e.indicesGet('indices', o)}) - ${B('uniforms.pads', o, n)};
      if (k < 0) {
        k = 0;
      }
-     if (k >= i32(${B("uniforms.x_shape", o, t)})) {
-       k = i32(${B("uniforms.x_shape", o, t)}) - 1;
+     if (k >= i32(${B('uniforms.x_shape', o, t)})) {
+       k = i32(${B('uniforms.x_shape', o, t)}) - 1;
      }
-     offset += k * i32(${B("uniforms.x_strides", o, t)});
+     offset += k * i32(${B('uniforms.x_strides', o, t)});
  `;
           return `
    var offset = 0;
@@ -10820,17 +10820,17 @@ for (var i = 0; i < 1; i++) {
 `;
         }),
         ($c = (e, t, n) => {
-          let r = "";
+          let r = '';
           for (let o = t - 1; o >= 0; --o)
             r += `
-     k = i32(${e.indicesGet("indices", o)}) - ${B("uniforms.pads", o, n)};
+     k = i32(${e.indicesGet('indices', o)}) - ${B('uniforms.pads', o, n)};
      if (k < 0)  {
-       k += i32(${B("uniforms.x_shape", o, t)}]);
+       k += i32(${B('uniforms.x_shape', o, t)}]);
      }
-     if (k >= i32(${B("uniforms.x_shape", o, t)})) {
-       k -= i32(${B("uniforms.x_shape", o, t)});
+     if (k >= i32(${B('uniforms.x_shape', o, t)})) {
+       k -= i32(${B('uniforms.x_shape', o, t)});
      }
-     offset += k * i32(${B("uniforms.x_strides", o, t)});
+     offset += k * i32(${B('uniforms.x_strides', o, t)});
  `;
           return `
    var offset = 0;
@@ -10850,7 +10850,7 @@ for (var i = 0; i < 1; i++) {
             case 3:
               return $c(e, t, n.pads.length);
             default:
-              throw new Error("Invalid mode");
+              throw new Error('Invalid mode');
           }
         }),
         (xc = (e, t) => {
@@ -10864,24 +10864,24 @@ for (var i = 0; i < 1; i++) {
             s = e.length >= 3 && e[2].data;
           t.mode === 0 && i.push({ type: s ? e[2].dataType : 1, data: t.value }),
             i.push(...P(e[0].dims, n));
-          let a = ["rank"],
+          let a = ['rank'],
             u = (d) => {
-              let l = C("output", e[0].dataType, n.length),
-                c = S("x", e[0].dataType, r.length),
+              let l = C('output', e[0].dataType, n.length),
+                c = S('x', e[0].dataType, r.length),
                 p = c.type.value,
                 f = vc(l, r.length, t),
                 m = [
-                  { name: "output_size", type: "u32" },
-                  { name: "pads", type: "i32", length: t.pads.length },
+                  { name: 'output_size', type: 'u32' },
+                  { name: 'pads', type: 'i32', length: t.pads.length },
                 ];
               return (
-                t.mode === 0 && m.push({ name: "constant_value", type: s ? p : "f32" }),
+                t.mode === 0 && m.push({ name: 'constant_value', type: s ? p : 'f32' }),
                 `
  ${d.registerUniforms(m).declareVariables(c, l)}
  ${d.mainStart()}
- ${d.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+ ${d.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 
- let indices = ${l.offsetToIndices("global_idx")};
+ let indices = ${l.offsetToIndices('global_idx')};
 
  var value = ${p}(0);
  ${f}
@@ -10890,7 +10890,7 @@ for (var i = 0; i < 1; i++) {
               );
             };
           return {
-            name: "Pad",
+            name: 'Pad',
             shaderCache: { hint: `${t.mode}${s}`, inputDependencies: a },
             getRunData: () => ({
               outputs: [{ dims: n, dataType: e[0].dataType }],
@@ -10946,20 +10946,20 @@ for (var i = 0; i < 1; i++) {
     Na,
     La,
     Ga = E(() => {
-      "use strict";
+      'use strict';
       ve();
       V();
       q();
       K();
       (ln = (e) => {
         if (te.webgpu.validateInputContent && (!e || e.length !== 1))
-          throw new Error("Pool ops requires 1 input.");
+          throw new Error('Pool ops requires 1 input.');
       }),
         (Ia = (e, t, n) => {
-          let r = t.format === "NHWC",
+          let r = t.format === 'NHWC',
             o = e.dims.slice();
           r && o.splice(1, 0, o.pop());
-          let i = Object.hasOwnProperty.call(t, "dilations"),
+          let i = Object.hasOwnProperty.call(t, 'dilations'),
             s = t.kernelShape.slice(),
             a = t.strides.slice(),
             u = i ? t.dilations.slice() : [],
@@ -10980,7 +10980,7 @@ for (var i = 0; i < 1; i++) {
           return p.push(p.splice(1, 1)[0]), [c, r ? p : l];
         }),
         (Ca = (e, t) => {
-          let n = t.format === "NHWC",
+          let n = t.format === 'NHWC',
             r = x.size(e),
             o = x.size(t.kernelShape),
             i = [
@@ -10988,8 +10988,8 @@ for (var i = 0; i < 1; i++) {
               { type: 12, data: o },
             ],
             s = [
-              { name: "outputSize", type: "u32" },
-              { name: "kernelSize", type: "u32" },
+              { name: 'outputSize', type: 'u32' },
+              { name: 'kernelSize', type: 'u32' },
             ];
           if (t.kernelShape.length <= 2) {
             let a = t.kernelShape[t.kernelShape.length - 1],
@@ -11004,10 +11004,10 @@ for (var i = 0; i < 1; i++) {
               { type: 12, data: l }
             ),
               s.push(
-                { name: "kw", type: "u32" },
-                { name: "sw", type: "u32" },
-                { name: "pwStart", type: "u32" },
-                { name: "pwEnd", type: "u32" }
+                { name: 'kw', type: 'u32' },
+                { name: 'sw', type: 'u32' },
+                { name: 'pwStart', type: 'u32' },
+                { name: 'pwEnd', type: 'u32' }
               );
             let p = !1;
             if (t.kernelShape.length === 2) {
@@ -11023,17 +11023,17 @@ for (var i = 0; i < 1; i++) {
                   { type: 12, data: b }
                 ),
                 s.push(
-                  { name: "kh", type: "u32" },
-                  { name: "sh", type: "u32" },
-                  { name: "phStart", type: "u32" },
-                  { name: "phEnd", type: "u32" }
+                  { name: 'kh', type: 'u32' },
+                  { name: 'sh', type: 'u32' },
+                  { name: 'phStart', type: 'u32' },
+                  { name: 'phEnd', type: 'u32' }
                 );
             }
             return [i, s, !0, c, p];
           } else {
             if (n)
               throw new Error(
-                "Pooling with kernelShape.length > 2 is not supported for NHWC format."
+                'Pooling with kernelShape.length > 2 is not supported for NHWC format.'
               );
             let a = x.computeStrides(t.kernelShape);
             i.push(
@@ -11042,22 +11042,22 @@ for (var i = 0; i < 1; i++) {
               { type: 12, data: t.strides }
             ),
               s.push(
-                { name: "kernelStrides", type: "u32", length: a.length },
-                { name: "pads", type: "u32", length: t.pads.length },
-                { name: "strides", type: "u32", length: t.strides.length }
+                { name: 'kernelStrides', type: 'u32', length: a.length },
+                { name: 'pads', type: 'u32', length: t.pads.length },
+                { name: 'strides', type: 'u32', length: t.strides.length }
               );
             let u = t.pads.reduce((d, l) => d + l);
             return [i, s, !!u, !1, !1];
           }
         }),
         (Aa = (e, t, n, r, o, i, s, a, u, d, l, c) => {
-          let p = o.format === "NHWC",
+          let p = o.format === 'NHWC',
             f = t.type.value,
-            m = C("output", t.type.tensor, r);
+            m = C('output', t.type.tensor, r);
           if (o.kernelShape.length <= 2) {
-            let h = "",
-              b = "",
-              y = "",
+            let h = '',
+              b = '',
+              y = '',
               g = n - (p ? 2 : 1);
             if (
               (l
@@ -11069,13 +11069,13 @@ for (var i = 0; i < 1; i++) {
          pad++;
          continue;
        }
-       let x_val = x[${t.indicesToOffset("xIndices")}];
+       let x_val = x[${t.indicesToOffset('xIndices')}];
        ${i}
      }`)
                 : (h = `
      for (var i: u32 = 0u; i < uniforms.kw; i++) {
        xIndices[${g}] = indices[${g}] * uniforms.sw - uniforms.pwStart + i;
-       let x_val = x[${t.indicesToOffset("xIndices")}];
+       let x_val = x[${t.indicesToOffset('xIndices')}];
        ${i}
      }`),
               o.kernelShape.length === 2)
@@ -11102,10 +11102,10 @@ for (var i = 0; i < 1; i++) {
  ${e.registerUniforms(u).declareVariables(t, m)}
 
  ${e.mainStart()}
-   ${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+   ${e.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
 
-   let indices = ${m.offsetToIndices("global_idx")};
-   var xIndices = ${m.offsetToIndices("global_idx")};
+   let indices = ${m.offsetToIndices('global_idx')};
+   var xIndices = ${m.offsetToIndices('global_idx')};
 
    var value = ${f}(${a});
    var pad = 0;
@@ -11119,11 +11119,11 @@ for (var i = 0; i < 1; i++) {
           } else {
             if (p)
               throw new Error(
-                "Pooling with kernelShape.length > 2 is not supported for NHWC format."
+                'Pooling with kernelShape.length > 2 is not supported for NHWC format.'
               );
             let h = o.kernelShape.length,
               b = o.pads.length,
-              y = "";
+              y = '';
             return (
               d
                 ? (y = `
@@ -11134,21 +11134,21 @@ for (var i = 0; i < 1; i++) {
      }
    }
    if (!isPad) {
-     let x_val = x[${t.indicesToOffset("xIndices")}];
+     let x_val = x[${t.indicesToOffset('xIndices')}];
      ${i}
    }`)
                 : (y = `
    }
-   let x_val = x[${t.indicesToOffset("xIndices")}];
+   let x_val = x[${t.indicesToOffset('xIndices')}];
    ${i}
  `),
               `
  ${e.registerUniforms(u).declareVariables(t, m)}
 
  ${e.mainStart()}
-   ${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
-   let indices = ${m.offsetToIndices("global_idx")};
-   var xIndices = ${m.offsetToIndices("global_idx")};
+   ${e.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
+   let indices = ${m.offsetToIndices('global_idx')};
+   var xIndices = ${m.offsetToIndices('global_idx')};
 
    var offsets: array<u32, ${h}>;
 
@@ -11159,15 +11159,15 @@ for (var i = 0; i < 1; i++) {
    for (var i: u32 = 0u; i < uniforms.kernelSize; i++) {
      var offset = i;
      for (var j = 0u; j < ${h - 1}u; j++) {
-       offsets[j] = offset / ${B("uniforms.kernelStrides", "j", h)};
-       offset -= offsets[j] * ${B("uniforms.kernelStrides", "j", h)};
+       offsets[j] = offset / ${B('uniforms.kernelStrides', 'j', h)};
+       offset -= offsets[j] * ${B('uniforms.kernelStrides', 'j', h)};
      }
      offsets[${h - 1}] = offset;
 
      isPad = false;
      for (var j = ${n - h}u; j < ${n}u; j++) {
-       xIndices[j] = indices[j] * ${B("uniforms.strides", `j - ${n - h}u`, h)}
-         + offsets[j - ${n - h}u] - ${B("uniforms.pads", "j - 2u", b)};
+       xIndices[j] = indices[j] * ${B('uniforms.strides', `j - ${n - h}u`, h)}
+         + offsets[j - ${n - h}u] - ${B('uniforms.pads', 'j - 2u', b)};
        ${y}
    }
    ${s}
@@ -11182,7 +11182,7 @@ for (var i = 0; i < 1; i++) {
         (Ic = (e) => `${ka(e)};${e.storageOrder};${e.dilations}`),
         (Ea = (e) => ({
           format: e.format,
-          autoPad: ["NOTSET", "VALID", "SAME_UPPER", "SAME_LOWER"][e.auto_pad],
+          autoPad: ['NOTSET', 'VALID', 'SAME_UPPER', 'SAME_LOWER'][e.auto_pad],
           ceilMode: e.ceil_mode,
           kernelShape: e.kernel_shape,
           strides: e.strides,
@@ -11190,16 +11190,16 @@ for (var i = 0; i < 1; i++) {
         })),
         (Pa = (e, t, n, r) => {
           let [o, i] = Ia(t, r, n),
-            s = S("x", t.dataType, t.dims.length),
+            s = S('x', t.dataType, t.dims.length),
             a = s.type.value,
-            u = "value += x_val;",
-            d = "";
+            u = 'value += x_val;',
+            d = '';
           o.countIncludePad
             ? (d += `value /= ${a}(uniforms.kernelSize);`)
             : (d += `value /= ${a}(i32(uniforms.kernelSize) - pad);`);
           let [l, c, p, f, m] = Ca(i, o);
           l.push(...P(t.dims, i));
-          let h = ["rank"];
+          let h = ['rank'];
           return {
             name: e,
             shaderCache: { hint: `${r.cacheKey};${p};${f};${m}`, inputDependencies: h },
@@ -11216,16 +11216,16 @@ for (var i = 0; i < 1; i++) {
             n = Ea(e);
           if (n.ceilMode !== 0)
             throw new Error(
-              "using ceil() in shape computation is not yet supported for AveragePool"
+              'using ceil() in shape computation is not yet supported for AveragePool'
             );
-          let r = { countIncludePad: t, ...n, cacheKey: "" };
+          let r = { countIncludePad: t, ...n, cacheKey: '' };
           return { ...r, cacheKey: Tc(r) };
         }),
         (Oa = (e, t) => {
-          ln(e.inputs), e.compute(Pa("AveragePool", e.inputs[0], !1, t));
+          ln(e.inputs), e.compute(Pa('AveragePool', e.inputs[0], !1, t));
         }),
         (Da = {
-          autoPad: "",
+          autoPad: '',
           ceilMode: 0,
           countIncludePad: !1,
           kernelShape: [],
@@ -11239,16 +11239,16 @@ for (var i = 0; i < 1; i++) {
           return { format: t, ...Da, cacheKey: t };
         }),
         (Ma = (e, t) => {
-          ln(e.inputs), e.compute(Pa("GlobalAveragePool", e.inputs[0], !0, t));
+          ln(e.inputs), e.compute(Pa('GlobalAveragePool', e.inputs[0], !0, t));
         }),
         (Ra = (e, t, n, r) => {
           let [o, i] = Ia(t, r, n),
             s = `
 value = max(x_val, value);
 `,
-            a = "",
-            u = S("x", t.dataType, t.dims.length),
-            d = ["rank"],
+            a = '',
+            u = S('x', t.dataType, t.dims.length),
+            d = ['rank'],
             [l, c, p, f, m] = Ca(i, o);
           return (
             l.push(...P(t.dims, i)),
@@ -11279,17 +11279,17 @@ value = max(x_val, value);
           );
         }),
         (Ua = (e, t) => {
-          ln(e.inputs), e.compute(Ra("MaxPool", e.inputs[0], !1, t));
+          ln(e.inputs), e.compute(Ra('MaxPool', e.inputs[0], !1, t));
         }),
         (Va = (e) => {
           let t = e.storage_order,
             n = e.dilations,
             r = Ea(e);
           if (t !== 0)
-            throw new Error("column major storage order is not yet supported for MaxPool");
+            throw new Error('column major storage order is not yet supported for MaxPool');
           if (r.ceilMode !== 0)
-            throw new Error("using ceil() in shape computation is not yet supported for MaxPool");
-          let o = { storageOrder: t, dilations: n, ...r, cacheKey: "" };
+            throw new Error('using ceil() in shape computation is not yet supported for MaxPool');
+          let o = { storageOrder: t, dilations: n, ...r, cacheKey: '' };
           return { ...o, cacheKey: Ic(o) };
         }),
         (Na = (e) => {
@@ -11297,7 +11297,7 @@ value = max(x_val, value);
           return { format: t, ...Da, cacheKey: t };
         }),
         (La = (e, t) => {
-          ln(e.inputs), e.compute(Ra("GlobalMaxPool", e.inputs[0], !0, t));
+          ln(e.inputs), e.compute(Ra('GlobalMaxPool', e.inputs[0], !0, t));
         });
     });
   var Ac,
@@ -11305,56 +11305,56 @@ value = max(x_val, value);
     Wa,
     Ha,
     qa = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (Ac = (e, t) => {
         if (e.length < 2 || e.length > 3)
-          throw new Error("DequantizeLinear requires 2 or 3 inputs.");
+          throw new Error('DequantizeLinear requires 2 or 3 inputs.');
         if (e.length === 3 && e[1].dims === e[2].dims)
-          throw new Error("x-scale and x-zero-point must have the same shape.");
+          throw new Error('x-scale and x-zero-point must have the same shape.');
         if (e.length === 3 && e[0].dataType !== e[2].dataType)
-          throw new Error("x and x-zero-point must have the same data type.");
+          throw new Error('x and x-zero-point must have the same data type.');
         if (e[0].dataType === 6 && e.length > 2)
-          throw new Error("In the case of dequantizing int32 there is no zero point.");
+          throw new Error('In the case of dequantizing int32 there is no zero point.');
         if (
           e[1].dims.length !== 0 &&
           e[1].dims.length !== 1 &&
           e[1].dims.length !== e[0].dims.length
         )
           throw new Error(
-            "scale input must be a scalar, a 1D tensor, or have the same rank as the input tensor."
+            'scale input must be a scalar, a 1D tensor, or have the same rank as the input tensor.'
           );
         if (e.length > 2) {
           if (e[0].dataType !== e[2].dataType)
-            throw new Error("x and x-zero-point must have the same data type.");
+            throw new Error('x and x-zero-point must have the same data type.');
           if (e[1].dims.length !== e[2].dims.length)
-            throw new Error("scale and zero-point inputs must have the same rank.");
+            throw new Error('scale and zero-point inputs must have the same rank.');
           if (!e[1].dims.map((n, r) => n === e[2].dims[r]).reduce((n, r) => n && r, !0))
-            throw new Error("scale and zero-point inputs must have the same shape.");
+            throw new Error('scale and zero-point inputs must have the same shape.');
         }
         if (t.blockSize > 0) {
           if (e[1].dims.length === 0 || (e[1].dims.length === 1 && e[1].dims[0] === 1))
-            throw new Error("blockSize must be set only for block quantization.");
+            throw new Error('blockSize must be set only for block quantization.');
           if (
             !e[1].dims
               .map((o, i) => i === t.axis || o === e[0].dims[i])
               .reduce((o, i) => o && i, !0)
           )
             throw new Error(
-              "For block qunatization, scale input shape to match the input shape except for the axis"
+              'For block qunatization, scale input shape to match the input shape except for the axis'
             );
           if (e[1].dims.length !== e[0].dims.length)
             throw new Error(
-              "For block qunatization the scale input rank must be the same as the x rank."
+              'For block qunatization the scale input rank must be the same as the x rank.'
             );
           let n = e[0].dims[t.axis],
             r = e[1].dims[t.axis];
           if (t.blockSize < Math.ceil(n / r) || t.blockSize > Math.ceil(n / (r - 1) - 1))
             throw new Error(
-              "blockSize must be with in the range [ceil(dI / Si), ceil(dI / (Si - 1) - 1)]."
+              'blockSize must be with in the range [ceil(dI / Si), ceil(dI / (Si - 1) - 1)].'
             );
         }
       }),
@@ -11376,10 +11376,10 @@ value = max(x_val, value);
             b = f && (!u || h === 4),
             y = b ? h : 1,
             g = b && !u ? h : 1,
-            _ = S("input", u ? 12 : r, d.length, g),
-            w = S("scale", s, l.length),
-            v = c ? S("zero_point", u ? 12 : r, p.length) : void 0,
-            $ = C("output", s, i.length, y),
+            _ = S('input', u ? 12 : r, d.length, g),
+            w = S('scale', s, l.length),
+            v = c ? S('zero_point', u ? 12 : r, p.length) : void 0,
+            $ = C('output', s, i.length, y),
             T = [_, w];
           v && T.push(v);
           let I = [d, l];
@@ -11392,39 +11392,39 @@ value = max(x_val, value);
             ],
             z = (M) => {
               let R = [
-                { name: "output_size", type: "u32" },
-                { name: "axis", type: "u32" },
-                { name: "block_size", type: "u32" },
+                { name: 'output_size', type: 'u32' },
+                { name: 'axis', type: 'u32' },
+                { name: 'block_size', type: 'u32' },
               ];
               return `
 ${M.registerUniforms(R).declareVariables(...T, $)}
 ${M.mainStart()}
-${M.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
-let output_indices = ${$.offsetToIndices("global_idx")};
+${M.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
+let output_indices = ${$.offsetToIndices('global_idx')};
 
 // Set input x
 ${
   u
     ? `
- let input = ${_.getByOffset("global_idx / 4")};
- let x_vec = ${o ? "unpack4xI8(input)" : "unpack4xU8(input)"};
- let x_value = ${y === 1 ? "x_vec[global_idx % 4]" : "x_vec"};`
-    : `let x_value = ${_.getByOffset("global_idx")};`
+ let input = ${_.getByOffset('global_idx / 4')};
+ let x_vec = ${o ? 'unpack4xI8(input)' : 'unpack4xU8(input)'};
+ let x_value = ${y === 1 ? 'x_vec[global_idx % 4]' : 'x_vec'};`
+    : `let x_value = ${_.getByOffset('global_idx')};`
 };
 
 // Set scale input
 ${
   f
-    ? `let scale_value= ${w.getByOffset("0")}`
+    ? `let scale_value= ${w.getByOffset('0')}`
     : m
     ? `
- let scale_index = ${$.indicesGet("output_indices", "uniforms.axis")};
- let scale_value= ${w.getByOffset("scale_index")};`
+ let scale_index = ${$.indicesGet('output_indices', 'uniforms.axis')};
+ let scale_value= ${w.getByOffset('scale_index')};`
     : `
  var scale_indices: ${w.type.indices} = output_indices;
- let index = ${w.indicesGet("scale_indices", "uniforms.axis")} / uniforms.block_size;
- ${w.indicesSet("scale_indices", "uniforms.axis", "index")};
- let scale_value= ${w.getByIndices("scale_indices")};`
+ let index = ${w.indicesGet('scale_indices', 'uniforms.axis')} / uniforms.block_size;
+ ${w.indicesSet('scale_indices', 'uniforms.axis', 'index')};
+ let scale_value= ${w.getByIndices('scale_indices')};`
 };
 
 // Set zero-point input
@@ -11433,38 +11433,38 @@ ${
     ? f
       ? u
         ? `
-     let zero_point_input = ${v.getByOffset("0")};
-     let zero_point_vec =  ${o ? "unpack4xI8(zero_point_input)" : "unpack4xU8(zero_point_input)"};
+     let zero_point_input = ${v.getByOffset('0')};
+     let zero_point_vec =  ${o ? 'unpack4xI8(zero_point_input)' : 'unpack4xU8(zero_point_input)'};
      let zero_point_value= zero_point_vec[0]`
-        : `let zero_point_value = ${v.getByOffset("0")}`
+        : `let zero_point_value = ${v.getByOffset('0')}`
       : m
       ? u
         ? `
-     let zero_point_index = ${$.indicesGet("output_indices", "uniforms.axis")};
-     let zero_point_input = ${v.getByOffset("zero_point_index / 4")};
-     let zero_point_vec =  ${o ? "unpack4xI8(zero_point_input)" : "unpack4xU8(zero_point_input)"};
+     let zero_point_index = ${$.indicesGet('output_indices', 'uniforms.axis')};
+     let zero_point_input = ${v.getByOffset('zero_point_index / 4')};
+     let zero_point_vec =  ${o ? 'unpack4xI8(zero_point_input)' : 'unpack4xU8(zero_point_input)'};
      let zero_point_value = zero_point_vec[zero_point_index % 4]`
         : `
-     let zero_point_index = ${$.indicesGet("output_indices", "uniforms.axis")};
-     let zero_point_value = ${v.getByOffset("zero_point_index")};`
+     let zero_point_index = ${$.indicesGet('output_indices', 'uniforms.axis')};
+     let zero_point_value = ${v.getByOffset('zero_point_index')};`
       : u
       ? `
-     let zero_point_offset = ${w.indicesToOffset("scale_indices")};
-     let zero_point_input = ${v.getByOffset("zero_point_offset / 4")};
-     let zero_point_vec = ${o ? "unpack4xI8(zero_point_input)" : "unpack4xU8(zero_point_input)"};
+     let zero_point_offset = ${w.indicesToOffset('scale_indices')};
+     let zero_point_input = ${v.getByOffset('zero_point_offset / 4')};
+     let zero_point_vec = ${o ? 'unpack4xI8(zero_point_input)' : 'unpack4xU8(zero_point_input)'};
      let zero_point_value = zero_point_vec[zero_point_offset % 4];`
-      : `let zero_point_value = ${v.getByIndices("scale_indices")};`
-    : `let zero_point_value = ${u ? (o ? "i32" : "u32") : _.type.value}(0);`
+      : `let zero_point_value = ${v.getByIndices('scale_indices')};`
+    : `let zero_point_value = ${u ? (o ? 'i32' : 'u32') : _.type.value}(0);`
 };
 // Compute and write output
-${$.setByOffset("global_idx", `${$.type.value}(x_value - zero_point_value) * scale_value`)};
+${$.setByOffset('global_idx', `${$.type.value}(x_value - zero_point_value) * scale_value`)};
 }`;
             };
           return {
-            name: "DequantizeLinear",
+            name: 'DequantizeLinear',
             shaderCache: {
               hint: t.cacheKey,
-              inputDependencies: v ? ["rank", "rank", "rank"] : ["rank", "rank"],
+              inputDependencies: v ? ['rank', 'rank', 'rank'] : ['rank', 'rank'],
             },
             getShaderSource: z,
             getRunData: () => ({
@@ -11483,7 +11483,7 @@ ${$.setByOffset("global_idx", `${$.type.value}(x_value - zero_point_value) * sca
     Pc,
     Fa,
     Ka = E(() => {
-      "use strict";
+      'use strict';
       ve();
       V();
       K();
@@ -11499,22 +11499,22 @@ ${$.setByOffset("global_idx", `${$.type.value}(x_value - zero_point_value) * sca
             s = o,
             a = [{ type: 12, data: s }, { type: r, data: e }, { type: r, data: n }, ...P(i)],
             u = (d) => {
-              let l = C("output", r, i.length),
+              let l = C('output', r, i.length),
                 c = l.type.value,
                 p = [
-                  { name: "outputSize", type: "u32" },
-                  { name: "start", type: c },
-                  { name: "delta", type: c },
+                  { name: 'outputSize', type: 'u32' },
+                  { name: 'start', type: c },
+                  { name: 'delta', type: c },
                 ];
               return `
 ${d.registerUniforms(p).declareVariables(l)}
 ${d.mainStart()}
-${d.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
+${d.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
 output[global_idx] = uniforms.start + ${c}(global_idx) * uniforms.delta;
 }`;
             };
           return {
-            name: "Range",
+            name: 'Range',
             shaderCache: { hint: `${r}` },
             getShaderSource: u,
             getRunData: () => ({
@@ -11547,13 +11547,13 @@ output[global_idx] = uniforms.start + ${c}(global_idx) * uniforms.delta;
     Qa,
     Xa,
     Ya = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (zc = (e, t, n, r) => {
-        if (e !== "none" && r !== "i32" && r !== "u32" && r !== "f32")
+        if (e !== 'none' && r !== 'i32' && r !== 'u32' && r !== 'f32')
           throw new Error(`Input ${r} is not supported with reduction ${e}.`);
         let o = `{
      var oldValue = 0;
@@ -11569,23 +11569,23 @@ output[global_idx] = uniforms.start + ${c}(global_idx) * uniforms.delta;
      }
    }`;
         switch (e) {
-          case "none":
+          case 'none':
             return `${t}=${n};`;
-          case "add":
-            return r === "i32" || r === "u32"
+          case 'add':
+            return r === 'i32' || r === 'u32'
               ? `atomicAdd(&${t}, bitcast<${r}>(${n}));`
               : `
    ${o}bitcast<${r}>(oldValue) + (${n})${i}`;
-          case "max":
-            return r === "i32" || r === "u32"
+          case 'max':
+            return r === 'i32' || r === 'u32'
               ? `atomicMax(&${t}, bitcast<${r}>(${n}));`
               : `
      ${o}max(bitcast<f32>(oldValue), (${n}))${i}`;
-          case "min":
-            return r === "i32" || r === "u32"
+          case 'min':
+            return r === 'i32' || r === 'u32'
               ? `atomicMin(&${t}, bitcast<${r}>(${n}));`
               : `${o}min(bitcast<${r}>(oldValue), (${n}))${i}`;
-          case "mul":
+          case 'mul':
             return `${o}(bitcast<${r}>(oldValue) * (${n}))${i}`;
           default:
             throw new Error(`Reduction ${e} is not supported.`);
@@ -11597,9 +11597,9 @@ output[global_idx] = uniforms.start + ${c}(global_idx) * uniforms.delta;
 let element_count_dim = uniforms.output_strides;
 let dim_value = uniforms.output_shape;`
             : `
-let element_count_dim = uniforms.output_strides[${t ? "i - indices_start" : "i"}];
+let element_count_dim = uniforms.output_strides[${t ? 'i - indices_start' : 'i'}];
 let dim_value = uniforms.output_shape[${
-                t ? "i - indices_start" : "i"
+                t ? 'i - indices_start' : 'i'
               } + uniforms.last_index_dimension];`
         }
 
@@ -11616,8 +11616,8 @@ index += i32(dim_value);
 }
 data_offset += u32((u32(index) * element_count_dim));`),
         (Za = (e, t, n) => `for (var i = 0u; i < uniforms.num_updates_elements; i++) {
-let value = updates[uniforms.num_updates_elements * ${n ? "global_idx" : "idx"} + i];
-${zc(e.reduction, "output[data_offset + i]", "value", t)}
+let value = updates[uniforms.num_updates_elements * ${n ? 'global_idx' : 'idx'} + i];
+${zc(e.reduction, 'output[data_offset + i]', 'value', t)}
 }`),
         (Oc = (e, t) => {
           let n = e[0].dims,
@@ -11635,22 +11635,22 @@ ${zc(e.reduction, "output[data_offset + i]", "value", t)}
               ...P(e[1].dims, e[2].dims, o),
             ],
             c = (p) => {
-              let f = S("indices", e[1].dataType, e[1].dims.length),
-                m = S("updates", e[2].dataType, e[2].dims.length, i),
+              let f = S('indices', e[1].dataType, e[1].dims.length),
+                m = S('updates', e[2].dataType, e[2].dims.length, i),
                 h =
-                  t.reduction !== "none" && t.reduction !== ""
-                    ? vo("output", e[0].dataType, o.length)
-                    : C("output", e[0].dataType, o.length, i);
+                  t.reduction !== 'none' && t.reduction !== ''
+                    ? vo('output', e[0].dataType, o.length)
+                    : C('output', e[0].dataType, o.length, i);
               return `
 ${p
-  .registerUniform("output_size", "u32")
-  .registerUniform("last_index_dimension", "u32")
-  .registerUniform("num_updates_elements", "u32")
+  .registerUniform('output_size', 'u32')
+  .registerUniform('last_index_dimension', 'u32')
+  .registerUniform('num_updates_elements', 'u32')
   .declareVariables(f, m, h)}
 ${p.mainStart()}
-${p.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${p.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 var hasDuplicates = false;
-if (${t.reduction === "none"}) {
+if (${t.reduction === 'none'}) {
 for (var i = 0; i < ${d}; i = i + 1) {
 for (var j = i + 1; j < ${d}; j = j + 1) {
 var index_i = i32(indices[i].x);
@@ -11666,7 +11666,7 @@ break;
 }
 }
 
-if (${t.reduction === "none"} && hasDuplicates) {
+if (${t.reduction === 'none'} && hasDuplicates) {
 if (global_idx != 0u) {
 return;
 }
@@ -11693,10 +11693,10 @@ ${Za(t, h.type.value, !0)}
 }`;
             };
           return {
-            name: "ScatterND",
+            name: 'ScatterND',
             shaderCache: {
               hint: `${t.cacheKey}_${t.reduction}`,
-              inputDependencies: ["rank", "rank"],
+              inputDependencies: ['rank', 'rank'],
             },
             getRunData: () => ({
               outputs: [{ dims: o, dataType: e[0].dataType }],
@@ -11732,7 +11732,7 @@ ${Za(t, h.type.value, !0)}
     tu,
     nu,
     ru = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
@@ -11743,12 +11743,12 @@ ${Za(t, h.type.value, !0)}
             (n) =>
               n > 0 ||
               (() => {
-                throw new Error("Resize requires scales input values to be positive");
+                throw new Error('Resize requires scales input values to be positive');
               })
           ),
           e.length > 0)
         ) {
-          if (t.mode === "linear") {
+          if (t.mode === 'linear') {
             if (
               !(
                 e.length === 2 ||
@@ -11761,14 +11761,14 @@ ${Za(t, h.type.value, !0)}
               throw new Error(`For linear mode, Resize requires scales to be 2D, 3D, 4D with either two outermost or one innermost and
  one outermost scale values equal to 1, or 5D with two outermost scale values equal to 1`);
           } else if (
-            t.mode === "cubic" &&
+            t.mode === 'cubic' &&
             !(
               e.length === 2 ||
               (e.length === 4 && e[0] === 1 && e[1] === 1) ||
               (e.length === 4 && e[0] === 1 && e[3] === 1)
             )
           )
-            throw new Error("Resize requires scales input size to be 2 or 4 for cubic mode");
+            throw new Error('Resize requires scales input size to be 2 or 4 for cubic mode');
         }
       }),
         (Bc = (e, t, n) => {
@@ -11777,7 +11777,7 @@ ${Za(t, h.type.value, !0)}
               (o >= 0 && o < n) ||
               (() => {
                 throw new Error(
-                  "Resize requires axes input values to be positive and less than rank"
+                  'Resize requires axes input values to be positive and less than rank'
                 );
               })
           );
@@ -11789,9 +11789,9 @@ ${Za(t, h.type.value, !0)}
             d = e[0].dims.length;
           if (s > 0 && e.length > s && e[s].dims.length > 0)
             e[s].getFloat32Array().forEach((l) => i.push(l));
-          else if (t.coordinateTransformMode === "tf_crop_and_resize")
+          else if (t.coordinateTransformMode === 'tf_crop_and_resize')
             throw new Error(
-              "Resize requires RoI input to be specified when coordinateTransformMode is tfCropAndResize"
+              'Resize requires RoI input to be specified when coordinateTransformMode is tfCropAndResize'
             );
           if (a > 0 && e.length > a && e[a].dims.length === 1 && e[a].dims[0] > 0) {
             if (
@@ -11799,7 +11799,7 @@ ${Za(t, h.type.value, !0)}
               r.length !== 0 && r.length !== d && n >= 18 && r.length !== t.axes.length)
             )
               throw new Error(
-                "Resize requires scales input size to be same as input rank or axes size for opset 18 and up"
+                'Resize requires scales input size to be same as input rank or axes size for opset 18 and up'
               );
             Dc(r, t), t.axes.length > 0 && Bc(r, t.axes, d).forEach((l, c) => (r[c] = l));
           }
@@ -11812,7 +11812,7 @@ ${Za(t, h.type.value, !0)}
             o.length !== 0 && o.length !== d && n >= 18 && o.length !== t.axes.length)
           )
             throw new Error(
-              "Resize requires sizes input size to be same as input rank or axes size for opset 18 and up"
+              'Resize requires sizes input size to be same as input rank or axes size for opset 18 and up'
             );
           if (t.axes.length > 0) {
             if (r.length !== 0 && r.length !== t.axes.length)
@@ -11824,8 +11824,8 @@ ${Za(t, h.type.value, !0)}
                 'Resize requires "sizes" input size to be of rank axes rank when axes attributes is specified'
               );
           }
-          if (typeof r < "u" && typeof o < "u" && r.length > 0 && o.length > d)
-            throw new Error("Resize requires only of scales or sizes to be specified");
+          if (typeof r < 'u' && typeof o < 'u' && r.length > 0 && o.length > d)
+            throw new Error('Resize requires only of scales or sizes to be specified');
         }),
         (Ja = (e, t, n, r) => `
 // The whole part and the fractional part are calculated separately due to inaccuracy of floating
@@ -11841,29 +11841,29 @@ return whole + fract;
 lengthOriginal: u32, roiStart: f32, roiEnd: f32) -> ${t} { ` +
           (() => {
             switch (e) {
-              case "asymmetric":
+              case 'asymmetric':
                 return `
 if (xScale < 1.0 || floor(xScale) != xScale) {
  return ${t}(xResized) / ${t}(xScale);
 } else {
- ${Ja("xResized", "lengthOriginal", "lengthResized", t)}
+ ${Ja('xResized', 'lengthOriginal', 'lengthResized', t)}
 }
 `;
-              case "pytorch_half_pixel":
+              case 'pytorch_half_pixel':
                 return `if (lengthResized > 1) {
          return (${t}(xResized) + 0.5) / ${t}(xScale) - 0.5;
        } else {
          return 0.0;
        }`;
-              case "tf_half_pixel_for_nn":
+              case 'tf_half_pixel_for_nn':
                 return `return (${t}(xResized) + 0.5) / ${t}(xScale);`;
-              case "align_corners":
+              case 'align_corners':
                 return `if (lengthResized == 1) {
          return 0.0;
        } else {
-         ${Ja("xResized", "lengthOriginal - 1", "lengthResized - 1", t)}
+         ${Ja('xResized', 'lengthOriginal - 1', 'lengthResized - 1', t)}
        }`;
-              case "tf_crop_and_resize":
+              case 'tf_crop_and_resize':
                 return `if (lengthResized > 1) {
          return ${t}(roiStart) * ${t}(lengthOriginal - 1) +
              (${t}(xResized) * ${t}(roiEnd - roiStart) * ${t}(lengthOriginal - 1)) /
@@ -11871,39 +11871,39 @@ if (xScale < 1.0 || floor(xScale) != xScale) {
        } else {
          return 0.5 * ${t}(roiStart + roiEnd) * ${t}(lengthOriginal - 1);
        }`;
-              case "half_pixel_symmetric":
+              case 'half_pixel_symmetric':
                 return `const outputWidth = ${t}xScale * ${t}(lengthResized);
        const adjustment = ${t}(lengthResized) / outputWidth;
        const center = ${t}(lengthOriginal) / 2;
        const offset = center * (1 - adjustment);
        return offset + ((${t}(xResized) + 0.5) / ${t}(xScale)) - 0.5;`;
-              case "half_pixel":
+              case 'half_pixel':
                 return `return ((${t}(xResized) + 0.5) / ${t}(xScale)) - 0.5;`;
               default:
                 throw new Error(`Coordinate transform mode ${e} is not supported`);
             }
           })() +
-          "}"),
+          '}'),
         (Uc = (e, t, n) =>
           `fn getNearestPixelFromOriginal(xOriginal: ${n}, isDownSample: bool) -> ${n} {` +
           (() => {
             switch (e) {
-              case "round_prefer_ceil":
-                return "if (fract(xOriginal) == 0.5) {             return ceil(xOriginal);           } else {             return round(xOriginal);           }";
-              case "floor":
-                return "return floor(xOriginal);";
-              case "ceil":
-                return "return ceil(xOriginal);";
-              case "round_prefer_floor":
-                return "if (fract(xOriginal) == 0.5) {                     return floor(xOriginal);                   } else {                     return round(xOriginal);                   }";
-              case "simple":
+              case 'round_prefer_ceil':
+                return 'if (fract(xOriginal) == 0.5) {             return ceil(xOriginal);           } else {             return round(xOriginal);           }';
+              case 'floor':
+                return 'return floor(xOriginal);';
+              case 'ceil':
+                return 'return ceil(xOriginal);';
+              case 'round_prefer_floor':
+                return 'if (fract(xOriginal) == 0.5) {                     return floor(xOriginal);                   } else {                     return round(xOriginal);                   }';
+              case 'simple':
               default:
                 if (t < 11)
-                  return "if (isDownSample)                     {                       return ceil(xOriginal);                     } else {                       return xOriginal;                     }";
+                  return 'if (isDownSample)                     {                       return ceil(xOriginal);                     } else {                       return xOriginal;                     }';
                 throw new Error(`Nearest mode ${e} is not supported`);
             }
           })() +
-          "}"),
+          '}'),
         (Vc = (e, t, n) => {
           let r = new Array(n).fill(0).concat(new Array(n).fill(1)),
             o = e.length === 0 ? r : e.slice();
@@ -11919,11 +11919,11 @@ if (xScale < 1.0 || floor(xScale) != xScale) {
           if (n.length > 0)
             if (r.length > 0) {
               if ((e.forEach((i) => o.push(i)), Math.max(...r) > e.length))
-                throw new Error("axes is out of bound");
+                throw new Error('axes is out of bound');
               r.forEach((i, s) => (o[i] = n[s]));
             } else n.forEach((i) => o.push(i));
           else {
-            if (t.length === 0) throw new Error("Resize requires either scales or sizes.");
+            if (t.length === 0) throw new Error('Resize requires either scales or sizes.');
             o = e.map((i, s) => Math.round(i * t[s]));
           }
           return o;
@@ -11931,11 +11931,11 @@ if (xScale < 1.0 || floor(xScale) != xScale) {
         (Lc = (e, t, n) => {
           let r = (() => {
             switch (n.keepAspectRatioPolicy) {
-              case "not_larger":
+              case 'not_larger':
                 return n.axes.length > 0
                   ? Math.min(...n.axes.map((i) => t[i]), Number.MAX_VALUE)
                   : Math.min(...t, Number.MAX_VALUE);
-              case "not_smaller":
+              case 'not_smaller':
                 return n.axes.length > 0
                   ? Math.max(...n.axes.map((i) => t[i]), Number.MIN_VALUE)
                   : Math.max(...t, Number.MIN_VALUE);
@@ -11961,15 +11961,15 @@ fn calculateOriginalIndicesFromOutputIndices(output_indices: ${e.type.indices}) 
         }, ${n.length}> {
 var original_indices: array<${e.type.value}, ${n.length}>;
 for (var i:u32 = 0; i < ${n.length}; i++) {
-var output_index = ${e.indicesGet("output_indices", "i")};
-var scale = ${B("uniforms.scales", "i", r)};
-var roi_low = ${B("uniforms.roi", "i", o)};
-var roi_hi = ${B("uniforms.roi", `i + ${t.length}`, o)};
+var output_index = ${e.indicesGet('output_indices', 'i')};
+var scale = ${B('uniforms.scales', 'i', r)};
+var roi_low = ${B('uniforms.roi', 'i', o)};
+var roi_hi = ${B('uniforms.roi', `i + ${t.length}`, o)};
 if (scale == 1.0) {
 original_indices[i] = ${e.type.value}(output_index);
 } else {
-var input_shape_i = ${B("uniforms.input_shape", "i", t.length)};
-var output_shape_i = ${B("uniforms.output_shape", "i", n.length)};
+var input_shape_i = ${B('uniforms.input_shape', 'i', t.length)};
+var output_shape_i = ${B('uniforms.output_shape', 'i', n.length)};
 original_indices[i] = getOriginalCoordinateFromResizedCoordinate(output_index, scale, output_shape_i,
                                                                 input_shape_i, roi_low, roi_hi);
 }
@@ -11980,16 +11980,16 @@ return original_indices;
 fn calculateInputIndicesFromOutputIndices(output_indices: ${t.type.indices}) -> ${e.type.indices} {
 var input_indices: ${e.type.indices};
 for (var i:u32 = 0; i < ${r.length}; i++) {
-var output_index = ${t.indicesGet("output_indices", "i")};
+var output_index = ${t.indicesGet('output_indices', 'i')};
 var input_index: u32;
-var scale = ${B("uniforms.scales", "i", o)};
+var scale = ${B('uniforms.scales', 'i', o)};
 if (scale == 1.0) {
 input_index = output_index;
 } else {
-var roi_low = ${B("uniforms.roi", "i", i)};
-var roi_hi = ${B("uniforms.roi", `i + ${n.length}`, i)};
-var input_shape_i = ${B("uniforms.input_shape", "i", n.length)};
-var output_shape_i = ${B("uniforms.output_shape", "i", r.length)};
+var roi_low = ${B('uniforms.roi', 'i', i)};
+var roi_hi = ${B('uniforms.roi', `i + ${n.length}`, i)};
+var input_shape_i = ${B('uniforms.input_shape', 'i', n.length)};
+var output_shape_i = ${B('uniforms.output_shape', 'i', r.length)};
 var original_idx = getOriginalCoordinateFromResizedCoordinate(output_index, scale, output_shape_i,
                                                              input_shape_i, roi_low, roi_hi);
 if (!${s} || (original_idx >= 0 && original_idx < ${t.type.value}(input_shape_i))) {
@@ -12004,15 +12004,15 @@ if (!${s} || (original_idx >= 0 && original_idx < ${t.type.value}(input_shape_i)
  input_index = u32(original_idx);
 }
 }
-${e.indicesSet("input_indices", "i", "input_index")}
+${e.indicesSet('input_indices', 'i', 'input_index')}
 }
 return input_indices;
 }`),
         (Hc = (e, t) => `
 fn checkInputIndices(input_indices: ${e.type.indices}) -> bool {
 for (var i:u32 = 0; i < ${t.length}; i++) {
-var input_index = ${e.indicesGet("input_indices", "i")};
-if (input_index < 0 || input_index >= ${B("uniforms.input_shape", "i", t.length)}) {
+var input_index = ${e.indicesGet('input_indices', 'i')};
+if (input_index < 0 || input_index >= ${B('uniforms.input_shape', 'i', t.length)}) {
 return false;
 }
 }
@@ -12021,20 +12021,20 @@ return true;
         (eu = (e, t, n, r) =>
           e.rank > r
             ? `
-${e.indicesSet("input_indices", t, "channel")};
-${e.indicesSet("input_indices", n, "batch")};
+${e.indicesSet('input_indices', t, 'channel')};
+${e.indicesSet('input_indices', n, 'batch')};
 `
-            : ""),
+            : ''),
         (qc = (e, t, n, r, o) => {
           let [s, a, u, d] = n.length === 2 ? [-1, 0, 1, -1] : [0, 2, 3, 1],
             l = e.type.value;
           return `
 fn getInputValue(batch: u32, channel: u32, row: u32, col: u32) -> ${l} {
 var input_indices: ${e.type.indices};
-${e.indicesSet("input_indices", a, `max(0, min(row, ${n[a]} - 1))`)};
-${e.indicesSet("input_indices", u, `max(0, min(col, ${n[u]} - 1))`)};
+${e.indicesSet('input_indices', a, `max(0, min(row, ${n[a]} - 1))`)};
+${e.indicesSet('input_indices', u, `max(0, min(col, ${n[u]} - 1))`)};
 ${eu(e, d, s, 2)}
-return ${e.getByIndices("input_indices")};
+return ${e.getByIndices('input_indices')};
 }
 
 fn bilinearInterpolation(output_indices: ${t.type.indices}) -> ${l} {
@@ -12046,7 +12046,7 @@ ${
     ? `if (row < 0 || row > (${n[a]} - 1) || col < 0 || col > (${n[u]} - 1)) {
 return ${o};
 }`
-    : ""
+    : ''
 };
 row = max(0, min(row, ${n[a]} - 1));
 col = max(0, min(col, ${n[u]} - 1));
@@ -12054,8 +12054,8 @@ var row1: u32 = u32(row);
 var col1: u32 = u32(col);
 var row2: u32 = u32(row + 1);
 var col2: u32 = u32(col + 1);
-var channel: u32 = ${n.length > 2 ? `u32(originalIndices[${d}])` : "0"};
-var batch: u32 =  ${n.length > 2 ? `u32(originalIndices[${s}])` : "0"};
+var channel: u32 = ${n.length > 2 ? `u32(originalIndices[${d}])` : '0'};
+var batch: u32 =  ${n.length > 2 ? `u32(originalIndices[${s}])` : '0'};
 var x11: ${l} = getInputValue(batch, channel, row1, col1);
 var x12: ${l} = getInputValue(batch, channel, row1, col2);
 var x21: ${l} = getInputValue(batch, channel, row2, col1);
@@ -12081,12 +12081,12 @@ return (x11 * dx2 * dy2 + x12 * dx2 * dy1 + x21 * dx1 * dy2 + x22 * dx1 * dy1);
             [p, f] = l ? [0, 1] : c ? [2, 3] : [1, 2],
             m = e.type.value,
             h = (b) => {
-              let y = b === p ? "row" : "col";
+              let y = b === p ? 'row' : 'col';
               return `
 fn ${y}CubicInterpolation(input_indices: ${e.type.indices}, output_indices: ${
                 t.type.indices
               }) -> ${m} {
-var output_index = ${t.indicesGet("output_indices", b)};
+var output_index = ${t.indicesGet('output_indices', b)};
 var originalIdx: ${m} = getOriginalCoordinateFromResizedCoordinate(output_index, ${o[b]},
 ${r[b]}, ${n[b]}, ${i[b]}, ${i[b]} + ${n.length});
 var fractOriginalIdx: ${m} = originalIdx - floor(originalIdx);
@@ -12109,11 +12109,11 @@ if (${y} < 0 || ${y} >= ${n[b]}) {
  };
 }
 var input_indices_copy: ${e.type.indices} = input_indices;
-${e.indicesSet("input_indices_copy", b, `u32(${y})`)};
+${e.indicesSet('input_indices_copy', b, `u32(${y})`)};
 data[i + 1] = ${
                 b === p
-                  ? e.getByIndices("input_indices_copy")
-                  : "rowCubicInterpolation(input_indices_copy, output_indices)"
+                  ? e.getByIndices('input_indices_copy')
+                  : 'rowCubicInterpolation(input_indices_copy, output_indices)'
               };
 }
 return cubicInterpolation1D(data, coefs);
@@ -12152,11 +12152,11 @@ return colCubicInterpolation(input_indices, output_indices);
           return `
 fn getInputValue(batch: u32, channel: u32, depth:u32, height: u32, width: u32) -> ${c} {
 var input_indices: ${e.type.indices};
-${e.indicesSet("input_indices", a, `max(0, min(depth, ${n[a]} - 1))`)};
-${e.indicesSet("input_indices", u, `max(0, min(height, ${n[u]} - 1))`)};
-${e.indicesSet("input_indices", d, `max(0, min(width, ${n[d]} - 1))`)};
+${e.indicesSet('input_indices', a, `max(0, min(depth, ${n[a]} - 1))`)};
+${e.indicesSet('input_indices', u, `max(0, min(height, ${n[u]} - 1))`)};
+${e.indicesSet('input_indices', d, `max(0, min(width, ${n[d]} - 1))`)};
 ${eu(e, l, s, 3)}
-return ${e.getByIndices("input_indices")};
+return ${e.getByIndices('input_indices')};
 }
 
 fn trilinearInterpolation(output_indices: ${t.type.indices}) -> ${c} {
@@ -12169,7 +12169,7 @@ ${
     ? `if (depth < 0 || depth > (${n[a]} - 1) || height < 0 || height > (${n[u]} - 1) || width < 0 || (width > ${n[d]} - 1)) {
 return ${o};
 }`
-    : ""
+    : ''
 };
 
 depth = max(0, min(depth, ${n[a]} - 1));
@@ -12181,8 +12181,8 @@ var width1: u32 = u32(width);
 var depth2: u32 = u32(depth + 1);
 var height2: u32 = u32(height + 1);
 var width2: u32 = u32(width + 1);
-var channel: u32 = ${n.length > 3 ? `u32(originalIndices[${l}])` : "0"};
-var batch: u32 =  ${n.length > 3 ? `u32(originalIndices[${s}])` : "0"};
+var channel: u32 = ${n.length > 3 ? `u32(originalIndices[${l}])` : '0'};
+var batch: u32 =  ${n.length > 3 ? `u32(originalIndices[${s}])` : '0'};
 
 var x111: ${c} = getInputValue(batch, channel, depth1, height1, width1);
 var x112: ${c} = getInputValue(batch, channel, depth1, height1, width2);
@@ -12221,81 +12221,81 @@ return (x111 * dx2 * dy2 * dz2 + x112 * dx2 * dy2 * dz1 + x121 * dx2 * dy1 *dz2 
             d = r.slice();
           r.length === 0 &&
             ((d = s.map((g, _) => (g === 0 ? 1 : u[_] / g))),
-            t.keepAspectRatioPolicy !== "stretch" && (u = Lc(s, d, t)));
-          let l = C("output", e.dataType, u.length),
-            c = S("input", e.dataType, s.length),
+            t.keepAspectRatioPolicy !== 'stretch' && (u = Lc(s, d, t)));
+          let l = C('output', e.dataType, u.length),
+            c = S('input', e.dataType, s.length),
             p = x.size(u),
             f = s.length === u.length && s.every((g, _) => g === u[_]),
-            m = t.coordinateTransformMode === "tf_crop_and_resize",
+            m = t.coordinateTransformMode === 'tf_crop_and_resize',
             h = t.extrapolationValue,
             b = c.type.value,
             y = (g) => `
 ${
   f
-    ? ""
+    ? ''
     : `
 ${Rc(t.coordinateTransformMode, b)};
 ${(() => {
   switch (t.mode) {
-    case "nearest":
+    case 'nearest':
       return `
    ${Hc(c, s)};
    ${Uc(t.nearestMode, n, b)};
    ${Wc(c, l, s, u, d.length, a.length, m)};
    `;
-    case "linear":
+    case 'linear':
       return `
    ${Gc(l, s, u, d.length, a.length)};
    ${(() => {
      if (s.length === 2 || s.length === 4) return `${qc(c, l, s, m, h)}`;
      if (s.length === 3 || s.length === 5) return `${Kc(c, l, s, m, h)}`;
      throw Error(
-       "Linear mode only supports input dims 2, 3, 4 and 5 are supported in linear mode."
+       'Linear mode only supports input dims 2, 3, 4 and 5 are supported in linear mode.'
      );
    })()};
  `;
-    case "cubic":
+    case 'cubic':
       return `
  ${(() => {
    if (s.length === 2 || s.length === 4)
      return `${Fc(c, l, s, u, d, a, t.cubicCoeffA, m, t.extrapolationValue, t.excludeOutside)}`;
-   throw Error("Cubic mode only supports input dims 2 and 4 are supported in linear mode.");
+   throw Error('Cubic mode only supports input dims 2 and 4 are supported in linear mode.');
  })()};
  `;
     default:
-      throw Error("Invalid resize mode");
+      throw Error('Invalid resize mode');
   }
 })()};
 `
 }
 ${g
-  .registerUniform("output_size", "u32")
-  .registerUniform("scales", "f32", d.length)
-  .registerUniform("roi", "f32", a.length)
+  .registerUniform('output_size', 'u32')
+  .registerUniform('scales', 'f32', d.length)
+  .registerUniform('roi', 'f32', a.length)
   .declareVariables(c, l)}
 ${g.mainStart()}
-${g.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
+${g.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
 ${
   f
-    ? "output[global_idx] = input[global_idx];"
+    ? 'output[global_idx] = input[global_idx];'
     : `
-let output_indices = ${l.offsetToIndices("global_idx")};
+let output_indices = ${l.offsetToIndices('global_idx')};
 var input_indices: ${c.type.indices};
 ${(() => {
   switch (t.mode) {
-    case "nearest":
+    case 'nearest':
       return `input_indices = calculateInputIndicesFromOutputIndices(output_indices);
      if (checkInputIndices(input_indices)) {
-       output[global_idx] = ${c.getByIndices("input_indices")};
+       output[global_idx] = ${c.getByIndices('input_indices')};
      } else {
        output[global_idx] = ${t.extrapolationValue};
      }`;
-    case "linear":
+    case 'linear':
       return `output[global_idx] = ${
-        s.length === 2 || s.length === 4 ? "bilinearInterpolation" : "trilinearInterpolation"
+        s.length === 2 || s.length === 4 ? 'bilinearInterpolation' : 'trilinearInterpolation'
       }(output_indices);`;
-    case "cubic":
-      return "output[global_idx] = bicubicInterpolation(output_indices);";
+    case 'cubic':
+      return 'output[global_idx] = bicubicInterpolation(output_indices);';
     default:
       throw Error(`Unsupported resize mode: ${t.mode}`);
   }
@@ -12304,14 +12304,14 @@ ${(() => {
 }
 }`;
           return {
-            name: "Resize",
+            name: 'Resize',
             shaderCache: {
               hint: `${t.cacheKey}|${n}|${
-                d.length > 0 ? (t.mode === "cubic" ? d : d.length) : ""
-              }|${o.length > 0 ? o : ""}|${a.length > 0 ? a : ""}|${f}|${
-                t.mode === "nearest" ? s.length : s
+                d.length > 0 ? (t.mode === 'cubic' ? d : d.length) : ''
+              }|${o.length > 0 ? o : ''}|${a.length > 0 ? a : ''}|${f}|${
+                t.mode === 'nearest' ? s.length : s
               }`,
-              inputDependencies: ["rank"],
+              inputDependencies: ['rank'],
             },
             getShaderSource: y,
             getRunData: () => ({
@@ -12336,7 +12336,7 @@ ${(() => {
             o = [],
             i = Zc(e);
           if (t.antialias !== 0)
-            throw Error("Only default value (0) for Antialias attribute is supported");
+            throw Error('Only default value (0) for Antialias attribute is supported');
           Mc(e.inputs, t, i, n, r, o), e.compute(jc(e.inputs[0], t, i, n, r, o), { inputs: [0] });
         }),
         (nu = (e) => {
@@ -12348,7 +12348,7 @@ ${(() => {
             s = e.extrapolationValue,
             a = e.keepAspectRatioPolicy,
             u = e.mode,
-            d = e.nearestMode === "" ? "simple" : e.nearestMode;
+            d = e.nearestMode === '' ? 'simple' : e.nearestMode;
           return N({
             antialias: t,
             axes: n,
@@ -12366,39 +12366,39 @@ ${(() => {
     Xc,
     ou,
     iu = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       (Qc = (e) => {
-        if (!e || e.length < 3) throw new Error("layerNorm requires at least 3 inputs.");
+        if (!e || e.length < 3) throw new Error('layerNorm requires at least 3 inputs.');
         let t = e[0],
           n = e[1],
           r = e[2];
         if (t.dataType !== n.dataType || t.dataType !== r.dataType)
-          throw new Error("All inputs must have the same data type");
-        if (t.dims.length !== 3 && t.dims.length !== 2) throw new Error("Input must be 2D or 3D");
-        if (n.dims.length !== 3 && n.dims.length !== 2) throw new Error("Skip must be 2D or 3D");
+          throw new Error('All inputs must have the same data type');
+        if (t.dims.length !== 3 && t.dims.length !== 2) throw new Error('Input must be 2D or 3D');
+        if (n.dims.length !== 3 && n.dims.length !== 2) throw new Error('Skip must be 2D or 3D');
         let o = t.dims[t.dims.length - 1],
           i = t.dims[t.dims.length - 2];
         if (n.dims[n.dims.length - 1] !== o)
-          throw new Error("Skip must have the same hidden size as input");
+          throw new Error('Skip must have the same hidden size as input');
         if (n.dims[n.dims.length - 2] !== i)
-          throw new Error("Skip must have the same sequence length as input");
-        if (r.dims.length !== 1) throw new Error("Gamma must be 1D");
+          throw new Error('Skip must have the same sequence length as input');
+        if (r.dims.length !== 1) throw new Error('Gamma must be 1D');
         if (r.dims[r.dims.length - 1] !== o)
-          throw new Error("Gamma must have the same hidden size as input");
+          throw new Error('Gamma must have the same hidden size as input');
         if (e.length > 3) {
           let s = e[3];
-          if (s.dims.length !== 1) throw new Error("Beta must be 1D");
+          if (s.dims.length !== 1) throw new Error('Beta must be 1D');
           if (s.dims[s.dims.length - 1] !== o)
-            throw new Error("Beta must have the same hidden size as input");
+            throw new Error('Beta must have the same hidden size as input');
         }
         if (e.length > 4) {
           let s = e[4];
-          if (s.dims.length !== 1) throw new Error("Bias must be 1D");
+          if (s.dims.length !== 1) throw new Error('Bias must be 1D');
           if (s.dims[s.dims.length - 1] !== o)
-            throw new Error("Bias must have the same hidden size as input");
+            throw new Error('Bias must have the same hidden size as input');
         }
       }),
         (Xc = (e, t, n, r) => {
@@ -12424,22 +12424,22 @@ ${(() => {
             ],
             _ = (v) => {
               let $ = [
-                  { name: "output_size", type: "u32" },
-                  { name: "components", type: "u32" },
-                  { name: "hidden_size", type: "u32" },
-                  { name: "epsilon", type: "f32" },
+                  { name: 'output_size', type: 'u32' },
+                  { name: 'components', type: 'u32' },
+                  { name: 'hidden_size', type: 'u32' },
+                  { name: 'epsilon', type: 'f32' },
                 ],
                 T = [
-                  S("x", e[0].dataType, e[0].dims, y),
-                  S("skip", e[1].dataType, e[1].dims, y),
-                  S("gamma", e[2].dataType, e[2].dims, y),
+                  S('x', e[0].dataType, e[0].dims, y),
+                  S('skip', e[1].dataType, e[1].dims, y),
+                  S('gamma', e[2].dataType, e[2].dims, y),
                 ];
-              c && T.push(S("beta", e[3].dataType, e[3].dims, y)),
-                p && T.push(S("bias", e[4].dataType, e[4].dims, y)),
-                T.push(C("output", e[0].dataType, a, y)),
-                f && T.push(C("mean_output", 1, l)),
-                m && T.push(C("inv_std_output", 1, l)),
-                h && T.push(C("input_skip_bias_sum", e[0].dataType, a, y));
+              c && T.push(S('beta', e[3].dataType, e[3].dims, y)),
+                p && T.push(S('bias', e[4].dataType, e[4].dims, y)),
+                T.push(C('output', e[0].dataType, a, y)),
+                f && T.push(C('mean_output', 1, l)),
+                m && T.push(C('inv_std_output', 1, l)),
+                h && T.push(C('input_skip_bias_sum', e[0].dataType, a, y));
               let I = re(e[0].dataType),
                 A = re(1, y);
               return `
@@ -12461,12 +12461,12 @@ stride = hidden_size_vectorized - stride * ix;
 }
 for (var i: u32 = 0; i < stride; i++) {
 let skip_value = skip[offset + i];
-let bias_value = ${p ? "bias[offset1d + i]" : I + "(0.0)"};
+let bias_value = ${p ? 'bias[offset1d + i]' : I + '(0.0)'};
 let input_value = x[offset + i];
 let value = input_value + skip_value + bias_value;
-${h ? "input_skip_bias_sum[offset + i] = value;" : ""}
+${h ? 'input_skip_bias_sum[offset + i] = value;' : ''}
 output[offset + i] = value;
-let f32_value = ${Xe(I, y, "value")};
+let f32_value = ${Xe(I, y, 'value')};
 sum_shared[ix] += f32_value;
 sum_squared_shared[ix] += f32_value * f32_value;
 }
@@ -12484,17 +12484,17 @@ workgroupBarrier();
 
 let sum = sum_shared[0];
 let square_sum = sum_squared_shared[0];
-let mean = ${Te("sum", y)} / f32(uniforms.hidden_size);
-let inv_std_dev = inverseSqrt(${Te("square_sum", y)} / f32(uniforms.hidden_size) ${
-                o ? "" : "- mean * mean"
+let mean = ${Te('sum', y)} / f32(uniforms.hidden_size);
+let inv_std_dev = inverseSqrt(${Te('square_sum', y)} / f32(uniforms.hidden_size) ${
+                o ? '' : '- mean * mean'
               } + uniforms.epsilon);
-${f ? "mean_output[global_idx] = mean;" : ""}
-${m ? "inv_std_output[global_idx] = inv_std_dev;" : ""}
+${f ? 'mean_output[global_idx] = mean;' : ''}
+${m ? 'inv_std_output[global_idx] = inv_std_dev;' : ''}
 
 for (var i: u32 = 0; i < stride; i++) {
-output[offset + i] = (output[offset + i] ${o ? "" : `- ${I}(mean)`}) *
+output[offset + i] = (output[offset + i] ${o ? '' : `- ${I}(mean)`}) *
  ${I}(inv_std_dev) * gamma[offset1d + i]
- ${c ? "+ beta[offset1d + i]" : ""};
+ ${c ? '+ beta[offset1d + i]' : ''};
 }
 }`;
             },
@@ -12504,10 +12504,10 @@ output[offset + i] = (output[offset + i] ${o ? "" : `- ${I}(mean)`}) *
             n > 2 && w.push({ dims: l, dataType: 1 }),
             n > 3 && w.push({ dims: i, dataType: e[0].dataType }),
             {
-              name: "SkipLayerNormalization",
+              name: 'SkipLayerNormalization',
               shaderCache: {
                 hint: `${y};${f};${m};${h}`,
-                inputDependencies: e.map((v, $) => "type"),
+                inputDependencies: e.map((v, $) => 'type'),
               },
               getShaderSource: _,
               getRunData: () => ({
@@ -12536,18 +12536,18 @@ output[offset + i] = (output[offset + i] ${o ? "" : `- ${I}(mean)`}) *
     au,
     uu,
     du = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       K();
       (Yc = (e, t) => {
-        if (!e || e.length < 1) throw new Error("too few inputs");
+        if (!e || e.length < 1) throw new Error('too few inputs');
         if (t.axes.length !== 0) {
           if (t.axes.length !== t.starts.length || t.axes.length !== t.ends.length)
-            throw new Error("axes, starts and ends must have the same length");
+            throw new Error('axes, starts and ends must have the same length');
         } else if (t.starts.length !== t.ends.length)
-          throw new Error("starts and ends must have the same length");
+          throw new Error('starts and ends must have the same length');
         e.slice(1).forEach((n, r) => {
           if (e[r + 1].dataType !== 6 && e[r + 1].dataType !== 7)
             throw new Error(`Input ${r} must be an array of int32 or int64`);
@@ -12585,18 +12585,18 @@ output[offset + i] = (output[offset + i] ${o ? "" : `- ${I}(mean)`}) *
 var input_indices: ${e.type.indices};
 var carry = 0u;
 for (var i = ${n.length}; i >= 0; i--) {
- let input_shape_i = ${B("uniforms.input_shape", "i", n.length)};
- let steps_i = ${B("uniforms.steps", "i", n.length)};
- let signs_i = ${B("uniforms.signs", "i", n.length)};
- let starts_i = ${B("uniforms.starts", "i", n.length)};
- var output_index = ${t.indicesGet("output_indices", "i")};
+ let input_shape_i = ${B('uniforms.input_shape', 'i', n.length)};
+ let steps_i = ${B('uniforms.steps', 'i', n.length)};
+ let signs_i = ${B('uniforms.signs', 'i', n.length)};
+ let starts_i = ${B('uniforms.starts', 'i', n.length)};
+ var output_index = ${t.indicesGet('output_indices', 'i')};
  var input_index = output_index * steps_i + starts_i + carry;
  carry = input_index / input_shape_i;
  input_index = input_index % input_shape_i;
  if (signs_i < 0) {
    input_index = input_shape_i - input_index - 1u + starts_i;
  }
- ${e.indicesSet("input_indices", "i", "input_index")};
+ ${e.indicesSet('input_indices', 'i', 'input_index')};
 }
 return input_indices;
 }`),
@@ -12609,14 +12609,14 @@ return input_indices;
             (y) =>
               y !== 0 ||
               (() => {
-                throw new Error("step cannot be 0");
+                throw new Error('step cannot be 0');
               })
           ),
             i.length === 0 && (i = Array(o.length).fill(1));
           let s = t.starts.map((y, g) => su(y, g, n, o, i)),
             a = t.ends.map((y, g) => su(y, g, n, o, i));
           if (o.length !== s.length || o.length !== a.length)
-            throw new Error("start, ends and axes should have the same number of elements");
+            throw new Error('start, ends and axes should have the same number of elements');
           if (o.length !== n.length)
             for (let y = 0; y < n.length; ++y)
               o.includes(y) || (s.splice(y, 0, 0), a.splice(y, 0, n[y]), i.splice(y, 0, 1));
@@ -12634,14 +12634,14 @@ return input_indices;
             d[y] = Math.ceil((a[y] - s[y]) / i[y]);
           });
           let l = { dims: d, dataType: e[0].dataType },
-            c = C("output", e[0].dataType, d.length),
-            p = S("input", e[0].dataType, e[0].dims.length),
+            c = C('output', e[0].dataType, d.length),
+            p = S('input', e[0].dataType, e[0].dims.length),
             f = x.size(d),
             m = [
-              { name: "outputSize", type: "u32" },
-              { name: "starts", type: "u32", length: s.length },
-              { name: "signs", type: "i32", length: u.length },
-              { name: "steps", type: "u32", length: i.length },
+              { name: 'outputSize', type: 'u32' },
+              { name: 'starts', type: 'u32', length: s.length },
+              { name: 'signs', type: 'i32', length: u.length },
+              { name: 'steps', type: 'u32', length: i.length },
             ],
             h = [
               { type: 12, data: f },
@@ -12654,16 +12654,16 @@ return input_indices;
 ${y.registerUniforms(m).declareVariables(p, c)}
 ${ep(p, c, n)}
 ${y.mainStart()}
-${y.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.outputSize")}
-let output_indices = ${c.offsetToIndices("global_idx")};
+${y.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.outputSize')}
+let output_indices = ${c.offsetToIndices('global_idx')};
 let input_indices = calculateInputIndices(output_indices);
-${c.setByOffset("global_idx", p.getByIndices("input_indices"))}
+${c.setByOffset('global_idx', p.getByIndices('input_indices'))}
 }`;
           return {
-            name: "Slice",
+            name: 'Slice',
             shaderCache: {
               hint: `${u.length}_${s.length}_${i.length}`,
-              inputDependencies: ["rank"],
+              inputDependencies: ['rank'],
             },
             getShaderSource: b,
             getRunData: () => ({
@@ -12690,14 +12690,14 @@ ${c.setByOffset("global_idx", p.getByIndices("input_indices"))}
     lu,
     cu,
     pu = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       ie();
       Re();
       K();
       (np = (e) => {
-        if (!e || e.length !== 1) throw new Error("Softmax op requires 1 input.");
+        if (!e || e.length !== 1) throw new Error('Softmax op requires 1 input.');
       }),
         (rp = (e, t) => {
           let n = e.inputs[0],
@@ -12729,11 +12729,11 @@ ${c.setByOffset("global_idx", p.getByIndices("input_indices"))}
                 : I === 3
                 ? `max(max(${T}.x, ${T}.y), ${T}.z)`
                 : T,
-            y = S("x", u.dataType, u.dims, f),
-            g = C("result", u.dataType, u.dims, f),
+            y = S('x', u.dataType, u.dims, f),
+            g = C('result', u.dataType, u.dims, f),
             _ = y.type.value,
             w =
-              re(u.dataType) === "f32"
+              re(u.dataType) === 'f32'
                 ? `var threadMax = ${_}(-3.402823e+38f);`
                 : `var threadMax = ${_}(-65504.0h);`,
             v = (T) => `
@@ -12750,7 +12750,7 @@ fn setValue(row: i32, col: i32, row_stride: i32, value: ${_}) {
 let index = row * row_stride + col;
 result[index] = value;
 }
-${T.registerUniform("packedCols", "i32").declareVariables(y, g)}
+${T.registerUniform('packedCols', 'i32').declareVariables(y, g)}
 ${T.mainStart(h)}
 let gindex = i32(global_idx);
 let lindex = i32(local_idx);
@@ -12779,7 +12779,7 @@ if (lindex < currSize) {
 workgroupBarrier();
 }
 if (lindex == 0) {
-rowMaxShared = ${_}(${b("threadShared[0]", f)});
+rowMaxShared = ${_}(${b('threadShared[0]', f)});
 }
 workgroupBarrier();
 
@@ -12799,7 +12799,7 @@ if (lindex < currSize) {
 workgroupBarrier();
 }
 if (lindex == 0) {
-rowSumShared = ${_}(${Te("threadShared[0]", f)});
+rowSumShared = ${_}(${Te('threadShared[0]', f)});
 }
 workgroupBarrier();
 
@@ -12811,8 +12811,8 @@ setValue(row, col, row_stride, value);
 }`,
             $ = e.compute(
               {
-                name: "Softmax",
-                shaderCache: { hint: `${f};${h}`, inputDependencies: ["type"] },
+                name: 'Softmax',
+                shaderCache: { hint: `${f};${h}`, inputDependencies: ['type'] },
                 getRunData: () => ({
                   outputs: [{ dims: l, dataType: u.dataType }],
                   dispatchGroup: { x: p },
@@ -12835,26 +12835,26 @@ setValue(row, col, row_stride, value);
     sp,
     fu,
     hu = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       (mu = (e) => Array.from(e.getBigInt64Array(), Number)),
         (op = (e) => {
-          if (!e || e.length !== 2) throw new Error("Tile requires 2 inputs.");
+          if (!e || e.length !== 2) throw new Error('Tile requires 2 inputs.');
           if (
             e[0].dataType !== 1 &&
             e[0].dataType !== 10 &&
             e[0].dataType !== 6 &&
             e[0].dataType !== 12
           )
-            throw new Error("Tile only support float, float16, int32, and uint32 data types");
+            throw new Error('Tile only support float, float16, int32, and uint32 data types');
           if (e[1].dataType !== 7)
-            throw new Error("Tile `repeats` input should be of int64 data type");
-          if (e[1].dims.length !== 1) throw new Error("Tile `repeats` input should be 1-D");
+            throw new Error('Tile `repeats` input should be of int64 data type');
+          if (e[1].dims.length !== 1) throw new Error('Tile `repeats` input should be 1-D');
           if (mu(e[1]).length !== e[0].dims.length)
             throw new Error(
-              "Tile `repeats` input should have same number of elements as rank of input data tensor"
+              'Tile `repeats` input should have same number of elements as rank of input data tensor'
             );
         }),
         (ip = (e, t) => {
@@ -12868,26 +12868,26 @@ setValue(row, col, row_stride, value);
             o = ip(n, r),
             i = x.size(o),
             s = e[0].dataType,
-            a = S("input", s, n.length),
-            u = C("output", s, o.length),
+            a = S('input', s, n.length),
+            u = C('output', s, o.length),
             d = (l) => `
 const inputShape = ${a.indices(...n)};
-${l.registerUniform("output_size", "u32").declareVariables(a, u)}
+${l.registerUniform('output_size', 'u32').declareVariables(a, u)}
 ${l.mainStart()}
-${l.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.output_size")}
-let output_indices = ${u.offsetToIndices("global_idx")};
+${l.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.output_size')}
+let output_indices = ${u.offsetToIndices('global_idx')};
 var input_indices: ${a.type.indices};
 for (var i = 0; i < ${n.length}; i++) {
-let input_dim_i = ${a.indicesGet("uniforms.input_shape", "i")};
-let input_dim_value = ${u.indicesGet("output_indices", "i")}  % input_dim_i;
+let input_dim_i = ${a.indicesGet('uniforms.input_shape', 'i')};
+let input_dim_value = ${u.indicesGet('output_indices', 'i')}  % input_dim_i;
 
-${a.indicesSet("input_indices", "i", "input_dim_value")}
+${a.indicesSet('input_indices', 'i', 'input_dim_value')}
 }
-${u.setByOffset("global_idx", a.getByIndices("input_indices"))}
+${u.setByOffset('global_idx', a.getByIndices('input_indices'))}
 }`;
           return {
-            name: "Tile",
-            shaderCache: { hint: `${r}`, inputDependencies: ["rank"] },
+            name: 'Tile',
+            shaderCache: { hint: `${r}`, inputDependencies: ['rank'] },
             getRunData: () => ({
               outputs: [{ dims: o, dataType: e[0].dataType }],
               dispatchGroup: { x: Math.ceil(i / 64) },
@@ -12904,24 +12904,24 @@ ${u.setByOffset("global_idx", a.getByIndices("input_indices"))}
     up,
     gu,
     yu = E(() => {
-      "use strict";
+      'use strict';
       V();
       q();
       K();
       (ap = (e, t, n, r, o) => {
-        let i = C("output_data", o, n.length, 4),
-          s = S("a_data", t[1].dataType, t[1].dims.length, 4),
-          a = S("b_data", t[2].dataType, t[2].dims.length, 4),
-          u = S("c_data", t[0].dataType, t[0].dims.length, 4),
+        let i = C('output_data', o, n.length, 4),
+          s = S('a_data', t[1].dataType, t[1].dims.length, 4),
+          a = S('b_data', t[2].dataType, t[2].dims.length, 4),
+          u = S('c_data', t[0].dataType, t[0].dims.length, 4),
           d,
           l = (c, p, f) => `select(${p}, ${c}, ${f})`;
         if (!r)
           d = i.setByOffset(
-            "global_idx",
-            l(s.getByOffset("global_idx"), a.getByOffset("global_idx"), u.getByOffset("global_idx"))
+            'global_idx',
+            l(s.getByOffset('global_idx'), a.getByOffset('global_idx'), u.getByOffset('global_idx'))
           );
         else {
-          let c = (p, f, m = "") => {
+          let c = (p, f, m = '') => {
             let h = `a_data[index_a${f}][component_a${f}]`,
               b = `b_data[index_b${f}][component_b${f}]`,
               y = `bool(c_data[index_c${f}] & (0xffu << (component_c${f} * 8)))`;
@@ -12942,22 +12942,22 @@ ${u.setByOffset("global_idx", a.getByIndices("input_indices"))}
           o === 9
             ? (d = `
  var data = vec4<u32>(0);
- ${c("data", 0, "u32")}
- ${c("data", 1, "u32")}
- ${c("data", 2, "u32")}
- ${c("data", 3, "u32")}
+ ${c('data', 0, 'u32')}
+ ${c('data', 1, 'u32')}
+ ${c('data', 2, 'u32')}
+ ${c('data', 3, 'u32')}
  output_data[global_idx] = dot(vec4<u32>(0x1, 0x100, 0x10000, 0x1000000), vec4<u32>(data));`)
             : (d = `
- ${c("output_data[global_idx]", 0)}
- ${c("output_data[global_idx]", 1)}
- ${c("output_data[global_idx]", 2)}
- ${c("output_data[global_idx]", 3)}
+ ${c('output_data[global_idx]', 0)}
+ ${c('output_data[global_idx]', 1)}
+ ${c('output_data[global_idx]', 2)}
+ ${c('output_data[global_idx]', 3)}
 `);
         }
         return `
-${e.registerUniform("vec_size", "u32").declareVariables(u, s, a, i)}
+${e.registerUniform('vec_size', 'u32').declareVariables(u, s, a, i)}
 ${e.mainStart()}
-${e.guardAgainstOutOfBoundsWorkgroupSizes("uniforms.vec_size")}
+${e.guardAgainstOutOfBoundsWorkgroupSizes('uniforms.vec_size')}
 ${d}
 }`;
       }),
@@ -12976,8 +12976,8 @@ ${d}
           }
           let u = Math.ceil(a / 4);
           return {
-            name: "Where",
-            shaderCache: { inputDependencies: ["rank", "rank", "rank"] },
+            name: 'Where',
+            shaderCache: { inputDependencies: ['rank', 'rank', 'rank'] },
             getShaderSource: (d) => ap(d, e, s, i, o),
             getRunData: () => ({
               outputs: [{ dims: s, dataType: o }],
@@ -12992,7 +12992,7 @@ ${d}
     });
   var bu,
     _u = E(() => {
-      "use strict";
+      'use strict';
       Xo();
       Yt();
       ei();
@@ -13036,107 +13036,107 @@ ${d}
       en();
       yu();
       bu = new Map([
-        ["Abs", [ri]],
-        ["Acos", [oi]],
-        ["Acosh", [ii]],
-        ["Add", [Gi]],
-        ["ArgMax", [Qo, qn]],
-        ["ArgMin", [Zo, qn]],
-        ["Asin", [si]],
-        ["Asinh", [ai]],
-        ["Atan", [ui]],
-        ["Atanh", [di]],
-        ["Attention", [Yo]],
-        ["AveragePool", [Oa, za]],
-        ["BatchNormalization", [Jo]],
-        ["BiasAdd", [ti]],
-        ["BiasSplitGelu", [Ni]],
-        ["Cast", [ci, li]],
-        ["Ceil", [mi]],
-        ["Clip", [pi]],
-        ["Concat", [Ji, es]],
-        ["Conv", [er, Jn]],
-        ["ConvTranspose", [xs, $s]],
-        ["Cos", [fi]],
-        ["Cosh", [hi]],
-        ["CumSum", [Ts, Is]],
-        ["DepthToSpace", [As, ks]],
-        ["DequantizeLinear", [Wa, Ha]],
-        ["Div", [Wi]],
-        ["Einsum", [Os, Ds]],
-        ["Elu", [gi, ft]],
-        ["Equal", [Hi]],
-        ["Erf", [yi]],
-        ["Exp", [bi]],
-        ["Expand", [Rs]],
-        ["FastGelu", [Vs]],
-        ["Floor", [_i]],
-        ["FusedConv", [er, Jn]],
-        ["Gather", [Gs, Ls]],
-        ["GatherElements", [Xs, Qs]],
-        ["GatherBlockQuantized", [Ks, js]],
-        ["GatherND", [Hs, qs]],
-        ["Gelu", [wi]],
-        ["Gemm", [ea, Js]],
-        ["GlobalAveragePool", [Ma, Ba]],
-        ["GlobalMaxPool", [La, Na]],
-        ["Greater", [ji]],
-        ["GreaterOrEqual", [Qi]],
-        ["GridSample", [na, ra]],
-        ["GroupQueryAttention", [pa]],
-        ["HardSigmoid", [Ai, Ci]],
-        ["InstanceNormalization", [ha]],
-        ["LayerNormalization", [ya]],
-        ["LeakyRelu", [$i, ft]],
-        ["Less", [Zi]],
-        ["LessOrEqual", [Xi]],
-        ["Log", [Ri]],
-        ["MatMul", [_a]],
-        ["MatMulNBits", [$a, va]],
-        ["MaxPool", [Ua, Va]],
-        ["Mul", [qi]],
-        ["MultiHeadAttention", [aa, sa]],
-        ["Neg", [xi]],
-        ["Not", [vi]],
-        ["Pad", [Sa]],
-        ["Pow", [Fi]],
-        ["QuickGelu", [Ui, ft]],
-        ["Range", [Fa]],
-        ["Reciprocal", [Si]],
-        ["ReduceMin", [Wo]],
-        ["ReduceMean", [Uo]],
-        ["ReduceMax", [Go]],
-        ["ReduceSum", [qo]],
-        ["ReduceProd", [Ho]],
-        ["ReduceL1", [Vo]],
-        ["ReduceL2", [No]],
-        ["ReduceLogSum", [Ko]],
-        ["ReduceLogSumExp", [Lo]],
-        ["ReduceSumSquare", [Fo]],
-        ["Relu", [Ti]],
-        ["Resize", [tu, nu]],
-        ["RotaryEmbedding", [la]],
-        ["ScatterND", [Xa, Qa]],
-        ["Sigmoid", [Ii]],
-        ["Sin", [ki]],
-        ["Sinh", [Ei]],
-        ["Slice", [au, uu]],
-        ["SkipLayerNormalization", [ou]],
-        ["Split", [ua, da]],
-        ["Sqrt", [Pi]],
-        ["Softmax", [lu, cu]],
-        ["Sub", [Ki]],
-        ["Tan", [zi]],
-        ["Tanh", [Di]],
-        ["ThresholdedRelu", [Mi, ft]],
-        ["Tile", [fu]],
-        ["Transpose", [To, Io]],
-        ["Where", [gu]],
+        ['Abs', [ri]],
+        ['Acos', [oi]],
+        ['Acosh', [ii]],
+        ['Add', [Gi]],
+        ['ArgMax', [Qo, qn]],
+        ['ArgMin', [Zo, qn]],
+        ['Asin', [si]],
+        ['Asinh', [ai]],
+        ['Atan', [ui]],
+        ['Atanh', [di]],
+        ['Attention', [Yo]],
+        ['AveragePool', [Oa, za]],
+        ['BatchNormalization', [Jo]],
+        ['BiasAdd', [ti]],
+        ['BiasSplitGelu', [Ni]],
+        ['Cast', [ci, li]],
+        ['Ceil', [mi]],
+        ['Clip', [pi]],
+        ['Concat', [Ji, es]],
+        ['Conv', [er, Jn]],
+        ['ConvTranspose', [xs, $s]],
+        ['Cos', [fi]],
+        ['Cosh', [hi]],
+        ['CumSum', [Ts, Is]],
+        ['DepthToSpace', [As, ks]],
+        ['DequantizeLinear', [Wa, Ha]],
+        ['Div', [Wi]],
+        ['Einsum', [Os, Ds]],
+        ['Elu', [gi, ft]],
+        ['Equal', [Hi]],
+        ['Erf', [yi]],
+        ['Exp', [bi]],
+        ['Expand', [Rs]],
+        ['FastGelu', [Vs]],
+        ['Floor', [_i]],
+        ['FusedConv', [er, Jn]],
+        ['Gather', [Gs, Ls]],
+        ['GatherElements', [Xs, Qs]],
+        ['GatherBlockQuantized', [Ks, js]],
+        ['GatherND', [Hs, qs]],
+        ['Gelu', [wi]],
+        ['Gemm', [ea, Js]],
+        ['GlobalAveragePool', [Ma, Ba]],
+        ['GlobalMaxPool', [La, Na]],
+        ['Greater', [ji]],
+        ['GreaterOrEqual', [Qi]],
+        ['GridSample', [na, ra]],
+        ['GroupQueryAttention', [pa]],
+        ['HardSigmoid', [Ai, Ci]],
+        ['InstanceNormalization', [ha]],
+        ['LayerNormalization', [ya]],
+        ['LeakyRelu', [$i, ft]],
+        ['Less', [Zi]],
+        ['LessOrEqual', [Xi]],
+        ['Log', [Ri]],
+        ['MatMul', [_a]],
+        ['MatMulNBits', [$a, va]],
+        ['MaxPool', [Ua, Va]],
+        ['Mul', [qi]],
+        ['MultiHeadAttention', [aa, sa]],
+        ['Neg', [xi]],
+        ['Not', [vi]],
+        ['Pad', [Sa]],
+        ['Pow', [Fi]],
+        ['QuickGelu', [Ui, ft]],
+        ['Range', [Fa]],
+        ['Reciprocal', [Si]],
+        ['ReduceMin', [Wo]],
+        ['ReduceMean', [Uo]],
+        ['ReduceMax', [Go]],
+        ['ReduceSum', [qo]],
+        ['ReduceProd', [Ho]],
+        ['ReduceL1', [Vo]],
+        ['ReduceL2', [No]],
+        ['ReduceLogSum', [Ko]],
+        ['ReduceLogSumExp', [Lo]],
+        ['ReduceSumSquare', [Fo]],
+        ['Relu', [Ti]],
+        ['Resize', [tu, nu]],
+        ['RotaryEmbedding', [la]],
+        ['ScatterND', [Xa, Qa]],
+        ['Sigmoid', [Ii]],
+        ['Sin', [ki]],
+        ['Sinh', [Ei]],
+        ['Slice', [au, uu]],
+        ['SkipLayerNormalization', [ou]],
+        ['Split', [ua, da]],
+        ['Sqrt', [Pi]],
+        ['Softmax', [lu, cu]],
+        ['Sub', [Ki]],
+        ['Tan', [zi]],
+        ['Tanh', [Di]],
+        ['ThresholdedRelu', [Mi, ft]],
+        ['Tile', [fu]],
+        ['Transpose', [To, Io]],
+        ['Where', [gu]],
       ]);
     });
   var pn,
     wu = E(() => {
-      "use strict";
+      'use strict';
       ve();
       Ee();
       K();
@@ -13165,7 +13165,7 @@ ${d}
             entries: u,
             label: t.programInfo.name,
           });
-          if (this.backend.sessionStatus === "capturing") {
+          if (this.backend.sessionStatus === 'capturing') {
             let l = {
               kernelId: this.backend.currentKernelId,
               computePipeline: t.computePipeline,
@@ -13180,7 +13180,7 @@ ${d}
             this.backend.writeTimestamp(this.backend.pendingDispatchNumber * 2 + 1),
             this.backend.pendingDispatchNumber++,
             (this.backend.pendingDispatchNumber >= this.backend.maxDispatchNumber ||
-              this.backend.queryType === "at-passes") &&
+              this.backend.queryType === 'at-passes') &&
               this.backend.endComputePass(),
             this.backend.pendingDispatchNumber >= this.backend.maxDispatchNumber &&
               this.backend.flush(),
@@ -13192,8 +13192,8 @@ ${d}
           let r = this.backend.device,
             o = [];
           [
-            { feature: "shader-f16", extension: "f16" },
-            { feature: "subgroups", extension: "subgroups" },
+            { feature: 'shader-f16', extension: 'f16' },
+            { feature: 'subgroups', extension: 'subgroups' },
           ].forEach((c) => {
             r.features.has(c.feature) && o.push(`enable ${c.extension};`);
           });
@@ -13204,10 +13204,10 @@ ${d}
 ${s.additionalImplementations}
 ${a}`,
             d = r.createShaderModule({ code: u, label: t.name });
-          j("verbose", () => `[WebGPU] ${t.name} shader code: ${u}`);
+          j('verbose', () => `[WebGPU] ${t.name} shader code: ${u}`);
           let l = r.createComputePipeline({
-            compute: { module: d, entryPoint: "main" },
-            layout: "auto",
+            compute: { module: d, entryPoint: 'main' },
+            layout: 'auto',
             label: t.name,
           });
           return (
@@ -13216,16 +13216,16 @@ ${a}`,
           );
         }
         normalizeDispatchGroupSize(t) {
-          let n = typeof t == "number" ? t : t.x,
-            r = typeof t == "number" ? 1 : t.y || 1,
-            o = typeof t == "number" ? 1 : t.z || 1,
+          let n = typeof t == 'number' ? t : t.x,
+            r = typeof t == 'number' ? 1 : t.y || 1,
+            o = typeof t == 'number' ? 1 : t.z || 1,
             i = this.backend.device.limits.maxComputeWorkgroupsPerDimension;
           if (n <= i && r <= i && o <= i) return [n, r, o];
           let s = n * r * o,
             a = Math.ceil(Math.sqrt(s));
           if (a > i) {
             if (((a = Math.ceil(Math.cbrt(s))), a > i))
-              throw new Error("Total dispatch size exceeds WebGPU maximum.");
+              throw new Error('Total dispatch size exceeds WebGPU maximum.');
             return [a, a, a];
           } else return [a, a, 1];
         }
@@ -13238,7 +13238,7 @@ ${a}`,
     ur,
     dr,
     vu = E(() => {
-      "use strict";
+      'use strict';
       ve();
       V();
       Ee();
@@ -13255,21 +13255,21 @@ ${a}`,
         for (let r = 0; r < e.length; ++r) {
           let o = e[r].dataType;
           switch (t[r]) {
-            case "none": {
-              n.push("");
+            case 'none': {
+              n.push('');
               break;
             }
-            case "type": {
+            case 'type': {
               n.push(`${o}`);
               break;
             }
-            case "rank": {
+            case 'rank': {
               let i = e[r].dims.length;
               n.push(`${o};${i}`);
               break;
             }
-            case "dims": {
-              let i = e[r].dims.join(",");
+            case 'dims': {
+              let i = e[r].dims.join(',');
               n.push(`${o};${i}`);
               break;
             }
@@ -13277,16 +13277,16 @@ ${a}`,
               throw new Error(`unsupported input dependency: ${t[r]}`);
           }
         }
-        return n.join("|");
+        return n.join('|');
       }),
         (lp = (e, t, n) => {
           let r = e.name;
           return (
-            e.shaderCache?.hint && (r += "[" + e.shaderCache.hint + "]"),
+            e.shaderCache?.hint && (r += '[' + e.shaderCache.hint + ']'),
             (r +=
-              ":" +
+              ':' +
               n +
-              `:${dp(t, e.shaderCache?.inputDependencies ?? new Array(t.length).fill("dims"))}`),
+              `:${dp(t, e.shaderCache?.inputDependencies ?? new Array(t.length).fill('dims'))}`),
             r
           );
         }),
@@ -13311,7 +13311,7 @@ ${a}`,
             this.pendingDispatchNumber = 0;
             this.pendingKernels = [];
             this.pendingQueries = new Map();
-            this.sessionStatus = "default";
+            this.sessionStatus = 'default';
             this.capturedCommandList = new Map();
             this.capturedPendingKernels = new Map();
             this.sessionExternalDataMapping = new Map();
@@ -13319,7 +13319,7 @@ ${a}`,
           get currentKernelCustomData() {
             if (this.currentKernelId === null)
               throw new Error(
-                "currentKernelCustomData(): currentKernelId is null. (should not happen)"
+                'currentKernelCustomData(): currentKernelId is null. (should not happen)'
               );
             let t = this.kernelCustomData.get(this.currentKernelId);
             return t || ((t = {}), this.kernelCustomData.set(this.currentKernelId, t)), t;
@@ -13341,9 +13341,9 @@ ${a}`,
                 requiredFeatures: r,
               },
               i = (s) => n.features.has(s) && r.push(s) && !0;
-            i("chromium-experimental-timestamp-query-inside-passes") || i("timestamp-query"),
-              i("shader-f16"),
-              i("subgroups"),
+            i('chromium-experimental-timestamp-query-inside-passes') || i('timestamp-query'),
+              i('shader-f16'),
+              i('subgroups'),
               (this.device = await n.requestDevice(o)),
               (this.adapterInfo = new ur(n.info || (await n.requestAdapterInfo()))),
               (this.gpuDataManager = wo(this)),
@@ -13358,13 +13358,13 @@ ${a}`,
                     `An uncaught WebGPU validation error was raised: ${s.error.message}`
                   );
               }),
-              Object.defineProperty(this.env.webgpu, "device", {
+              Object.defineProperty(this.env.webgpu, 'device', {
                 value: this.device,
                 writable: !1,
                 enumerable: !0,
                 configurable: !1,
               }),
-              Object.defineProperty(this.env.webgpu, "adapter", {
+              Object.defineProperty(this.env.webgpu, 'adapter', {
                 value: n,
                 writable: !1,
                 enumerable: !0,
@@ -13373,7 +13373,7 @@ ${a}`,
               this.setQueryType();
           }
           dispose() {
-            typeof this.querySet < "u" && this.querySet.destroy(), this.gpuDataManager.dispose();
+            typeof this.querySet < 'u' && this.querySet.destroy(), this.gpuDataManager.dispose();
           }
           getCommandEncoder() {
             return (
@@ -13385,7 +13385,7 @@ ${a}`,
             if (!this.computePassEncoder) {
               let t = this.getCommandEncoder(),
                 n = {};
-              this.queryType === "at-passes" &&
+              this.queryType === 'at-passes' &&
                 (n.timestampWrites = {
                   querySet: this.querySet,
                   beginningOfPassWriteIndex: this.pendingDispatchNumber * 2,
@@ -13403,7 +13403,7 @@ ${a}`,
             if (!this.commandEncoder) return;
             fe(), this.endComputePass();
             let t;
-            this.queryType !== "none" &&
+            this.queryType !== 'none' &&
               (this.commandEncoder.resolveQuerySet(
                 this.querySet,
                 0,
@@ -13428,7 +13428,7 @@ ${a}`,
               this.gpuDataManager.refreshPendingBuffers(),
               (this.commandEncoder = null),
               (this.pendingDispatchNumber = 0),
-              this.queryType !== "none" &&
+              this.queryType !== 'none' &&
                 t.mapAsync(GPUMapMode.READ).then(() => {
                   let n = new BigUint64Array(t.getMappedRange()),
                     r = this.pendingQueries.get(t);
@@ -13443,11 +13443,11 @@ ${a}`,
                       p = i.outputTensorViews,
                       f = n[o * 2],
                       m = n[o * 2 + 1];
-                    typeof this.queryTimeBase > "u" && (this.queryTimeBase = f);
+                    typeof this.queryTimeBase > 'u' && (this.queryTimeBase = f);
                     let h = Number(f - this.queryTimeBase),
                       b = Number(m - this.queryTimeBase);
                     if (!Number.isSafeInteger(h) || !Number.isSafeInteger(b))
-                      throw new RangeError("incorrect timestamp range");
+                      throw new RangeError('incorrect timestamp range');
                     if (this.env.webgpu.profiling?.ondata)
                       this.env.webgpu.profiling.ondata({
                         version: 1,
@@ -13461,11 +13461,11 @@ ${a}`,
                         endTime: b,
                       });
                     else {
-                      let y = "";
+                      let y = '';
                       c.forEach((_, w) => {
                         y += `input[${w}]: [${_.dims}] | ${ke(_.dataType)}, `;
                       });
-                      let g = "";
+                      let g = '';
                       p.forEach((_, w) => {
                         g += `output[${w}]: [${_.dims}] | ${ke(_.dataType)}, `;
                       }),
@@ -13475,7 +13475,7 @@ ${a}`,
                           } ns`
                         );
                     }
-                    dt("GPU", `${l}::${f}::${m}`);
+                    dt('GPU', `${l}::${f}::${m}`);
                   }
                   t.unmap(), this.pendingQueries.delete(t);
                 }),
@@ -13524,7 +13524,7 @@ ${a}`,
               let _ = 0,
                 w = [];
               l.forEach((I) => {
-                let A = typeof I.data == "number" ? [I.data] : I.data;
+                let A = typeof I.data == 'number' ? [I.data] : I.data;
                 if (A.length === 0) return;
                 let z = I.type === 10 ? 2 : 4,
                   M,
@@ -13543,7 +13543,7 @@ ${a}`,
               let $ = new ArrayBuffer(_);
               l.forEach((I, A) => {
                 let z = w[A],
-                  M = typeof I.data == "number" ? [I.data] : I.data;
+                  M = typeof I.data == 'number' ? [I.data] : I.data;
                 if (I.type === 6) new Int32Array($, z, M.length).set(M);
                 else if (I.type === 12) new Uint32Array($, z, M.length).set(M);
                 else if (I.type === 10) new Uint16Array($, z, M.length).set(M);
@@ -13566,7 +13566,7 @@ ${a}`,
               (g ||
                 ((g = this.programManager.build(t, h)),
                 this.programManager.setArtifact(y, g),
-                j("info", () => `[artifact] key: ${y}, programName: ${t.name}`)),
+                j('info', () => `[artifact] key: ${y}, programName: ${t.name}`)),
               l && g.uniformVariablesInfo)
             ) {
               if (l.length !== g.uniformVariablesInfo.length)
@@ -13576,7 +13576,7 @@ ${a}`,
               for (let _ = 0; _ < l.length; _++) {
                 let w = l[_],
                   v = w.type,
-                  $ = typeof w.data == "number" ? 1 : w.data.length,
+                  $ = typeof w.data == 'number' ? 1 : w.data.length,
                   [T, I] = g.uniformVariablesInfo[_];
                 if (v !== T || $ !== I)
                   throw new Error(
@@ -13586,10 +13586,10 @@ ${a}`,
             }
             if (
               (j(
-                "info",
+                'info',
                 () => `[ProgramManager] run "${t.name}" (key=${y}) with ${h[0]}x${h[1]}x${h[2]}`
               ),
-              this.queryType !== "none" || this.sessionStatus === "capturing")
+              this.queryType !== 'none' || this.sessionStatus === 'capturing')
             ) {
               let _ = {
                 kernelId: this.currentKernelId,
@@ -13598,7 +13598,7 @@ ${a}`,
                 outputTensorViews: p,
               };
               this.pendingKernels.push(_),
-                this.sessionStatus === "capturing" &&
+                this.sessionStatus === 'capturing' &&
                   this.capturedPendingKernels.get(this.currentSessionId).push(_);
             }
             return this.programManager.run(g, a, f, h, m), me(t.name), p;
@@ -13643,11 +13643,11 @@ ${a}`,
               throw new Error(`kernel "[${i}] ${s}" is not allowed to be called recursively`);
             (this.currentKernelId = t),
               u[0] && ((u[1] = u[0](u[1])), (u[0] = void 0)),
-              j("info", () => `[WebGPU] Start to run kernel "[${i}] ${s}"...`);
+              j('info', () => `[WebGPU] Start to run kernel "[${i}] ${s}"...`);
             let d = this.env.debug;
             this.temporaryData = [];
             try {
-              return d && this.device.pushErrorScope("validation"), a(n, u[1]), 0;
+              return d && this.device.pushErrorScope('validation'), a(n, u[1]), 0;
             } catch (l) {
               return r.push(Promise.resolve(`[WebGPU] Kernel "[${i}] ${s}" failed. ${l}`)), 1;
             } finally {
@@ -13688,20 +13688,20 @@ ${a}`,
             };
           }
           writeTimestamp(t) {
-            this.queryType === "inside-passes" &&
+            this.queryType === 'inside-passes' &&
               this.computePassEncoder.writeTimestamp(this.querySet, t);
           }
           setQueryType() {
-            (this.queryType = "none"),
-              (this.env.webgpu.profiling?.mode === "default" ||
-                (typeof this.env.trace > "u" ? this.env.wasm.trace : this.env.trace)) &&
-                (this.device.features.has("chromium-experimental-timestamp-query-inside-passes")
-                  ? (this.queryType = "inside-passes")
-                  : this.device.features.has("timestamp-query") && (this.queryType = "at-passes"),
-                this.queryType !== "none" &&
-                  typeof this.querySet > "u" &&
+            (this.queryType = 'none'),
+              (this.env.webgpu.profiling?.mode === 'default' ||
+                (typeof this.env.trace > 'u' ? this.env.wasm.trace : this.env.trace)) &&
+                (this.device.features.has('chromium-experimental-timestamp-query-inside-passes')
+                  ? (this.queryType = 'inside-passes')
+                  : this.device.features.has('timestamp-query') && (this.queryType = 'at-passes'),
+                this.queryType !== 'none' &&
+                  typeof this.querySet > 'u' &&
                   ((this.querySet = this.device.createQuerySet({
-                    type: "timestamp",
+                    type: 'timestamp',
                     count: this.maxDispatchNumber * 2,
                   })),
                   (this.queryResolveBuffer = this.device.createBuffer({
@@ -13710,19 +13710,19 @@ ${a}`,
                   }))));
           }
           captureBegin() {
-            j("info", "captureBegin"),
+            j('info', 'captureBegin'),
               this.capturedCommandList.get(this.currentSessionId) ||
                 this.capturedCommandList.set(this.currentSessionId, []),
               this.capturedPendingKernels.get(this.currentSessionId) ||
                 this.capturedPendingKernels.set(this.currentSessionId, []),
               this.flush(),
-              (this.sessionStatus = "capturing");
+              (this.sessionStatus = 'capturing');
           }
           captureEnd() {
-            j("info", "captureEnd"), this.flush(), (this.sessionStatus = "default");
+            j('info', 'captureEnd'), this.flush(), (this.sessionStatus = 'default');
           }
           replay() {
-            j("info", "replay"), (this.sessionStatus = "replaying");
+            j('info', 'replay'), (this.sessionStatus = 'replaying');
             let t = this.capturedCommandList.get(this.currentSessionId),
               n = this.capturedPendingKernels.get(this.currentSessionId),
               r = t.length;
@@ -13736,13 +13736,13 @@ ${a}`,
                 i.dispatchWorkgroups(...s.dispatchGroup),
                 this.writeTimestamp(this.pendingDispatchNumber * 2 + 1),
                 this.pendingDispatchNumber++,
-                this.queryType !== "none" && this.pendingKernels.push(n[o]),
+                this.queryType !== 'none' && this.pendingKernels.push(n[o]),
                 (this.pendingDispatchNumber >= this.maxDispatchNumber ||
-                  this.queryType === "at-passes") &&
+                  this.queryType === 'at-passes') &&
                   this.endComputePass(),
                 this.pendingDispatchNumber >= this.maxDispatchNumber && this.flush();
             }
-            this.flush(), (this.sessionStatus = "default");
+            this.flush(), (this.sessionStatus = 'default');
           }
           onCreateSession() {
             this.gpuDataManager.onCreateSession();
@@ -13764,7 +13764,7 @@ ${a}`,
     lr,
     cp,
     Su = E(() => {
-      "use strict";
+      'use strict';
       V();
       Ee();
       q();
@@ -13777,35 +13777,35 @@ ${a}`,
           this.dims = o;
         }
         getFloat32Array() {
-          if (this.dataType !== 1) throw new Error("Invalid data type");
+          if (this.dataType !== 1) throw new Error('Invalid data type');
           let t = x.size(this.dims);
           return t === 0
             ? new Float32Array()
             : new Float32Array(this.module.HEAP8.buffer, this.data, t);
         }
         getBigInt64Array() {
-          if (this.dataType !== 7) throw new Error("Invalid data type");
+          if (this.dataType !== 7) throw new Error('Invalid data type');
           let t = x.size(this.dims);
           return t === 0
             ? new BigInt64Array()
             : new BigInt64Array(this.module.HEAP8.buffer, this.data, t);
         }
         getInt32Array() {
-          if (this.dataType !== 6) throw new Error("Invalid data type");
+          if (this.dataType !== 6) throw new Error('Invalid data type');
           let t = x.size(this.dims);
           return t === 0
             ? new Int32Array()
             : new Int32Array(this.module.HEAP8.buffer, this.data, t);
         }
         getUint16Array() {
-          if (this.dataType !== 10 && this.dataType !== 4) throw new Error("Invalid data type");
+          if (this.dataType !== 10 && this.dataType !== 4) throw new Error('Invalid data type');
           let t = x.size(this.dims);
           return t === 0
             ? new Uint16Array()
             : new Uint16Array(this.module.HEAP8.buffer, this.data, t);
         }
         reshape(t) {
-          if (x.size(t) !== x.size(this.dims)) throw new Error("Invalid new shape");
+          if (x.size(t) !== x.size(this.dims)) throw new Error('Invalid new shape');
           return new e(this.module, this.dataType, this.data, t);
         }
       }),
@@ -13818,16 +13818,16 @@ ${a}`,
             this.adapterInfo = n.adapterInfo;
             let o = t.PTR_SIZE,
               i = r / t.PTR_SIZE,
-              s = o === 4 ? "i32" : "i64";
+              s = o === 4 ? 'i32' : 'i64';
             this.opKernelContext = Number(t.getValue(o * i++, s));
             let a = Number(t.getValue(o * i++, s));
             (this.outputCount = Number(t.getValue(o * i++, s))),
-              (this.customDataOffset = Number(t.getValue(o * i++, "*"))),
+              (this.customDataOffset = Number(t.getValue(o * i++, '*'))),
               (this.customDataSize = Number(t.getValue(o * i++, s)));
             let u = [];
             for (let d = 0; d < a; d++) {
               let l = Number(t.getValue(o * i++, s)),
-                c = Number(t.getValue(o * i++, "*")),
+                c = Number(t.getValue(o * i++, '*')),
                 p = Number(t.getValue(o * i++, s)),
                 f = [];
               for (let m = 0; m < p; m++) f.push(Number(t.getValue(o * i++, s)));
@@ -13846,7 +13846,7 @@ ${a}`,
           }
           compute(t, n) {
             let r =
-                n?.inputs?.map((a) => (typeof a == "number" ? this.inputs[a] : a)) ?? this.inputs,
+                n?.inputs?.map((a) => (typeof a == 'number' ? this.inputs[a] : a)) ?? this.inputs,
               o = n?.outputs ?? [],
               i = (a, u, d) => new bt(this.module, u, this.output(a, d), d),
               s = (a, u) => {
@@ -13861,7 +13861,7 @@ ${a}`,
             let r = this.module.stackSave();
             try {
               let o = this.module.PTR_SIZE,
-                i = o === 4 ? "i32" : "i64",
+                i = o === 4 ? 'i32' : 'i64',
                 s = this.module.stackAlloc((1 + n.length) * o);
               this.module.setValue(s, n.length, i);
               for (let a = 0; a < n.length; a++) this.module.setValue(s + o * (a + 1), n[a], i);
@@ -13879,20 +13879,20 @@ ${a}`,
           let o = t.jsepInit;
           if (!o)
             throw new Error(
-              "Failed to initialize JSEP. The WebAssembly module is not built with JSEP support."
+              'Failed to initialize JSEP. The WebAssembly module is not built with JSEP support.'
             );
-          if (e === "webgpu") {
+          if (e === 'webgpu') {
             let i = (vu(), at($u)).WebGpuBackend,
               s = new i();
             await s.initialize(n, r),
-              o("webgpu", [
+              o('webgpu', [
                 s,
                 (a) => s.alloc(Number(a)),
                 (a) => s.free(a),
                 (a, u, d, l = !1) => {
                   if (l)
                     j(
-                      "verbose",
+                      'verbose',
                       () =>
                         `[WebGPU] jsepCopyGpuToGpu: src=${Number(a)}, dst=${Number(
                           u
@@ -13901,7 +13901,7 @@ ${a}`,
                       s.memcpy(Number(a), Number(u));
                   else {
                     j(
-                      "verbose",
+                      'verbose',
                       () =>
                         `[WebGPU] jsepCopyCpuToGpu: dataOffset=${Number(a)}, gpuDataId=${Number(
                           u
@@ -13913,7 +13913,7 @@ ${a}`,
                 },
                 async (a, u, d) => {
                   j(
-                    "verbose",
+                    'verbose',
                     () => `[WebGPU] jsepCopyGpuToCpu: gpuDataId=${a}, dataOffset=${u}, size=${d}`
                   ),
                     await s.download(Number(a), () =>
@@ -13925,7 +13925,7 @@ ${a}`,
                 (a) => s.releaseKernel(a),
                 (a, u, d, l) => {
                   j(
-                    "verbose",
+                    'verbose',
                     () =>
                       `[WebGPU] jsepRun: sessionHandle=${d}, kernel=${a}, contextDataOffset=${u}`
                   );
@@ -13938,7 +13938,7 @@ ${a}`,
               ]);
           } else {
             let i = new Ft(n);
-            o("webnn", [
+            o('webnn', [
               i,
               () => i.reserveTensorId(),
               (s) => i.releaseTensorId(s),
@@ -13965,7 +13965,7 @@ ${a}`,
     zt,
     Ot,
     In = E(() => {
-      "use strict";
+      'use strict';
       no();
       oo();
       V();
@@ -13982,25 +13982,25 @@ ${a}`,
           ne().asyncInit?.();
           {
             let n = (Su(), at(xu)).init;
-            if (t === "webgpu") {
-              if (typeof navigator > "u" || !navigator.gpu)
-                throw new Error("WebGPU is not supported in current environment");
+            if (t === 'webgpu') {
+              if (typeof navigator > 'u' || !navigator.gpu)
+                throw new Error('WebGPU is not supported in current environment');
               let r = e.webgpu.adapter;
               if (r) {
                 if (
-                  typeof r.limits != "object" ||
-                  typeof r.features != "object" ||
-                  typeof r.requestDevice != "function"
+                  typeof r.limits != 'object' ||
+                  typeof r.features != 'object' ||
+                  typeof r.requestDevice != 'function'
                 )
                   throw new Error(
-                    "Invalid GPU adapter set in `env.webgpu.adapter`. It must be a GPUAdapter object."
+                    'Invalid GPU adapter set in `env.webgpu.adapter`. It must be a GPUAdapter object.'
                   );
               } else {
                 let o = e.webgpu.powerPreference;
-                if (o !== void 0 && o !== "low-power" && o !== "high-performance")
+                if (o !== void 0 && o !== 'low-power' && o !== 'high-performance')
                   throw new Error(`Invalid powerPreference setting: "${o}"`);
                 let i = e.webgpu.forceFallbackAdapter;
-                if (i !== void 0 && typeof i != "boolean")
+                if (i !== void 0 && typeof i != 'boolean')
                   throw new Error(`Invalid forceFallbackAdapter setting: "${i}"`);
                 if (
                   ((r = await navigator.gpu.requestAdapter({
@@ -14013,12 +14013,12 @@ ${a}`,
                     'Failed to get GPU adapter. You may need to enable flag "--enable-unsafe-webgpu" if you are using Chrome.'
                   );
               }
-              await n("webgpu", ne(), e, r);
+              await n('webgpu', ne(), e, r);
             }
-            if (t === "webnn") {
-              if (typeof navigator > "u" || !navigator.ml)
-                throw new Error("WebNN is not supported in current environment");
-              await n("webnn", ne(), e);
+            if (t === 'webnn') {
+              if (typeof navigator > 'u' || !navigator.ml)
+                throw new Error('WebNN is not supported in current environment');
+              await n('webnn', ne(), e);
             }
           }
         }),
@@ -14031,7 +14031,7 @@ ${a}`,
               o = t.stackAlloc(2 * r);
             t._OrtGetInputOutputCount(e, o, o + r) !== 0 &&
               Y("Can't get session input/output count.");
-            let s = r === 4 ? "i32" : "i64";
+            let s = r === 4 ? 'i32' : 'i64';
             return [Number(t.getValue(o, s)), Number(t.getValue(o + r, s))];
           } finally {
             t.stackRestore(n);
@@ -14046,15 +14046,15 @@ ${a}`,
               s = n.stackAlloc(2 * i);
             n._OrtGetInputOutputMetadata(e, t, s, s + i) !== 0 &&
               Y("Can't get session input/output metadata.");
-            let u = Number(n.getValue(s, "*"));
-            o = Number(n.getValue(s + i, "*"));
+            let u = Number(n.getValue(s, '*'));
+            o = Number(n.getValue(s + i, '*'));
             let d = n.HEAP32[o / 4];
             if (d === 0) return [u, 0];
             let l = n.HEAPU32[o / 4 + 1],
               c = [];
             for (let p = 0; p < l; p++) {
-              let f = Number(n.getValue(o + 8 + p * i, "*"));
-              c.push(f !== 0 ? n.UTF8ToString(f) : Number(n.getValue(o + 8 + (p + l) * i, "*")));
+              let f = Number(n.getValue(o + 8 + p * i, '*'));
+              c.push(f !== 0 ? n.UTF8ToString(f) : Number(n.getValue(o + 8 + (p + l) * i, '*')));
             }
             return [u, d, c];
           } finally {
@@ -14089,9 +14089,9 @@ ${a}`,
             if ((([s, u] = await ro(t)), t?.externalData && o.mountExternalData)) {
               let w = [];
               for (let v of t.externalData) {
-                let $ = typeof v == "string" ? v : v.path;
+                let $ = typeof v == 'string' ? v : v.path;
                 w.push(
-                  mt(typeof v == "string" ? v : v.data).then((T) => {
+                  mt(typeof v == 'string' ? v : v.data).then((T) => {
                     o.mountExternalData($, T);
                   })
                 );
@@ -14099,8 +14099,8 @@ ${a}`,
               await Promise.all(w);
             }
             for (let w of t?.executionProviders ?? [])
-              if ((typeof w == "string" ? w : w.name) === "webnn") {
-                if (((o.shouldTransferToMLTensor = !1), typeof w != "string")) {
+              if ((typeof w == 'string' ? w : w.name) === 'webnn') {
+                if (((o.shouldTransferToMLTensor = !1), typeof w != 'string')) {
                   let $ = w,
                     T = $?.context,
                     I = $?.gpuDevice,
@@ -14155,21 +14155,21 @@ ${a}`,
                 );
               {
                 if (f && t?.preferredOutputLocation === void 0) {
-                  g.push("gpu-buffer");
+                  g.push('gpu-buffer');
                   continue;
                 }
                 let A =
-                    typeof t?.preferredOutputLocation == "string"
+                    typeof t?.preferredOutputLocation == 'string'
                       ? t.preferredOutputLocation
-                      : t?.preferredOutputLocation?.[I] ?? "cpu",
+                      : t?.preferredOutputLocation?.[I] ?? 'cpu',
                   z = o.webnnIsGraphOutput;
-                if (A === "cpu" && z && z(i, I)) {
-                  g.push("ml-tensor-cpu-output");
+                if (A === 'cpu' && z && z(i, I)) {
+                  g.push('ml-tensor-cpu-output');
                   continue;
                 }
-                if (A !== "cpu" && A !== "cpu-pinned" && A !== "gpu-buffer" && A !== "ml-tensor")
+                if (A !== 'cpu' && A !== 'cpu-pinned' && A !== 'gpu-buffer' && A !== 'ml-tensor')
                   throw new Error(`Not supported preferred output location: ${A}.`);
-                if (f && A !== "gpu-buffer")
+                if (f && A !== 'gpu-buffer')
                   throw new Error(
                     `Not supported preferred output location: ${A}. Only 'gpu-buffer' location is supported when enableGraphCapture is true.`
                   );
@@ -14179,7 +14179,7 @@ ${a}`,
             let _ = null;
             return (
               g.some(
-                (w) => w === "gpu-buffer" || w === "ml-tensor" || w === "ml-tensor-cpu-output"
+                (w) => w === 'gpu-buffer' || w === 'ml-tensor' || w === 'ml-tensor-cpu-output'
               ) &&
                 ((a = o._OrtCreateBinding(i)),
                 a === 0 && Y("Can't create IO binding."),
@@ -14187,7 +14187,7 @@ ${a}`,
                   handle: a,
                   outputPreferredLocations: g,
                   outputPreferredLocationsEncoded: g
-                    .map((w) => (w === "ml-tensor-cpu-output" ? "ml-tensor" : w))
+                    .map((w) => (w === 'ml-tensor-cpu-output' ? 'ml-tensor' : w))
                     .map((w) => En(w)),
                 })),
               Ye.set(i, [i, d, l, _, f, !1]),
@@ -14239,13 +14239,13 @@ ${a}`,
             p = c,
             f,
             m;
-          if (d === "string" && (c === "gpu-buffer" || c === "ml-tensor"))
-            throw new Error("String tensor is not supported on GPU.");
-          if (s && c !== "gpu-buffer")
+          if (d === 'string' && (c === 'gpu-buffer' || c === 'ml-tensor'))
+            throw new Error('String tensor is not supported on GPU.');
+          if (s && c !== 'gpu-buffer')
             throw new Error(
               `External buffer must be provided for input/output index ${i} when enableGraphCapture is true.`
             );
-          if (c === "gpu-buffer") {
+          if (c === 'gpu-buffer') {
             let y = e[2].gpuBuffer;
             m = We(Ge(d), l);
             {
@@ -14256,7 +14256,7 @@ ${a}`,
                 );
               f = g(r, i, y, m);
             }
-          } else if (c === "ml-tensor") {
+          } else if (c === 'ml-tensor') {
             let y = e[2].mlTensor;
             m = We(Ge(d), l);
             let g = a.webnnRegisterMLTensor;
@@ -14268,18 +14268,18 @@ ${a}`,
             if (Array.isArray(y)) {
               (m = u * y.length), (f = a._malloc(m)), n.push(f);
               for (let g = 0; g < y.length; g++) {
-                if (typeof y[g] != "string")
+                if (typeof y[g] != 'string')
                   throw new TypeError(`tensor data at index ${g} is not a string`);
-                a.setValue(f + g * u, be(y[g], n), "*");
+                a.setValue(f + g * u, be(y[g], n), '*');
               }
             } else {
               let g = a.webnnIsGraphInput,
                 _ = a.webnnIsGraphOutput;
-              if (d !== "string" && g && _) {
+              if (d !== 'string' && g && _) {
                 let w = a.UTF8ToString(o);
                 if (g(r, w) || _(r, w)) {
                   let v = Ge(d);
-                  (m = We(v, l)), (p = "ml-tensor");
+                  (m = We(v, l)), (p = 'ml-tensor');
                   let $ = a.webnnCreateTemporaryTensor,
                     T = a.webnnUploadTensor;
                   if (!$ || !T)
@@ -14303,7 +14303,7 @@ ${a}`,
           let h = a.stackSave(),
             b = a.stackAlloc(4 * l.length);
           try {
-            l.forEach((g, _) => a.setValue(b + _ * u, g, u === 4 ? "i32" : "i64"));
+            l.forEach((g, _) => a.setValue(b + _ * u, g, u === 4 ? 'i32' : 'i64'));
             let y = a._OrtCreateTensor(Ge(d), f, m, b, l.length, En(p));
             y === 0 && Y(`Can't create tensor for input/output. session=${r}, index=${i}.`),
               t.push(y);
@@ -14339,9 +14339,9 @@ ${a}`,
             for (let O = 0; O < h; O++) await Iu(n[O], _, v, e, l[t[O]], t[O], f);
             for (let O = 0; O < b; O++) await Iu(o[O], w, v, e, c[r[O]], h + r[O], f);
             for (let O = 0; O < h; O++)
-              s.setValue(T + O * a, _[O], "*"), s.setValue(I + O * a, l[t[O]], "*");
+              s.setValue(T + O * a, _[O], '*'), s.setValue(I + O * a, l[t[O]], '*');
             for (let O = 0; O < b; O++)
-              s.setValue(A + O * a, w[O], "*"), s.setValue(z + O * a, c[r[O]], "*");
+              s.setValue(A + O * a, w[O], '*'), s.setValue(z + O * a, c[r[O]], '*');
             if (p && !m) {
               let {
                 handle: O,
@@ -14372,11 +14372,11 @@ ${a}`,
             p
               ? (M = await s._OrtRunWithBinding(d, p.handle, b, A, y))
               : (M = await s._OrtRun(d, I, T, h, z, b, A, y)),
-              M !== 0 && Y("failed to call OrtRun().");
+              M !== 0 && Y('failed to call OrtRun().');
             let R = [],
               W = [];
             for (let O = 0; O < b; O++) {
-              let ee = Number(s.getValue(A + O * a, "*"));
+              let ee = Number(s.getValue(A + O * a, '*'));
               if (ee === w[O]) {
                 R.push(o[O]);
                 continue;
@@ -14389,10 +14389,10 @@ ${a}`,
               try {
                 s._OrtGetTensorData(ee, D, D + a, D + 2 * a, D + 3 * a) !== 0 &&
                   Y(`Can't access output tensor data on index ${O}.`);
-                let se = a === 4 ? "i32" : "i64",
+                let se = a === 4 ? 'i32' : 'i64',
                   H = Number(s.getValue(D, se));
-                Q = s.getValue(D + a, "*");
-                let k = s.getValue(D + a * 2, "*"),
+                Q = s.getValue(D + a, '*');
+                let k = s.getValue(D + a * 2, '*'),
                   L = Number(s.getValue(D + a * 3, se)),
                   oe = [];
                 for (let ue = 0; ue < L; ue++) oe.push(Number(s.getValue(k + ue * a, se)));
@@ -14400,18 +14400,18 @@ ${a}`,
                 let we = oe.reduce((ue, ae) => ue * ae, 1);
                 U = ke(H);
                 let Se = p?.outputPreferredLocations[r[O]];
-                if (U === "string") {
-                  if (Se === "gpu-buffer" || Se === "ml-tensor")
-                    throw new Error("String tensor is not supported on GPU.");
+                if (U === 'string') {
+                  if (Se === 'gpu-buffer' || Se === 'ml-tensor')
+                    throw new Error('String tensor is not supported on GPU.');
                   let ue = [];
                   for (let ae = 0; ae < we; ae++) {
-                    let Ve = s.getValue(Q + ae * a, "*"),
-                      wt = s.getValue(Q + (ae + 1) * a, "*"),
+                    let Ve = s.getValue(Q + ae * a, '*'),
+                      wt = s.getValue(Q + (ae + 1) * a, '*'),
                       fr = ae === we - 1 ? void 0 : wt - Ve;
                     ue.push(s.UTF8ToString(Ve, fr));
                   }
-                  R.push([U, oe, ue, "cpu"]);
-                } else if (Se === "gpu-buffer" && we > 0) {
+                  R.push([U, oe, ue, 'cpu']);
+                } else if (Se === 'gpu-buffer' && we > 0) {
                   let ue = s.jsepGetBuffer;
                   if (!ue)
                     throw new Error(
@@ -14431,9 +14431,9 @@ ${a}`,
                           s._OrtReleaseTensor(ee) !== 0 && Y("Can't release tensor.");
                         },
                       },
-                      "gpu-buffer",
+                      'gpu-buffer',
                     ]);
-                } else if (Se === "ml-tensor" && we > 0) {
+                } else if (Se === 'ml-tensor' && we > 0) {
                   let ue = s.webnnEnsureTensor,
                     ae = s.webnnIsGraphInputOutputTypeSupported;
                   if (!ue || !ae)
@@ -14458,9 +14458,9 @@ ${a}`,
                           s.webnnReleaseTensorId(Q), s._OrtReleaseTensor(ee);
                         },
                       },
-                      "ml-tensor",
+                      'ml-tensor',
                     ]);
-                } else if (Se === "ml-tensor-cpu-output" && we > 0) {
+                } else if (Se === 'ml-tensor-cpu-output' && we > 0) {
                   let ue = s.webnnCreateMLTensorDownloader(Q, U)(),
                     ae = R.length;
                   (Z = !0),
@@ -14470,17 +14470,17 @@ ${a}`,
                         return s.webnnReleaseTensorId(Q), s._OrtReleaseTensor(ee), Ve;
                       })()
                     ),
-                    R.push([U, oe, [], "cpu"]);
+                    R.push([U, oe, [], 'cpu']);
                 } else {
                   let ue = tt(U),
                     ae = new ue(we);
                   new Uint8Array(ae.buffer, ae.byteOffset, ae.byteLength).set(
                     s.HEAPU8.subarray(Q, Q + ae.byteLength)
                   ),
-                    R.push([U, oe, ae, "cpu"]);
+                    R.push([U, oe, ae, 'cpu']);
                 }
               } finally {
-                s.stackRestore(G), U === "string" && Q && s._free(Q), Z || s._OrtReleaseTensor(ee);
+                s.stackRestore(G), U === 'string' && Q && s._free(Q), Z || s._OrtReleaseTensor(ee);
               }
             }
             p &&
@@ -14502,7 +14502,7 @@ ${a}`,
         (zt = (e) => {
           let t = ne(),
             n = Ye.get(e);
-          if (!n) throw new Error("invalid session id");
+          if (!n) throw new Error('invalid session id');
           let r = n[0],
             o = t._OrtEndProfiling(r);
           o === 0 && Y("Can't get an profile file name."), t._OrtFree(o);
@@ -14511,7 +14511,7 @@ ${a}`,
           let t = [];
           for (let n of e) {
             let r = n[2];
-            !Array.isArray(r) && "buffer" in r && t.push(r.buffer);
+            !Array.isArray(r) && 'buffer' in r && t.push(r.buffer);
           }
           return t;
         });
@@ -14535,12 +14535,12 @@ ${a}`,
     zu,
     Ou,
     mr = E(() => {
-      "use strict";
+      'use strict';
       ve();
       In();
       Le();
       Tt();
-      (Je = () => !!te.wasm.proxy && typeof document < "u"),
+      (Je = () => !!te.wasm.proxy && typeof document < 'u'),
         (_t = !1),
         (fn = !1),
         (hn = !1),
@@ -14550,21 +14550,21 @@ ${a}`,
           n ? n.push(t) : pr.set(e, [t]);
         }),
         (st = () => {
-          if (_t || !fn || hn || !xe) throw new Error("worker not ready");
+          if (_t || !fn || hn || !xe) throw new Error('worker not ready');
         }),
         (hp = (e) => {
           switch (e.data.type) {
-            case "init-wasm":
+            case 'init-wasm':
               (_t = !1),
                 e.data.err ? ((hn = !0), cr[1](e.data.err)) : ((fn = !0), cr[0]()),
                 mn && (URL.revokeObjectURL(mn), (mn = void 0));
               break;
-            case "init-ep":
-            case "copy-from":
-            case "create":
-            case "release":
-            case "run":
-            case "end-profiling": {
+            case 'init-ep':
+            case 'copy-from':
+            case 'create':
+            case 'release':
+            case 'run':
+            case 'end-profiling': {
               let t = pr.get(e.data.type);
               e.data.err ? t.shift()[1](e.data.err) : t.shift()[0](e.data.out);
               break;
@@ -14582,7 +14582,7 @@ ${a}`,
                   Yr().then(([n, r]) => {
                     try {
                       (xe = r), (xe.onerror = (i) => t(i)), (xe.onmessage = hp), (cr = [e, t]);
-                      let o = { type: "init-wasm", in: te };
+                      let o = { type: 'init-wasm', in: te };
                       if (!o.in.wasm.wasmPaths && n) {
                         let i = Dt();
                         i && (o.in.wasm.wasmPaths = i);
@@ -14607,8 +14607,8 @@ ${a}`,
             return (
               st(),
               new Promise((t, n) => {
-                it("init-ep", [t, n]);
-                let r = { type: "init-ep", in: { epName: e, env: te } };
+                it('init-ep', [t, n]);
+                let r = { type: 'init-ep', in: { epName: e, env: te } };
                 xe.postMessage(r);
               })
             );
@@ -14618,8 +14618,8 @@ ${a}`,
           Je()
             ? (st(),
               new Promise((t, n) => {
-                it("copy-from", [t, n]);
-                let r = { type: "copy-from", in: { buffer: e } };
+                it('copy-from', [t, n]);
+                let r = { type: 'copy-from', in: { buffer: e } };
                 xe.postMessage(r, [e.buffer]);
               }))
             : lt(e)),
@@ -14632,8 +14632,8 @@ ${a}`,
             return (
               st(),
               new Promise((n, r) => {
-                it("create", [n, r]);
-                let o = { type: "create", in: { model: e, options: { ...t } } },
+                it('create', [n, r]);
+                let o = { type: 'create', in: { model: e, options: { ...t } } },
                   i = [];
                 e instanceof Uint8Array && i.push(e.buffer), xe.postMessage(o, i);
               })
@@ -14645,8 +14645,8 @@ ${a}`,
             return (
               st(),
               new Promise((t, n) => {
-                it("release", [t, n]);
-                let r = { type: "release", in: e };
+                it('release', [t, n]);
+                let r = { type: 'release', in: e };
                 xe.postMessage(r);
               })
             );
@@ -14654,17 +14654,17 @@ ${a}`,
         }),
         (zu = async (e, t, n, r, o, i) => {
           if (Je()) {
-            if (n.some((s) => s[3] !== "cpu"))
-              throw new Error("input tensor on GPU is not supported for proxy.");
+            if (n.some((s) => s[3] !== 'cpu'))
+              throw new Error('input tensor on GPU is not supported for proxy.');
             if (o.some((s) => s))
-              throw new Error("pre-allocated output tensor is not supported for proxy.");
+              throw new Error('pre-allocated output tensor is not supported for proxy.');
             return (
               st(),
               new Promise((s, a) => {
-                it("run", [s, a]);
+                it('run', [s, a]);
                 let u = n,
                   d = {
-                    type: "run",
+                    type: 'run',
                     in: { sessionId: e, inputIndices: t, inputs: u, outputIndices: r, options: i },
                   };
                 xe.postMessage(d, Ot(u));
@@ -14677,8 +14677,8 @@ ${a}`,
             return (
               st(),
               new Promise((t, n) => {
-                it("end-profiling", [t, n]);
-                let r = { type: "end-profiling", in: e };
+                it('end-profiling', [t, n]);
+                let r = { type: 'end-profiling', in: e };
                 xe.postMessage(r);
               })
             );
@@ -14689,7 +14689,7 @@ ${a}`,
     gp,
     gn,
     Bu = E(() => {
-      "use strict";
+      'use strict';
       ve();
       mr();
       V();
@@ -14697,28 +14697,28 @@ ${a}`,
       Pn();
       (Du = (e, t) => {
         switch (e.location) {
-          case "cpu":
-            return [e.type, e.dims, e.data, "cpu"];
-          case "gpu-buffer":
-            return [e.type, e.dims, { gpuBuffer: e.gpuBuffer }, "gpu-buffer"];
-          case "ml-tensor":
-            return [e.type, e.dims, { mlTensor: e.mlTensor }, "ml-tensor"];
+          case 'cpu':
+            return [e.type, e.dims, e.data, 'cpu'];
+          case 'gpu-buffer':
+            return [e.type, e.dims, { gpuBuffer: e.gpuBuffer }, 'gpu-buffer'];
+          case 'ml-tensor':
+            return [e.type, e.dims, { mlTensor: e.mlTensor }, 'ml-tensor'];
           default:
             throw new Error(`invalid data location: ${e.location} for ${t()}`);
         }
       }),
         (gp = (e) => {
           switch (e[3]) {
-            case "cpu":
+            case 'cpu':
               return new $e(e[0], e[2], e[1]);
-            case "gpu-buffer": {
+            case 'gpu-buffer': {
               let t = e[0];
               if (!Ut(t))
                 throw new Error(`not supported data type: ${t} for deserializing GPU tensor`);
               let { gpuBuffer: n, download: r, dispose: o } = e[2];
               return $e.fromGpuBuffer(n, { dataType: t, dims: e[1], download: r, dispose: o });
             }
-            case "ml-tensor": {
+            case 'ml-tensor': {
               let t = e[0];
               if (!Vt(t))
                 throw new Error(`not supported data type: ${t} for deserializing MLTensor tensor`);
@@ -14736,7 +14736,7 @@ ${a}`,
           async loadModel(t, n) {
             fe();
             let r;
-            typeof t == "string" ? (r = await this.fetchModelAndCopyToWasmMemory(t)) : (r = t),
+            typeof t == 'string' ? (r = await this.fetchModelAndCopyToWasmMemory(t)) : (r = t),
               ([
                 this.sessionId,
                 this.inputNames,
@@ -14792,33 +14792,33 @@ ${a}`,
     yn,
     yp,
     Uu = E(() => {
-      "use strict";
+      'use strict';
       ve();
       mr();
       Bu();
       (Mu = () => {
-        (typeof te.wasm.initTimeout != "number" || te.wasm.initTimeout < 0) &&
+        (typeof te.wasm.initTimeout != 'number' || te.wasm.initTimeout < 0) &&
           (te.wasm.initTimeout = 0);
         let e = te.wasm.simd;
         if (
-          (typeof e != "boolean" &&
+          (typeof e != 'boolean' &&
             e !== void 0 &&
-            e !== "fixed" &&
-            e !== "relaxed" &&
+            e !== 'fixed' &&
+            e !== 'relaxed' &&
             (console.warn(
               `Property "env.wasm.simd" is set to unknown value "${e}". Reset it to \`false\` and ignore SIMD feature checking.`
             ),
             (te.wasm.simd = !1)),
-          typeof te.wasm.proxy != "boolean" && (te.wasm.proxy = !1),
-          typeof te.wasm.trace != "boolean" && (te.wasm.trace = !1),
-          typeof te.wasm.numThreads != "number" ||
+          typeof te.wasm.proxy != 'boolean' && (te.wasm.proxy = !1),
+          typeof te.wasm.trace != 'boolean' && (te.wasm.trace = !1),
+          typeof te.wasm.numThreads != 'number' ||
             !Number.isInteger(te.wasm.numThreads) ||
             te.wasm.numThreads <= 0)
         )
-          if (typeof self < "u" && !self.crossOriginIsolated) te.wasm.numThreads = 1;
+          if (typeof self < 'u' && !self.crossOriginIsolated) te.wasm.numThreads = 1;
           else {
             let t =
-              typeof navigator > "u" ? _n("node:os").cpus().length : navigator.hardwareConcurrency;
+              typeof navigator > 'u' ? _n('node:os').cpus().length : navigator.hardwareConcurrency;
             te.wasm.numThreads = Math.min(4, Math.ceil((t || 1) / 2));
           }
       }),
@@ -14847,13 +14847,13 @@ ${a}`,
   ve();
   ve();
   ve();
-  var Hr = "1.22.0";
+  var Hr = '1.22.0';
   var bp = Tn;
   {
     let e = (Uu(), at(Ru)).wasmBackend;
-    Ne("webgpu", e, 5), Ne("webnn", e, 5), Ne("cpu", e, 10), Ne("wasm", e, 10);
+    Ne('webgpu', e, 5), Ne('webnn', e, 5), Ne('cpu', e, 10), Ne('wasm', e, 10);
   }
-  Object.defineProperty(te.versions, "web", { value: Hr, enumerable: !0 });
+  Object.defineProperty(te.versions, 'web', { value: Hr, enumerable: !0 });
   return at(_p);
 })();
 /**
@@ -14904,10 +14904,10 @@ ${a}`,
  * limitations under the License.
  * =============================================================================
  */
-typeof exports == "object" && typeof module == "object" && (module.exports = ort);
+typeof exports == 'object' && typeof module == 'object' && (module.exports = ort);
 //# sourceMappingURL=ort.webgpu.min.js.map
 
-console.log("wow3");
+console.log('wow3');
 // ort.env.wasm.wasmPaths = {
 //   wasm: "../../ort-wasm-simd-threaded.jsep.wasm",
 // };

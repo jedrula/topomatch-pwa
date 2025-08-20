@@ -1,15 +1,15 @@
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { imageCacheService } from "@/services/imageCacheService";
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+import { imageCacheService } from '@/services/imageCacheService';
 
-export const useInferenceStore = defineStore("inference", () => {
-  const inferenceWorker = new Worker(new URL("/inferenceWorker.combined.js", import.meta.url), {
-    type: "module",
+export const useInferenceStore = defineStore('inference', () => {
+  const inferenceWorker = new Worker(new URL('/inferenceWorker.combined.js', import.meta.url), {
+    type: 'module',
   });
 
   const sessionTime = ref(null);
   const isLoading = ref(true); // Start loading immediately
-  const loadingMessage = ref("Creating inference session...");
+  const loadingMessage = ref('Creating inference session...');
   const inferenceResults = ref({});
   const matchCounts = ref({});
   const inferenceTimes = ref({});
@@ -19,28 +19,28 @@ export const useInferenceStore = defineStore("inference", () => {
 
   inferenceWorker.onmessage = (event) => {
     const { type, data } = event.data;
-    if (type === "inferenceComplete") {
-      console.log("Inference results:", data.results);
-    } else if (type === "sessionCreated") {
+    if (type === 'inferenceComplete') {
+      console.log('Inference results:', data.results);
+    } else if (type === 'sessionCreated') {
       sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
       sessionReady.value = true;
       isLoading.value = false;
-      loadingMessage.value = "";
-      console.log("Session created in:", sessionTime.value);
-    } else if (type === "error") {
+      loadingMessage.value = '';
+      console.log('Session created in:', sessionTime.value);
+    } else if (type === 'error') {
       errorString.value = data.message;
       isLoading.value = false;
-      loadingMessage.value = "";
-      console.error("Inference worker error:", data.message);
-    } else if (type === "workerMemoryInfo") {
-      console.log("Worker memory info:", data.memory);
+      loadingMessage.value = '';
+      console.error('Inference worker error:', data.message);
+    } else if (type === 'workerMemoryInfo') {
+      console.log('Worker memory info:', data.memory);
     }
   };
 
   // Create session immediately when store is initialized
   const initializeSession = () => {
-    console.log("Initializing inference session...");
-    inferenceWorker.postMessage({ type: "createSession" });
+    console.log('Initializing inference session...');
+    inferenceWorker.postMessage({ type: 'createSession' });
   };
 
   // Start session creation immediately
@@ -64,7 +64,7 @@ export const useInferenceStore = defineStore("inference", () => {
   ) => {
     // Check if session is ready before starting inference
     if (!sessionReady.value) {
-      errorString.value = "Inference session is not ready yet. Please wait.";
+      errorString.value = 'Inference session is not ready yet. Please wait.';
       return;
     }
 
@@ -82,7 +82,7 @@ export const useInferenceStore = defineStore("inference", () => {
     for (let i = 0; i < topoImagePaths.length; i++) {
       const imgPath = topoImagePaths[i];
       currentlyProcessingImage.value = imgPath;
-      loadingMessage.value = `Comparing with ${imgPath.split("/").pop()} (${i + 1}/${
+      loadingMessage.value = `Comparing with ${imgPath.split('/').pop()} (${i + 1}/${
         topoImagePaths.length
       })...`;
 
@@ -102,7 +102,7 @@ export const useInferenceStore = defineStore("inference", () => {
       await new Promise((resolve) => {
         const handler = (event) => {
           const { type, data } = event.data;
-          if (type === "inferenceComplete") {
+          if (type === 'inferenceComplete') {
             const elapsed = performance.now() - start;
             inferenceTimes.value[imgPath] = elapsed;
             const matches = data.results.matches?.dims?.[0] ?? null;
@@ -130,15 +130,15 @@ export const useInferenceStore = defineStore("inference", () => {
             }
 
             // Remove the event listener after handling this specific inference
-            inferenceWorker.removeEventListener("message", handler);
+            inferenceWorker.removeEventListener('message', handler);
             resolve();
           }
         };
 
-        inferenceWorker.addEventListener("message", handler);
+        inferenceWorker.addEventListener('message', handler);
         inferenceWorker.postMessage(
           {
-            type: "runInference",
+            type: 'runInference',
             userImageBuffer: userArrayBufferCopy,
             topoImageBuffer: topoArrayBuffer,
           },
@@ -155,10 +155,10 @@ export const useInferenceStore = defineStore("inference", () => {
 
     currentlyProcessingImage.value = null;
     isLoading.value = false;
-    loadingMessage.value = "";
+    loadingMessage.value = '';
 
-    console.log("Results stored for", Object.keys(inferenceResults.value).length, "images");
-    console.log("Best result:", bestResult, "with", bestMatches, "matches");
+    console.log('Results stored for', Object.keys(inferenceResults.value).length, 'images');
+    console.log('Best result:', bestResult, 'with', bestMatches, 'matches');
 
     // Call the completion callback if provided
     if (onComplete && bestImgPath) {

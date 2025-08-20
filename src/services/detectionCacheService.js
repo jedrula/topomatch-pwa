@@ -9,7 +9,7 @@
 // Cache configuration
 const CACHE_ENABLED = true; // Set to false to disable caching
 const CACHE_EXPIRY_HOURS = 24 * 30; // Cache for 1 month
-const CACHE_PREFIX = "hold_detection_cache_";
+const CACHE_PREFIX = 'hold_detection_cache_';
 
 /**
  * Generate a consistent cache key based on image URL and settings
@@ -28,22 +28,22 @@ const generateCacheKey = (imageUrl, settings) => {
 
     // Use full URL hash to avoid collisions between similar Firebase URLs
     // Extract unique parts: filename and token for additional uniqueness
-    let uniquePart = "";
+    let uniquePart = '';
     try {
       const url = new URL(imageUrl);
       const pathname = decodeURIComponent(url.pathname);
-      const filename = pathname.split("/").pop() || "";
-      const token = url.searchParams.get("token") || "";
-      uniquePart = filename + "_" + token.slice(0, 8); // First 8 chars of token for brevity
+      const filename = pathname.split('/').pop() || '';
+      const token = url.searchParams.get('token') || '';
+      uniquePart = filename + '_' + token.slice(0, 8); // First 8 chars of token for brevity
     } catch (urlError) {
       // Fallback to using part of the URL if parsing fails
       uniquePart = imageUrl.slice(-32); // Last 32 chars as fallback
     }
 
-    const urlHash = btoa(imageUrl + "_" + uniquePart).replace(/[=+/]/g, ""); // Remove problematic chars
-    return `${CACHE_PREFIX}${urlHash}_${settingsHash}`.replace(/[=+/]/g, ""); // Clean final key
+    const urlHash = btoa(imageUrl + '_' + uniquePart).replace(/[=+/]/g, ''); // Remove problematic chars
+    return `${CACHE_PREFIX}${urlHash}_${settingsHash}`.replace(/[=+/]/g, ''); // Clean final key
   } catch (error) {
-    console.error("Error generating cache key:", error);
+    console.error('Error generating cache key:', error);
     return null;
   }
 };
@@ -73,7 +73,7 @@ export const hasCachedDetectionResult = (imageUrl, settings) => {
 
     return true;
   } catch (error) {
-    console.error("Error checking detection cache:", error);
+    console.error('Error checking detection cache:', error);
     return false;
   }
 };
@@ -101,10 +101,10 @@ export const getCachedDetectionResult = (imageUrl, settings) => {
       return null;
     }
 
-    console.log("📦 Found cached detection results for:", imageUrl);
+    console.log('📦 Found cached detection results for:', imageUrl);
     return data;
   } catch (error) {
-    console.error("Error reading detection cache:", error);
+    console.error('Error reading detection cache:', error);
     return null;
   }
 };
@@ -127,9 +127,9 @@ export const setCachedDetectionResult = (imageUrl, settings, data) => {
     };
 
     localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
-    console.log("💾 Cached detection results for:", imageUrl);
+    console.log('💾 Cached detection results for:', imageUrl);
   } catch (error) {
-    console.error("Error saving detection cache:", error);
+    console.error('Error saving detection cache:', error);
     // If localStorage is full, try to clear old entries
     clearExpiredDetectionCache();
   }
@@ -151,7 +151,7 @@ export const clearExpiredDetectionCache = () => {
           const { timestamp } = JSON.parse(localStorage.getItem(key));
           if (now - timestamp > expiry) {
             localStorage.removeItem(key);
-            console.log("🗑️ Removed expired cache entry:", key);
+            console.log('🗑️ Removed expired cache entry:', key);
           }
         } catch (error) {
           // Remove corrupted cache entries
@@ -160,7 +160,7 @@ export const clearExpiredDetectionCache = () => {
       }
     });
   } catch (error) {
-    console.error("Error clearing expired cache:", error);
+    console.error('Error clearing expired cache:', error);
   }
 };
 
@@ -185,10 +185,10 @@ export const clearAllDetectionCache = () => {
         const cached = localStorage.getItem(key);
         if (cached) {
           const { imageUrl } = JSON.parse(cached);
-          console.log("🗑️ Removing cached detection for:", imageUrl);
+          console.log('🗑️ Removing cached detection for:', imageUrl);
         }
       } catch (parseError) {
-        console.log("🗑️ Removing corrupted cache entry:", key);
+        console.log('🗑️ Removing corrupted cache entry:', key);
       }
       localStorage.removeItem(key);
       clearedCount++;
@@ -196,7 +196,7 @@ export const clearAllDetectionCache = () => {
 
     console.log(`🗑️ Cleared ${clearedCount} detection cache entries`);
   } catch (error) {
-    console.error("Error clearing cache:", error);
+    console.error('Error clearing cache:', error);
   }
 };
 
@@ -210,12 +210,12 @@ export const clearDetectionCacheForImage = (imageUrl, settings) => {
     const cacheKey = generateCacheKey(imageUrl, settings);
     if (cacheKey && localStorage.getItem(cacheKey)) {
       localStorage.removeItem(cacheKey);
-      console.log("🗑️ Cleared cache for specific image:", imageUrl);
+      console.log('🗑️ Cleared cache for specific image:', imageUrl);
       return true;
     }
     return false;
   } catch (error) {
-    console.error("Error clearing cache for image:", error);
+    console.error('Error clearing cache for image:', error);
     return false;
   }
 };
@@ -245,7 +245,7 @@ export const getDetectionCacheStats = () => {
       expiryHours: CACHE_EXPIRY_HOURS,
     };
   } catch (error) {
-    console.error("Error getting cache stats:", error);
+    console.error('Error getting cache stats:', error);
     return { enabled: true, count: 0, totalSize: 0, error: error.message };
   }
 };
@@ -273,7 +273,7 @@ export const debugListCachedImages = () => {
         } catch (parseError) {
           cachedImages.push({
             key,
-            imageUrl: "CORRUPTED",
+            imageUrl: 'CORRUPTED',
             error: parseError.message,
           });
         }
@@ -283,7 +283,7 @@ export const debugListCachedImages = () => {
     console.table(cachedImages);
     return cachedImages;
   } catch (error) {
-    console.error("Error listing cached images:", error);
+    console.error('Error listing cached images:', error);
     return [];
   }
 };

@@ -1,15 +1,15 @@
 // Test OpenCV.js matrix creation and homography
-import cvReadyPromise from "@techstark/opencv-js";
+import cvReadyPromise from '@techstark/opencv-js';
 
 async function testOpenCVHomography() {
   try {
-    console.log("Loading OpenCV...");
+    console.log('Loading OpenCV...');
     const cv = await cvReadyPromise;
-    console.log("✅ OpenCV loaded successfully!");
+    console.log('✅ OpenCV loaded successfully!');
 
     // Test basic Mat creation
-    console.log("\n--- Testing Mat creation ---");
-    console.log("cv.Mat type:", typeof cv.Mat);
+    console.log('\n--- Testing Mat creation ---');
+    console.log('cv.Mat type:', typeof cv.Mat);
 
     if (cv.Mat) {
       // Test basic matrix creation
@@ -18,16 +18,16 @@ async function testOpenCVHomography() {
       testMat.delete();
 
       // Test homography functions availability
-      console.log("\n--- Testing homography functions ---");
-      console.log("cv.findHomography available:", typeof cv.findHomography === "function");
+      console.log('\n--- Testing homography functions ---');
+      console.log('cv.findHomography available:', typeof cv.findHomography === 'function');
       console.log(
-        "cv.perspectiveTransform available:",
-        typeof cv.perspectiveTransform === "function"
+        'cv.perspectiveTransform available:',
+        typeof cv.perspectiveTransform === 'function'
       );
-      console.log("cv.RANSAC available:", typeof cv.RANSAC !== "undefined");
+      console.log('cv.RANSAC available:', typeof cv.RANSAC !== 'undefined');
 
       // Test point matrix creation for homography
-      console.log("\n--- Testing point matrix creation ---");
+      console.log('\n--- Testing point matrix creation ---');
 
       // Sample matching points (4 points minimum for homography)
       const srcPoints = [
@@ -65,7 +65,7 @@ async function testOpenCVHomography() {
 
       // Test homography calculation
       if (cv.findHomography && cv.RANSAC) {
-        console.log("\n--- Testing homography calculation ---");
+        console.log('\n--- Testing homography calculation ---');
         const mask = new cv.Mat();
 
         try {
@@ -77,10 +77,10 @@ async function testOpenCVHomography() {
           for (let i = 0; i < 9; i++) {
             matrixData.push(homography.data64F[i]);
           }
-          console.log("Matrix values:", matrixData.map((v) => v.toFixed(6)).join(", "));
+          console.log('Matrix values:', matrixData.map((v) => v.toFixed(6)).join(', '));
 
           // Test point transformation
-          console.log("\n--- Testing point transformation ---");
+          console.log('\n--- Testing point transformation ---');
           const testPoint = new cv.Mat(1, 1, cv.CV_64FC2);
           testPoint.data64F[0] = 150; // x
           testPoint.data64F[1] = 200; // y
@@ -99,7 +99,7 @@ async function testOpenCVHomography() {
           testPoint.delete();
           transformedPoint.delete();
         } catch (err) {
-          console.error("❌ Homography calculation failed:", err.message);
+          console.error('❌ Homography calculation failed:', err.message);
         }
 
         mask.delete();
@@ -109,11 +109,11 @@ async function testOpenCVHomography() {
       srcMat.delete();
       dstMat.delete();
     } else {
-      console.error("❌ cv.Mat not available");
+      console.error('❌ cv.Mat not available');
     }
   } catch (err) {
-    console.error("❌ Error:", err.message);
-    console.error("Full error:", err);
+    console.error('❌ Error:', err.message);
+    console.error('Full error:', err);
   }
 }
 

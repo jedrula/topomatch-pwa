@@ -2,7 +2,7 @@
  * Composable for handling image overlay with SVG holds
  * Provides reusable logic for image loading, viewBox calculation, and hold overlay
  */
-import { ref, computed } from "vue";
+import { ref, computed } from 'vue';
 
 export function useImageOverlay() {
   // Image loading state
@@ -11,7 +11,7 @@ export function useImageOverlay() {
 
   // SVG viewBox for overlay positioning
   const imageViewBox = computed(() => {
-    if (!imageElement.value) return "0 0 1000 1000";
+    if (!imageElement.value) return '0 0 1000 1000';
 
     const img = imageElement.value;
     const naturalWidth = img.naturalWidth || 1000;
@@ -23,7 +23,7 @@ export function useImageOverlay() {
   // Handle image load event
   const onImageLoad = () => {
     imageLoaded.value = true;
-    console.log("🖼️ Image loaded, viewBox:", imageViewBox.value);
+    console.log('🖼️ Image loaded, viewBox:', imageViewBox.value);
   };
 
   // Reset state (useful when image changes)

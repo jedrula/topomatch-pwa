@@ -159,8 +159,8 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted, onUnmounted } from "vue";
-import CachedImage from "@/components/CachedImage.vue";
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import CachedImage from '@/components/CachedImage.vue';
 
 const props = defineProps({
   modalMode: {
@@ -213,7 +213,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["close", "toggle-mode", "navigate"]);
+const emit = defineEmits(['close', 'toggle-mode', 'navigate']);
 
 const dialogRef = ref(null);
 const canvasRef = ref(null);
@@ -231,11 +231,11 @@ const closeModal = () => {
 };
 
 const onDialogClose = () => {
-  emit("close");
+  emit('close');
 };
 
 const toggleMode = () => {
-  emit("toggle-mode");
+  emit('toggle-mode');
 };
 
 const navigateImage = (direction) => {
@@ -247,22 +247,22 @@ const navigateImage = (direction) => {
     // If we're in visualization mode but the next image can't be visualized,
     // suggest switching to preview mode
     let suggestedMode = props.modalMode;
-    if (props.modalMode === "visualization" && !hasVisualizationData) {
-      suggestedMode = "preview";
+    if (props.modalMode === 'visualization' && !hasVisualizationData) {
+      suggestedMode = 'preview';
     }
 
-    emit("navigate", { index: newIndex, mode: suggestedMode });
+    emit('navigate', { index: newIndex, mode: suggestedMode });
   }
 };
 
 const handleKeyDown = (event) => {
-  if (event.key === "ArrowLeft") {
+  if (event.key === 'ArrowLeft') {
     event.preventDefault();
     navigateImage(-1);
-  } else if (event.key === "ArrowRight") {
+  } else if (event.key === 'ArrowRight') {
     event.preventDefault();
     navigateImage(1);
-  } else if (event.key === "Escape") {
+  } else if (event.key === 'Escape') {
     event.preventDefault();
     closeModal();
   }
@@ -273,7 +273,7 @@ const drawVisualization = (rawData, images, imgWidth, imgHeight) => {
   if (!canvas) return;
   canvas.width = imgWidth * 2;
   canvas.height = imgHeight;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(images[0], 0, 0, imgWidth, imgHeight);
   ctx.drawImage(images[1], imgWidth, 0, imgWidth, imgHeight);
@@ -286,7 +286,7 @@ const drawVisualization = (rawData, images, imgWidth, imgHeight) => {
     const x1 =
       Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) + imgWidth;
     const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
-    ctx.strokeStyle = "red";
+    ctx.strokeStyle = 'red';
     ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.lineTo(x1, y1);
@@ -296,18 +296,18 @@ const drawVisualization = (rawData, images, imgWidth, imgHeight) => {
 
 // Keyboard navigation
 onMounted(() => {
-  document.addEventListener("keydown", handleKeyDown);
+  document.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(() => {
-  document.removeEventListener("keydown", handleKeyDown);
+  document.removeEventListener('keydown', handleKeyDown);
 });
 
 // Watch for visualization data changes and draw when needed
 watch(
   () => props.visualizationData,
   (newData) => {
-    if (newData && props.modalMode === "visualization") {
+    if (newData && props.modalMode === 'visualization') {
       nextTick(() => {
         drawVisualization(newData.rawData, newData.images, newData.imgWidth, newData.imgHeight);
       });
@@ -320,7 +320,7 @@ watch(
 watch(
   () => props.modalMode,
   (newMode) => {
-    if (newMode === "visualization" && props.visualizationData) {
+    if (newMode === 'visualization' && props.visualizationData) {
       nextTick(() => {
         drawVisualization(
           props.visualizationData.rawData,

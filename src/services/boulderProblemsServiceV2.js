@@ -1,16 +1,16 @@
-import { httpsCallable } from "firebase/functions";
-import { functions } from "./firebase.js";
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase.js';
 
 // Initialize callable functions
-const createBoulderProblemFn = httpsCallable(functions, "createBoulderProblem");
-const getBoulderProblemsFn = httpsCallable(functions, "getBoulderProblems");
-const getBoulderProblemFn = httpsCallable(functions, "getBoulderProblem");
-const updateBoulderProblemFn = httpsCallable(functions, "updateBoulderProblem");
-const deleteBoulderProblemFn = httpsCallable(functions, "deleteBoulderProblem");
-const deleteAllBoulderProblemsFn = httpsCallable(functions, "deleteAllBoulderProblems");
-const addHoldToProblemFn = httpsCallable(functions, "addHoldToProblem");
-const removeHoldFromProblemFn = httpsCallable(functions, "removeHoldFromProblem");
-const updateProblemHoldsFn = httpsCallable(functions, "updateProblemHolds");
+const createBoulderProblemFn = httpsCallable(functions, 'createBoulderProblem');
+const getBoulderProblemsFn = httpsCallable(functions, 'getBoulderProblems');
+const getBoulderProblemFn = httpsCallable(functions, 'getBoulderProblem');
+const updateBoulderProblemFn = httpsCallable(functions, 'updateBoulderProblem');
+const deleteBoulderProblemFn = httpsCallable(functions, 'deleteBoulderProblem');
+const deleteAllBoulderProblemsFn = httpsCallable(functions, 'deleteAllBoulderProblems');
+const addHoldToProblemFn = httpsCallable(functions, 'addHoldToProblem');
+const removeHoldFromProblemFn = httpsCallable(functions, 'removeHoldFromProblem');
+const updateProblemHoldsFn = httpsCallable(functions, 'updateProblemHolds');
 
 export const boulderProblemsServiceV2 = {
   /**
@@ -22,10 +22,10 @@ export const boulderProblemsServiceV2 = {
   async createBoulderProblem(locationId, problemData) {
     try {
       const result = await createBoulderProblemFn({ locationId, problemData });
-      console.log("Boulder problem created with ID:", result.data.problemId);
+      console.log('Boulder problem created with ID:', result.data.problemId);
       return result.data.problemId;
     } catch (error) {
-      console.error("Error creating boulder problem:", error);
+      console.error('Error creating boulder problem:', error);
       throw error;
     }
   },
@@ -40,9 +40,9 @@ export const boulderProblemsServiceV2 = {
   async updateBoulderProblem(locationId, problemId, updates) {
     try {
       await updateBoulderProblemFn({ locationId, problemId, updates });
-      console.log("Boulder problem updated successfully");
+      console.log('Boulder problem updated successfully');
     } catch (error) {
-      console.error("Error updating boulder problem:", error);
+      console.error('Error updating boulder problem:', error);
       throw error;
     }
   },
@@ -56,9 +56,9 @@ export const boulderProblemsServiceV2 = {
   async deleteBoulderProblem(locationId, problemId) {
     try {
       await deleteBoulderProblemFn({ locationId, problemId });
-      console.log("Boulder problem deleted successfully");
+      console.log('Boulder problem deleted successfully');
     } catch (error) {
-      console.error("Error deleting boulder problem:", error);
+      console.error('Error deleting boulder problem:', error);
       throw error;
     }
   },
@@ -85,7 +85,7 @@ export const boulderProblemsServiceV2 = {
       console.log(`Retrieved ${problems.length} boulder problems for location ${locationId}`);
       return problems;
     } catch (error) {
-      console.error("Error fetching boulder problems:", error);
+      console.error('Error fetching boulder problems:', error);
       throw error;
     }
   },
@@ -115,7 +115,7 @@ export const boulderProblemsServiceV2 = {
       );
       return problems;
     } catch (error) {
-      console.error("Error fetching boulder problems by image:", error);
+      console.error('Error fetching boulder problems by image:', error);
       throw error;
     }
   },
@@ -141,11 +141,11 @@ export const boulderProblemsServiceV2 = {
           : new Date(problem.updatedAt),
       };
     } catch (error) {
-      if (error.message.includes("not found")) {
-        console.log("Boulder problem not found");
+      if (error.message.includes('not found')) {
+        console.log('Boulder problem not found');
         return null;
       }
-      console.error("Error fetching boulder problem:", error);
+      console.error('Error fetching boulder problem:', error);
       throw error;
     }
   },
@@ -163,7 +163,7 @@ export const boulderProblemsServiceV2 = {
       const result = await addHoldToProblemFn({ locationId, problemId, hold, holdIndex });
       console.log(result.data.message);
     } catch (error) {
-      console.error("Error adding hold to problem:", error);
+      console.error('Error adding hold to problem:', error);
       throw error;
     }
   },
@@ -180,7 +180,7 @@ export const boulderProblemsServiceV2 = {
       const result = await removeHoldFromProblemFn({ locationId, problemId, holdIndex });
       console.log(result.data.message);
     } catch (error) {
-      console.error("Error removing hold from problem:", error);
+      console.error('Error removing hold from problem:', error);
       throw error;
     }
   },
@@ -193,10 +193,10 @@ export const boulderProblemsServiceV2 = {
   async deleteAllBoulderProblemsForLocation(locationId) {
     try {
       const result = await deleteAllBoulderProblemsFn({ locationId });
-      console.log("All boulder problems deleted:", result.data.message);
+      console.log('All boulder problems deleted:', result.data.message);
       return result.data;
     } catch (error) {
-      console.error("Error deleting all boulder problems:", error);
+      console.error('Error deleting all boulder problems:', error);
       throw error;
     }
   },
@@ -213,7 +213,7 @@ export const boulderProblemsServiceV2 = {
       const result = await updateProblemHoldsFn({ locationId, problemId, holds });
       console.log(result.data.message);
     } catch (error) {
-      console.error("Error updating problem holds:", error);
+      console.error('Error updating problem holds:', error);
       throw error;
     }
   },

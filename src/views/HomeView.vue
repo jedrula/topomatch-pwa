@@ -178,15 +178,15 @@
 </template>
 
 <script setup>
-import { useRouter } from "vue-router";
-import RegionPicker from "@/components/RegionPicker.vue";
-import MainFooter from "@/components/MainFooter.vue";
-import { useInferenceStore } from "@/stores/inferenceStore";
+import { useRouter } from 'vue-router';
+import RegionPicker from '@/components/RegionPicker.vue';
+import MainFooter from '@/components/MainFooter.vue';
+import { useInferenceStore } from '@/stores/inferenceStore';
 
 const router = useRouter();
 const inferenceStore = useInferenceStore();
 
 function onRegionChange(newRegionId) {
-  router.push({ name: "region", params: { regionId: newRegionId } });
+  router.push({ name: 'region', params: { regionId: newRegionId } });
 }
 </script>

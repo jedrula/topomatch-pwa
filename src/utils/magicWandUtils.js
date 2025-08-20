@@ -86,7 +86,7 @@ export const performMagicWandSelection = (
     targetHoldIndex < 0 ||
     targetHoldIndex >= allHolds.length
   ) {
-    console.warn("Magic Wand: Invalid input parameters");
+    console.warn('Magic Wand: Invalid input parameters');
     return {
       success: false,
       targetHold: null,
@@ -102,7 +102,7 @@ export const performMagicWandSelection = (
   const colorSimilarHolds = findAllSimilarColorHolds(targetHold, allHolds, maxColorDistance);
 
   if (colorSimilarHolds.length === 0) {
-    console.log("Magic Wand: No color-similar holds found");
+    console.log('Magic Wand: No color-similar holds found');
     return {
       success: true,
       targetHold: { hold: targetHold, index: targetHoldIndex },
@@ -218,8 +218,8 @@ export const extractHoldColor = (hold) => {
 export const findAllSimilarColorHolds = (targetHold, allHolds, maxColorDistance = 33) => {
   const targetColor = extractHoldColor(targetHold);
   if (!targetColor) {
-    console.log("Magic Wand: No color data found for target hold");
-    console.log("Target hold structure:", targetHold);
+    console.log('Magic Wand: No color data found for target hold');
+    console.log('Target hold structure:', targetHold);
     return [];
   }
 

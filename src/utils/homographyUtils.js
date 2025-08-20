@@ -11,12 +11,12 @@
 export async function calculateHomographyMatrix(matches) {
   return new Promise((resolve, reject) => {
     if (!window.cv) {
-      reject(new Error("OpenCV.js not loaded"));
+      reject(new Error('OpenCV.js not loaded'));
       return;
     }
 
     if (!matches || matches.length < 4) {
-      reject(new Error("Need at least 4 point matches to calculate homography"));
+      reject(new Error('Need at least 4 point matches to calculate homography'));
       return;
     }
 
@@ -53,10 +53,10 @@ export async function calculateHomographyMatrix(matches) {
         matrixData.push(homography.data64F[i]);
       }
 
-      console.log("✅ Homography calculated:", {
+      console.log('✅ Homography calculated:', {
         inliers: inlierCount,
         total: matches.length,
-        successRate: ((inlierCount / matches.length) * 100).toFixed(1) + "%"
+        successRate: ((inlierCount / matches.length) * 100).toFixed(1) + '%'
       });
 
       // Cleanup
@@ -72,7 +72,7 @@ export async function calculateHomographyMatrix(matches) {
       });
 
     } catch (error) {
-      console.error("Homography calculation error:", error);
+      console.error('Homography calculation error:', error);
       reject(error);
     }
   });
@@ -88,7 +88,7 @@ export async function calculateHomographyMatrix(matches) {
  */
 export function transformPoint(x, y, homographyMatrix, inverse = false) {
   if (!window.cv || !homographyMatrix) {
-    console.warn("Transform point failed: OpenCV or homography matrix not available");
+    console.warn('Transform point failed: OpenCV or homography matrix not available');
     return null;
   }
 
@@ -132,7 +132,7 @@ export function transformPoint(x, y, homographyMatrix, inverse = false) {
     return result;
 
   } catch (error) {
-    console.error("Point transformation error:", error);
+    console.error('Point transformation error:', error);
     return null;
   }
 }

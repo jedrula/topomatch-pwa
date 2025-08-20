@@ -1,16 +1,16 @@
-import { httpsCallable } from "firebase/functions";
-import { functions } from "./firebase.js";
-import { boulderProblemsServiceV2 as boulderProblemsService } from "./boulderProblemsServiceV2.js";
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase.js';
+import { boulderProblemsServiceV2 as boulderProblemsService } from './boulderProblemsServiceV2.js';
 
 // Initialize callable functions
-const createLocationFn = httpsCallable(functions, "createLocation");
-const getLocationsFn = httpsCallable(functions, "getLocations");
-const getLocationFn = httpsCallable(functions, "getLocation");
-const updateLocationFn = httpsCallable(functions, "updateLocation");
-const deleteLocationFn = httpsCallable(functions, "deleteLocation");
-const addLocationImageFn = httpsCallable(functions, "addLocationImage");
-const getLocationImagesFn = httpsCallable(functions, "getLocationImages");
-const deleteLocationImageFn = httpsCallable(functions, "deleteLocationImage");
+const createLocationFn = httpsCallable(functions, 'createLocation');
+const getLocationsFn = httpsCallable(functions, 'getLocations');
+const getLocationFn = httpsCallable(functions, 'getLocation');
+const updateLocationFn = httpsCallable(functions, 'updateLocation');
+const deleteLocationFn = httpsCallable(functions, 'deleteLocation');
+const addLocationImageFn = httpsCallable(functions, 'addLocationImage');
+const getLocationImagesFn = httpsCallable(functions, 'getLocationImages');
+const deleteLocationImageFn = httpsCallable(functions, 'deleteLocationImage');
 
 class LocationService {
   async createLocation(location) {
@@ -18,7 +18,7 @@ class LocationService {
       const result = await createLocationFn(location);
       return result.data;
     } catch (error) {
-      console.error("Error creating location:", error);
+      console.error('Error creating location:', error);
       throw error;
     }
   }
@@ -28,7 +28,7 @@ class LocationService {
       const result = await getLocationsFn();
       return result.data;
     } catch (error) {
-      console.error("Error getting locations:", error);
+      console.error('Error getting locations:', error);
       throw error;
     }
   }
@@ -38,7 +38,7 @@ class LocationService {
       const result = await getLocationFn({ locationId: id });
       return result.data;
     } catch (error) {
-      console.error("Error getting location:", error);
+      console.error('Error getting location:', error);
       throw error;
     }
   }
@@ -48,7 +48,7 @@ class LocationService {
       const result = await updateLocationFn({ locationId: id, ...location });
       return result.data;
     } catch (error) {
-      console.error("Error updating location:", error);
+      console.error('Error updating location:', error);
       throw error;
     }
   }
@@ -60,10 +60,10 @@ class LocationService {
       // However, we can optionally clean them up explicitly for better error handling
       try {
         await boulderProblemsService.deleteAllBoulderProblemsForLocation(id);
-        console.log("Boulder problems cleaned up for location:", id);
+        console.log('Boulder problems cleaned up for location:', id);
       } catch (boulderError) {
         console.warn(
-          "Error cleaning up boulder problems (will be handled by cascade delete):",
+          'Error cleaning up boulder problems (will be handled by cascade delete):',
           boulderError
         );
         // Continue with location deletion even if boulder cleanup fails
@@ -72,7 +72,7 @@ class LocationService {
       const result = await deleteLocationFn({ locationId: id });
       return result.data;
     } catch (error) {
-      console.error("Error deleting location:", error);
+      console.error('Error deleting location:', error);
       throw error;
     }
   }
@@ -87,7 +87,7 @@ class LocationService {
       });
       return result.data;
     } catch (error) {
-      console.error("Error adding location image:", error);
+      console.error('Error adding location image:', error);
       throw error;
     }
   }
@@ -98,7 +98,7 @@ class LocationService {
       const result = await getLocationImagesFn({ locationId });
       return result.data;
     } catch (error) {
-      console.error("Error getting location images:", error);
+      console.error('Error getting location images:', error);
       throw error;
     }
   }
@@ -109,7 +109,7 @@ class LocationService {
       const result = await deleteLocationImageFn({ imageId });
       return result.data;
     } catch (error) {
-      console.error("Error deleting location image:", error);
+      console.error('Error deleting location image:', error);
       throw error;
     }
   }

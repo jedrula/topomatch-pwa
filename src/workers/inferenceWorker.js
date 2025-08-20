@@ -1,16 +1,16 @@
 self.onmessage = async (event) => {
   const { type, userImageBuffer, topoImageBuffer } = event.data;
 
-  if (type === "createSession") {
-    console.log("createSession in worker 2");
+  if (type === 'createSession') {
+    console.log('createSession in worker 2');
     try {
       const startTime = performance.now();
       // Use WASM options to enable SIMD and threads if supported
       const session = await ort.InferenceSession.create(
-        "../../superpoint_lightglue_pipeline.ort.onnx",
+        '../../superpoint_lightglue_pipeline.ort.onnx',
         {
-          executionProviders: ["wasm"],
-          graphOptimizationLevel: "all",
+          executionProviders: ['wasm'],
+          graphOptimizationLevel: 'all',
           wasm: {
             numThreads: navigator.hardwareConcurrency
               ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
@@ -25,24 +25,24 @@ self.onmessage = async (event) => {
       self.session = session; // Store the session in the worker
 
       self.postMessage({
-        type: "sessionCreated",
+        type: 'sessionCreated',
         data: {
           sessionTime: endTime - startTime,
         },
       });
     } catch (error) {
       self.postMessage({
-        type: "error",
+        type: 'error',
         data: { message: error.message },
       });
     }
   }
 
-  if (type === "runInference") {
+  if (type === 'runInference') {
     if (!self.session) {
       self.postMessage({
-        type: "error",
-        data: { message: "Session is not initialized." },
+        type: 'error',
+        data: { message: 'Session is not initialized.' },
       });
       return;
     }
@@ -54,8 +54,8 @@ self.onmessage = async (event) => {
     try {
       if (!userImageBuffer || !topoImageBuffer) {
         self.postMessage({
-          type: "error",
-          data: { message: "Both user and topo images must be provided." },
+          type: 'error',
+          data: { message: 'Both user and topo images must be provided.' },
         });
         return;
       }
@@ -75,7 +75,7 @@ self.onmessage = async (event) => {
         preprocessImage(image, imgWidth, imgHeight, index)
       );
       const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
-      const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
+      const tensor = new ort.Tensor('float32', combinedInput, [2, 1, imgHeight, imgWidth]);
       const feeds = { images: tensor };
 
       const startTime = performance.now();
@@ -83,7 +83,7 @@ self.onmessage = async (event) => {
       const endTime = performance.now();
 
       self.postMessage({
-        type: "inferenceComplete",
+        type: 'inferenceComplete',
         data: {
           inferenceTime: endTime - startTime,
           results,
@@ -96,13 +96,13 @@ self.onmessage = async (event) => {
       });
     } catch (error) {
       self.postMessage({
-        type: "error",
+        type: 'error',
         data: { message: error.message },
       });
     } finally {
       // Explicitly release resources to help GC, especially on mobile
-      if (userBitmap && typeof userBitmap.close === "function") userBitmap.close();
-      if (topoBitmap && typeof topoBitmap.close === "function") topoBitmap.close();
+      if (userBitmap && typeof userBitmap.close === 'function') userBitmap.close();
+      if (topoBitmap && typeof topoBitmap.close === 'function') topoBitmap.close();
       userBitmap = null;
       topoBitmap = null;
       userBlob = null;
@@ -113,7 +113,7 @@ self.onmessage = async (event) => {
 
 function preprocessImage(image, width, height, index) {
   const canvas = new OffscreenCanvas(width, height);
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   ctx.drawImage(image, 0, 0, width, height);
   const imageData = ctx.getImageData(0, 0, width, height).data;
 

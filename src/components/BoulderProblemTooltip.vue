@@ -56,8 +56,8 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
-import { getGradeLabel } from "@/utils/gradingUtils.js";
+import { computed } from 'vue';
+import { getGradeLabel } from '@/utils/gradingUtils.js';
 
 const props = defineProps({
   visible: {
@@ -78,10 +78,10 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["edit", "view-detail", "toggle-visibility"]);
+const emit = defineEmits(['edit', 'view-detail', 'toggle-visibility']);
 
 const tooltipStyle = computed(() => {
-  if (!props.visible || !props.problem) return { display: "none" };
+  if (!props.visible || !props.problem) return { display: 'none' };
 
   // Offset tooltip to the right and slightly below cursor
   const offsetX = 15;
@@ -94,14 +94,14 @@ const tooltipStyle = computed(() => {
 });
 
 const handleEdit = () => {
-  emit("edit", props.problem);
+  emit('edit', props.problem);
 };
 
 const handleViewDetail = () => {
-  emit("view-detail", props.problem);
+  emit('view-detail', props.problem);
 };
 
 const handleToggleVisibility = () => {
-  emit("toggle-visibility", props.problem);
+  emit('toggle-visibility', props.problem);
 };
 </script>

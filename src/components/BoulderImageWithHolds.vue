@@ -49,8 +49,8 @@
 </template>
 
 <script setup>
-import HoldSvg from "./HoldSvg.vue";
-import { useImageOverlay } from "@/composables/useImageOverlay";
+import HoldSvg from './HoldSvg.vue';
+import { useImageOverlay } from '@/composables/useImageOverlay';
 
 defineProps({
   imageUrl: {
@@ -59,7 +59,7 @@ defineProps({
   },
   imageAlt: {
     type: String,
-    default: "Boulder image",
+    default: 'Boulder image',
   },
   problems: {
     type: Array,
@@ -67,7 +67,7 @@ defineProps({
   },
   imageClass: {
     type: String,
-    default: "w-full h-full object-cover",
+    default: 'w-full h-full object-cover',
   },
   showHolds: {
     type: Boolean,

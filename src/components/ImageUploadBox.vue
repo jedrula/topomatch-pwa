@@ -31,28 +31,28 @@
 </template>
 
 <script setup>
-import { ref, defineEmits, defineProps } from "vue";
+import { ref, defineEmits, defineProps } from 'vue';
 
 const props = defineProps({
   label: {
     type: String,
-    default: "Upload Image",
+    default: 'Upload Image',
   },
   modelValue: {
     type: String,
-    default: "",
+    default: '',
   },
   previewUrl: {
     type: String,
-    default: "",
+    default: '',
   },
   placeholder: {
     type: String,
-    default: "Click or drag image here",
+    default: 'Click or drag image here',
   },
 });
 
-const emit = defineEmits(["update:modelValue", "image-selected", "file-selected", "clear"]);
+const emit = defineEmits(['update:modelValue', 'image-selected', 'file-selected', 'clear']);
 
 const fileInput = ref(null);
 const isDragOver = ref(false);
@@ -89,34 +89,34 @@ const onDragLeave = () => {
 };
 
 const handleFile = (file) => {
-  if (!file.type.startsWith("image/")) {
-    alert("Please select an image file");
+  if (!file.type.startsWith('image/')) {
+    alert('Please select an image file');
     return;
   }
 
   const url = URL.createObjectURL(file);
   imageUrl.value = url;
-  emit("update:modelValue", url);
-  emit("image-selected", { file, url });
-  emit("file-selected", file);
+  emit('update:modelValue', url);
+  emit('image-selected', { file, url });
+  emit('file-selected', file);
 };
 
 const clearImage = () => {
   if (imageUrl.value) {
     URL.revokeObjectURL(imageUrl.value);
   }
-  imageUrl.value = "";
-  emit("update:modelValue", "");
-  emit("image-selected", null);
-  emit("file-selected", null);
-  emit("clear");
+  imageUrl.value = '';
+  emit('update:modelValue', '');
+  emit('image-selected', null);
+  emit('file-selected', null);
+  emit('clear');
   if (fileInput.value) {
-    fileInput.value.value = "";
+    fileInput.value.value = '';
   }
 };
 
 // Watch for external changes to modelValue and previewUrl
-import { watch } from "vue";
+import { watch } from 'vue';
 watch(
   () => props.modelValue,
   (newValue) => {

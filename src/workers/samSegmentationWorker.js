@@ -10,14 +10,14 @@ import {
   AutoProcessor,
   RawImage,
   Tensor,
-} from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
+} from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
 
 // Since we will download the model from the Hugging Face Hub, we can skip the local model check
 env.allowLocalModels = false;
 
 // We adopt the singleton pattern to enable lazy-loading of the model and processor.
 export class SegmentAnythingSingleton {
-  static model_id = "Xenova/slimsam-77-uniform"; // Use the optimized SlimSAM model
+  static model_id = 'Xenova/slimsam-77-uniform'; // Use the optimized SlimSAM model
   static model;
   static processor;
   static quantized = true;
@@ -68,8 +68,8 @@ const generateHoldMasks = async (holdCenters) => {
       const points = [[x * reshaped[1], y * reshaped[0]]]; // Scale to reshaped size
       const labels = [1]; // Positive point
 
-      const input_points = new Tensor("float32", points.flat(Infinity), [1, 1, points.length, 2]);
-      const input_labels = new Tensor("int64", labels.map((l) => BigInt(l)).flat(Infinity), [
+      const input_points = new Tensor('float32', points.flat(Infinity), [1, 1, points.length, 2]);
+      const input_labels = new Tensor('int64', labels.map((l) => BigInt(l)).flat(Infinity), [
         1,
         1,
         labels.length,
@@ -168,7 +168,7 @@ self.onmessage = async (e) => {
       // Indicate that we are ready to accept requests
       ready = true;
       self.postMessage({
-        type: "samSessionCreated",
+        type: 'samSessionCreated',
         data: { sessionTime: 0 }, // We'll measure actual session time elsewhere
       });
     }
@@ -176,23 +176,23 @@ self.onmessage = async (e) => {
     const { type, data } = e.data;
 
     switch (type) {
-      case "initializeSAM":
+      case 'initializeSAM':
         // Already handled above
         break;
 
-      case "reset":
+      case 'reset':
         image_inputs = null;
         image_embeddings = null;
         currentImageData = null;
         break;
 
-      case "segment": {
+      case 'segment': {
         // Process image and compute embeddings (stage 1)
-        console.log("Processing image for SAM embeddings...");
+        console.log('Processing image for SAM embeddings...');
 
         self.postMessage({
-          type: "segment_result",
-          data: "start",
+          type: 'segment_result',
+          data: 'start',
         });
 
         // Read the image and recompute image embeddings
@@ -202,19 +202,19 @@ self.onmessage = async (e) => {
         currentImageData = data;
 
         self.postMessage({
-          type: "segment_result",
-          data: "done",
+          type: 'segment_result',
+          data: 'done',
         });
         break;
       }
 
-      case "generateMasks": {
+      case 'generateMasks': {
         // Generate masks for holds (stage 2)
         const { imageBuffer, holdCenters } = data;
 
         // If we don't have embeddings for this image, compute them first
         if (!image_embeddings || !currentImageData) {
-          console.log("No image embeddings found, processing image first...");
+          console.log('No image embeddings found, processing image first...');
           const imageBlob = new Blob([imageBuffer]);
           const imageDataURI = await new Promise((resolve) => {
             const reader = new FileReader();
@@ -234,7 +234,7 @@ self.onmessage = async (e) => {
         const endTime = performance.now();
 
         self.postMessage({
-          type: "masksGenerated",
+          type: 'masksGenerated',
           data: {
             masks,
             processingTime: endTime - startTime,
@@ -246,12 +246,12 @@ self.onmessage = async (e) => {
       }
 
       default:
-        console.warn("Unknown message type:", type);
+        console.warn('Unknown message type:', type);
     }
   } catch (error) {
-    console.error("SAM worker error:", error);
+    console.error('SAM worker error:', error);
     self.postMessage({
-      type: "error",
+      type: 'error',
       data: { message: error.message },
     });
   }

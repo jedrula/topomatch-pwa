@@ -1,6 +1,6 @@
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { holdDetectionServerService } from "../services/holdDetectionServerService.js";
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+import { holdDetectionServerService } from '../services/holdDetectionServerService.js';
 import {
   getCachedDetectionResult,
   setCachedDetectionResult,
@@ -8,20 +8,20 @@ import {
   clearExpiredDetectionCache,
   clearDetectionCacheForImage,
   hasCachedDetectionResult,
-} from "../services/detectionCacheService.js";
-import { manualHoldsService } from "../services/manualHoldsService.js";
-import { ensureHoldHasSvgMarkup } from "../utils/svgUtils.js";
+} from '../services/detectionCacheService.js';
+import { manualHoldsService } from '../services/manualHoldsService.js';
+import { ensureHoldHasSvgMarkup } from '../utils/svgUtils.js';
 
-export const useHoldDetectionServerStore = defineStore("holdDetectionServer", () => {
+export const useHoldDetectionServerStore = defineStore('holdDetectionServer', () => {
   // Core state
   const isProcessing = ref(false);
   const currentJobId = ref(null);
-  const processingStatus = ref("ready"); // ready, fetching, uploading, processing, completed, error
-  const statusMessage = ref("Ready to process images");
+  const processingStatus = ref('ready'); // ready, fetching, uploading, processing, completed, error
+  const statusMessage = ref('Ready to process images');
   const error = ref(null);
 
   // API configuration
-  const apiUrl = ref("https://6d2401b5f155.ngrok-free.app");
+  const apiUrl = ref('https://6d2401b5f155.ngrok-free.app');
   const apiHealthy = ref(false);
 
   // Processing progress
@@ -49,7 +49,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   });
 
   // Computed properties
-  const isReady = computed(() => processingStatus.value === "ready" && apiHealthy.value);
+  const isReady = computed(() => processingStatus.value === 'ready' && apiHealthy.value);
   const hasResults = computed(() => results.value !== null);
   const isLoading = computed(() => isProcessing.value);
 
@@ -101,28 +101,28 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
 
   const testApiHealth = async () => {
     try {
-      console.log("🔍 Testing API health with URL:", apiUrl.value);
-      statusMessage.value = "Testing API connection...";
+      console.log('🔍 Testing API health with URL:', apiUrl.value);
+      statusMessage.value = 'Testing API connection...';
 
       const healthResult = await holdDetectionServerService.testHealth();
 
       if (healthResult.success) {
         apiHealthy.value = true;
-        statusMessage.value = "API is ready";
-        console.log("✅ API Health check successful");
+        statusMessage.value = 'API is ready';
+        console.log('✅ API Health check successful');
         return { success: true, data: healthResult.data };
       } else {
         apiHealthy.value = false;
         error.value = healthResult.error;
         statusMessage.value = healthResult.message;
-        console.log("❌ API Health check failed:", healthResult.error);
+        console.log('❌ API Health check failed:', healthResult.error);
         return { success: false, error: healthResult.error };
       }
     } catch (err) {
       apiHealthy.value = false;
       error.value = err.message;
       statusMessage.value = `API connection failed: ${err.message}`;
-      console.log("❌ API Health exception:", err.message);
+      console.log('❌ API Health exception:', err.message);
       return { success: false, error: err.message };
     }
   };
@@ -137,26 +137,26 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
 
   const processImage = async (imageUrl) => {
     if (!imageUrl) {
-      error.value = "No image URL provided";
-      return { success: false, error: "No image URL provided" };
+      error.value = 'No image URL provided';
+      return { success: false, error: 'No image URL provided' };
     }
 
     // Check cache first - we can load cached results even if API is down
-    console.log("🔍 Checking cache for image:", imageUrl);
-    console.log("🔧 Cache settings:", compressionSettings.value);
+    console.log('🔍 Checking cache for image:', imageUrl);
+    console.log('🔧 Cache settings:', compressionSettings.value);
 
     const cachedResult = getCachedDetectionResult(imageUrl, compressionSettings.value);
     if (cachedResult) {
-      console.log("✅ Using cached detection results for:", imageUrl);
-      console.log("📦 Cached result contains:", Object.keys(cachedResult.result || {}));
+      console.log('✅ Using cached detection results for:', imageUrl);
+      console.log('📦 Cached result contains:', Object.keys(cachedResult.result || {}));
 
       // Set results immediately
       results.value = cachedResult.result;
       processingMetrics.value = cachedResult.metrics;
 
       // Update status to show cached results
-      processingStatus.value = "completed";
-      statusMessage.value = "Results loaded from cache";
+      processingStatus.value = 'completed';
+      statusMessage.value = 'Results loaded from cache';
       error.value = null;
 
       return {
@@ -169,8 +169,8 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
 
     // Only check API health if we need to make a server request
     if (!apiHealthy.value) {
-      error.value = "API is not healthy. Please test connection first.";
-      return { success: false, error: "API is not healthy" };
+      error.value = 'API is not healthy. Please test connection first.';
+      return { success: false, error: 'API is not healthy' };
     }
 
     try {
@@ -183,8 +183,8 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       detailedProgress.value = null;
 
       // Step 1-3: Upload workflow
-      processingStatus.value = "uploading";
-      updateProgress(1, 10, "Starting image processing...");
+      processingStatus.value = 'uploading';
+      updateProgress(1, 10, 'Starting image processing...');
 
       const processResult = await holdDetectionServerService.processImage(imageUrl, {
         compression: compressionSettings.value,
@@ -202,8 +202,8 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       };
 
       // Step 4: Poll for results
-      processingStatus.value = "processing";
-      updateProgress(4, 30, "Processing image on server...");
+      processingStatus.value = 'processing';
+      updateProgress(4, 30, 'Processing image on server...');
 
       const pollResult = await pollWithProgress(processResult.jobId);
 
@@ -213,17 +213,17 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
 
       // Success!
       results.value = pollResult.result;
-      processingStatus.value = "completed";
-      updateProgress(4, 100, "Processing completed successfully!");
+      processingStatus.value = 'completed';
+      updateProgress(4, 100, 'Processing completed successfully!');
 
-      console.log("Processing completed:", results.value);
+      console.log('Processing completed:', results.value);
 
       // Cache the successful result using the cache service
       const resultToCache = {
         result: pollResult.result,
         metrics: processingMetrics.value,
       };
-      console.log("💾 Caching new detection results for:", imageUrl);
+      console.log('💾 Caching new detection results for:', imageUrl);
       setCachedDetectionResult(imageUrl, compressionSettings.value, resultToCache);
 
       return {
@@ -234,9 +234,9 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       };
     } catch (err) {
       error.value = err.message;
-      processingStatus.value = "error";
+      processingStatus.value = 'error';
       statusMessage.value = `Processing failed: ${err.message}`;
-      console.error("Processing failed:", err);
+      console.error('Processing failed:', err);
 
       return { success: false, error: err.message };
     } finally {
@@ -254,7 +254,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       attempts++;
 
       if (attempts > maxAttempts) {
-        throw new Error("Processing timeout: Maximum attempts exceeded");
+        throw new Error('Processing timeout: Maximum attempts exceeded');
       }
 
       const statusResult = await holdDetectionServerService.getJobStatus(jobId);
@@ -275,16 +275,16 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       const processingProgress = Math.min(60, baseProgress + attempts * 1);
       updateProgress(4, processingProgress, `Processing... (${status})`);
 
-      if (status === "completed") {
+      if (status === 'completed') {
         return {
           success: true,
           result,
-          message: "Processing completed successfully",
+          message: 'Processing completed successfully',
         };
       }
 
-      if (status === "failed") {
-        const errorMsg = result?.error_message || "Unknown error";
+      if (status === 'failed') {
+        const errorMsg = result?.error_message || 'Unknown error';
         throw new Error(`Server processing failed: ${errorMsg}`);
       }
 
@@ -302,8 +302,8 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     currentJobId.value = null;
     processingMetrics.value = null;
     detailedProgress.value = null;
-    processingStatus.value = "ready";
-    statusMessage.value = "Ready to process images";
+    processingStatus.value = 'ready';
+    statusMessage.value = 'Ready to process images';
     currentStep.value = 0;
     progressPercent.value = 0;
 
@@ -325,19 +325,19 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       ...hold,
       id,
       confidence: 1.0, // Manual holds have 100% confidence
-      type: "manual",
+      type: 'manual',
       timestamp: new Date().toISOString(),
     };
 
     try {
       // Add to local state immediately for responsive UI
       manualHolds.value.push(manualHold);
-      console.log("✅ Added manual hold locally:", manualHold);
+      console.log('✅ Added manual hold locally:', manualHold);
 
       // Save to Firestore if locationId and imageUrl are provided
       if (locationId && imageUrl) {
         await manualHoldsService.addManualHold(locationId, imageUrl, manualHold);
-        console.log("☁️ Saved manual hold to Firestore");
+        console.log('☁️ Saved manual hold to Firestore');
       }
 
       return manualHold;
@@ -347,7 +347,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       if (index !== -1) {
         manualHolds.value.splice(index, 1);
       }
-      console.error("❌ Error adding manual hold:", error);
+      console.error('❌ Error adding manual hold:', error);
       throw error;
     }
   };
@@ -360,20 +360,20 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
 
       if (index !== -1) {
         removedHold = manualHolds.value.splice(index, 1)[0];
-        console.log("🗑️ Removed manual hold locally:", holdId);
+        console.log('🗑️ Removed manual hold locally:', holdId);
       }
 
       // Remove from Firestore if locationId and imageUrl are provided
       if (locationId && imageUrl) {
         await manualHoldsService.removeManualHold(locationId, imageUrl, holdId);
-        console.log("☁️ Removed manual hold from Firestore");
+        console.log('☁️ Removed manual hold from Firestore');
       }
     } catch (error) {
       // If Firestore removal fails, reload from Firestore to sync state
       if (locationId && imageUrl) {
         await loadManualHolds(locationId, imageUrl);
       }
-      console.error("❌ Error removing manual hold:", error);
+      console.error('❌ Error removing manual hold:', error);
       throw error;
     }
   };
@@ -382,15 +382,15 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
     try {
       // Clear local state immediately
       manualHolds.value = [];
-      console.log("🧹 Cleared all manual holds locally");
+      console.log('🧹 Cleared all manual holds locally');
 
       // Clear from Firestore if locationId and imageUrl are provided
       if (locationId && imageUrl) {
         await manualHoldsService.clearManualHolds(locationId, imageUrl);
-        console.log("☁️ Cleared manual holds from Firestore");
+        console.log('☁️ Cleared manual holds from Firestore');
       }
     } catch (error) {
-      console.error("❌ Error clearing manual holds:", error);
+      console.error('❌ Error clearing manual holds:', error);
       throw error;
     }
   };
@@ -401,7 +401,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       isDeleteMode.value = false; // Disable delete mode when drawing
       isQuickDrawMode.value = false; // Disable quick draw mode when in explicit drawing
     }
-    console.log("✏️ Drawing mode:", enabled ? "enabled" : "disabled");
+    console.log('✏️ Drawing mode:', enabled ? 'enabled' : 'disabled');
   };
 
   const setDeleteMode = (enabled) => {
@@ -410,7 +410,7 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       isDrawingMode.value = false; // Disable drawing mode when deleting
       isQuickDrawMode.value = false; // Disable quick draw mode when deleting
     }
-    console.log("🗑️ Delete mode:", enabled ? "enabled" : "disabled");
+    console.log('🗑️ Delete mode:', enabled ? 'enabled' : 'disabled');
   };
 
   const setQuickDrawMode = (enabled) => {
@@ -419,23 +419,23 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
       isDrawingMode.value = false; // Disable explicit drawing mode
       isDeleteMode.value = false; // Disable delete mode
     }
-    console.log("⚡ Quick draw mode:", enabled ? "enabled" : "disabled");
+    console.log('⚡ Quick draw mode:', enabled ? 'enabled' : 'disabled');
   };
 
   // Load manual holds from Firestore
   const loadManualHolds = async (locationId, imageUrl) => {
     try {
       if (!locationId || !imageUrl) {
-        console.log("📥 No location or image URL provided, skipping manual holds load");
+        console.log('📥 No location or image URL provided, skipping manual holds load');
         manualHolds.value = [];
         return;
       }
 
       const holds = await manualHoldsService.loadManualHolds(locationId, imageUrl);
       manualHolds.value = holds;
-      console.log("📥 Loaded manual holds from Firestore:", holds.length);
+      console.log('📥 Loaded manual holds from Firestore:', holds.length);
     } catch (error) {
-      console.error("❌ Error loading manual holds:", error);
+      console.error('❌ Error loading manual holds:', error);
       // Don't throw error - just log it and continue with empty holds
       manualHolds.value = [];
     }
@@ -445,14 +445,14 @@ export const useHoldDetectionServerStore = defineStore("holdDetectionServer", ()
   const saveManualHolds = async (locationId, imageUrl) => {
     try {
       if (!locationId || !imageUrl) {
-        console.log("💾 No location or image URL provided, skipping manual holds save");
+        console.log('💾 No location or image URL provided, skipping manual holds save');
         return;
       }
 
       await manualHoldsService.saveManualHolds(locationId, imageUrl, manualHolds.value);
-      console.log("💾 Saved manual holds to Firestore:", manualHolds.value.length);
+      console.log('💾 Saved manual holds to Firestore:', manualHolds.value.length);
     } catch (error) {
-      console.error("❌ Error saving manual holds:", error);
+      console.error('❌ Error saving manual holds:', error);
       throw error;
     }
   };

@@ -1,8 +1,8 @@
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { boulderProblemsServiceV2 as boulderProblemsService } from "@/services/boulderProblemsServiceV2";
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+import { boulderProblemsServiceV2 as boulderProblemsService } from '@/services/boulderProblemsServiceV2';
 
-export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
+export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
   // State
   const boulderProblems = ref([]);
   const activeProblem = ref(null);
@@ -20,29 +20,29 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
 
   // Default V-Scale grading system (fallback)
   const defaultGradingSystem = {
-    id: "v-scale",
-    name: "V-Scale (Traditional Bouldering)",
-    description: "Standard bouldering grades from VB to V17",
+    id: 'v-scale',
+    name: 'V-Scale (Traditional Bouldering)',
+    description: 'Standard bouldering grades from VB to V17',
     grades: [
-      { label: "VB", color: "#22c55e" },
-      { label: "V0", color: "#3b82f6" },
-      { label: "V1", color: "#6366f1" },
-      { label: "V2", color: "#8b5cf6" },
-      { label: "V3", color: "#a855f7" },
-      { label: "V4", color: "#c026d3" },
-      { label: "V5", color: "#db2777" },
-      { label: "V6", color: "#e11d48" },
-      { label: "V7", color: "#dc2626" },
-      { label: "V8", color: "#ea580c" },
-      { label: "V9", color: "#f59e0b" },
-      { label: "V10", color: "#eab308" },
-      { label: "V11", color: "#ca8a04" },
-      { label: "V12", color: "#a16207" },
-      { label: "V13", color: "#78716c" },
-      { label: "V14", color: "#57534e" },
-      { label: "V15", color: "#44403c" },
-      { label: "V16", color: "#292524" },
-      { label: "V17", color: "#1c1917" },
+      { label: 'VB', color: '#22c55e' },
+      { label: 'V0', color: '#3b82f6' },
+      { label: 'V1', color: '#6366f1' },
+      { label: 'V2', color: '#8b5cf6' },
+      { label: 'V3', color: '#a855f7' },
+      { label: 'V4', color: '#c026d3' },
+      { label: 'V5', color: '#db2777' },
+      { label: 'V6', color: '#e11d48' },
+      { label: 'V7', color: '#dc2626' },
+      { label: 'V8', color: '#ea580c' },
+      { label: 'V9', color: '#f59e0b' },
+      { label: 'V10', color: '#eab308' },
+      { label: 'V11', color: '#ca8a04' },
+      { label: 'V12', color: '#a16207' },
+      { label: 'V13', color: '#78716c' },
+      { label: 'V14', color: '#57534e' },
+      { label: 'V15', color: '#44403c' },
+      { label: 'V16', color: '#292524' },
+      { label: 'V17', color: '#1c1917' },
     ],
   };
 
@@ -66,25 +66,25 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
   };
 
   const getGradeLabelFromObject = (gradeObject) => {
-    if (!gradeObject) return "";
-    if (typeof gradeObject === "string") return gradeObject; // Already a label
-    return gradeObject.label || "";
+    if (!gradeObject) return '';
+    if (typeof gradeObject === 'string') return gradeObject; // Already a label
+    return gradeObject.label || '';
   };
 
   // Colors for visual distinction of boulder problems
   const problemColors = [
-    "#ef4444", // red
-    "#f97316", // orange
-    "#eab308", // yellow
-    "#22c55e", // green
-    "#06b6d4", // cyan
-    "#3b82f6", // blue
-    "#8b5cf6", // violet
-    "#ec4899", // pink
-    "#f59e0b", // amber
-    "#10b981", // emerald
-    "#6366f1", // indigo
-    "#d946ef", // fuchsia
+    '#ef4444', // red
+    '#f97316', // orange
+    '#eab308', // yellow
+    '#22c55e', // green
+    '#06b6d4', // cyan
+    '#3b82f6', // blue
+    '#8b5cf6', // violet
+    '#ec4899', // pink
+    '#f59e0b', // amber
+    '#10b981', // emerald
+    '#6366f1', // indigo
+    '#d946ef', // fuchsia
   ];
 
   // Computed
@@ -123,7 +123,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
 
   const setLocationGradingSystem = (gradingSystemData) => {
     currentLocationGradingSystem.value = gradingSystemData;
-    console.log("🎚️ Boulder problems store: Set location grading system:", gradingSystemData);
+    console.log('🎚️ Boulder problems store: Set location grading system:', gradingSystemData);
   };
 
   const loadBoulderProblems = async (locationId, imageId = null) => {
@@ -149,15 +149,15 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
       console.log(`Loaded ${problems.length} boulder problems`);
     } catch (err) {
       error.value = err.message;
-      console.error("Error loading boulder problems:", err);
+      console.error('Error loading boulder problems:', err);
     } finally {
       isLoading.value = false;
     }
   };
 
-  const createNewProblem = async (gradeLabel, name = "") => {
+  const createNewProblem = async (gradeLabel, name = '') => {
     if (!currentLocationId.value || !currentImageId.value) {
-      throw new Error("Location and image must be set before creating problems");
+      throw new Error('Location and image must be set before creating problems');
     }
 
     // Convert grade label to grade object
@@ -206,7 +206,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
         activeProblem.value = boulderProblems.value[problemIndex];
       }
 
-      console.log("Boulder problem created successfully:", problemId);
+      console.log('Boulder problem created successfully:', problemId);
       return boulderProblems.value[problemIndex];
     } catch (err) {
       // Remove the optimistic problem on error
@@ -217,7 +217,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
       activeProblem.value = null;
       isCreatingProblem.value = false;
       error.value = err.message;
-      console.error("Error creating boulder problem:", err);
+      console.error('Error creating boulder problem:', err);
       throw err;
     }
   };
@@ -241,10 +241,10 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
 
       isCreatingProblem.value = false;
       activeProblem.value = null;
-      console.log("Finished creating boulder problem");
+      console.log('Finished creating boulder problem');
     } catch (err) {
       error.value = err.message;
-      console.error("Error finishing boulder problem creation:", err);
+      console.error('Error finishing boulder problem creation:', err);
     }
   };
 
@@ -268,10 +268,10 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
 
       isCreatingProblem.value = false;
       activeProblem.value = null;
-      console.log("Cancelled boulder problem creation");
+      console.log('Cancelled boulder problem creation');
     } catch (err) {
       error.value = err.message;
-      console.error("Error cancelling boulder problem creation:", err);
+      console.error('Error cancelling boulder problem creation:', err);
     }
   };
 
@@ -351,7 +351,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
     if (!deletedProblem.isLocalOnly && currentLocationId.value) {
       try {
         await boulderProblemsService.deleteBoulderProblem(currentLocationId.value, problemId);
-        console.log("Boulder problem deleted successfully");
+        console.log('Boulder problem deleted successfully');
       } catch (err) {
         // Revert optimistic update on error
         boulderProblems.value.splice(problemIndex, 0, deletedProblem);
@@ -359,7 +359,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
           activeProblem.value = deletedProblem;
         }
         error.value = err.message;
-        console.error("Error deleting boulder problem:", err);
+        console.error('Error deleting boulder problem:', err);
         throw err;
       }
     }
@@ -421,26 +421,26 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
 
   // Visibility management
   const showOnlyProblem = (targetProblemId) => {
-    console.log("🎯 showOnlyProblem called for problem:", targetProblemId);
+    console.log('🎯 showOnlyProblem called for problem:', targetProblemId);
     // Hide all problems except the target one
     boulderProblems.value.forEach((problem) => {
       if (problem.id === targetProblemId) {
         // Show the target problem
-        console.log("👁️ Showing problem:", problem.name);
+        console.log('👁️ Showing problem:', problem.name);
         updateProblem({ ...problem, hidden: false });
       } else {
         // Hide all other problems
-        console.log("🙈 Hiding problem:", problem.name);
+        console.log('🙈 Hiding problem:', problem.name);
         updateProblem({ ...problem, hidden: true });
       }
     });
   };
 
   const showAllProblems = () => {
-    console.log("👁️ showAllProblems called - showing all problems");
+    console.log('👁️ showAllProblems called - showing all problems');
     // Show all problems
     boulderProblems.value.forEach((problem) => {
-      console.log("👁️ Showing problem:", problem.name);
+      console.log('👁️ Showing problem:', problem.name);
       updateProblem({ ...problem, hidden: false });
     });
   };
@@ -478,7 +478,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
       console.log(`Saved changes for problem ${problemId}`);
     } catch (err) {
       error.value = err.message;
-      console.error("Error saving problem changes:", err);
+      console.error('Error saving problem changes:', err);
       throw err;
     } finally {
       isSaving.value = false;
@@ -512,7 +512,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
       // Remove from unsaved changes
       problemsWithUnsavedChanges.value.delete(problemId);
     } catch (err) {
-      console.error("Error discarding problem changes:", err);
+      console.error('Error discarding problem changes:', err);
       throw err;
     }
   };
@@ -538,7 +538,7 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
 
   const clearAllProblems = async () => {
     if (!currentLocationId.value) {
-      console.warn("No location ID available for clearing problems");
+      console.warn('No location ID available for clearing problems');
       return;
     }
 
@@ -561,8 +561,8 @@ export const useBoulderProblemsStore = defineStore("boulderProblems", () => {
 
       console.log(`✅ Cleared ${result.deletedCount} boulder problems from server and local state`);
     } catch (err) {
-      console.error("Failed to clear all boulder problems:", err);
-      error.value = err.message || "Failed to clear all boulder problems";
+      console.error('Failed to clear all boulder problems:', err);
+      error.value = err.message || 'Failed to clear all boulder problems';
       throw err;
     } finally {
       isLoading.value = false;

@@ -1,5 +1,5 @@
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { functions } from "./firebase.js";
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { functions } from './firebase.js';
 
 class AdminService {
   constructor() {
@@ -13,8 +13,8 @@ class AdminService {
       const result = await this.setAdminRoleFunction({ uid, isAdmin });
       return result.data;
     } catch (error) {
-      console.error("Error setting admin role:", error);
-      throw new Error(error.message || "Failed to update admin role");
+      console.error('Error setting admin role:', error);
+      throw new Error(error.message || 'Failed to update admin role');
     }
   }
 
@@ -24,8 +24,8 @@ class AdminService {
       const result = await this.initializeAdminFunction({ email });
       return result.data;
     } catch (error) {
-      console.error("Error initializing admin:", error);
-      throw new Error(error.message || "Failed to initialize admin");
+      console.error('Error initializing admin:', error);
+      throw new Error(error.message || 'Failed to initialize admin');
     }
   }
 }

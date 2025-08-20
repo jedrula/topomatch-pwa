@@ -171,11 +171,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
-import { useHoldDetectionServerStore } from "@/stores/holdDetectionServerStore";
-import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
-import HoldSvg from "./HoldSvg.vue";
-import { ensureHoldHasSvgMarkup } from "@/utils/svgUtils.js";
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore';
+import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+import HoldSvg from './HoldSvg.vue';
+import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 
 const props = defineProps({
   detectionResults: {
@@ -246,11 +246,11 @@ const props = defineProps({
   // Boulder hold selection tool (single, magic-wand, etc.)
   boulderHoldSelectionTool: {
     type: String,
-    default: "single",
+    default: 'single',
   },
 });
 
-const emit = defineEmits(["hold-click", "hold-hover", "tool-selection-change"]);
+const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change']);
 
 const serverStore = useHoldDetectionServerStore();
 const boulderProblemsStore = useBoulderProblemsStore();
@@ -271,9 +271,9 @@ const isCreatingOrEditing = computed(() => props.isCreatingProblem || props.isEd
 const toolModeChecks = computed(() => {
   const baseCondition = isCreatingOrEditing.value && !serverStore.isDeleteMode;
   return {
-    single: baseCondition && props.boulderHoldSelectionTool === "single",
-    quickDraw: baseCondition && props.boulderHoldSelectionTool === "quick-draw",
-    magicWand: baseCondition && props.boulderHoldSelectionTool === "magic-wand",
+    single: baseCondition && props.boulderHoldSelectionTool === 'single',
+    quickDraw: baseCondition && props.boulderHoldSelectionTool === 'quick-draw',
+    magicWand: baseCondition && props.boulderHoldSelectionTool === 'magic-wand',
   };
 });
 
@@ -296,7 +296,7 @@ const hasAnyHolds = computed(() => {
 });
 
 const svgViewBox = computed(() => {
-  if (!props.imageElement) return "0 0 100 100";
+  if (!props.imageElement) return '0 0 100 100';
   const { naturalWidth, naturalHeight } = props.imageElement;
   return `0 0 ${naturalWidth} ${naturalHeight}`;
 });
@@ -313,7 +313,7 @@ const getCanvasCoordinates = (event) => {
     y: (event.clientY - rect.top) * scaleY,
   };
 
-  console.log("getCanvasCoordinates:", {
+  console.log('getCanvasCoordinates:', {
     event: { clientX: event.clientX, clientY: event.clientY },
     rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
     canvas: { width: canvas.width, height: canvas.height },
@@ -336,7 +336,7 @@ const getImageCoordinates = (canvasX, canvasY) => {
     y: canvasY * scaleY,
   };
 
-  console.log("getImageCoordinates:", {
+  console.log('getImageCoordinates:', {
     input: { canvasX, canvasY },
     image: { naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight },
     canvas: { width: canvas.width, height: canvas.height },
@@ -387,12 +387,12 @@ const startDrawing = (event) => {
     if (isClickOnExistingHold(event)) {
       // Let the click pass through to hold selection by not starting drawing
       // The canvas will not intercept this event
-      console.log("🎯 Click on existing hold detected - allowing pass-through");
+      console.log('🎯 Click on existing hold detected - allowing pass-through');
       return;
     }
 
     // Start drawing in empty area
-    console.log("⚡ Quick Draw: Starting draw in empty area");
+    console.log('⚡ Quick Draw: Starting draw in empty area');
     isDrawing.value = true;
     const coords = getCanvasCoordinates(event);
     drawingPath.value = [coords]; // Start new path
@@ -434,14 +434,14 @@ const cancelDrawing = () => {
 
 // Create SVG path string for preview
 const createPreviewPath = () => {
-  if (drawingPath.value.length < 2) return "";
+  if (drawingPath.value.length < 2) return '';
 
   // Convert canvas coordinates to image coordinates for preview
   const pathPoints = drawingPath.value.map((point) => getImageCoordinates(point.x, point.y));
 
   const pathData = pathPoints
     .map((point, index) => (index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`))
-    .join(" ");
+    .join(' ');
 
   // Show preview with auto-close line
   if (pathPoints.length > 2) {
@@ -476,7 +476,7 @@ const createHoldFromPath = () => {
   const pathData =
     closedPath
       .map((point, index) => (index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`))
-      .join(" ") + " Z"; // Z closes the path
+      .join(' ') + ' Z'; // Z closes the path
 
   const svgMarkup = `<path d="${pathData}" fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2"/>`;
 
@@ -500,7 +500,7 @@ const createHoldFromPath = () => {
 
     // Detection metadata
     confidence: 1.0, // Manual holds have 100% confidence
-    type: "manual", // Mark as manual hold
+    type: 'manual', // Mark as manual hold
 
     // Center point (like YOLO center)
     centerPoint: {
@@ -516,7 +516,7 @@ const createHoldFromPath = () => {
     svgMarkup,
 
     // Manual-specific metadata
-    tool: "freehand",
+    tool: 'freehand',
     pathPoints: closedPath,
     timestamp: new Date().toISOString(),
   };
@@ -595,13 +595,13 @@ const getHoldInteraction = (holdIndex) => {
   if (serverStore.isDeleteMode) {
     // AI holds (first part of combined holds array) cannot be deleted
     if (holdIndex < aiHolds.value.length) {
-      return "disabled"; // AI holds cannot be deleted
+      return 'disabled'; // AI holds cannot be deleted
     } else {
       // Manual holds can be deleted
       if (hoveredHoldIndex.value === holdIndex) {
-        return "delete-hover"; // Special hover state for delete mode
+        return 'delete-hover'; // Special hover state for delete mode
       } else {
-        return "delete-target"; // Show as deletable
+        return 'delete-target'; // Show as deletable
       }
     }
   }
@@ -609,18 +609,18 @@ const getHoldInteraction = (holdIndex) => {
   // During drawing mode, make existing holds visible with reduced opacity
   if (serverStore.isDrawingMode) {
     if (hoveredHoldIndex.value === holdIndex) {
-      return "hover";
+      return 'hover';
     } else {
-      return "drawing-background"; // Show existing holds with low opacity during drawing mode
+      return 'drawing-background'; // Show existing holds with low opacity during drawing mode
     }
   }
 
   // Magic Wand highlighting takes priority when active
   if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
     if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
-      return "selected"; // Show magic wand selected holds as selected
+      return 'selected'; // Show magic wand selected holds as selected
     } else {
-      return "default"; // Other holds are invisible during magic wand
+      return 'default'; // Other holds are invisible during magic wand
     }
   }
 
@@ -630,17 +630,17 @@ const getHoldInteraction = (holdIndex) => {
   if (props.isShowingOnlyOneProblem && props.isolatedProblem) {
     if (problemId === props.isolatedProblem.id) {
       if (hoveredHoldIndex.value === holdIndex) {
-        return "hover";
+        return 'hover';
       } else if (
         props.hoveredProblemId === problemId ||
         hoveredProblemIdLocal.value === problemId
       ) {
-        return "hover";
+        return 'hover';
       } else {
-        return "selected";
+        return 'selected';
       }
     } else {
-      return "hidden";
+      return 'hidden';
     }
   }
 
@@ -648,10 +648,10 @@ const getHoldInteraction = (holdIndex) => {
   if (hasActiveGradeFilter.value) {
     if (problemId) {
       if (!filteredProblemIds.value.has(problemId)) {
-        return "hidden";
+        return 'hidden';
       }
     } else {
-      return "hidden";
+      return 'hidden';
     }
   }
 
@@ -665,29 +665,29 @@ const getHoldInteraction = (holdIndex) => {
     // Hold belongs to a problem
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
       // Hold is part of the problem being created
-      return hoveredHoldIndex.value === holdIndex ? "hover" : "selected";
+      return hoveredHoldIndex.value === holdIndex ? 'hover' : 'selected';
     } else if (props.isEditingProblem && props.editingProblem?.id === problemId) {
       // Hold is part of the problem being edited
-      return hoveredHoldIndex.value === holdIndex ? "hover" : "selected";
+      return hoveredHoldIndex.value === holdIndex ? 'hover' : 'selected';
     } else {
       // Check if the problem is hidden
       if (problem?.hidden) {
-        return "hidden";
+        return 'hidden';
       } else {
         // Hold belongs to a different problem
         if (props.hoveredProblemId === problemId || hoveredProblemIdLocal.value === problemId) {
-          return "hover";
+          return 'hover';
         } else {
-          return props.showHoldOverlay ? "selected" : "default";
+          return props.showHoldOverlay ? 'selected' : 'default';
         }
       }
     }
   } else {
     // Hold is available for selection (unclassified)
     if (hoveredHoldIndex.value === holdIndex) {
-      return "hover";
+      return 'hover';
     } else {
-      return props.showHoldOverlay ? "default" : "default";
+      return props.showHoldOverlay ? 'default' : 'default';
     }
   }
 };
@@ -696,7 +696,7 @@ const getHoldInteraction = (holdIndex) => {
 const getHoldInteractionAllowed = (holdIndex) => {
   // Magic Wand mode - only selected holds are clickable
   if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
-    return props.magicWandSelection.selectedIndices.includes(holdIndex) ? "selectable" : "none";
+    return props.magicWandSelection.selectedIndices.includes(holdIndex) ? 'selectable' : 'none';
   }
 
   const problemId = getHoldProblemId(holdIndex);
@@ -709,30 +709,30 @@ const getHoldInteractionAllowed = (holdIndex) => {
 
     // Hidden holds are not interactive
     if (problem?.hidden) {
-      return "none";
+      return 'none';
     }
 
     // Holds being edited are selectable
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
-      return "selectable";
+      return 'selectable';
     }
     if (props.isEditingProblem && props.editingProblem?.id === problemId) {
-      return "selectable";
+      return 'selectable';
     }
 
     // Holds belonging to other problems are FORBIDDEN when creating/editing
     if (props.isCreatingProblem || props.isEditingProblem) {
-      return "forbidden";
+      return 'forbidden';
     }
 
     // Other problem holds are selectable for navigation (when not creating/editing)
-    return "selectable";
+    return 'selectable';
   } else {
     // Available holds are selectable when creating/editing problems
     if (props.isCreatingProblem || props.isEditingProblem) {
-      return "selectable";
+      return 'selectable';
     }
-    return "none";
+    return 'none';
   }
 };
 
@@ -741,9 +741,9 @@ const getHoldColor = (holdIndex) => {
   // Magic Wand uses purple colors
   if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
     if (holdIndex === props.magicWandSelection.targetHoldIndex) {
-      return "#9333ea"; // purple-700 for target
+      return '#9333ea'; // purple-700 for target
     } else if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
-      return "#a855f7"; // purple-500 for proximity
+      return '#a855f7'; // purple-500 for proximity
     }
   }
 
@@ -757,13 +757,13 @@ const getHoldColor = (holdIndex) => {
       (props.editingProblem?.id === problemId ? props.editingProblem : null);
 
     if (problem) {
-      return problem.color || "#6b7280"; // Use problem color or gray-500 fallback
+      return problem.color || '#6b7280'; // Use problem color or gray-500 fallback
     } else {
-      return "#6b7280"; // gray-500 for assigned holds
+      return '#6b7280'; // gray-500 for assigned holds
     }
   } else {
     // Available holds use blue (unless it's a manual hold)
-    return "#3b82f6"; // blue-500
+    return '#3b82f6'; // blue-500
   }
 };
 
@@ -780,17 +780,17 @@ const getManualHoldInteractionAllowed = (hold, manualIndex) =>
 const getManualHoldColor = (hold, manualIndex) => {
   const baseColor = getHoldColor(getCombinedHoldIndex(manualIndex));
   // Use green for manual holds instead of default blue
-  return baseColor === "#3b82f6" ? "#059669" : baseColor;
+  return baseColor === '#3b82f6' ? '#059669' : baseColor;
 };
 
 const handleHoldClick = (hold, index) => {
   // In delete mode, AI holds cannot be deleted
   if (serverStore.isDeleteMode) {
-    console.log("🗑️ Cannot delete AI-detected holds");
+    console.log('🗑️ Cannot delete AI-detected holds');
     return;
   }
 
-  emit("hold-click", hold, index);
+  emit('hold-click', hold, index);
 };
 
 const handleHoldHover = (index, isEntering, event) => {
@@ -804,24 +804,24 @@ const handleHoldHover = (index, isEntering, event) => {
     hoveredProblemIdLocal.value = null;
   }
 
-  emit("hold-hover", index, isEntering, event);
+  emit('hold-hover', index, isEntering, event);
 };
 
 const handleManualHoldClick = (hold, manualIndex) => {
   if (serverStore.isDeleteMode) {
-    console.log("🗑️ Deleting manual hold:", hold);
+    console.log('🗑️ Deleting manual hold:', hold);
     serverStore.removeManualHold(hold.id, props.locationId, props.imageUrl);
     return;
   }
 
   const combinedIndex = getCombinedHoldIndex(manualIndex);
-  console.log("Manual hold clicked:", { hold, manualIndex, combinedIndex });
-  emit("hold-click", hold, combinedIndex);
+  console.log('Manual hold clicked:', { hold, manualIndex, combinedIndex });
+  emit('hold-click', hold, combinedIndex);
 };
 
 const handleManualHoldHover = (hold, manualIndex, isEntering, event) => {
   const combinedIndex = getCombinedHoldIndex(manualIndex);
-  console.log("Manual hold hover:", { hold, manualIndex, combinedIndex, isEntering });
+  console.log('Manual hold hover:', { hold, manualIndex, combinedIndex, isEntering });
 
   hoveredHoldIndex.value = isEntering ? combinedIndex : null;
 
@@ -832,7 +832,7 @@ const handleManualHoldHover = (hold, manualIndex, isEntering, event) => {
     hoveredProblemIdLocal.value = null;
   }
 
-  emit("hold-hover", combinedIndex, isEntering, event);
+  emit('hold-hover', combinedIndex, isEntering, event);
 };
 
 const exitDrawingMode = () => {
@@ -846,20 +846,20 @@ const exitDeleteMode = () => {
 };
 
 const handleToolChange = (tool) => {
-  console.log("🔧 Tool selection changed:", tool);
-  emit("tool-selection-change", tool);
+  console.log('🔧 Tool selection changed:', tool);
+  emit('tool-selection-change', tool);
 };
 
 // Canvas setup
 function setupCanvas() {
-  console.log("setupCanvas called", {
+  console.log('setupCanvas called', {
     isAnyDrawingMode: isAnyDrawingMode.value,
     canvasRef: !!drawingCanvas.value,
     imageElement: !!props.imageElement,
   });
 
   if (!isAnyDrawingMode.value || !drawingCanvas.value || !props.imageElement) {
-    console.log("setupCanvas early return - conditions not met");
+    console.log('setupCanvas early return - conditions not met');
     return;
   }
 
@@ -868,7 +868,7 @@ function setupCanvas() {
 
   // Wait for next tick to ensure DOM is updated
   nextTick(() => {
-    console.log("setupCanvas - setting dimensions", {
+    console.log('setupCanvas - setting dimensions', {
       imageWidth: img.clientWidth,
       imageHeight: img.clientHeight,
       imageOffsetWidth: img.offsetWidth,
@@ -881,10 +881,10 @@ function setupCanvas() {
     canvas.height = rect.height;
 
     // Set canvas style dimensions to match
-    canvas.style.width = rect.width + "px";
-    canvas.style.height = rect.height + "px";
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
 
-    console.log("setupCanvas - canvas dimensions set", {
+    console.log('setupCanvas - canvas dimensions set', {
       canvasWidth: canvas.width,
       canvasHeight: canvas.height,
       canvasStyleWidth: canvas.style.width,
@@ -892,28 +892,28 @@ function setupCanvas() {
     });
 
     // Clear any existing drawing
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   });
 }
 
 onMounted(() => {
-  console.log("🎨 InteractiveHoldOverlay mounted");
+  console.log('🎨 InteractiveHoldOverlay mounted');
   nextTick(() => {
     setupCanvas();
-    console.log("🎨 Canvas setup completed");
+    console.log('🎨 Canvas setup completed');
   });
 });
 
 onUnmounted(() => {
-  console.log("🎨 InteractiveHoldOverlay unmounted");
+  console.log('🎨 InteractiveHoldOverlay unmounted');
 });
 
 // Watch for drawing mode changes
 watch(
   [() => serverStore.isDrawingMode, () => isQuickDrawEnabled.value],
   ([newDrawingMode, newQuickDrawMode]) => {
-    console.log("🎨 Drawing mode changed:", {
+    console.log('🎨 Drawing mode changed:', {
       drawingMode: newDrawingMode,
       quickDrawMode: newQuickDrawMode,
       anyDrawingMode: isAnyDrawingMode.value,

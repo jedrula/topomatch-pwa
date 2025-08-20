@@ -185,9 +185,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import { storage } from "../services/firebase.js";
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { ref, computed } from 'vue';
+import { storage } from '../services/firebase.js';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 const props = defineProps({
   locationId: {
@@ -196,41 +196,41 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["uploaded", "error", "all-complete"]);
+const emit = defineEmits(['uploaded', 'error', 'all-complete']);
 
 const fileInput = ref(null);
 const uploadQueue = ref([]);
 const isDragging = ref(false);
 const isUploading = ref(false);
-const generalError = ref("");
+const generalError = ref('');
 
 // Computed properties
 const completedUploads = computed(
-  () => uploadQueue.value.filter((upload) => upload.status === "complete").length
+  () => uploadQueue.value.filter((upload) => upload.status === 'complete').length
 );
 
 // File handling
 const validateFile = (file) => {
   const maxSize = 10 * 1024 * 1024; // 10MB
-  const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
   // Disallow HEIC/HEIF by MIME type and extension
   const lowerName = file.name.toLowerCase();
   if (
-    file.type === "image/heic" ||
-    file.type === "image/heif" ||
-    lowerName.endsWith(".heic") ||
-    lowerName.endsWith(".heif")
+    file.type === 'image/heic' ||
+    file.type === 'image/heif' ||
+    lowerName.endsWith('.heic') ||
+    lowerName.endsWith('.heif')
   ) {
-    return "HEIC/HEIF images are not supported. Please upload JPG, PNG, or WEBP.";
+    return 'HEIC/HEIF images are not supported. Please upload JPG, PNG, or WEBP.';
   }
 
   if (!allowedTypes.includes(file.type)) {
-    return "Invalid file type. Please upload JPG, PNG, or WEBP images.";
+    return 'Invalid file type. Please upload JPG, PNG, or WEBP images.';
   }
 
   if (file.size > maxSize) {
-    return "File size too large. Maximum size is 10MB.";
+    return 'File size too large. Maximum size is 10MB.';
   }
 
   return null;
@@ -239,10 +239,10 @@ const validateFile = (file) => {
 const createUploadItem = (file) => {
   // Only create preview for supported image types, not HEIC
   const isHeic =
-    file.type === "image/heic" ||
-    file.type === "image/heif" ||
-    file.name.toLowerCase().endsWith(".heic") ||
-    file.name.toLowerCase().endsWith(".heif");
+    file.type === 'image/heic' ||
+    file.type === 'image/heif' ||
+    file.name.toLowerCase().endsWith('.heic') ||
+    file.name.toLowerCase().endsWith('.heif');
 
   const preview = isHeic ? null : URL.createObjectURL(file);
 
@@ -252,7 +252,7 @@ const createUploadItem = (file) => {
     preview,
     isHeic,
     progress: 0,
-    status: "pending", // pending, uploading, complete, error
+    status: 'pending', // pending, uploading, complete, error
     error: null,
     downloadUrl: null,
   };
@@ -264,7 +264,7 @@ const addFilesToQueue = (files) => {
 
   Array.from(files).forEach((file) => {
     const error = validateFile(file);
-    console.log("after validateFile", error);
+    console.log('after validateFile', error);
     if (error) {
       generalError.value = error;
       hasError = true;
@@ -285,7 +285,7 @@ const addFilesToQueue = (files) => {
 
   // Only clear error if no validation errors occurred
   if (!hasError) {
-    generalError.value = "";
+    generalError.value = '';
   }
 
   // Auto-start uploads immediately after adding files
@@ -297,7 +297,7 @@ const addFilesToQueue = (files) => {
 // Event handlers
 const handleFileSelect = (event) => {
   addFilesToQueue(event.target.files);
-  event.target.value = ""; // Reset input
+  event.target.value = ''; // Reset input
 };
 
 const handleDragOver = (event) => {
@@ -319,20 +319,20 @@ const handleDrop = (event) => {
 // Upload management
 const uploadSingleFile = async (uploadItem) => {
   try {
-    uploadItem.status = "uploading";
+    uploadItem.status = 'uploading';
     uploadItem.progress = 0;
     uploadItem.error = null;
 
-    console.log("props.locationId:", props.locationId); // Debug log
+    console.log('props.locationId:', props.locationId); // Debug log
 
     if (!props.locationId) {
-      throw new Error("Location ID is required for upload");
+      throw new Error('Location ID is required for upload');
     }
 
     const timestamp = Date.now();
     const fileName = `location-images/${props.locationId}/${timestamp}-${uploadItem.file.name}`;
 
-    console.log("Upload fileName:", fileName); // Debug log
+    console.log('Upload fileName:', fileName); // Debug log
 
     const imageRef = storageRef(storage, fileName);
 
@@ -340,13 +340,13 @@ const uploadSingleFile = async (uploadItem) => {
 
     return new Promise((resolve, reject) => {
       uploadTask.on(
-        "state_changed",
+        'state_changed',
         (snapshot) => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           uploadItem.progress = Math.round(progress);
         },
         (error) => {
-          uploadItem.status = "error";
+          uploadItem.status = 'error';
           uploadItem.error = `Upload failed: ${error.message}`;
           reject(error);
         },
@@ -354,11 +354,11 @@ const uploadSingleFile = async (uploadItem) => {
           try {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
             uploadItem.downloadUrl = downloadURL;
-            uploadItem.status = "complete";
+            uploadItem.status = 'complete';
             uploadItem.progress = 100;
             resolve(downloadURL);
           } catch (error) {
-            uploadItem.status = "error";
+            uploadItem.status = 'error';
             uploadItem.error = `Failed to get download URL: ${error.message}`;
             reject(error);
           }
@@ -366,7 +366,7 @@ const uploadSingleFile = async (uploadItem) => {
       );
     });
   } catch (error) {
-    uploadItem.status = "error";
+    uploadItem.status = 'error';
     uploadItem.error = error.message;
     throw error;
   }
@@ -376,9 +376,9 @@ const startUploads = async () => {
   if (isUploading.value) return;
 
   isUploading.value = true;
-  generalError.value = "";
+  generalError.value = '';
 
-  const pendingItems = uploadQueue.value.filter((item) => item.status === "pending");
+  const pendingItems = uploadQueue.value.filter((item) => item.status === 'pending');
 
   if (pendingItems.length === 0) {
     isUploading.value = false;
@@ -393,7 +393,7 @@ const startUploads = async () => {
       await uploadSingleFile(item);
 
       // Emit uploaded event with image info immediately after each upload completes
-      emit("uploaded", {
+      emit('uploaded', {
         fileName: item.file.name,
         downloadUrl: item.downloadUrl,
         locationId: props.locationId,
@@ -401,8 +401,8 @@ const startUploads = async () => {
 
       return { success: true, item };
     } catch (error) {
-      console.error("Upload failed:", error);
-      emit("error", error.message);
+      console.error('Upload failed:', error);
+      emit('error', error.message);
       return { success: false, error, item };
     }
   });
@@ -416,7 +416,7 @@ const startUploads = async () => {
   isUploading.value = false;
 
   // Emit all-complete event after ALL uploads are processed
-  emit("all-complete", {
+  emit('all-complete', {
     totalUploads: pendingItems.length,
     completedUploads: completedCount,
     failedUploads: errorCount,
@@ -439,7 +439,7 @@ const removeFromQueue = (uploadId) => {
 
 const clearCompleted = () => {
   uploadQueue.value = uploadQueue.value.filter((item) => {
-    if (item.status === "complete") {
+    if (item.status === 'complete') {
       if (item.preview) {
         URL.revokeObjectURL(item.preview);
       }
@@ -451,15 +451,15 @@ const clearCompleted = () => {
 
 // Utility functions
 const formatFileSize = (bytes) => {
-  if (bytes === 0) return "0 Bytes";
+  if (bytes === 0) return '0 Bytes';
   const k = 1024;
-  const sizes = ["Bytes", "KB", "MB"];
+  const sizes = ['Bytes', 'KB', 'MB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 // Cleanup on unmount
-import { onUnmounted } from "vue";
+import { onUnmounted } from 'vue';
 
 onUnmounted(() => {
   uploadQueue.value.forEach((item) => {

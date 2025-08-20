@@ -117,9 +117,9 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
-import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore.js";
-import { getGradeLabel } from "@/utils/gradingUtils.js";
+import { computed } from 'vue';
+import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore.js';
+import { getGradeLabel } from '@/utils/gradingUtils.js';
 
 const boulderProblemsStore = useBoulderProblemsStore();
 
@@ -138,11 +138,11 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["edit", "toggle-visibility", "mouse-enter", "mouse-leave"]);
+const emit = defineEmits(['edit', 'toggle-visibility', 'mouse-enter', 'mouse-leave']);
 
 // Compute the visibility state and appropriate UI text
 const visibilityState = computed(() => {
-  if (!props.problem) return { icon: "eye", title: "Show only this problem" };
+  if (!props.problem) return { icon: 'eye', title: 'Show only this problem' };
 
   const isOnlyProblemVisible =
     boulderProblemsStore.isShowingOnlyOneProblem && !props.problem.hidden;
@@ -150,20 +150,20 @@ const visibilityState = computed(() => {
 
   if (isOnlyProblemVisible) {
     return {
-      icon: "eye-multiple",
-      title: "Show all problems",
+      icon: 'eye-multiple',
+      title: 'Show all problems',
       isHighlighted: true,
     };
   } else if (isProblemHidden) {
     return {
-      icon: "eye-slash",
-      title: "Show only this problem",
+      icon: 'eye-slash',
+      title: 'Show only this problem',
       isHighlighted: false,
     };
   } else {
     return {
-      icon: "eye",
-      title: "Show only this problem",
+      icon: 'eye',
+      title: 'Show only this problem',
       isHighlighted: false,
     };
   }
@@ -171,22 +171,22 @@ const visibilityState = computed(() => {
 
 const handleEdit = () => {
   if (props.problem) {
-    emit("edit", props.problem);
+    emit('edit', props.problem);
   }
 };
 
 const handleToggleVisibility = () => {
   if (props.problem) {
-    emit("toggle-visibility", props.problem);
+    emit('toggle-visibility', props.problem);
   }
 };
 
 const handleMouseEnter = () => {
-  emit("mouse-enter");
+  emit('mouse-enter');
 };
 
 const handleMouseLeave = () => {
-  emit("mouse-leave");
+  emit('mouse-leave');
 };
 </script>
 

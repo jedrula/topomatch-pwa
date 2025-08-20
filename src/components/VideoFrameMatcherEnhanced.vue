@@ -215,7 +215,9 @@
                         Transformed Coords
                       </th>
                       <th class="px-2 py-1 text-left border-b border-gray-200">Confidence</th>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">Closest Hold</th>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">1st Closest Hold</th>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">2nd Closest Hold</th>
+                      <th class="px-2 py-1 text-left border-b border-gray-200">3rd Closest Hold</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -278,8 +280,45 @@
                               }}
                             </div>
                             <div class="text-gray-400">{{ keypoint.distanceToHold }}px away</div>
+                            <div class="text-green-600 font-medium">
+                              Score: {{ keypoint.closestScore.toFixed(3) }}
+                            </div>
                           </div>
                           <div v-else class="text-xs text-gray-400">No holds found</div>
+                        </td>
+                        <td class="px-2 py-1">
+                          <div v-if="keypoint.secondClosestProblem" class="text-xs">
+                            <div class="font-medium text-gray-900">
+                              {{ keypoint.secondClosestProblem.name }}
+                            </div>
+                            <div class="text-gray-500">
+                              Hold #{{
+                                keypoint.secondClosestHold?.holdIndex || keypoint.secondClosestHold?.id || "?"
+                              }}
+                            </div>
+                            <div class="text-gray-400">{{ keypoint.secondClosestDistance }}px away</div>
+                            <div class="text-blue-600 font-medium">
+                              Score: {{ keypoint.secondClosestScore.toFixed(3) }}
+                            </div>
+                          </div>
+                          <div v-else class="text-xs text-gray-400">-</div>
+                        </td>
+                        <td class="px-2 py-1">
+                          <div v-if="keypoint.thirdClosestProblem" class="text-xs">
+                            <div class="font-medium text-gray-900">
+                              {{ keypoint.thirdClosestProblem.name }}
+                            </div>
+                            <div class="text-gray-500">
+                              Hold #{{
+                                keypoint.thirdClosestHold?.holdIndex || keypoint.thirdClosestHold?.id || "?"
+                              }}
+                            </div>
+                            <div class="text-gray-400">{{ keypoint.thirdClosestDistance }}px away</div>
+                            <div class="text-orange-600 font-medium">
+                              Score: {{ keypoint.thirdClosestScore.toFixed(3) }}
+                            </div>
+                          </div>
+                          <div v-else class="text-xs text-gray-400">-</div>
                         </td>
                       </tr>
                     </template>
@@ -290,6 +329,65 @@
                 Original coordinates are from the video frame. Transformed coordinates are projected
                 onto the boulder image using homography.
               </p>
+            </div>
+
+            <!-- Boulder Problem Scoring Results -->
+            <div v-if="boulderProblemScores.length > 0" class="mt-6">
+              <h5 class="text-sm font-medium text-gray-900 mb-3">Boulder Problem Scores</h5>
+              <div class="bg-gray-50 rounded-lg p-4">
+                <div class="space-y-3">
+                  <div 
+                    v-for="(result, index) in boulderProblemScores.slice(0, 5)" 
+                    :key="result.problem.id"
+                    class="flex items-center justify-between p-3 bg-white rounded border"
+                    :class="{
+                      'border-green-200 bg-green-50': index === 0,
+                      'border-blue-200 bg-blue-50': index === 1,
+                      'border-orange-200 bg-orange-50': index === 2
+                    }"
+                  >
+                    <div class="flex-1">
+                      <div class="flex items-center space-x-2">
+                        <span 
+                          v-if="index < 3"
+                          class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium"
+                          :class="{
+                            'bg-green-100 text-green-800': index === 0,
+                            'bg-blue-100 text-blue-800': index === 1,
+                            'bg-orange-100 text-orange-800': index === 2
+                          }"
+                        >
+                          {{ index + 1 }}
+                        </span>
+                        <span v-else class="w-6 text-center text-sm text-gray-500">{{ index + 1 }}</span>
+                        <h6 class="font-medium text-gray-900">{{ result.problem.name }}</h6>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-1">
+                        {{ result.problem.holds?.length || 0 }} holds • Grade: {{ result.problem.grade?.label || 'Unknown' }}
+                      </p>
+                    </div>
+                    <div class="text-right">
+                      <div 
+                        class="text-lg font-semibold"
+                        :class="{
+                          'text-green-600': index === 0,
+                          'text-blue-600': index === 1,
+                          'text-orange-600': index === 2,
+                          'text-gray-600': index >= 3
+                        }"
+                      >
+                        {{ result.score.toFixed(3) }}
+                      </div>
+                      <div class="text-xs text-gray-500">
+                        {{ Math.round(result.confidence * 100) }}% confidence
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-3">
+                  <strong>Simple scoring approach:</strong> For each keypoint, the best scoring hold from each boulder problem is selected, then scores are summed across all keypoints and frames.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -339,17 +437,17 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from "vue";
-import ImageMatcher from "./ImageMatcher.vue";
-import { validateVideoFile } from "@/utils/videoFrameUtils";
+import { ref, computed, nextTick } from 'vue';
+import ImageMatcher from './ImageMatcher.vue';
+import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
   extractVideoFrames,
   calculateHomographyMatrix,
   transformPoints,
-} from "@/utils/homographyUtils";
-import { usePoseDetection } from "@/composables/usePoseDetection";
-import { useInferenceStore } from "@/stores/inferenceStore";
-import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
+} from '@/utils/homographyUtils';
+import { usePoseDetection } from '@/composables/usePoseDetection';
+import { useInferenceStore } from '@/stores/inferenceStore';
+import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 
 // Props
 defineProps({
@@ -363,11 +461,11 @@ defineProps({
   },
   title: {
     type: String,
-    default: "Upload Beta Video",
+    default: 'Upload Beta Video',
   },
   subtitle: {
     type: String,
-    default: "Upload a climbing video to analyze your movement and match against reference images",
+    default: 'Upload a climbing video to analyze your movement and match against reference images',
   },
   autoStartMatching: {
     type: Boolean,
@@ -376,13 +474,13 @@ defineProps({
 });
 
 const emit = defineEmits([
-  "video-selected",
-  "frames-extracted",
-  "pose-detected",
-  "match-found",
-  "analysis-complete",
-  "processing-error",
-  "video-cleared",
+  'video-selected',
+  'frames-extracted',
+  'pose-detected',
+  'match-found',
+  'analysis-complete',
+  'processing-error',
+  'video-cleared',
 ]);
 
 // Reactive state
@@ -390,8 +488,8 @@ const fileInput = ref(null);
 const selectedVideo = ref(null);
 const extractedFrames = ref([]);
 const isProcessing = ref(false);
-const processingStatus = ref("");
-const processingDetails = ref("");
+const processingStatus = ref('');
+const processingDetails = ref('');
 const error = ref(null);
 const bestMatch = ref(null);
 const transformedPoses = ref([]);
@@ -411,6 +509,17 @@ const matchedImageBoulderProblems = computed(() => {
   );
 });
 
+// Calculate boulder problem scores using the simple table-based approach
+const boulderProblemScores = computed(() => {
+  return calculateBoulderProblemScores();
+});
+
+// Get the best matching boulder problem
+const bestBoulderMatch = computed(() => {
+  const scores = boulderProblemScores.value;
+  return scores.length > 0 ? scores[0] : null;
+});
+
 // Use the working pose detection composable
 const { runPoseDetection, poseResults, sessionReady, isAnalyzing } = usePoseDetection();
 
@@ -418,23 +527,27 @@ const { runPoseDetection, poseResults, sessionReady, isAnalyzing } = usePoseDete
 const FRAME_TIMESTAMPS = [0.25, 0.5, 0.75];
 
 // Colors for different frames
-const FRAME_COLORS = ["#ef4444", "#3b82f6", "#22c55e"]; // red, blue, green
+const FRAME_COLORS = ['#ef4444', '#3b82f6', '#22c55e']; // red, blue, green
 
 // Methods
-const findClosestHold = (keypointX, keypointY) => {
+const findClosestHolds = (keypointX, keypointY) => {
   if (!bestMatch.value || !bestMatch.value.name) {
-    return { hold: null, problem: null, distance: Infinity };
+    return { 
+      closest: { hold: null, problem: null, distance: Infinity, score: 0 },
+      secondClosest: { hold: null, problem: null, distance: Infinity, score: 0 },
+      thirdClosest: { hold: null, problem: null, distance: Infinity, score: 0 }
+    };
   }
 
   // Get all boulder problems for the matched image
   const matchedImageId = bestMatch.value.id;
+  const proximityThreshold = 150; // Use same threshold as main algorithm
+
   const problemsForImage = boulderProblemsStore.boulderProblems.filter(
     (problem) => problem.imageId === matchedImageId
   );
 
-  let closestHold = null;
-  let closestProblem = null;
-  let minDistance = Infinity;
+  const allHoldsWithDistances = [];
 
   console.log(`problemsForImage`, problemsForImage, boulderProblemsStore.boulderProblems);
   // Check all holds across all problems for this image
@@ -459,35 +572,53 @@ const findClosestHold = (keypointX, keypointY) => {
           holdX = hold.center_x;
           holdY = hold.center_y;
         } else {
-          console.warn("Unknown hold coordinate format:", hold);
+          console.warn('Unknown hold coordinate format:', hold);
           return; // Skip this hold
         }
 
         // Calculate Euclidean distance
         const distance = Math.sqrt(Math.pow(keypointX - holdX, 2) + Math.pow(keypointY - holdY, 2));
+        
+        // Calculate potential score (without keypoint weighting and confidence for now)
+        const score = distance <= proximityThreshold ? 
+          Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
 
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestHold = {
+        allHoldsWithDistances.push({
+          hold: {
             ...hold,
             holdIndex: holdData.holdIndex || index,
             id: hold.id || `hold_${index}`,
-          };
-          closestProblem = problem;
-        }
+          },
+          problem: problem,
+          distance: Math.round(distance),
+          score: score
+        });
       });
     }
   });
 
+  // Sort by distance and get top 3
+  allHoldsWithDistances.sort((a, b) => a.distance - b.distance);
+  
+  const closest = allHoldsWithDistances[0] || { hold: null, problem: null, distance: Infinity, score: 0 };
+  const secondClosest = allHoldsWithDistances[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
+  const thirdClosest = allHoldsWithDistances[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
+
+  return { closest, secondClosest, thirdClosest };
+};
+
+// Legacy function for backward compatibility
+const findClosestHold = (keypointX, keypointY) => {
+  const result = findClosestHolds(keypointX, keypointY);
   return {
-    hold: closestHold,
-    problem: closestProblem,
-    distance: Math.round(minDistance),
+    hold: result.closest.hold,
+    problem: result.closest.problem,
+    distance: result.closest.distance,
   };
 };
 
 const getKeypointRows = (frame) => {
-  const keypointNames = ["Left Wrist", "Right Wrist", "Left Ankle", "Right Ankle"];
+  const keypointNames = ['Left Wrist', 'Right Wrist', 'Left Ankle', 'Right Ankle'];
   const keypointData = [];
 
   // Get confidence values from the original pose data
@@ -516,8 +647,8 @@ const getKeypointRows = (frame) => {
           }
         }
 
-        // Find the closest hold for this keypoint
-        const closestHoldInfo = findClosestHold(
+        // Find the closest, second closest, and third closest holds for this keypoint
+        const holdsInfo = findClosestHolds(
           frame.transformedPoints[index].x,
           frame.transformedPoints[index].y
         );
@@ -527,15 +658,87 @@ const getKeypointRows = (frame) => {
           original: originalPoint,
           transformed: frame.transformedPoints[index],
           confidence: confidence,
-          closestHold: closestHoldInfo.hold,
-          closestProblem: closestHoldInfo.problem,
-          distanceToHold: closestHoldInfo.distance,
+          closestHold: holdsInfo.closest.hold,
+          closestProblem: holdsInfo.closest.problem,
+          distanceToHold: holdsInfo.closest.distance,
+          closestScore: holdsInfo.closest.score,
+          // Add second and third closest data
+          secondClosestHold: holdsInfo.secondClosest.hold,
+          secondClosestProblem: holdsInfo.secondClosest.problem,
+          secondClosestDistance: holdsInfo.secondClosest.distance,
+          secondClosestScore: holdsInfo.secondClosest.score,
+          thirdClosestHold: holdsInfo.thirdClosest.hold,
+          thirdClosestProblem: holdsInfo.thirdClosest.problem,
+          thirdClosestDistance: holdsInfo.thirdClosest.distance,
+          thirdClosestScore: holdsInfo.thirdClosest.score,
         });
       }
     });
   }
 
   return keypointData;
+};
+
+// Calculate boulder problem scores based on the simple table approach
+const calculateBoulderProblemScores = () => {
+  if (!transformedPoses.value || transformedPoses.value.length === 0) {
+    return [];
+  }
+
+  const problemScores = new Map(); // problemId -> total score
+
+  // Iterate through all keypoints in all frames
+  transformedPoses.value.forEach((frame) => {
+    const keypointRows = getKeypointRows(frame);
+    
+    keypointRows.forEach((keypoint) => {
+      // For each keypoint, consider all three closest holds but only take the best from each problem
+      const candidates = [
+        { problem: keypoint.closestProblem, score: keypoint.closestScore },
+        { problem: keypoint.secondClosestProblem, score: keypoint.secondClosestScore },
+        { problem: keypoint.thirdClosestProblem, score: keypoint.thirdClosestScore }
+      ].filter(c => c.problem && c.score > 0);
+
+      // Group by problem and take the highest score from each problem for this keypoint
+      const problemBestScores = new Map();
+      candidates.forEach(candidate => {
+        const problemId = candidate.problem.id;
+        const currentBest = problemBestScores.get(problemId) || 0;
+        if (candidate.score > currentBest) {
+          problemBestScores.set(problemId, candidate.score);
+        }
+      });
+
+      // Add the best score from each problem to the total
+      problemBestScores.forEach((score, problemId) => {
+        const currentTotal = problemScores.get(problemId) || 0;
+        problemScores.set(problemId, currentTotal + score);
+      });
+    });
+  });
+
+  // Convert to array and sort by score
+  const results = Array.from(problemScores.entries())
+    .map(([problemId, totalScore]) => {
+      const problem = matchedImageBoulderProblems.value.find(p => p.id === problemId);
+      return {
+        problem,
+        score: totalScore,
+        confidence: Math.min(totalScore / 10, 1.0) // Rough confidence estimate
+      };
+    })
+    .filter(result => result.problem) // Remove any problems we couldn't find
+    .sort((a, b) => b.score - a.score);
+
+  console.log('🏆 Boulder Problem Scores (Table-based approach):', 
+    results.slice(0, 5).map(r => ({
+      name: r.problem.name,
+      score: r.score.toFixed(3),
+      confidence: `${Math.round(r.confidence * 100)}%`
+    }))
+  );
+
+  return results;
 };
 
 const handleVideoSelect = async (event) => {
@@ -548,19 +751,19 @@ const handleVideoSelect = async (event) => {
   // Validate video file
   const validation = validateVideoFile(file);
   if (!validation.isValid) {
-    error.value = validation.errors.join(", ");
+    error.value = validation.errors.join(', ');
     return;
   }
 
   // Set selected video
   selectedVideo.value = file;
-  emit("video-selected", file);
+  emit('video-selected', file);
 
   // Start processing pipeline
   await processVideo();
 
   // Clear the input so the same file can be selected again
-  event.target.value = "";
+  event.target.value = '';
 };
 
 const processVideo = async () => {
@@ -569,10 +772,10 @@ const processVideo = async () => {
     error.value = null;
 
     // Step 1: Extract frames
-    processingStatus.value = "Extracting video frames...";
+    processingStatus.value = 'Extracting video frames...';
     processingDetails.value = `Extracting frames at ${FRAME_TIMESTAMPS.map(
-      (t) => t * 100 + "%"
-    ).join(", ")}`;
+      (t) => t * 100 + '%'
+    ).join(', ')}`;
 
     const frames = await extractVideoFrames(selectedVideo.value, FRAME_TIMESTAMPS);
 
@@ -592,10 +795,10 @@ const processVideo = async () => {
 
     extractedFrames.value = processedFrames;
 
-    emit("frames-extracted", extractedFrames.value);
+    emit('frames-extracted', extractedFrames.value);
 
     // Step 2: Run pose detection on each frame
-    processingStatus.value = "Detecting poses...";
+    processingStatus.value = 'Detecting poses...';
 
     for (let i = 0; i < extractedFrames.value.length; i++) {
       processingDetails.value = `Analyzing pose in frame ${i + 1} of ${
@@ -608,16 +811,16 @@ const processVideo = async () => {
     }
 
     emit(
-      "pose-detected",
+      'pose-detected',
       extractedFrames.value.map((f) => f.poseData)
     );
 
-    processingStatus.value = "Ready for image matching";
-    processingDetails.value = "Frames extracted and poses detected successfully";
+    processingStatus.value = 'Ready for image matching';
+    processingDetails.value = 'Frames extracted and poses detected successfully';
   } catch (err) {
-    console.error("Video processing error:", err);
-    error.value = "Failed to process video: " + err.message;
-    emit("processing-error", err);
+    console.error('Video processing error:', err);
+    error.value = 'Failed to process video: ' + err.message;
+    emit('processing-error', err);
   } finally {
     isProcessing.value = false;
   }
@@ -628,7 +831,7 @@ const extractPoseKeypoints = async (imageData) => {
   try {
     // Wait for pose detection session to be ready
     if (!sessionReady.value) {
-      console.log("Waiting for pose detection session...");
+      console.log('Waiting for pose detection session...');
       // Wait a bit for session to initialize
       await new Promise((resolve) => {
         const checkReady = () => {
@@ -643,15 +846,15 @@ const extractPoseKeypoints = async (imageData) => {
     }
 
     // Convert ImageData to File (which is what runPoseDetection expects)
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     canvas.width = imageData.width;
     canvas.height = imageData.height;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     ctx.putImageData(imageData, 0, 0);
 
     // Convert canvas to blob then to file
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
-    const imageFile = new File([blob], "frame.jpg", { type: "image/jpeg" });
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    const imageFile = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
 
     // Run pose detection using the working composable
     await runPoseDetection(imageFile);
@@ -685,10 +888,10 @@ const extractPoseKeypoints = async (imageData) => {
         confidence: firstPose.confidence || 0,
       };
     } else {
-      throw new Error("No poses detected in image");
+      throw new Error('No poses detected in image');
     }
   } catch (error) {
-    console.error("Pose detection failed:", error);
+    console.error('Pose detection failed:', error);
     throw new Error(`Pose detection failed: ${error.message}`);
   }
 };
@@ -698,8 +901,8 @@ const handleMatchFound = async (matchedImage) => {
   try {
     // Check if OpenCV is loaded
     if (!window.cv) {
-      console.warn("⚠️ OpenCV.js not loaded yet, skipping homography calculation");
-      emit("match-found", {
+      console.warn('⚠️ OpenCV.js not loaded yet, skipping homography calculation');
+      emit('match-found', {
         video: selectedVideo.value,
         frames: extractedFrames.value,
         match: matchedImage,
@@ -712,7 +915,7 @@ const handleMatchFound = async (matchedImage) => {
     const inferenceResult = inferenceStore.inferenceResults[matchUrl];
 
     if (inferenceResult && inferenceResult.rawData) {
-      console.log("Calculating homography for matched image...");
+      console.log('Calculating homography for matched image...');
 
       // Extract matching points from inference results
       const matches = [];
@@ -737,22 +940,22 @@ const handleMatchFound = async (matchedImage) => {
 
       if (matches.length >= 4) {
         const homographyResult = await calculateHomographyMatrix(matches);
-        console.log("Homography calculated for match:", homographyResult);
+        console.log('Homography calculated for match:', homographyResult);
 
         // Add homography matrix to the matched image
         matchedImage.homographyMatrix = homographyResult.matrix;
         matchedImage.homographyInliers = homographyResult.inliers;
       } else {
-        console.warn("⚠️ Not enough matches for homography calculation:", matches.length);
+        console.warn('⚠️ Not enough matches for homography calculation:', matches.length);
       }
     } else {
-      console.warn("⚠️ No inference results found for matched image:", matchUrl);
+      console.warn('⚠️ No inference results found for matched image:', matchUrl);
     }
   } catch (error) {
-    console.error("❌ Error calculating homography for match:", error);
+    console.error('❌ Error calculating homography for match:', error);
   }
 
-  emit("match-found", {
+  emit('match-found', {
     video: selectedVideo.value,
     frames: extractedFrames.value,
     match: matchedImage,
@@ -760,7 +963,7 @@ const handleMatchFound = async (matchedImage) => {
 };
 
 const handleAnalysisComplete = async (bestMatchResult) => {
-  console.log("bestMatchResult", bestMatchResult);
+  console.log('bestMatchResult', bestMatchResult);
   bestMatch.value = bestMatchResult;
 
   // Step 3: Get inference results and calculate homography matrix
@@ -768,9 +971,9 @@ const handleAnalysisComplete = async (bestMatchResult) => {
     // Check if OpenCV is loaded
     if (!window.cv) {
       console.warn(
-        "⚠️ OpenCV.js not loaded yet, skipping homography calculation for analysis complete"
+        '⚠️ OpenCV.js not loaded yet, skipping homography calculation for analysis complete'
       );
-      emit("analysis-complete", {
+      emit('analysis-complete', {
         video: selectedVideo.value,
         frames: extractedFrames.value,
         match: bestMatchResult,
@@ -783,7 +986,7 @@ const handleAnalysisComplete = async (bestMatchResult) => {
     const inferenceResult = inferenceStore.inferenceResults[matchUrl];
 
     if (inferenceResult && inferenceResult.rawData) {
-      console.log("Calculating homography from inference results...");
+      console.log('Calculating homography from inference results...');
 
       // Extract matching points from inference results
       const matches = [];
@@ -809,7 +1012,7 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       const topoScaleX = topoImageDims.width / inferenceSize;
       const topoScaleY = topoImageDims.height / inferenceSize;
 
-      console.log("🔍 Coordinate space scaling:", {
+      console.log('🔍 Coordinate space scaling:', {
         inferenceSize,
         userImageDims,
         topoImageDims,
@@ -844,22 +1047,22 @@ const handleAnalysisComplete = async (bestMatchResult) => {
 
       if (matches.length >= 4) {
         const homographyResult = await calculateHomographyMatrix(matches);
-        console.log("Homography calculated:", homographyResult);
+        console.log('Homography calculated:', homographyResult);
 
         // Add homography matrix to the match result
         bestMatchResult.homographyMatrix = homographyResult.matrix;
         bestMatchResult.homographyInliers = homographyResult.inliers;
       } else {
-        console.warn("⚠️ Not enough matches for homography calculation:", matches.length);
+        console.warn('⚠️ Not enough matches for homography calculation:', matches.length);
       }
     } else {
-      console.warn("⚠️ No inference results found for matched image:", matchUrl);
+      console.warn('⚠️ No inference results found for matched image:', matchUrl);
     }
   } catch (error) {
-    console.error("❌ Error calculating homography:", error);
+    console.error('❌ Error calculating homography:', error);
   }
 
-  emit("analysis-complete", {
+  emit('analysis-complete', {
     video: selectedVideo.value,
     frames: extractedFrames.value,
     match: bestMatchResult,
@@ -873,7 +1076,7 @@ const handleAnalysisComplete = async (bestMatchResult) => {
 
 const transformPosesToMatchedImage = async (matchResult) => {
   try {
-    processingStatus.value = "Transforming poses to matched image...";
+    processingStatus.value = 'Transforming poses to matched image...';
     isProcessing.value = true;
 
     const { homographyMatrix } = matchResult;
@@ -911,8 +1114,8 @@ const transformPosesToMatchedImage = async (matchResult) => {
     await nextTick();
     drawPoseVisualization();
   } catch (err) {
-    console.error("Pose transformation error:", err);
-    error.value = "Failed to transform poses: " + err.message;
+    console.error('Pose transformation error:', err);
+    error.value = 'Failed to transform poses: ' + err.message;
   } finally {
     isProcessing.value = false;
   }
@@ -925,7 +1128,7 @@ const drawPoseVisualization = () => {
 
   const img = visualizationImage.value;
   const canvas = poseCanvas.value;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
 
   // Set canvas size to match image
   canvas.width = img.clientWidth;
@@ -997,21 +1200,21 @@ const drawPoseVisualization = () => {
 };
 
 const handleAnalysisError = (analysisError) => {
-  error.value = "Image analysis failed: " + analysisError.message;
-  emit("processing-error", analysisError);
+  error.value = 'Image analysis failed: ' + analysisError.message;
+  emit('processing-error', analysisError);
 };
 
 const clearVideo = () => {
   clearState();
-  emit("video-cleared");
+  emit('video-cleared');
 };
 
 const clearState = () => {
   selectedVideo.value = null;
   extractedFrames.value = [];
   isProcessing.value = false;
-  processingStatus.value = "";
-  processingDetails.value = "";
+  processingStatus.value = '';
+  processingDetails.value = '';
   error.value = null;
   bestMatch.value = null;
   transformedPoses.value = [];
@@ -1026,8 +1229,8 @@ const clearState = () => {
 
 // Utility functions
 const createFileFromImageData = async (imageData, fileName) => {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   ctx.putImageData(imageData, 0, 0);
@@ -1035,28 +1238,28 @@ const createFileFromImageData = async (imageData, fileName) => {
   return new Promise((resolve) => {
     canvas.toBlob(
       (blob) => {
-        resolve(new File([blob], fileName, { type: "image/jpeg" }));
+        resolve(new File([blob], fileName, { type: 'image/jpeg' }));
       },
-      "image/jpeg",
+      'image/jpeg',
       0.8
     );
   });
 };
 
 const createImageUrlFromImageData = (imageData) => {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   ctx.putImageData(imageData, 0, 0);
-  return canvas.toDataURL("image/jpeg", 0.8);
+  return canvas.toDataURL('image/jpeg', 0.8);
 };
 
 const formatFileSize = (bytes) => {
   const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 // Expose methods for parent component

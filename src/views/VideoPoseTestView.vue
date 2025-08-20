@@ -378,10 +378,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from "vue";
-import VideoFrameMatcherEnhanced from "@/components/VideoFrameMatcherEnhanced.vue";
-import { locationService } from "@/services/locationService";
-import { boulderProblemsServiceV2 as boulderProblemsService } from "@/services/boulderProblemsServiceV2";
+import { ref, computed, onMounted, nextTick } from 'vue';
+import VideoFrameMatcherEnhanced from '@/components/VideoFrameMatcherEnhanced.vue';
+import { locationService } from '@/services/locationService';
+import { boulderProblemsServiceV2 as boulderProblemsService } from '@/services/boulderProblemsServiceV2';
 
 // State
 const results = ref({
@@ -409,14 +409,14 @@ const clickedPoints = ref([]);
 onMounted(async () => {
   // Load OpenCV.js first
   try {
-    console.log("🔄 Loading OpenCV.js...");
-    const cvReadyPromise = await import("@techstark/opencv-js");
+    console.log('🔄 Loading OpenCV.js...');
+    const cvReadyPromise = await import('@techstark/opencv-js');
     window.cv = await cvReadyPromise.default;
-    console.log("✅ OpenCV.js loaded successfully");
-    console.log("Available OpenCV methods:", Object.keys(window.cv).slice(0, 10).join(", "));
+    console.log('✅ OpenCV.js loaded successfully');
+    console.log('Available OpenCV methods:', Object.keys(window.cv).slice(0, 10).join(', '));
   } catch (err) {
-    console.error("❌ Failed to load OpenCV.js:", err);
-    error.value = "Failed to load OpenCV.js library";
+    console.error('❌ Failed to load OpenCV.js:', err);
+    error.value = 'Failed to load OpenCV.js library';
   }
 
   // Load comparison images
@@ -469,12 +469,12 @@ const loadComparisonImages = async () => {
 
     if (allImages.length === 0) {
       console.warn(
-        "No images with boulder problems found. Make sure to add some boulder problems first."
+        'No images with boulder problems found. Make sure to add some boulder problems first.'
       );
     }
   } catch (err) {
-    console.error("Error loading comparison images:", err);
-    error.value = new Error("Failed to load comparison images: " + err.message);
+    console.error('Error loading comparison images:', err);
+    error.value = new Error('Failed to load comparison images: ' + err.message);
   } finally {
     isLoadingImages.value = false;
   }
@@ -483,7 +483,7 @@ const loadComparisonImages = async () => {
 // Project poses onto best matching image using homography
 const drawProjectedPoses = () => {
   if (!matchCanvas.value || !results.value?.match || !results.value.match.homographyMatrix) {
-    console.warn("⚠️ Missing requirements for pose projection:", {
+    console.warn('⚠️ Missing requirements for pose projection:', {
       canvas: !!matchCanvas.value,
       match: !!results.value?.match,
       homography: !!results.value.match?.homographyMatrix,
@@ -492,30 +492,30 @@ const drawProjectedPoses = () => {
   }
 
   const canvas = matchCanvas.value;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   const image = matchImage.value;
 
   if (!image) {
-    console.warn("⚠️ Match image not loaded");
+    console.warn('⚠️ Match image not loaded');
     return;
   }
 
-  console.log("🎨 Starting pose projection drawing...");
-  console.log("Canvas dimensions:", canvas.width, "x", canvas.height);
-  console.log("Image dimensions:", image.naturalWidth, "x", image.naturalHeight);
-  console.log("Displayed image dimensions:", image.width, "x", image.height);
+  console.log('🎨 Starting pose projection drawing...');
+  console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+  console.log('Image dimensions:', image.naturalWidth, 'x', image.naturalHeight);
+  console.log('Displayed image dimensions:', image.width, 'x', image.height);
 
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const homographyMatrix = results.value.match.homographyMatrix;
-  console.log("🔄 Using homography matrix:", homographyMatrix);
+  console.log('🔄 Using homography matrix:', homographyMatrix);
 
   // Calculate scaling factors to map from matched image natural size to display size
   const scaleX = canvas.width / image.naturalWidth;
   const scaleY = canvas.height / image.naturalHeight;
 
-  console.log("🔍 Scale factors:", {
+  console.log('🔍 Scale factors:', {
     scaleX,
     scaleY,
     canvasSize: `${canvas.width}x${canvas.height}`,
@@ -523,17 +523,17 @@ const drawProjectedPoses = () => {
     imageDisplaySize: `${image.width}x${image.height}`,
   });
 
-  const frameColors = ["#ff0000", "#00ff00", "#0000ff"];
+  const frameColors = ['#ff0000', '#00ff00', '#0000ff'];
   let totalPointsDrawn = 0;
   let debugPoints = [];
 
   // DEBUG: Draw canvas boundary and grid
-  ctx.strokeStyle = "#ffff00";
+  ctx.strokeStyle = '#ffff00';
   ctx.lineWidth = 2;
   ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
   // Draw grid for reference
-  ctx.strokeStyle = "#ffff00";
+  ctx.strokeStyle = '#ffff00';
   ctx.lineWidth = 1;
   for (let x = 0; x < canvas.width; x += 100) {
     ctx.beginPath();
@@ -549,7 +549,7 @@ const drawProjectedPoses = () => {
   }
 
   // DEBUG: Draw center point
-  ctx.fillStyle = "#ff00ff";
+  ctx.fillStyle = '#ff00ff';
   ctx.beginPath();
   ctx.arc(canvas.width / 2, canvas.height / 2, 10, 0, 2 * Math.PI);
   ctx.fill();
@@ -587,7 +587,7 @@ const drawProjectedPoses = () => {
         `(${keypoint.x}, ${keypoint.y}) → ${
           transformedPoint
             ? `(${transformedPoint.x.toFixed(1)}, ${transformedPoint.y.toFixed(1)})`
-            : "null"
+            : 'null'
         }`
       );
 
@@ -616,14 +616,14 @@ const drawProjectedPoses = () => {
           ctx.arc(x, y, 8, 0, 2 * Math.PI);
           ctx.fillStyle = frameColor;
           ctx.fill();
-          ctx.strokeStyle = "#ffffff";
+          ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 3;
           ctx.stroke();
 
           // Add a second inner circle for better visibility
           ctx.beginPath();
           ctx.arc(x, y, 4, 0, 2 * Math.PI);
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = '#ffffff';
           ctx.fill();
 
           totalPointsDrawn++;
@@ -644,17 +644,17 @@ const drawProjectedPoses = () => {
 
         // Add label with background (for in-bounds points)
         if (isInBounds) {
-          ctx.font = "bold 12px sans-serif";
-          ctx.textAlign = "center";
+          ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'center';
 
           // Draw text background
           const text = `F${frameIndex + 1}`;
           const textWidth = ctx.measureText(text).width;
-          ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
           ctx.fillRect(x - textWidth / 2 - 2, y - 20, textWidth + 4, 16);
 
           // Draw text
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = '#ffffff';
           ctx.fillText(text, x, y - 8);
         }
       }
@@ -662,31 +662,31 @@ const drawProjectedPoses = () => {
   });
 
   console.log(`🎉 Total points drawn: ${totalPointsDrawn}`);
-  console.log("🔍 Debug points summary:", debugPoints);
+  console.log('🔍 Debug points summary:', debugPoints);
 
   // Add enhanced legend with debug info
   const legendHeight = 140;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
   ctx.fillRect(10, 10, 200, legendHeight);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 11px sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText("DEBUG - Projected Poses:", 15, 25);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('DEBUG - Projected Poses:', 15, 25);
   ctx.fillText(`Points drawn: ${totalPointsDrawn}`, 15, 40);
   ctx.fillText(`Total keypoints: ${debugPoints.length}`, 15, 55);
   ctx.fillText(`In bounds: ${debugPoints.filter((p) => p.inBounds).length}`, 15, 70);
   ctx.fillText(`Out of bounds: ${debugPoints.filter((p) => !p.inBounds).length}`, 15, 85);
-  ctx.fillText("Canvas: Yellow grid", 15, 100);
-  ctx.fillText("Center: Magenta dot", 15, 115);
-  ctx.fillText("Out-bounds: X marks", 15, 130);
+  ctx.fillText('Canvas: Yellow grid', 15, 100);
+  ctx.fillText('Center: Magenta dot', 15, 115);
+  ctx.fillText('Out-bounds: X marks', 15, 130);
 
   frameColors.forEach((color, index) => {
     if (index < results.value.frames.length) {
       ctx.fillStyle = color;
       ctx.fillRect(15, 45 + index * 12, 10, 10);
 
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "10px sans-serif";
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '10px sans-serif';
       ctx.fillText(`F${index + 1}`, 30, 45 + index * 12 + 8);
     }
   });
@@ -695,7 +695,7 @@ const drawProjectedPoses = () => {
 // Helper function to transform a point using homography matrix
 const transformPointWithHomography = (x, y, homographyMatrix) => {
   if (!homographyMatrix || homographyMatrix.length !== 9) {
-    console.warn("Invalid homography matrix for transformation");
+    console.warn('Invalid homography matrix for transformation');
     return null;
   }
 
@@ -708,7 +708,7 @@ const transformPointWithHomography = (x, y, homographyMatrix) => {
     const w_prime = h[6] * x + h[7] * y + h[8];
 
     if (Math.abs(w_prime) < 1e-10) {
-      console.warn("Transformation resulted in invalid homogeneous coordinate");
+      console.warn('Transformation resulted in invalid homogeneous coordinate');
       return null;
     }
 
@@ -717,7 +717,7 @@ const transformPointWithHomography = (x, y, homographyMatrix) => {
       y: y_prime / w_prime,
     };
   } catch (error) {
-    console.error("Error in homography transformation:", error);
+    console.error('Error in homography transformation:', error);
     return null;
   }
 };
@@ -742,14 +742,14 @@ const drawPoseOnFrame = (frameIndex) => {
   canvasEl.width = rect.width;
   canvasEl.height = rect.height;
 
-  const ctx = canvasEl.getContext("2d");
+  const ctx = canvasEl.getContext('2d');
   ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 
   // Calculate scale factors from video resolution to display size
   const scaleX = rect.width / frame.imageData.width; // frame.imageData.width is the original video width
   const scaleY = rect.height / frame.imageData.height; // frame.imageData.height is the original video height
 
-  console.log("Pose drawing debug:", {
+  console.log('Pose drawing debug:', {
     frameIndex,
     videoSize: { width: frame.imageData.width, height: frame.imageData.height },
     displaySize: { width: rect.width, height: rect.height },
@@ -762,23 +762,23 @@ const drawPoseOnFrame = (frameIndex) => {
   if (frame.poseData.allKeypoints) {
     // Draw full COCO skeleton
     const keyPointNames = [
-      "nose",
-      "left_eye",
-      "right_eye",
-      "left_ear",
-      "right_ear",
-      "left_shoulder",
-      "right_shoulder",
-      "left_elbow",
-      "right_elbow",
-      "left_wrist",
-      "right_wrist",
-      "left_hip",
-      "right_hip",
-      "left_knee",
-      "right_knee",
-      "left_ankle",
-      "right_ankle",
+      'nose',
+      'left_eye',
+      'right_eye',
+      'left_ear',
+      'right_ear',
+      'left_shoulder',
+      'right_shoulder',
+      'left_elbow',
+      'right_elbow',
+      'left_wrist',
+      'right_wrist',
+      'left_hip',
+      'right_hip',
+      'left_knee',
+      'right_knee',
+      'left_ankle',
+      'right_ankle',
     ];
 
     // COCO skeleton connections
@@ -802,7 +802,7 @@ const drawPoseOnFrame = (frameIndex) => {
     ];
 
     // Draw skeleton connections first
-    ctx.strokeStyle = "#00ff00";
+    ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 2;
     connections.forEach(([startIdx, endIdx]) => {
       const startPoint = keypoints[startIdx];
@@ -827,17 +827,17 @@ const drawPoseOnFrame = (frameIndex) => {
 
         ctx.beginPath();
         ctx.arc(x, y, isClimbingPoint ? 8 : 4, 0, 2 * Math.PI);
-        ctx.fillStyle = isClimbingPoint ? "#ff4444" : "#00ff00";
+        ctx.fillStyle = isClimbingPoint ? '#ff4444' : '#00ff00';
         ctx.fill();
-        ctx.strokeStyle = "#ffffff";
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1;
         ctx.stroke();
 
         // Add label for debugging
         if (isClimbingPoint) {
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 10px sans-serif";
-          ctx.textAlign = "center";
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center';
           ctx.fillText(keyPointNames[index], x, y - 10);
         }
 
@@ -852,10 +852,10 @@ const drawPoseOnFrame = (frameIndex) => {
   } else {
     // Fallback: draw simplified keypoints only
     const keypointStyle = {
-      leftWrist: { color: "#ef4444", label: "LW" },
-      rightWrist: { color: "#3b82f6", label: "RW" },
-      leftAnkle: { color: "#22c55e", label: "LA" },
-      rightAnkle: { color: "#f59e0b", label: "RA" },
+      leftWrist: { color: '#ef4444', label: 'LW' },
+      rightWrist: { color: '#3b82f6', label: 'RW' },
+      leftAnkle: { color: '#22c55e', label: 'LA' },
+      rightAnkle: { color: '#f59e0b', label: 'RA' },
     };
 
     Object.entries(frame.poseData.keypoints).forEach(([name, point]) => {
@@ -869,13 +869,13 @@ const drawPoseOnFrame = (frameIndex) => {
           ctx.arc(x, y, 8, 0, 2 * Math.PI);
           ctx.fillStyle = style.color;
           ctx.fill();
-          ctx.strokeStyle = "#ffffff";
+          ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 2;
           ctx.stroke();
 
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 10px sans-serif";
-          ctx.textAlign = "center";
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center';
           ctx.fillText(style.label, x, y + 3);
         }
       }
@@ -883,7 +883,7 @@ const drawPoseOnFrame = (frameIndex) => {
   }
 
   // Draw connections between related points
-  ctx.strokeStyle = "#ffffff";
+  ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
   ctx.globalAlpha = 0.7;
 
@@ -939,7 +939,7 @@ const onSourceImageClick = (event) => {
   const y = (event.clientY - rect.top) * scaleY;
 
   // 🐛 ENHANCED DEBUG INFO
-  console.log("🖱️ SOURCE CLICK DEBUG:", {
+  console.log('🖱️ SOURCE CLICK DEBUG:', {
     event: {
       clientX: event.clientX,
       clientY: event.clientY,
@@ -1003,13 +1003,13 @@ const onSourceImageClick = (event) => {
     clickedPoints.value.push({
       source: { x, y },
       transformed: transformed,
-      sourceImage: "frame",
+      sourceImage: 'frame',
     });
 
     // Draw the points
     drawInteractivePoints();
   } else {
-    console.error("❌ Homography transformation failed");
+    console.error('❌ Homography transformation failed');
   }
 };
 
@@ -1025,14 +1025,14 @@ const onTargetImageClick = (event) => {
   const x = (event.clientX - rect.left) * scaleX;
   const y = (event.clientY - rect.top) * scaleY;
 
-  console.log("Target click:", { x, y, natural: `${img.naturalWidth}x${img.naturalHeight}` });
+  console.log('Target click:', { x, y, natural: `${img.naturalWidth}x${img.naturalHeight}` });
 
   // Transform point back to frame space (inverse)
   // For now, just record the click point
   clickedPoints.value.push({
     source: { x, y },
     transformed: null, // We'll implement inverse later if needed
-    sourceImage: "match",
+    sourceImage: 'match',
   });
 
   // Draw the points
@@ -1045,9 +1045,9 @@ const clearClickedPoints = () => {
 };
 
 const drawInteractivePoints = () => {
-  console.log("🎨 DRAW INTERACTIVE POINTS - START");
+  console.log('🎨 DRAW INTERACTIVE POINTS - START');
   console.log(
-    "🔧 OVERALL STATE CHECK:",
+    '🔧 OVERALL STATE CHECK:',
     JSON.stringify(
       {
         clickedPoints: clickedPoints.value.length,
@@ -1070,7 +1070,7 @@ const drawInteractivePoints = () => {
     canvas.width = img.offsetWidth;
     canvas.height = img.offsetHeight;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw points clicked on this image
@@ -1078,7 +1078,7 @@ const drawInteractivePoints = () => {
     const scaleY = canvas.height / img.naturalHeight;
 
     console.log(
-      "📍 SOURCE CANVAS DEBUG:",
+      '📍 SOURCE CANVAS DEBUG:',
       JSON.stringify(
         {
           canvas: {
@@ -1095,7 +1095,7 @@ const drawInteractivePoints = () => {
           },
           scales: { scaleX, scaleY },
           totalPoints: clickedPoints.value.length,
-          framePoints: clickedPoints.value.filter((p) => p.sourceImage === "frame").length,
+          framePoints: clickedPoints.value.filter((p) => p.sourceImage === 'frame').length,
         },
         null,
         2
@@ -1103,7 +1103,7 @@ const drawInteractivePoints = () => {
     );
 
     clickedPoints.value.forEach((point, index) => {
-      if (point.sourceImage === "frame") {
+      if (point.sourceImage === 'frame') {
         const x = point.source.x * scaleX;
         const y = point.source.y * scaleY;
 
@@ -1124,29 +1124,29 @@ const drawInteractivePoints = () => {
         ctx.arc(x, y, 8, 0, 2 * Math.PI);
         ctx.fillStyle = `hsl(${(index * 60) % 360}, 80%, 60%)`;
         ctx.fill();
-        ctx.strokeStyle = "#000";
+        ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
         ctx.stroke();
 
         // Label
-        ctx.fillStyle = "#000";
-        ctx.font = "12px Arial";
+        ctx.fillStyle = '#000';
+        ctx.font = '12px Arial';
         ctx.fillText((index + 1).toString(), x + 12, y - 8);
       }
     });
   }
 
   console.log(
-    "🔍 TARGET CANVAS CHECK:",
+    '🔍 TARGET CANVAS CHECK:',
     JSON.stringify(
       {
         targetMatchCanvas: {
           exists: !!targetMatchCanvas.value,
-          element: targetMatchCanvas.value ? "Found" : "Missing",
+          element: targetMatchCanvas.value ? 'Found' : 'Missing',
         },
         targetMatchImage: {
           exists: !!targetMatchImage.value,
-          element: targetMatchImage.value ? "Found" : "Missing",
+          element: targetMatchImage.value ? 'Found' : 'Missing',
         },
         condition: !!(targetMatchCanvas.value && targetMatchImage.value),
       },
@@ -1161,7 +1161,7 @@ const drawInteractivePoints = () => {
     canvas.width = img.offsetWidth;
     canvas.height = img.offsetHeight;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw transformed points
@@ -1169,7 +1169,7 @@ const drawInteractivePoints = () => {
     const scaleY = canvas.height / img.naturalHeight;
 
     console.log(
-      "🎯 TARGET CANVAS DEBUG:",
+      '🎯 TARGET CANVAS DEBUG:',
       JSON.stringify(
         {
           canvas: {
@@ -1187,7 +1187,7 @@ const drawInteractivePoints = () => {
           scales: { scaleX, scaleY },
           totalPoints: clickedPoints.value.length,
           transformedPoints: clickedPoints.value.filter(
-            (p) => p.sourceImage === "frame" && p.transformed
+            (p) => p.sourceImage === 'frame' && p.transformed
           ).length,
         },
         null,
@@ -1196,7 +1196,7 @@ const drawInteractivePoints = () => {
     );
 
     clickedPoints.value.forEach((point, index) => {
-      if (point.sourceImage === "frame" && point.transformed) {
+      if (point.sourceImage === 'frame' && point.transformed) {
         // Use transformed coordinates directly (they're already in target image space)
         const x = point.transformed.x;
         const y = point.transformed.y;
@@ -1226,24 +1226,24 @@ const drawInteractivePoints = () => {
         ctx.arc(canvasX, canvasY, 8, 0, 2 * Math.PI);
         ctx.fillStyle = `hsl(${(index * 60) % 360}, 80%, 60%)`;
         ctx.fill();
-        ctx.strokeStyle = "#000";
+        ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
         ctx.stroke();
 
         // Label
-        ctx.fillStyle = "#000";
-        ctx.font = "12px Arial";
+        ctx.fillStyle = '#000';
+        ctx.font = '12px Arial';
         ctx.fillText((index + 1).toString(), canvasX + 12, canvasY - 8);
       }
     });
   }
 
-  console.log("🎨 DRAW INTERACTIVE POINTS - END");
+  console.log('🎨 DRAW INTERACTIVE POINTS - END');
 };
 
 // Event handlers
 const onFramesExtracted = (frames) => {
-  console.log("Frames extracted:", frames);
+  console.log('Frames extracted:', frames);
   results.value.frames = frames;
   error.value = null;
 
@@ -1256,7 +1256,7 @@ const onFramesExtracted = (frames) => {
 };
 
 const onPoseDetected = (poses) => {
-  console.log("Poses detected:", poses);
+  console.log('Poses detected:', poses);
   // The poses are already attached to the frames
   // Redraw poses when pose data is updated
   nextTick(() => {
@@ -1267,14 +1267,14 @@ const onPoseDetected = (poses) => {
 };
 
 const onMatchFound = (matchData) => {
-  console.log("🎯 Match found in VideoPoseTestView:", matchData);
-  console.log("🔍 Match object structure:", {
+  console.log('🎯 Match found in VideoPoseTestView:', matchData);
+  console.log('🔍 Match object structure:', {
     video: !!matchData.video,
     frames: !!matchData.frames,
     match: !!matchData.match,
     matchHasHomography: !!matchData.match?.homographyMatrix,
   });
-  console.log("🎛️ Homography matrix from match:", matchData.match?.homographyMatrix);
+  console.log('🎛️ Homography matrix from match:', matchData.match?.homographyMatrix);
 
   results.value.match = matchData.match; // Store the match object, not the whole matchData
   results.value.frames = matchData.frames; // Also store frames
@@ -1286,12 +1286,12 @@ const onMatchFound = (matchData) => {
 };
 
 const onProcessingError = (err) => {
-  console.error("Processing error:", err);
+  console.error('Processing error:', err);
   error.value = err;
 };
 
 const onVideoCleared = () => {
-  console.log("Video cleared");
+  console.log('Video cleared');
   results.value.frames = [];
   results.value.match = null;
   error.value = null;
@@ -1299,8 +1299,8 @@ const onVideoCleared = () => {
 
 // Debug methods
 const showDebugInfo = () => {
-  console.log("🔍 === DEBUG INFO ===");
-  console.log("Results state:", {
+  console.log('🔍 === DEBUG INFO ===');
+  console.log('Results state:', {
     hasFrames: !!results.value.frames?.length,
     frameCount: results.value.frames?.length || 0,
     hasMatch: !!results.value.match,
@@ -1308,7 +1308,7 @@ const showDebugInfo = () => {
   });
 
   if (results.value.match) {
-    console.log("Match details:", {
+    console.log('Match details:', {
       url: results.value.match.url,
       name: results.value.match.name,
       score: results.value.match.score,
@@ -1331,16 +1331,16 @@ const showDebugInfo = () => {
   }
 
   if (matchCanvas.value) {
-    console.log("Canvas state:", {
+    console.log('Canvas state:', {
       exists: !!matchCanvas.value,
       width: matchCanvas.value.width,
       height: matchCanvas.value.height,
-      hasContext: !!matchCanvas.value.getContext("2d"),
+      hasContext: !!matchCanvas.value.getContext('2d'),
     });
   }
 
   if (matchImage.value) {
-    console.log("Image state:", {
+    console.log('Image state:', {
       exists: !!matchImage.value,
       naturalWidth: matchImage.value.naturalWidth,
       naturalHeight: matchImage.value.naturalHeight,
@@ -1350,7 +1350,7 @@ const showDebugInfo = () => {
     });
   }
 
-  console.log("OpenCV state:", {
+  console.log('OpenCV state:', {
     loaded: !!window.cv,
     hasMatMethods: !!(window.cv && window.cv.Mat),
   });
@@ -1358,9 +1358,9 @@ const showDebugInfo = () => {
 
 const clearCanvas = () => {
   if (matchCanvas.value) {
-    const ctx = matchCanvas.value.getContext("2d");
+    const ctx = matchCanvas.value.getContext('2d');
     ctx.clearRect(0, 0, matchCanvas.value.width, matchCanvas.value.height);
-    console.log("🧹 Canvas cleared");
+    console.log('🧹 Canvas cleared');
   }
 };
 </script>

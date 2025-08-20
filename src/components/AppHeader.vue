@@ -222,26 +222,26 @@
 </template>
 
 <script setup>
-import { computed, ref, inject } from "vue";
-import { useRoute } from "vue-router";
-import { useUserStore } from "../stores/userStore.js";
-import { REGIONS } from "@/constants/regions";
+import { computed, ref, inject } from 'vue';
+import { useRoute } from 'vue-router';
+import { useUserStore } from '../stores/userStore.js';
+import { REGIONS } from '@/constants/regions';
 
 const route = useRoute();
 const userStore = useUserStore();
 const showMobileMenu = ref(false);
 
 // Inject auth modal methods from App.vue
-const authModal = inject("authModal");
+const authModal = inject('authModal');
 
-const isHome = computed(() => route.name === "home");
-const isHoldDetection = computed(() => route.name === "hold-detection");
+const isHome = computed(() => route.name === 'home');
+const isHoldDetection = computed(() => route.name === 'hold-detection');
 const isLocationRoute = computed(
   () =>
-    route.name === "browse-locations" ||
-    route.name === "location-detail" ||
-    route.name === "location-edit" ||
-    route.name === "add-location"
+    route.name === 'browse-locations' ||
+    route.name === 'location-detail' ||
+    route.name === 'location-edit' ||
+    route.name === 'add-location'
 );
 
 const currentRegion = computed(() => {
@@ -262,7 +262,7 @@ const handleSignOut = async () => {
     await userStore.signOut();
     closeMobileMenu();
   } catch (error) {
-    console.error("Sign out failed:", error);
+    console.error('Sign out failed:', error);
   }
 };
 

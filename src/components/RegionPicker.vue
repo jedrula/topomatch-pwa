@@ -36,9 +36,9 @@
 </template>
 
 <script setup>
-import { REGIONS } from "@/constants/regions";
+import { REGIONS } from '@/constants/regions';
 
-defineEmits(["regionChange"]);
+defineEmits(['regionChange']);
 
 const selectedRegionId = defineModel({
   type: String | undefined,

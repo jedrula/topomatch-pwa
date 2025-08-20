@@ -663,29 +663,73 @@
 
               <!-- Analysis Results -->
               <div class="space-y-4">
-                <!-- Identified Problem -->
+                <!-- Identified Problem(s) -->
                 <div class="bg-white border border-green-200 rounded-lg p-4">
-                  <h5 class="text-md font-medium text-gray-900 mb-2">Identified Boulder Problem</h5>
-                  <div class="flex items-center space-x-3">
+                  <h5 class="text-md font-medium text-gray-900 mb-2">
+                    Identified Boulder Problem{{ videoAnalysisResult?.holdAnalysis?.allScores?.length > 1 ? 's' : '' }}
+                  </h5>
+                  
+                  <!-- Primary match (best score) -->
+                  <div class="space-y-3">
+                    <div class="flex items-center space-x-3">
+                      <div
+                        class="w-3 h-3 rounded-full"
+                        :style="{ backgroundColor: getGradeColor(pendingRedirectData.problem.grade) }"
+                      ></div>
+                      <div class="flex-1">
+                        <div class="flex items-center space-x-2">
+                          <span class="font-semibold text-gray-900">{{
+                            pendingRedirectData.problem.name
+                          }}</span>
+                          <span class="text-sm text-gray-600">{{
+                            getGradeLabel(pendingRedirectData.problem.grade)
+                          }}</span>
+                          <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                            Best Match
+                          </span>
+                        </div>
+                        <div v-if="videoAnalysisResult?.holdAnalysis?.bestMatch" class="text-xs text-gray-500 mt-1">
+                          Score: {{ (videoAnalysisResult.holdAnalysis.bestMatch.score * 100).toFixed(1) }}%
+                        </div>
+                      </div>
+                    </div>
+                    <p
+                      v-if="pendingRedirectData.problem.description"
+                      class="text-sm text-gray-600 ml-6"
+                    >
+                      {{ pendingRedirectData.problem.description }}
+                    </p>
+                  </div>
+
+                  <!-- Alternative matches (2nd and 3rd place) -->
+                  <div
+                    v-if="videoAnalysisResult?.holdAnalysis?.allScores?.length > 1"
+                    class="mt-4 pt-3 border-t border-gray-100"
+                  >
+                    <h6 class="text-sm font-medium text-gray-700 mb-2">Alternative Matches</h6>
                     <div
-                      class="w-3 h-3 rounded-full"
-                      :style="{ backgroundColor: getGradeColor(pendingRedirectData.problem.grade) }"
-                    ></div>
-                    <div>
-                      <span class="font-semibold text-gray-900">{{
-                        pendingRedirectData.problem.name
-                      }}</span>
-                      <span class="text-sm text-gray-600 ml-2">{{
-                        getGradeLabel(pendingRedirectData.problem.grade)
-                      }}</span>
+                      v-for="(candidate, index) in videoAnalysisResult.holdAnalysis.allScores.slice(1, 3)"
+                      :key="candidate.problem.id"
+                      class="flex items-center space-x-3 py-2"
+                    >
+                      <div class="flex items-center space-x-2 text-xs text-gray-500">
+                        <span class="w-4 text-center">#{{ index + 2 }}</span>
+                      </div>
+                      <div
+                        class="w-2.5 h-2.5 rounded-full"
+                        :style="{ backgroundColor: getGradeColor(candidate.problem.grade) }"
+                      ></div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-2">
+                          <span class="text-sm text-gray-900 truncate">{{ candidate.problem.name }}</span>
+                          <span class="text-xs text-gray-500">{{ getGradeLabel(candidate.problem.grade) }}</span>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Score: {{ (candidate.score * 100).toFixed(1) }}%
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <p
-                    v-if="pendingRedirectData.problem.description"
-                    class="text-sm text-gray-600 mt-2"
-                  >
-                    {{ pendingRedirectData.problem.description }}
-                  </p>
                 </div>
 
                 <!-- Analysis Details from VideoFrameMatcherEnhanced -->
@@ -794,19 +838,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, inject } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { locationService } from "../services/locationService.js";
-import { useBoulderProblemsStore } from "../stores/boulderProblemsStore.js";
-import ImageUpload from "../components/ImageUpload.vue";
-import ImageGallery from "../components/ImageGallery.vue";
-import VideoGallery from "../components/VideoGallery.vue";
-import VideoFrameMatcher from "../components/VideoFrameMatcherEnhanced.vue";
-import { formatDate, isSameDateTime } from "../utils/dateUtils.js";
-import { getGradeLabel, getGradeDifficulty, getGradeColor } from "../utils/gradingUtils.js";
-import { useUserStore } from "../stores/userStore.js";
-import { transformPoint } from "../utils/homographyUtils.js";
-import { videoService } from "../services/videoService.js";
+import { ref, onMounted, computed, inject } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { locationService } from '../services/locationService.js';
+import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
+import ImageUpload from '../components/ImageUpload.vue';
+import ImageGallery from '../components/ImageGallery.vue';
+import VideoGallery from '../components/VideoGallery.vue';
+import VideoFrameMatcher from '../components/VideoFrameMatcherEnhanced.vue';
+import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
+import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
+import { useUserStore } from '../stores/userStore.js';
+import { transformPoint } from '../utils/homographyUtils.js';
+import { videoService } from '../services/videoService.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -814,7 +858,7 @@ const userStore = useUserStore();
 const boulderProblemsStore = useBoulderProblemsStore();
 
 // Inject auth modal controls
-const authModal = inject("authModal");
+const authModal = inject('authModal');
 
 const location = ref(null);
 const images = ref([]); // Placeholder for location images
@@ -825,7 +869,7 @@ const isVideoGalleryOpen = ref(false);
 const videoGalleryIndex = ref(0);
 const currentVideoFilter = ref(null); // For filtering videos by problem;
 const isLoading = ref(true);
-const error = ref("");
+const error = ref('');
 const showUploadModal = ref(false);
 const showBetaUploadModal = ref(false);
 
@@ -842,7 +886,7 @@ const isAnalyzing = ref(false);
 const matchedBoulderImage = ref(null);
 const allFrames = ref([]); // Will store 3 frames after match found
 const poseResults = ref([]); // Will store pose detection results
-const analysisPhase = ref(""); // 'matching', 'extracting-frames', 'detecting-poses', 'analyzing-holds'
+const analysisPhase = ref(''); // 'matching', 'extracting-frames', 'detecting-poses', 'analyzing-holds'
 const pendingRedirectData = ref(null); // Store analysis data for manual redirect after review
 
 // Grade expansion state
@@ -902,7 +946,7 @@ const initialImageIndex = computed(() => {
 const loadLocation = async () => {
   try {
     isLoading.value = true;
-    error.value = "";
+    error.value = '';
 
     location.value = await locationService.getLocation(locationId);
 
@@ -915,8 +959,8 @@ const loadLocation = async () => {
     // Load images for this location from the backend
     await loadLocationImages();
   } catch (err) {
-    console.error("Error loading location:", err);
-    error.value = "Failed to load location. Please try again.";
+    console.error('Error loading location:', err);
+    error.value = 'Failed to load location. Please try again.';
   } finally {
     isLoading.value = false;
   }
@@ -933,9 +977,9 @@ const loadLocationImages = async () => {
       name: record.fileName,
     }));
 
-    console.log("Loaded location images:", images.value);
+    console.log('Loaded location images:', images.value);
   } catch (err) {
-    console.error("Error loading location images:", err);
+    console.error('Error loading location images:', err);
     // Don't set error here, just keep images empty
     images.value = [];
   }
@@ -947,12 +991,12 @@ const loadLocationVideos = async () => {
   try {
     const locationVideos = await videoService.getLocationVideos(locationId);
     videos.value = locationVideos;
-    console.log("Loaded location videos:", videos.value);
+    console.log('Loaded location videos:', videos.value);
 
     // Also load video counts for each problem
     await loadProblemVideoCounts();
   } catch (err) {
-    console.error("Error loading location videos:", err);
+    console.error('Error loading location videos:', err);
     videos.value = [];
   } finally {
     videosLoading.value = false;
@@ -976,9 +1020,9 @@ const loadProblemVideoCounts = async () => {
     }
 
     problemVideoCounts.value = counts;
-    console.log("Loaded problem video counts:", counts);
+    console.log('Loaded problem video counts:', counts);
   } catch (err) {
-    console.error("Error loading problem video counts:", err);
+    console.error('Error loading problem video counts:', err);
   }
 };
 
@@ -1014,7 +1058,7 @@ const openProblemVideos = async (problem) => {
     videoGalleryIndex.value = 0;
     isVideoGalleryOpen.value = true;
   } catch (error) {
-    console.error("Error loading problem videos:", error);
+    console.error('Error loading problem videos:', error);
   }
 };
 
@@ -1026,13 +1070,13 @@ const filteredVideos = computed(() => {
 
   // Add problem names to videos
   return videosToShow.map((video) => {
-    console.log("boulderProblemsStore.boulderProblem", video, boulderProblemsStore.boulderProblems);
+    console.log('boulderProblemsStore.boulderProblem', video, boulderProblemsStore.boulderProblems);
     const problem = boulderProblemsStore.boulderProblems.find((p) => p.id === video.problemId);
-    console.log("problem", problem);
+    console.log('problem', problem);
 
     return {
       ...video,
-      problemName: problem?.name || "Unknown Problem",
+      problemName: problem?.name || 'Unknown Problem',
     };
   });
 });
@@ -1086,21 +1130,21 @@ const onGalleryNavigate = () => {
 const isHeicFile = (fileName) => {
   if (!fileName) return false;
   const lowerName = fileName.toLowerCase();
-  return lowerName.endsWith(".heic") || lowerName.endsWith(".heif");
+  return lowerName.endsWith('.heic') || lowerName.endsWith('.heif');
 };
 
 const handleUploadModalClose = () => {
   if (uploadsInProgress.value) {
     // Don't close modal while uploads are in progress
     // You could show a warning here if desired
-    console.log("Cannot close upload modal while uploads are in progress");
+    console.log('Cannot close upload modal while uploads are in progress');
     return;
   }
   showUploadModal.value = false;
 };
 
 const handleImageUploadComplete = async (uploadResult) => {
-  console.log("Image uploaded successfully:", uploadResult);
+  console.log('Image uploaded successfully:', uploadResult);
 
   // Increment pending metadata saves counter
   pendingMetadataSaves.value++;
@@ -1112,7 +1156,7 @@ const handleImageUploadComplete = async (uploadResult) => {
       uploadResult.fileName,
       uploadResult.downloadUrl
     );
-    console.log("Image metadata saved:", imageRecord);
+    console.log('Image metadata saved:', imageRecord);
 
     // Add the new image to the images array for immediate display
     images.value.push({
@@ -1121,7 +1165,7 @@ const handleImageUploadComplete = async (uploadResult) => {
       name: uploadResult.fileName,
     });
   } catch (error) {
-    console.error("Error saving image metadata:", error);
+    console.error('Error saving image metadata:', error);
     // Still continue - don't fail the entire upload for one metadata save failure
   }
 
@@ -1130,7 +1174,7 @@ const handleImageUploadComplete = async (uploadResult) => {
 
   // Check if all uploads and metadata saves are complete
   if (pendingMetadataSaves.value <= 0 && totalUploadsExpected.value > 0) {
-    console.log("All uploads and metadata saves complete");
+    console.log('All uploads and metadata saves complete');
     showUploadModal.value = false;
     // Reset counters
     pendingMetadataSaves.value = 0;
@@ -1139,7 +1183,7 @@ const handleImageUploadComplete = async (uploadResult) => {
 };
 
 const handleImageUploadError = (error) => {
-  console.error("Image upload failed:", error);
+  console.error('Image upload failed:', error);
   // Note: We don't increment pendingMetadataSaves for failed uploads
   // because failed uploads don't trigger metadata saves
 
@@ -1148,7 +1192,7 @@ const handleImageUploadError = (error) => {
 };
 
 const handleAllUploadsComplete = (uploadStats) => {
-  console.log("All storage uploads complete:", uploadStats);
+  console.log('All storage uploads complete:', uploadStats);
 
   // Set the expected number of metadata saves based on successful uploads
   totalUploadsExpected.value = uploadStats.completedUploads;
@@ -1158,7 +1202,7 @@ const handleAllUploadsComplete = (uploadStats) => {
 
   // If no successful uploads, close modal immediately
   if (uploadStats.completedUploads === 0) {
-    console.log("No successful uploads, closing modal");
+    console.log('No successful uploads, closing modal');
     showUploadModal.value = false;
     pendingMetadataSaves.value = 0;
     totalUploadsExpected.value = 0;
@@ -1169,7 +1213,7 @@ const handleAllUploadsComplete = (uploadStats) => {
 };
 
 const handleBetaVideoSelected = (videoFile) => {
-  console.log("Beta video selected:", videoFile.name);
+  console.log('Beta video selected:', videoFile.name);
   // Reset previous results and start matching phase
   videoAnalysisResult.value = null;
   extractedFrame.value = null;
@@ -1177,11 +1221,11 @@ const handleBetaVideoSelected = (videoFile) => {
   allFrames.value = [];
   poseResults.value = [];
   isAnalyzing.value = true;
-  analysisPhase.value = "matching";
+  analysisPhase.value = 'matching';
 };
 
 const handleBetaAnalysisComplete = async (analysisData) => {
-  console.log("🎉 Enhanced analysis complete:", analysisData);
+  console.log('🎉 Enhanced analysis complete:', analysisData);
 
   // The Enhanced component provides complete analysis including:
   // - video: the selected video file
@@ -1189,11 +1233,11 @@ const handleBetaAnalysisComplete = async (analysisData) => {
   // - match: matched image with homography matrix
 
   if (!analysisData.match) {
-    console.log("❌ No match found in analysis");
+    console.log('❌ No match found in analysis');
     videoAnalysisResult.value = {
       success: false,
       error: true,
-      message: "No matching boulder found in the uploaded video.",
+      message: 'No matching boulder found in the uploaded video.',
     };
     isAnalyzing.value = false;
     return;
@@ -1212,7 +1256,7 @@ const handleBetaAnalysisComplete = async (analysisData) => {
 
       console.log(`🔍 Processing frame ${i}:`, {
         hasPoseData: !!frame.poseData,
-        poseDataStructure: frame.poseData ? Object.keys(frame.poseData) : "none",
+        poseDataStructure: frame.poseData ? Object.keys(frame.poseData) : 'none',
       });
 
       if (frame.poseData && frame.poseData.keypoints) {
@@ -1267,11 +1311,11 @@ const handleBetaAnalysisComplete = async (analysisData) => {
   }
 
   poseResults.value = frameResults;
-  analysisPhase.value = "analyzing-holds";
+  analysisPhase.value = 'analyzing-holds';
 
   // Phase 4: Analyze holds using homography and boulder problem data
-  console.log("🧗 Analyzing hold usage...");
-  console.log("🔗 Homography matrix available:", !!analysisData.match?.homographyMatrix);
+  console.log('🧗 Analyzing hold usage...');
+  console.log('🔗 Homography matrix available:', !!analysisData.match?.homographyMatrix);
 
   let holdAnalysisResult = null;
   try {
@@ -1282,8 +1326,8 @@ const handleBetaAnalysisComplete = async (analysisData) => {
     );
 
     if (holdAnalysisResult?.bestMatch) {
-      console.log("🎯 Best matching problem:", holdAnalysisResult.bestMatch.problem.name);
-      analysisPhase.value = "complete";
+      console.log('🎯 Best matching problem:', holdAnalysisResult.bestMatch.problem.name);
+      analysisPhase.value = 'complete';
 
       // Store data for potential redirect but don't redirect automatically
       // Let user review the analysis first
@@ -1292,15 +1336,15 @@ const handleBetaAnalysisComplete = async (analysisData) => {
         problem: holdAnalysisResult.bestMatch.problem,
       };
     } else if (holdAnalysisResult) {
-      console.log("⚠️ Hold analysis completed but no matches found");
-      analysisPhase.value = "complete";
+      console.log('⚠️ Hold analysis completed but no matches found');
+      analysisPhase.value = 'complete';
     } else {
-      console.log("❌ Hold analysis failed to return results");
-      analysisPhase.value = "hold-analysis-failed";
+      console.log('❌ Hold analysis failed to return results');
+      analysisPhase.value = 'hold-analysis-failed';
     }
   } catch (error) {
-    console.error("❌ Hold analysis error:", error);
-    analysisPhase.value = "hold-analysis-error";
+    console.error('❌ Hold analysis error:', error);
+    analysisPhase.value = 'hold-analysis-error';
   }
 
   // Store complete result
@@ -1316,21 +1360,21 @@ const handleBetaAnalysisComplete = async (analysisData) => {
   };
 
   isAnalyzing.value = false;
-  console.log("✅ Complete video analysis finished!");
+  console.log('✅ Complete video analysis finished!');
 };
 
 const handleBetaProcessingError = (error) => {
-  console.error("Beta processing error:", error);
+  console.error('Beta processing error:', error);
   isAnalyzing.value = false;
   videoAnalysisResult.value = {
     success: false,
     error: true,
-    message: "Error processing video: " + error.message,
+    message: 'Error processing video: ' + error.message,
   };
 };
 
 const handleBetaVideoCleared = () => {
-  console.log("Beta video cleared");
+  console.log('Beta video cleared');
   // Reset all state when video is cleared
   videoAnalysisResult.value = null;
   extractedFrame.value = null;
@@ -1338,14 +1382,14 @@ const handleBetaVideoCleared = () => {
   matchedBoulderImage.value = null;
   allFrames.value = [];
   poseResults.value = [];
-  analysisPhase.value = "";
+  analysisPhase.value = '';
   pendingRedirectData.value = null;
 };
 
 // Handle manual continue after analysis review
 const continueToUpload = async () => {
   if (!pendingRedirectData.value) {
-    console.error("No pending redirect data available");
+    console.error('No pending redirect data available');
     return;
   }
 
@@ -1355,8 +1399,8 @@ const continueToUpload = async () => {
 
 // Phase 4: Hold Analysis - Compare poses with boulder problems
 const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => {
-  console.log("🎯 Phase 4: Starting hold analysis...");
-  console.log("📊 Input data:", {
+  console.log('🎯 Phase 4: Starting hold analysis...');
+  console.log('📊 Input data:', {
     frameResultsLength: frameResults?.length || 0,
     hasHomography: !!homographyMatrix,
     locationId: route.params.id,
@@ -1365,9 +1409,9 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
   });
 
   if (!homographyMatrix) {
-    console.log("⚠️ No homography matrix available for hold analysis");
+    console.log('⚠️ No homography matrix available for hold analysis');
     return {
-      error: "No homography matrix available",
+      error: 'No homography matrix available',
       bestMatch: null,
       allScores: [],
       transformedFrames: [],
@@ -1397,9 +1441,9 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
     }
 
     if (problemsForLocation.length === 0) {
-      console.log("ℹ️ No boulder problems found for this location");
+      console.log('ℹ️ No boulder problems found for this location');
       return {
-        error: "No boulder problems found for this location",
+        error: 'No boulder problems found for this location',
         bestMatch: null,
         allScores: [],
         transformedFrames: [],
@@ -1407,7 +1451,7 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
     }
 
     console.log(
-      "🏔️ Boulder problems:",
+      '🏔️ Boulder problems:',
       problemsForLocation.map((p) => ({
         id: p.id,
         name: p.name,
@@ -1448,17 +1492,17 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
 
       // Extract relevant keypoints for climbing analysis (wrists and ankles)
       const climbingKeypoints = [
-        { type: "leftWrist", point: firstPose.keypoints[9] }, // left wrist
-        { type: "rightWrist", point: firstPose.keypoints[10] }, // right wrist
-        { type: "leftAnkle", point: firstPose.keypoints[15] }, // left ankle
-        { type: "rightAnkle", point: firstPose.keypoints[16] }, // right ankle
+        { type: 'leftWrist', point: firstPose.keypoints[9] }, // left wrist
+        { type: 'rightWrist', point: firstPose.keypoints[10] }, // right wrist
+        { type: 'leftAnkle', point: firstPose.keypoints[15] }, // left ankle
+        { type: 'rightAnkle', point: firstPose.keypoints[16] }, // right ankle
       ].filter((kp) => {
         // Lower confidence threshold to be more inclusive
         const hasPoint = kp.point && kp.point.confidence > 0.3;
         if (!hasPoint) {
           console.log(
             `❌ ${kp.type} keypoint missing or low confidence:`,
-            kp.point?.confidence || "undefined"
+            kp.point?.confidence || 'undefined'
           );
         }
         return hasPoint;
@@ -1523,9 +1567,9 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
     console.log(`✅ Transformed ${transformedFrames.length} frames with valid poses`);
 
     if (transformedFrames.length === 0) {
-      console.log("⚠️ No valid poses to analyze");
+      console.log('⚠️ No valid poses to analyze');
       return {
-        error: "No valid poses found for analysis",
+        error: 'No valid poses found for analysis',
         bestMatch: null,
         allScores: [],
         transformedFrames: [],
@@ -1537,7 +1581,7 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
 
     for (const problem of problemsForLocation) {
       console.log(`🔍 Scoring problem "${problem.name}" with ${problem.holds?.length || 0} holds`);
-      const score = calculateProblemScore(problem, transformedFrames);
+      const score = calculateProblemScoreSimple(problem, transformedFrames);
 
       // Include ALL problems in the results, not just those with score > 0
       problemScores.push({
@@ -1557,7 +1601,7 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
     problemScores.sort((a, b) => b.score - a.score);
 
     console.log(
-      "🏆 Final problem scores:",
+      '🏆 Final problem scores:',
       problemScores.map((p) => ({
         name: p.problem.name,
         score: p.score.toFixed(3),
@@ -1576,7 +1620,7 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
       },
     };
 
-    console.log("🎯 Hold analysis complete:", {
+    console.log('🎯 Hold analysis complete:', {
       hasBestMatch: !!result.bestMatch,
       bestMatchName: result.bestMatch?.problem?.name,
       totalCandidates: result.allScores.length,
@@ -1584,7 +1628,7 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
 
     return result;
   } catch (error) {
-    console.error("❌ Hold analysis error:", error);
+    console.error('❌ Hold analysis error:', error);
     return {
       error: error.message,
       bestMatch: null,
@@ -1594,163 +1638,92 @@ const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => 
   }
 };
 
-// Calculate how well pose keypoints match with problem holds
-const calculateProblemScore = (problem, transformedFrames) => {
+// Calculate how well pose keypoints match with problem holds using simple score aggregation
+const calculateProblemScoreSimple = (problem, transformedFrames) => {
+  console.log(`🎯 Scoring problem "${problem.name}" with ${problem.holds?.length || 0} holds`);
+  
   if (!problem.holds || problem.holds.length === 0) {
     console.log(`❌ Problem "${problem.name}" has no holds defined`);
     return 0;
   }
 
   let totalScore = 0;
-  let totalMeasurements = 0;
-  const proximityThreshold = 150; // pixels - how close keypoint needs to be to hold
-  const usedHolds = new Set(); // Track which holds were matched
-  const holdMatches = []; // Track specific matches for debugging
-  const debugInfo = {
-    problemName: problem.name?.substring(0, 30) + "...",
-    holdsCount: problem.holds?.length || 0,
-    holdsWithCoords: 0,
-    keypointCount: 0,
-    closestDistances: [],
-    coordFormats: new Set(),
-  };
+  const proximityThreshold = 150; // Same threshold as table
+  const problemMatches = []; // Track individual matches for debugging
 
-  // Get hold center positions from the problem
-  const holdCenters = problem.holds
-    .map((holdData, index) => {
-      const hold = holdData.hold;
-
-      // Handle different coordinate formats from detection results
-      let x, y;
-
-      if (hold.coordinates) {
-        x = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
-        y = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
-        debugInfo.coordFormats.add("coordinates");
-      } else if (hold.bbox && Array.isArray(hold.bbox)) {
-        x = hold.bbox[0] + hold.bbox[2] / 2;
-        y = hold.bbox[1] + hold.bbox[3] / 2;
-        debugInfo.coordFormats.add("bbox");
-      } else if (hold.x !== undefined && hold.y !== undefined) {
-        x = hold.x + (hold.width || 0) / 2;
-        y = hold.y + (hold.height || 0) / 2;
-        debugInfo.coordFormats.add("x_y");
-      } else {
-        console.warn("Unknown hold coordinate format:", hold);
-        debugInfo.coordFormats.add("unknown");
-        return null;
-      }
-
-      debugInfo.holdsWithCoords++;
-      return { x, y, holdIndex: holdData.holdIndex || index, id: hold.id };
-    })
-    .filter(Boolean);
-
-  console.log(`📍 Problem "${debugInfo.problemName}" hold analysis:`);
-  console.log(`   • Raw holds count: ${problem.holds?.length || 0}`);
-  console.log(`   • Valid holdCenters: ${holdCenters.length}`);
-  console.log(
-    `   • Coordinate formats found: ${Array.from(debugInfo.coordFormats).join(", ") || "none"}`
-  );
-
-  if (problem.holds?.length > 0 && holdCenters.length === 0) {
-    console.log(`   • 🚨 ISSUE: ${problem.holds.length} holds defined but 0 valid coordinates!`);
-    console.log(`   • Sample hold structure:`, problem.holds[0]);
-  }
-
-  if (holdCenters.length > 0) {
-    console.log(`   • Sample holdCenter:`, holdCenters[0]);
-  }
-
-  // Skip analysis if no valid holds
-  if (holdCenters.length === 0) {
-    console.log(`⚠️ Skipping analysis - no valid hold coordinates found`);
-    return 0;
-  }
-
-  // For each transformed frame, check proximity to holds
+  // For each transformed frame, check proximity to holds  
   for (const frame of transformedFrames) {
     console.log(`🎯 Analyzing frame ${frame.frameIndex} with ${frame.keypoints.length} keypoints`);
 
     for (const keypoint of frame.keypoints) {
-      debugInfo.keypointCount++;
-
-      // Find closest hold to this keypoint
-      let closestDistance = Infinity;
-      let closestHold = null;
-
-      for (const hold of holdCenters) {
-        const distance = Math.sqrt(
-          Math.pow(keypoint.x - hold.x, 2) + Math.pow(keypoint.y - hold.y, 2)
-        );
-
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          closestHold = hold;
-        }
+      // Skip very low-confidence keypoints
+      if (keypoint.confidence < 0.2) {
+        continue;
       }
 
-      debugInfo.closestDistances.push(Math.round(closestDistance));
+      // Get hold center positions from the problem - same logic as table
+      const holdDistances = problem.holds
+        .map((holdData, index) => {
+          const hold = holdData.hold;
+          let x, y;
 
-      // Score based on proximity (closer = higher score)
-      if (closestDistance <= proximityThreshold && closestHold) {
-        const proximityScore = (proximityThreshold - closestDistance) / proximityThreshold;
-        const confidenceScore = keypoint.confidence;
-        const keypointScore = proximityScore * confidenceScore;
+          // Extract coordinates using same logic as table
+          if (hold.coordinates) {
+            x = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
+            y = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
+          } else if (hold.bbox && Array.isArray(hold.bbox)) {
+            x = hold.bbox[0] + hold.bbox[2] / 2;
+            y = hold.bbox[1] + hold.bbox[3] / 2;
+          } else if (hold.x !== undefined && hold.y !== undefined) {
+            x = hold.x + (hold.width || 0) / 2;
+            y = hold.y + (hold.height || 0) / 2;
+          } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
+            x = hold.center_x;
+            y = hold.center_y;
+          } else {
+            console.warn('Unknown hold coordinate format:', hold);
+            return null;
+          }
 
-        totalScore += keypointScore;
-        totalMeasurements++;
-        usedHolds.add(closestHold.holdIndex);
+          const distance = Math.sqrt(
+            Math.pow(keypoint.x - x, 2) + Math.pow(keypoint.y - y, 2)
+          );
 
-        holdMatches.push({
+          // Calculate score - same logic as table
+          const score = distance <= proximityThreshold ? 
+            (proximityThreshold - distance) / proximityThreshold : 0;
+
+          return {
+            holdIndex: holdData.holdIndex || index,
+            distance: Math.round(distance),
+            score: score
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.distance - b.distance);
+
+      // Get the best scoring hold for this keypoint in this problem
+      const bestHold = holdDistances[0];
+      if (bestHold && bestHold.score > 0) {
+        totalScore += bestHold.score;
+        problemMatches.push({
           keypoint: keypoint.type,
-          holdIndex: closestHold.holdIndex,
-          distance: Math.round(closestDistance),
-          score: Math.round(keypointScore * 100) / 100,
+          frame: frame.frameIndex,
+          holdIndex: bestHold.holdIndex,
+          distance: bestHold.distance,
+          score: bestHold.score
         });
 
         console.log(
-          `✅ ${keypoint.type} matches hold #${closestHold.holdIndex} (distance: ${Math.round(
-            closestDistance
-          )}px, score: ${keypointScore.toFixed(3)})`
-        );
-      } else {
-        console.log(
-          `❌ ${keypoint.type} at (${Math.round(keypoint.x)}, ${Math.round(
-            keypoint.y
-          )}) - closest hold ${Math.round(
-            closestDistance
-          )}px away (threshold: ${proximityThreshold}px)`
+          `✅ ${keypoint.type} (frame ${frame.frameIndex}) matches hold #${bestHold.holdIndex} ` +
+          `(${bestHold.distance}px, score: ${bestHold.score.toFixed(3)})`
         );
       }
     }
   }
 
-  // Calculate average score
-  const finalScore = totalMeasurements > 0 ? totalScore / totalMeasurements : 0;
-  const holdUsagePercentage =
-    problem.holds.length > 0 ? (usedHolds.size / problem.holds.length) * 100 : 0;
-
-  console.log(`📊 Problem "${debugInfo.problemName}" FINAL ANALYSIS:`);
-  console.log(
-    `   • Holds: ${debugInfo.holdsWithCoords}/${debugInfo.holdsCount} with valid coordinates`
-  );
-  console.log(`   • Coordinate formats: ${Array.from(debugInfo.coordFormats).join(", ")}`);
-  console.log(`   • Keypoints analyzed: ${debugInfo.keypointCount}`);
-  console.log(
-    `   • Closest distances: ${debugInfo.closestDistances.slice(0, 5).join("px, ")}px... (first 5)`
-  );
-  console.log(`   • Distance threshold: ${proximityThreshold}px`);
-  console.log(`   • Total measurements: ${totalMeasurements}`);
-  console.log(
-    `   • Holds used: ${usedHolds.size}/${problem.holds.length} (${Math.round(
-      holdUsagePercentage
-    )}%)`
-  );
-  console.log(`   • Average score: ${finalScore.toFixed(3)}`);
-  console.log(`   • Matches:`, holdMatches);
-
-  return finalScore;
+  console.log(`📊 Problem "${problem.name}" total score: ${totalScore.toFixed(3)} from ${problemMatches.length} matches`);
+  return totalScore;
 };
 
 // Grade expansion functions
@@ -1766,7 +1739,7 @@ const toggleGradeExpansion = (grade) => {
 
 // Redirect to problem page with video data
 const redirectToProblemPageWithVideo = async (analysisData, problem) => {
-  console.log("🚀 Redirecting to problem page with video data:", {
+  console.log('🚀 Redirecting to problem page with video data:', {
     problemId: problem.id,
     problemName: problem.name,
     hasVideo: !!analysisData.video,
@@ -1809,42 +1782,42 @@ const redirectToProblemPageWithVideo = async (analysisData, problem) => {
       },
     };
 
-    sessionStorage.setItem("prefilledVideoData", JSON.stringify(minimalData));
-    console.log("📁 Stored minimal data in sessionStorage:", minimalData);
+    sessionStorage.setItem('prefilledVideoData', JSON.stringify(minimalData));
+    console.log('📁 Stored minimal data in sessionStorage:', minimalData);
   } catch (storageError) {
-    console.warn("⚠️ Could not store data in sessionStorage:", storageError);
+    console.warn('⚠️ Could not store data in sessionStorage:', storageError);
     // Continue without sessionStorage - we'll rely on window.tempVideoFile
   }
 
   // Store the actual File object in a temporary variable
   // that the target page can access
   window.tempVideoFile = analysisData.video;
-  console.log("📁 Stored video file in window.tempVideoFile");
+  console.log('📁 Stored video file in window.tempVideoFile');
 
   // Navigate to the problem page
   await router.push({
-    name: "boulder-problem-detail",
+    name: 'boulder-problem-detail',
     params: {
       locationId: route.params.locationId || route.params.id,
       problemId: problem.id,
     },
     query: {
-      action: "log-ascent",
-      hasPrefilledVideo: "true",
+      action: 'log-ascent',
+      hasPrefilledVideo: 'true',
     },
   });
 };
 
 onMounted(async () => {
-  console.log("🔄 Loading OpenCV.js for homography calculations...");
+  console.log('🔄 Loading OpenCV.js for homography calculations...');
   try {
     // Import OpenCV.js - required for homography matrix calculation
-    const cvReadyPromise = await import("@techstark/opencv-js");
+    const cvReadyPromise = await import('@techstark/opencv-js');
     window.cv = await cvReadyPromise.default;
-    console.log("✅ OpenCV.js loaded successfully for LocationDetailView");
+    console.log('✅ OpenCV.js loaded successfully for LocationDetailView');
   } catch (err) {
-    console.error("❌ Failed to load OpenCV.js:", err);
-    console.warn("⚠️ Homography calculations will not be available");
+    console.error('❌ Failed to load OpenCV.js:', err);
+    console.warn('⚠️ Homography calculations will not be available');
   }
 
   loadLocation();

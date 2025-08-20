@@ -184,15 +184,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
-import { useAscentStore } from "@/stores/ascentStore";
-import { useUserStore } from "@/stores/userStore";
-import { locationService } from "@/services/locationService";
-import { getGradeLabel } from "@/utils/gradingUtils.js";
-import AscentLogger from "@/components/AscentLogger.vue";
-import AscentHistory from "@/components/AscentHistory.vue";
+import { ref, computed, onMounted, inject } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+import { useAscentStore } from '@/stores/ascentStore';
+import { useUserStore } from '@/stores/userStore';
+import { locationService } from '@/services/locationService';
+import { getGradeLabel } from '@/utils/gradingUtils.js';
+import AscentLogger from '@/components/AscentLogger.vue';
+import AscentHistory from '@/components/AscentHistory.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -201,7 +201,7 @@ const ascentStore = useAscentStore();
 const userStore = useUserStore();
 
 // Inject auth modal controls
-const authModal = inject("authModal");
+const authModal = inject('authModal');
 
 const loading = ref(true);
 const error = ref(null);
@@ -252,7 +252,7 @@ const croppedImageStyle = computed(() => {
 });
 
 const formatDate = (timestamp) => {
-  if (!timestamp) return "N/A";
+  if (!timestamp) return 'N/A';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   return date.toLocaleDateString();
 };
@@ -268,7 +268,7 @@ const viewOnImage = async () => {
       query: { imageId },
     });
   } catch (error) {
-    console.error("Error navigating to image:", error);
+    console.error('Error navigating to image:', error);
     // Fallback to location without image query
     router.push(`/location/${route.params.locationId}`);
   }
@@ -329,7 +329,7 @@ const loadProblemData = async () => {
     problem.value = boulderProblemsStore.boulderProblems.find((p) => p.id === problemId);
 
     if (!problem.value) {
-      error.value = "Boulder problem not found";
+      error.value = 'Boulder problem not found';
       return;
     }
 
@@ -364,13 +364,13 @@ const loadProblemData = async () => {
           img.src = image.value.url;
         }
       } catch (imgError) {
-        console.error("Error loading image:", imgError);
+        console.error('Error loading image:', imgError);
         // Continue without image - the view will still work
       }
     }
   } catch (err) {
-    console.error("Error loading boulder problem:", err);
-    error.value = "Failed to load boulder problem";
+    console.error('Error loading boulder problem:', err);
+    error.value = 'Failed to load boulder problem';
   } finally {
     loading.value = false;
   }
@@ -387,15 +387,15 @@ const editAscent = (ascent) => {
   // For now, just show the logger with the ascent data
   // In a more complex implementation, you could pre-populate the form
   showAscentLogger.value = true;
-  console.log("Edit ascent:", ascent);
+  console.log('Edit ascent:', ascent);
 };
 
 onMounted(() => {
   loadProblemData();
 
   // Check if we should auto-open ascent logger with prefilled video
-  if (route.query.action === "log-ascent" && route.query.hasPrefilledVideo === "true") {
-    console.log("🎯 Auto-opening ascent logger with prefilled video data");
+  if (route.query.action === 'log-ascent' && route.query.hasPrefilledVideo === 'true') {
+    console.log('🎯 Auto-opening ascent logger with prefilled video data');
 
     // Auto-open the ascent logger
     showAscentLogger.value = true;

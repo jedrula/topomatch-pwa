@@ -13,8 +13,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, defineEmits, computed } from "vue";
-import { getManifestForRegion } from "@/data/manifests";
+import { ref, onMounted, defineEmits, computed } from 'vue';
+import { getManifestForRegion } from '@/data/manifests';
 
 const props = defineProps({
   regionId: {
@@ -29,7 +29,7 @@ const props = defineProps({
 
 const imagesRef = ref([]); // renamed to avoid collision
 const selectedImages = ref([]);
-const emit = defineEmits(["topo-list-loaded"]);
+const emit = defineEmits(['topo-list-loaded']);
 
 const imagesProp = computed(() => props.images ?? imagesRef.value);
 
@@ -47,9 +47,9 @@ onMounted(() => {
     const manifestData = getManifestForRegion(props.regionId);
     imagesRef.value = manifestData;
     selectedImages.value = [...manifestData]; // select all by default
-    emit("topo-list-loaded", [...manifestData]);
+    emit('topo-list-loaded', [...manifestData]);
   } catch (error) {
-    console.error("Error loading region manifest:", error);
+    console.error('Error loading region manifest:', error);
     alert(`Error loading region manifest: ${error.message}`);
   }
 });

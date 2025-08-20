@@ -21,27 +21,27 @@
 </template>
 
 <script>
-import { ref } from "vue";
-import { useUserStore } from "../stores/userStore.js";
-import { adminService } from "../services/adminService.js";
+import { ref } from 'vue';
+import { useUserStore } from '../stores/userStore.js';
+import { adminService } from '../services/adminService.js';
 
 export default {
-  name: "AdminPanel",
+  name: 'AdminPanel',
   setup() {
     const userStore = useUserStore();
     const loading = ref(false);
-    const message = ref("");
-    const messageType = ref("");
-    const targetUid = ref("");
+    const message = ref('');
+    const messageType = ref('');
+    const targetUid = ref('');
 
     const clearMessage = () => {
       setTimeout(() => {
-        message.value = "";
-        messageType.value = "";
+        message.value = '';
+        messageType.value = '';
       }, 5000);
     };
 
-    const showMessage = (text, type = "info") => {
+    const showMessage = (text, type = 'info') => {
       message.value = text;
       messageType.value = type;
       clearMessage();
@@ -53,10 +53,10 @@ export default {
       loading.value = true;
       try {
         await adminService.setAdminRole(targetUid.value, true);
-        showMessage("Admin role granted successfully!", "success");
-        targetUid.value = "";
+        showMessage('Admin role granted successfully!', 'success');
+        targetUid.value = '';
       } catch (error) {
-        showMessage(`Error: ${error.message}`, "error");
+        showMessage(`Error: ${error.message}`, 'error');
       } finally {
         loading.value = false;
       }
@@ -68,10 +68,10 @@ export default {
       loading.value = true;
       try {
         await adminService.setAdminRole(targetUid.value, false);
-        showMessage("Admin role revoked successfully!", "success");
-        targetUid.value = "";
+        showMessage('Admin role revoked successfully!', 'success');
+        targetUid.value = '';
       } catch (error) {
-        showMessage(`Error: ${error.message}`, "error");
+        showMessage(`Error: ${error.message}`, 'error');
       } finally {
         loading.value = false;
       }

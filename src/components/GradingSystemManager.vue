@@ -84,61 +84,61 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch } from 'vue';
 
-const emit = defineEmits(["system-selected"]);
+const emit = defineEmits(['system-selected']);
 
 // Simple system types
-const selectedSystemType = ref("v-scale");
+const selectedSystemType = ref('v-scale');
 const numericMaxLevel = ref(8);
 
 // Predefined systems
 const vScaleGrades = [
-  { value: 0, label: "VB", difficulty: 0 },
-  { value: 1, label: "V0", difficulty: 1 },
-  { value: 2, label: "V1", difficulty: 2 },
-  { value: 3, label: "V2", difficulty: 3 },
-  { value: 4, label: "V3", difficulty: 4 },
-  { value: 5, label: "V4", difficulty: 5 },
-  { value: 6, label: "V5", difficulty: 6 },
-  { value: 7, label: "V6", difficulty: 7 },
-  { value: 8, label: "V7", difficulty: 8 },
-  { value: 9, label: "V8", difficulty: 9 },
-  { value: 10, label: "V9", difficulty: 10 },
-  { value: 11, label: "V10", difficulty: 11 },
-  { value: 12, label: "V11", difficulty: 12 },
-  { value: 13, label: "V12", difficulty: 13 },
-  { value: 14, label: "V13", difficulty: 14 },
-  { value: 15, label: "V14", difficulty: 15 },
-  { value: 16, label: "V15", difficulty: 16 },
-  { value: 17, label: "V16", difficulty: 17 },
-  { value: 18, label: "V17", difficulty: 18 },
+  { value: 0, label: 'VB', difficulty: 0 },
+  { value: 1, label: 'V0', difficulty: 1 },
+  { value: 2, label: 'V1', difficulty: 2 },
+  { value: 3, label: 'V2', difficulty: 3 },
+  { value: 4, label: 'V3', difficulty: 4 },
+  { value: 5, label: 'V4', difficulty: 5 },
+  { value: 6, label: 'V5', difficulty: 6 },
+  { value: 7, label: 'V6', difficulty: 7 },
+  { value: 8, label: 'V7', difficulty: 8 },
+  { value: 9, label: 'V8', difficulty: 9 },
+  { value: 10, label: 'V9', difficulty: 10 },
+  { value: 11, label: 'V10', difficulty: 11 },
+  { value: 12, label: 'V11', difficulty: 12 },
+  { value: 13, label: 'V12', difficulty: 13 },
+  { value: 14, label: 'V13', difficulty: 14 },
+  { value: 15, label: 'V14', difficulty: 15 },
+  { value: 16, label: 'V15', difficulty: 16 },
+  { value: 17, label: 'V16', difficulty: 17 },
+  { value: 18, label: 'V17', difficulty: 18 },
 ];
 
 const fontainebleauGrades = [
-  { value: 0, label: "3", difficulty: 0 },
-  { value: 1, label: "4", difficulty: 1 },
-  { value: 2, label: "5a", difficulty: 2 },
-  { value: 3, label: "5b", difficulty: 3 },
-  { value: 4, label: "5c", difficulty: 4 },
-  { value: 5, label: "6a", difficulty: 5 },
-  { value: 6, label: "6a+", difficulty: 6 },
-  { value: 7, label: "6b", difficulty: 7 },
-  { value: 8, label: "6b+", difficulty: 8 },
-  { value: 9, label: "6c", difficulty: 9 },
-  { value: 10, label: "6c+", difficulty: 10 },
-  { value: 11, label: "7a", difficulty: 11 },
-  { value: 12, label: "7a+", difficulty: 12 },
-  { value: 13, label: "7b", difficulty: 13 },
-  { value: 14, label: "7b+", difficulty: 14 },
-  { value: 15, label: "7c", difficulty: 15 },
-  { value: 16, label: "7c+", difficulty: 16 },
-  { value: 17, label: "8a", difficulty: 17 },
-  { value: 18, label: "8a+", difficulty: 18 },
-  { value: 19, label: "8b", difficulty: 19 },
-  { value: 20, label: "8b+", difficulty: 20 },
-  { value: 21, label: "8c", difficulty: 21 },
-  { value: 22, label: "8c+", difficulty: 22 },
+  { value: 0, label: '3', difficulty: 0 },
+  { value: 1, label: '4', difficulty: 1 },
+  { value: 2, label: '5a', difficulty: 2 },
+  { value: 3, label: '5b', difficulty: 3 },
+  { value: 4, label: '5c', difficulty: 4 },
+  { value: 5, label: '6a', difficulty: 5 },
+  { value: 6, label: '6a+', difficulty: 6 },
+  { value: 7, label: '6b', difficulty: 7 },
+  { value: 8, label: '6b+', difficulty: 8 },
+  { value: 9, label: '6c', difficulty: 9 },
+  { value: 10, label: '6c+', difficulty: 10 },
+  { value: 11, label: '7a', difficulty: 11 },
+  { value: 12, label: '7a+', difficulty: 12 },
+  { value: 13, label: '7b', difficulty: 13 },
+  { value: 14, label: '7b+', difficulty: 14 },
+  { value: 15, label: '7c', difficulty: 15 },
+  { value: 16, label: '7c+', difficulty: 16 },
+  { value: 17, label: '8a', difficulty: 17 },
+  { value: 18, label: '8a+', difficulty: 18 },
+  { value: 19, label: '8b', difficulty: 19 },
+  { value: 20, label: '8b+', difficulty: 20 },
+  { value: 21, label: '8c', difficulty: 21 },
+  { value: 22, label: '8c+', difficulty: 22 },
 ];
 
 // Generate numeric grades based on max level
@@ -157,25 +157,25 @@ const generateNumericGrades = (maxLevel) => {
 // Computed system based on selection
 const selectedSystem = computed(() => {
   switch (selectedSystemType.value) {
-    case "v-scale":
+    case 'v-scale':
       return {
-        id: "v-scale",
-        name: "V-Scale (Traditional Bouldering)",
-        type: "preset",
+        id: 'v-scale',
+        name: 'V-Scale (Traditional Bouldering)',
+        type: 'preset',
         grades: vScaleGrades,
       };
-    case "fontainebleau":
+    case 'fontainebleau':
       return {
-        id: "fontainebleau",
-        name: "Fontainebleau (French System)",
-        type: "preset",
+        id: 'fontainebleau',
+        name: 'Fontainebleau (French System)',
+        type: 'preset',
         grades: fontainebleauGrades,
       };
-    case "numeric":
+    case 'numeric':
       return {
         id: `numeric-${numericMaxLevel.value}`,
         name: `Numeric Scale (1-${numericMaxLevel.value})`,
-        type: "numeric",
+        type: 'numeric',
         maxLevel: numericMaxLevel.value,
         grades: generateNumericGrades(numericMaxLevel.value),
       };
@@ -189,7 +189,7 @@ watch(
   selectedSystem,
   (newSystem) => {
     if (newSystem) {
-      emit("system-selected", newSystem);
+      emit('system-selected', newSystem);
     }
   },
   { deep: true }

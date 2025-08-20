@@ -20,5 +20,5 @@
 </template>
 
 <script setup>
-import PoseDetector from "@/components/PoseDetector.vue";
+import PoseDetector from '@/components/PoseDetector.vue';
 </script>

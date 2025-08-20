@@ -1,7 +1,7 @@
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
 
-export const useHoldDetectionStore = defineStore("holdDetection", () => {
+export const useHoldDetectionStore = defineStore('holdDetection', () => {
   // Initialize the hold detection worker
   const holdDetectionWorker = ref(null);
 
@@ -11,7 +11,7 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
   const sessionTime = ref(null);
   const samSessionTime = ref(null);
   const isLoading = ref(false);
-  const loadingMessage = ref("");
+  const loadingMessage = ref('');
   const detectionResults = ref(null);
   const currentlyProcessingImage = ref(null);
   const errorString = ref(null);
@@ -23,7 +23,7 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
 
   // Initialize the worker and create session
   const initializeSession = () => {
-    console.log("Initializing hold detection and SAM workers...");
+    console.log('Initializing hold detection and SAM workers...');
 
     // Initialize YOLO hold detection worker
     if (holdDetectionWorker.value) {
@@ -36,31 +36,31 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
     }
 
     // Create new YOLO worker
-    console.log("Creating new hold detection worker...");
+    console.log('Creating new hold detection worker...');
     holdDetectionWorker.value = new Worker(
-      new URL("/holdDetectionWorker.combined.js", import.meta.url),
-      { type: "module" }
+      new URL('/holdDetectionWorker.combined.js', import.meta.url),
+      { type: 'module' }
     );
 
     // Create new SAM worker
-    console.log("Creating new SAM segmentation worker...");
-    samWorker.value = new Worker(new URL("../workers/samSegmentationWorker.js", import.meta.url), {
-      type: "module",
+    console.log('Creating new SAM segmentation worker...');
+    samWorker.value = new Worker(new URL('../workers/samSegmentationWorker.js', import.meta.url), {
+      type: 'module',
     });
 
     // Set up YOLO worker message handling
     holdDetectionWorker.value.onmessage = (event) => {
       const { type, data } = event.data;
-      console.log("Received message from hold detection worker:", type, data);
+      console.log('Received message from hold detection worker:', type, data);
 
       switch (type) {
-        case "sessionCreated":
+        case 'sessionCreated':
           sessionReady.value = true;
           sessionTime.value = data.sessionTime;
           console.log(`Hold detection session created in ${data.sessionTime.toFixed(2)}ms`);
           break;
 
-        case "detectionComplete": {
+        case 'detectionComplete': {
           // YOLO detection completed, now decide whether to use SAM
           if (useSAMSegmentation.value && samSessionReady.value) {
             // Convert YOLO detections to SAM input format
@@ -71,11 +71,11 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
             }));
 
             console.log(`Sending ${holdCenters.length} hold centers to SAM for segmentation...`);
-            loadingMessage.value = "Generating precise hold segments...";
+            loadingMessage.value = 'Generating precise hold segments...';
 
             // Send to SAM worker for segmentation
             samWorker.value.postMessage({
-              type: "generateMasks",
+              type: 'generateMasks',
               data: {
                 imageBuffer: currentlyProcessingImage.value.imageBuffer,
                 holdCenters: holdCenters,
@@ -88,40 +88,40 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
           break;
         }
 
-        case "error":
-          console.error("Hold detection worker error:", data.message);
+        case 'error':
+          console.error('Hold detection worker error:', data.message);
           errorString.value = data.message;
           currentlyProcessingImage.value = null;
           isLoading.value = false;
-          loadingMessage.value = "";
+          loadingMessage.value = '';
           break;
 
         default:
-          console.warn("Unknown message type from hold detection worker:", type);
+          console.warn('Unknown message type from hold detection worker:', type);
       }
     };
 
     // Set up SAM worker message handling
     samWorker.value.onmessage = (event) => {
       const { type, data } = event.data;
-      console.log("Received message from SAM worker:", type, data);
+      console.log('Received message from SAM worker:', type, data);
 
       switch (type) {
-        case "samSessionCreated":
+        case 'samSessionCreated':
           samSessionReady.value = true;
           samSessionTime.value = data.sessionTime;
           console.log(`SAM session created in ${data.sessionTime.toFixed(2)}ms`);
           break;
 
-        case "segment_result":
-          if (data === "start") {
-            loadingMessage.value = "Processing image for segmentation...";
-          } else if (data === "done") {
-            loadingMessage.value = "Image embeddings computed, ready for segmentation...";
+        case 'segment_result':
+          if (data === 'start') {
+            loadingMessage.value = 'Processing image for segmentation...';
+          } else if (data === 'done') {
+            loadingMessage.value = 'Image embeddings computed, ready for segmentation...';
           }
           break;
 
-        case "masksGenerated": {
+        case 'masksGenerated': {
           // SAM segmentation completed
           console.log(
             `SAM segmentation completed: ${data.successfulSegmentations}/${data.totalHolds} holds segmented`
@@ -143,16 +143,16 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
           break;
         }
 
-        case "error":
-          console.error("SAM worker error:", data.message);
+        case 'error':
+          console.error('SAM worker error:', data.message);
           errorString.value = `SAM segmentation failed: ${data.message}`;
           currentlyProcessingImage.value = null;
           isLoading.value = false;
-          loadingMessage.value = "";
+          loadingMessage.value = '';
           break;
 
         default:
-          console.warn("Unknown message type from SAM worker:", type);
+          console.warn('Unknown message type from SAM worker:', type);
       }
     };
 
@@ -164,7 +164,7 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
           // Add unique ID for tracking if not already present
           id: hold.id || `hold_${index}_${Date.now()}`,
           // Ensure type is set
-          type: hold.type || "hold",
+          type: hold.type || 'hold',
         };
       });
 
@@ -177,34 +177,34 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
       };
       currentlyProcessingImage.value = null;
       isLoading.value = false;
-      loadingMessage.value = "";
+      loadingMessage.value = '';
       console.log(`Hold detection completed in ${data.processingTime.toFixed(2)}ms`);
       console.log(`Found ${holds.length} holds`);
       if (data.pipelineInfo) {
-        console.log("Pipeline info:", data.pipelineInfo);
+        console.log('Pipeline info:', data.pipelineInfo);
       }
     };
 
     holdDetectionWorker.value.onerror = (error) => {
-      console.error("Hold detection worker error:", error);
-      errorString.value = "Hold detection worker error occurred. Please refresh and try again.";
+      console.error('Hold detection worker error:', error);
+      errorString.value = 'Hold detection worker error occurred. Please refresh and try again.';
       sessionReady.value = false;
       isLoading.value = false;
     };
 
     samWorker.value.onerror = (error) => {
-      console.error("SAM worker error:", error);
-      errorString.value = "SAM segmentation worker error occurred. Please refresh and try again.";
+      console.error('SAM worker error:', error);
+      errorString.value = 'SAM segmentation worker error occurred. Please refresh and try again.';
       samSessionReady.value = false;
       isLoading.value = false;
     };
 
     // Request session creation from both workers
-    console.log("Requesting session creation from YOLO worker...");
-    holdDetectionWorker.value.postMessage({ type: "createSession" });
+    console.log('Requesting session creation from YOLO worker...');
+    holdDetectionWorker.value.postMessage({ type: 'createSession' });
 
-    console.log("Requesting session creation from SAM worker...");
-    samWorker.value.postMessage({ type: "initializeSAM" });
+    console.log('Requesting session creation from SAM worker...');
+    samWorker.value.postMessage({ type: 'initializeSAM' });
   };
 
   // Start session creation immediately
@@ -213,17 +213,17 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
   const runHoldDetection = async (imageFile) => {
     // Check if session is ready before starting detection
     if (!sessionReady.value) {
-      errorString.value = "Hold detection session is not ready yet. Please wait.";
+      errorString.value = 'Hold detection session is not ready yet. Please wait.';
       return;
     }
 
     if (!holdDetectionWorker.value) {
-      errorString.value = "Hold detection worker is not available. Please refresh and try again.";
+      errorString.value = 'Hold detection worker is not available. Please refresh and try again.';
       return;
     }
 
     isLoading.value = true;
-    loadingMessage.value = "Detecting climbing holds...";
+    loadingMessage.value = 'Detecting climbing holds...';
     errorString.value = null;
 
     try {
@@ -243,21 +243,21 @@ export const useHoldDetectionStore = defineStore("holdDetection", () => {
       };
 
       // Clean up ImageBitmap
-      if (imageBitmap && typeof imageBitmap.close === "function") {
+      if (imageBitmap && typeof imageBitmap.close === 'function') {
         imageBitmap.close();
       }
 
       // Send detection request to YOLO worker
       holdDetectionWorker.value.postMessage({
-        type: "runDetection",
+        type: 'runDetection',
         imageBuffer: imageBuffer,
       });
     } catch (error) {
-      console.error("Hold detection error:", error);
-      errorString.value = error.message || "Failed to detect holds. Please try again.";
+      console.error('Hold detection error:', error);
+      errorString.value = error.message || 'Failed to detect holds. Please try again.';
       currentlyProcessingImage.value = null;
       isLoading.value = false;
-      loadingMessage.value = "";
+      loadingMessage.value = '';
     }
   };
 

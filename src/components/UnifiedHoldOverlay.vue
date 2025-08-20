@@ -21,8 +21,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import HoldSvg from "./HoldSvg.vue";
+import { ref, computed } from 'vue';
+import HoldSvg from './HoldSvg.vue';
 
 const props = defineProps({
   detectionResults: {
@@ -86,7 +86,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["hold-click", "hold-hover"]);
+const emit = defineEmits(['hold-click', 'hold-hover']);
 
 // Reactive state
 const svgElement = ref(null);
@@ -95,7 +95,7 @@ const hoveredProblemIdLocal = ref(null);
 
 // SVG viewBox based on image dimensions
 const svgViewBox = computed(() => {
-  if (!props.detectionResults?.image_info) return "0 0 1000 1000";
+  if (!props.detectionResults?.image_info) return '0 0 1000 1000';
   const { width, height } = props.detectionResults.image_info;
   return `0 0 ${width} ${height}`;
 });
@@ -149,9 +149,9 @@ const getHoldInteraction = (holdIndex) => {
   // Magic Wand highlighting takes priority when active
   if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
     if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
-      return "selected"; // Show magic wand selected holds as selected
+      return 'selected'; // Show magic wand selected holds as selected
     } else {
-      return "default"; // Other holds are invisible during magic wand
+      return 'default'; // Other holds are invisible during magic wand
     }
   }
 
@@ -166,23 +166,23 @@ const getHoldInteraction = (holdIndex) => {
       // This hold belongs to the isolated problem - show it
       console.log(`✅ Hold ${holdIndex} belongs to isolated problem - showing`);
       if (hoveredHoldIndex.value === holdIndex) {
-        return "hover";
+        return 'hover';
       } else if (
         props.hoveredProblemId === problemId ||
         hoveredProblemIdLocal.value === problemId
       ) {
-        return "hover";
+        return 'hover';
       } else {
-        return "selected";
+        return 'selected';
       }
     } else {
       // This hold belongs to a different problem or is unclassified - hide it
       console.log(
         `🙈 Hold ${holdIndex} does NOT belong to isolated problem (belongs to: ${
-          problemId || "unclassified"
+          problemId || 'unclassified'
         }) - hiding`
       );
-      return "hidden";
+      return 'hidden';
     }
   }
 
@@ -193,13 +193,13 @@ const getHoldInteraction = (holdIndex) => {
       if (!filteredProblemIds.value.has(problemId)) {
         // This hold belongs to a problem that doesn't match the filter - hide it
         console.log(`🙈 Hold ${holdIndex} belongs to filtered-out problem ${problemId} - hiding`);
-        return "hidden";
+        return 'hidden';
       }
       // Fall through to normal problem hold logic
     } else {
       // This is an unclassified hold - hide it during filtering for cleaner view
       console.log(`🙈 Hold ${holdIndex} is unclassified during grade filtering - hiding`);
-      return "hidden";
+      return 'hidden';
     }
   }
 
@@ -213,30 +213,30 @@ const getHoldInteraction = (holdIndex) => {
     // Hold belongs to a problem
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
       // Hold is part of the problem being created
-      return hoveredHoldIndex.value === holdIndex ? "hover" : "selected";
+      return hoveredHoldIndex.value === holdIndex ? 'hover' : 'selected';
     } else if (props.isEditingProblem && props.editingProblem?.id === problemId) {
       // Hold is part of the problem being edited
-      return hoveredHoldIndex.value === holdIndex ? "hover" : "selected";
+      return hoveredHoldIndex.value === holdIndex ? 'hover' : 'selected';
     } else {
       // Check if the problem is hidden
       if (problem?.hidden) {
-        return "hidden";
+        return 'hidden';
       } else {
         // Hold belongs to a different problem
         // Check if this problem is being hovered (from parent or local hover)
         if (props.hoveredProblemId === problemId || hoveredProblemIdLocal.value === problemId) {
-          return "hover";
+          return 'hover';
         } else {
-          return props.showHoldOverlay ? "selected" : "default";
+          return props.showHoldOverlay ? 'selected' : 'default';
         }
       }
     }
   } else {
     // Hold is available for selection (unclassified)
     if (hoveredHoldIndex.value === holdIndex) {
-      return "hovered";
+      return 'hovered';
     } else {
-      return props.showHoldOverlay ? "default" : "default"; // Only visible when overlay enabled
+      return props.showHoldOverlay ? 'default' : 'default'; // Only visible when overlay enabled
     }
   }
 };
@@ -245,7 +245,7 @@ const getHoldInteraction = (holdIndex) => {
 const getHoldInteractionAllowed = (holdIndex) => {
   // Magic Wand mode - only selected holds are clickable
   if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
-    return props.magicWandSelection.selectedIndices.includes(holdIndex) ? "selectable" : "none";
+    return props.magicWandSelection.selectedIndices.includes(holdIndex) ? 'selectable' : 'none';
   }
 
   const problemId = getHoldProblemId(holdIndex);
@@ -258,30 +258,30 @@ const getHoldInteractionAllowed = (holdIndex) => {
 
     // Hidden holds are not interactive
     if (problem?.hidden) {
-      return "none";
+      return 'none';
     }
 
     // Holds being edited are selectable
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
-      return "selectable";
+      return 'selectable';
     }
     if (props.isEditingProblem && props.editingProblem?.id === problemId) {
-      return "selectable";
+      return 'selectable';
     }
 
     // Holds belonging to other problems are FORBIDDEN when creating/editing
     if (props.isCreatingProblem || props.isEditingProblem) {
-      return "forbidden";
+      return 'forbidden';
     }
 
     // Other problem holds are selectable for navigation (when not creating/editing)
-    return "selectable";
+    return 'selectable';
   } else {
     // Available holds are selectable when creating/editing problems
     if (props.isCreatingProblem || props.isEditingProblem) {
-      return "selectable";
+      return 'selectable';
     }
-    return "none";
+    return 'none';
   }
 };
 
@@ -290,9 +290,9 @@ const getHoldColor = (holdIndex) => {
   // Magic Wand uses purple colors
   if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
     if (holdIndex === props.magicWandSelection.targetHoldIndex) {
-      return "#9333ea"; // purple-700 for target
+      return '#9333ea'; // purple-700 for target
     } else if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
-      return "#a855f7"; // purple-500 for proximity
+      return '#a855f7'; // purple-500 for proximity
     }
   }
 
@@ -306,24 +306,24 @@ const getHoldColor = (holdIndex) => {
       (props.editingProblem?.id === problemId ? props.editingProblem : null);
 
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
-      return "#22c55e"; // green-500 for being edited
+      return '#22c55e'; // green-500 for being edited
     } else if (props.isEditingProblem && props.editingProblem?.id === problemId) {
-      return "#22c55e"; // green-500 for being edited
+      return '#22c55e'; // green-500 for being edited
     } else if (problem?.color) {
       return problem.color; // Use problem's color
     } else {
-      return "#6b7280"; // gray-500 for assigned holds
+      return '#6b7280'; // gray-500 for assigned holds
     }
   } else {
     // Available holds use blue
-    return "#3b82f6"; // blue-500
+    return '#3b82f6'; // blue-500
   }
 };
 
 // Hold interaction handlers
 const handleHoldClick = (hold, index) => {
   console.log(`🎯 Hold clicked:`, { hold, index });
-  emit("hold-click", hold, index);
+  emit('hold-click', hold, index);
 };
 
 const handleHoldHover = (index, isEntering, event) => {
@@ -337,7 +337,7 @@ const handleHoldHover = (index, isEntering, event) => {
     hoveredProblemIdLocal.value = null;
   }
 
-  emit("hold-hover", index, isEntering, event);
+  emit('hold-hover', index, isEntering, event);
 };
 
 // Simplified overlay - no complex positioning needed

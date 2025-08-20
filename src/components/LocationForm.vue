@@ -70,23 +70,23 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
-import { storage } from "../services/firebase.js";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { useUserStore } from "../stores/userStore.js";
-import GradingSystemManager from "./GradingSystemManager.vue";
+import { ref, watch } from 'vue';
+import { storage } from '../services/firebase.js';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useUserStore } from '../stores/userStore.js';
+import GradingSystemManager from './GradingSystemManager.vue';
 
 const props = defineProps({
   initial: {
     type: Object,
-    default: () => ({ name: "", description: "", heroImageUrl: "", gradingSystem: null }),
+    default: () => ({ name: '', description: '', heroImageUrl: '', gradingSystem: null }),
   },
   mode: {
     type: String,
-    default: "add", // or 'edit'
+    default: 'add', // or 'edit'
   },
 });
-const emit = defineEmits(["submit", "cancel", "delete"]);
+const emit = defineEmits(['submit', 'cancel', 'delete']);
 const userStore = useUserStore();
 const form = ref({ ...props.initial });
 const isUploading = ref(false);
@@ -103,8 +103,8 @@ const onFileChange = async (e) => {
   if (!file) return;
 
   // Only allow supported types
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-    alert("Only JPG, PNG, and WEBP images are supported.");
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    alert('Only JPG, PNG, and WEBP images are supported.');
     return;
   }
 
@@ -123,10 +123,10 @@ const onFileChange = async (e) => {
     // Update form with the Firebase Storage URL
     form.value.heroImageUrl = downloadURL;
 
-    console.log("Hero image uploaded successfully:", downloadURL);
+    console.log('Hero image uploaded successfully:', downloadURL);
   } catch (error) {
-    console.error("Error uploading hero image:", error);
-    alert("Failed to upload hero image. Please try again.");
+    console.error('Error uploading hero image:', error);
+    alert('Failed to upload hero image. Please try again.');
   } finally {
     isUploading.value = false;
   }
@@ -134,10 +134,10 @@ const onFileChange = async (e) => {
 
 const handleSubmit = () => {
   if (isUploading.value) {
-    alert("Please wait for the hero image to finish uploading.");
+    alert('Please wait for the hero image to finish uploading.');
     return;
   }
-  emit("submit", { ...form.value });
+  emit('submit', { ...form.value });
 };
 
 const onGradingSystemSelected = (system) => {

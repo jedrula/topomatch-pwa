@@ -9,7 +9,7 @@
  * @returns {string} Formatted date string
  */
 export const formatDate = (date, options = {}) => {
-  if (!date) return "Unknown";
+  if (!date) return 'Unknown';
 
   let dateObj;
 
@@ -27,18 +27,18 @@ export const formatDate = (date, options = {}) => {
 
   // Check if the date is valid
   if (isNaN(dateObj.getTime())) {
-    console.warn("Invalid date received:", date);
-    return "Invalid date";
+    console.warn('Invalid date received:', date);
+    return 'Invalid date';
   }
 
   // Default formatting options
   const defaultOptions = {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   };
 
-  return new Intl.DateTimeFormat("en-US", { ...defaultOptions, ...options }).format(dateObj);
+  return new Intl.DateTimeFormat('en-US', { ...defaultOptions, ...options }).format(dateObj);
 };
 
 /**
@@ -48,9 +48,9 @@ export const formatDate = (date, options = {}) => {
  */
 export const formatDateShort = (date) => {
   return formatDate(date, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
   });
 };
 
@@ -142,7 +142,7 @@ export const isSameDateTime = (date1, date2) => {
  * @returns {string} Relative date string
  */
 export const formatDateRelative = (date) => {
-  if (!date) return "Unknown";
+  if (!date) return 'Unknown';
 
   let dateObj;
   if (date.toDate) {
@@ -154,7 +154,7 @@ export const formatDateRelative = (date) => {
   }
 
   if (isNaN(dateObj.getTime())) {
-    return "Invalid date";
+    return 'Invalid date';
   }
 
   const now = new Date();
@@ -162,9 +162,9 @@ export const formatDateRelative = (date) => {
   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
   if (diffInDays === 0) {
-    return "Today";
+    return 'Today';
   } else if (diffInDays === 1) {
-    return "Yesterday";
+    return 'Yesterday';
   } else if (diffInDays < 7) {
     return `${diffInDays} days ago`;
   } else {

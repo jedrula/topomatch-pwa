@@ -1,7 +1,7 @@
-import { defineStore } from "pinia";
-import { authService } from "../services/authService.js";
+import { defineStore } from 'pinia';
+import { authService } from '../services/authService.js';
 
-export const useUserStore = defineStore("user", {
+export const useUserStore = defineStore('user', {
   state: () => ({
     user: null,
     isLoggedIn: false,
@@ -11,7 +11,7 @@ export const useUserStore = defineStore("user", {
   getters: {
     isAdmin: (state) => {
       if (!state.user) return false;
-      console.log("state.user.customClaims", state.user.customClaims);
+      console.log('state.user.customClaims', state.user.customClaims);
       // Check custom claims for admin role
       return state.user.customClaims?.admin === true;
     },
@@ -32,8 +32,8 @@ export const useUserStore = defineStore("user", {
       return this.isAdmin;
     },
     userDisplayName: (state) => {
-      if (!state.user) return "";
-      return state.user.displayName || state.user.email?.split("@")[0] || "User";
+      if (!state.user) return '';
+      return state.user.displayName || state.user.email?.split('@')[0] || 'User';
     },
   },
 
@@ -58,7 +58,7 @@ export const useUserStore = defineStore("user", {
         this.isLoggedIn = true;
         return user;
       } catch (error) {
-        console.error("Sign in failed:", error);
+        console.error('Sign in failed:', error);
         throw error;
       }
     },
@@ -71,7 +71,7 @@ export const useUserStore = defineStore("user", {
         this.isLoggedIn = true;
         return user;
       } catch (error) {
-        console.error("Sign up failed:", error);
+        console.error('Sign up failed:', error);
         throw error;
       }
     },
@@ -83,7 +83,7 @@ export const useUserStore = defineStore("user", {
         this.user = null;
         this.isLoggedIn = false;
       } catch (error) {
-        console.error("Sign out failed:", error);
+        console.error('Sign out failed:', error);
         throw error;
       }
     },
@@ -95,11 +95,11 @@ export const useUserStore = defineStore("user", {
         if (this.user && claims) {
           // Update the user object with fresh claims
           this.user = { ...this.user, customClaims: claims };
-          console.log("🔄 Refreshed user claims:", claims);
+          console.log('🔄 Refreshed user claims:', claims);
         }
         return claims;
       } catch (error) {
-        console.error("Failed to refresh user claims:", error);
+        console.error('Failed to refresh user claims:', error);
         throw error;
       }
     },

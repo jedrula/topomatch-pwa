@@ -1,9 +1,9 @@
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { ascentService } from "@/services/ascentService";
-import { useUserStore } from "@/stores/userStore";
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+import { ascentService } from '@/services/ascentService';
+import { useUserStore } from '@/stores/userStore';
 
-export const useAscentStore = defineStore("ascent", () => {
+export const useAscentStore = defineStore('ascent', () => {
   // State
   const ascents = ref([]); // All ascents for current boulder problem
   const userAscents = ref([]); // Current user's ascents for current boulder problem
@@ -15,32 +15,32 @@ export const useAscentStore = defineStore("ascent", () => {
 
   // Boulder problem grades (V-Scale) for grade selection
   const grades = [
-    "VB",
-    "V0",
-    "V1",
-    "V2",
-    "V3",
-    "V4",
-    "V5",
-    "V6",
-    "V7",
-    "V8",
-    "V9",
-    "V10",
-    "V11",
-    "V12",
-    "V13",
-    "V14",
-    "V15",
-    "V16",
-    "V17",
+    'VB',
+    'V0',
+    'V1',
+    'V2',
+    'V3',
+    'V4',
+    'V5',
+    'V6',
+    'V7',
+    'V8',
+    'V9',
+    'V10',
+    'V11',
+    'V12',
+    'V13',
+    'V14',
+    'V15',
+    'V16',
+    'V17',
   ];
 
   // Attempt types
   const attemptTypes = [
-    { value: "flash", label: "Flash (1st attempt)", description: "Sent on first try" },
-    { value: "second", label: "2nd attempt", description: "Sent on second try" },
-    { value: "multiple", label: "3rd+ attempts", description: "Sent after multiple attempts" },
+    { value: 'flash', label: 'Flash (1st attempt)', description: 'Sent on first try' },
+    { value: 'second', label: '2nd attempt', description: 'Sent on second try' },
+    { value: 'multiple', label: '3rd+ attempts', description: 'Sent after multiple attempts' },
   ];
 
   // Computed
@@ -90,7 +90,7 @@ export const useAscentStore = defineStore("ascent", () => {
       const stats = await ascentService.getBoulderAscentStats(locationId, problemId);
       ascentStats.value = stats;
     } catch (err) {
-      console.error("Error loading ascents:", err);
+      console.error('Error loading ascents:', err);
       error.value = err.message;
     } finally {
       isLoading.value = false;
@@ -99,7 +99,7 @@ export const useAscentStore = defineStore("ascent", () => {
 
   const logAscent = async (ascentData) => {
     if (!currentLocationId.value || !currentProblemId.value) {
-      throw new Error("Location and problem must be set");
+      throw new Error('Location and problem must be set');
     }
 
     isLoading.value = true;
@@ -117,7 +117,7 @@ export const useAscentStore = defineStore("ascent", () => {
 
       return ascentId;
     } catch (err) {
-      console.error("Error logging ascent:", err);
+      console.error('Error logging ascent:', err);
       error.value = err.message;
       throw err;
     } finally {
@@ -127,7 +127,7 @@ export const useAscentStore = defineStore("ascent", () => {
 
   const updateAscent = async (ascentId, updates) => {
     if (!currentLocationId.value || !currentProblemId.value) {
-      throw new Error("Location and problem must be set");
+      throw new Error('Location and problem must be set');
     }
 
     isLoading.value = true;
@@ -144,7 +144,7 @@ export const useAscentStore = defineStore("ascent", () => {
       // Reload ascents to get the updated data
       await loadAscents(currentLocationId.value, currentProblemId.value);
     } catch (err) {
-      console.error("Error updating ascent:", err);
+      console.error('Error updating ascent:', err);
       error.value = err.message;
       throw err;
     } finally {
@@ -154,7 +154,7 @@ export const useAscentStore = defineStore("ascent", () => {
 
   const deleteAscent = async (ascentId) => {
     if (!currentLocationId.value || !currentProblemId.value) {
-      throw new Error("Location and problem must be set");
+      throw new Error('Location and problem must be set');
     }
 
     isLoading.value = true;
@@ -166,7 +166,7 @@ export const useAscentStore = defineStore("ascent", () => {
       // Reload ascents to get the updated data
       await loadAscents(currentLocationId.value, currentProblemId.value);
     } catch (err) {
-      console.error("Error deleting ascent:", err);
+      console.error('Error deleting ascent:', err);
       error.value = err.message;
       throw err;
     } finally {
@@ -185,13 +185,13 @@ export const useAscentStore = defineStore("ascent", () => {
 
   // Helper methods
   const formatDate = (timestamp) => {
-    if (!timestamp) return "N/A";
+    if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString();
   };
 
   const formatDateTime = (timestamp) => {
-    if (!timestamp) return "N/A";
+    if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleString();
   };
@@ -203,7 +203,7 @@ export const useAscentStore = defineStore("ascent", () => {
 
   const getAttemptTypeDescription = (attemptType) => {
     const type = attemptTypes.find((t) => t.value === attemptType);
-    return type ? type.description : "";
+    return type ? type.description : '';
   };
 
   return {

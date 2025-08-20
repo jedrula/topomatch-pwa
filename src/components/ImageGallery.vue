@@ -135,12 +135,12 @@
 </template>
 
 <script setup>
-import { computed, watch, nextTick, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import HoldSvg from "./HoldSvg.vue";
-import FloatingBoulderProblemCard from "./FloatingBoulderProblemCard.vue";
-import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
-import { ensureHoldHasSvgMarkup } from "@/utils/svgUtils.js";
+import { computed, watch, nextTick, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import HoldSvg from './HoldSvg.vue';
+import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
+import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 
 const props = defineProps({
   images: {
@@ -161,7 +161,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["close", "navigate"]);
+const emit = defineEmits(['close', 'navigate']);
 
 const route = useRoute();
 const router = useRouter();
@@ -210,7 +210,7 @@ const currentImageProblems = computed(() => {
 
 // SVG viewBox for overlay positioning
 const imageViewBox = computed(() => {
-  if (!imageElement.value) return "0 0 1000 1000";
+  if (!imageElement.value) return '0 0 1000 1000';
 
   const img = imageElement.value;
   const naturalWidth = img.naturalWidth || 1000;
@@ -224,7 +224,7 @@ const closeGallery = () => {
   const query = { ...route.query };
   delete query.imageId;
   router.push({ query });
-  emit("close");
+  emit('close');
 };
 
 const closeOnBackdrop = (event) => {
@@ -258,14 +258,14 @@ const navigateToImage = (index) => {
       query: { ...route.query, imageId },
     });
   }
-  emit("navigate", clampedIndex);
+  emit('navigate', clampedIndex);
 };
 
 const onImageLoad = () => {
   // Use nextTick to ensure DOM has updated before setting imageLoaded
   nextTick(() => {
     imageLoaded.value = true;
-    console.log("🖼️ Image loaded, viewBox:", imageViewBox.value);
+    console.log('🖼️ Image loaded, viewBox:', imageViewBox.value);
 
     // Focus the gallery for keyboard navigation
     const galleryEl = document.querySelector('[tabindex="0"]');
@@ -277,7 +277,7 @@ const onImageLoad = () => {
 
 const goToProblemDetail = (problem) => {
   router.push({
-    name: "boulder-problem-detail",
+    name: 'boulder-problem-detail',
     params: {
       locationId: props.locationId,
       problemId: problem.id,
@@ -286,7 +286,7 @@ const goToProblemDetail = (problem) => {
 };
 
 const handleProblemHover = (problemId, isEntering, event) => {
-  console.log("🎯 ImageGallery handleProblemHover:", { problemId, isEntering, hasEvent: !!event });
+  console.log('🎯 ImageGallery handleProblemHover:', { problemId, isEntering, hasEvent: !!event });
 
   // Clear any pending hide timeout
   if (tooltipHideTimeout) {
@@ -297,13 +297,13 @@ const handleProblemHover = (problemId, isEntering, event) => {
   if (isEntering && event) {
     // Find the problem data
     const problem = currentImageProblems.value.find((p) => p.id === problemId);
-    console.log("📝 Problem found:", problem?.name || "None");
+    console.log('📝 Problem found:', problem?.name || 'None');
 
     if (problem) {
       // Position tooltip near the mouse cursor
       const mouseX = event.clientX;
       const mouseY = event.clientY;
-      console.log("🖱️ Mouse position:", { mouseX, mouseY });
+      console.log('🖱️ Mouse position:', { mouseX, mouseY });
 
       // Show floating card at mouse position
       floatingCard.value = {
@@ -311,7 +311,7 @@ const handleProblemHover = (problemId, isEntering, event) => {
         problem: problem,
         position: { x: mouseX, y: mouseY },
       };
-      console.log("💫 Showing floating card for problem:", problem.name);
+      console.log('💫 Showing floating card for problem:', problem.name);
     }
 
     hoveredProblemId.value = problemId;
@@ -320,7 +320,7 @@ const handleProblemHover = (problemId, isEntering, event) => {
     tooltipHideTimeout = setTimeout(() => {
       floatingCard.value.visible = false;
       hoveredProblemId.value = null;
-      console.log("💫 Hiding floating card (delayed)");
+      console.log('💫 Hiding floating card (delayed)');
     }, 300); // 300ms delay
   }
 };
@@ -332,7 +332,7 @@ watch(
     if (newImageIndex !== undefined && props.isOpen) {
       const index = parseInt(newImageIndex);
       if (!isNaN(index)) {
-        emit("navigate", index);
+        emit('navigate', index);
       }
     }
   }
@@ -364,7 +364,7 @@ watch(
           await boulderProblemsStore.loadBoulderProblems(props.locationId);
         }
       } catch (error) {
-        console.error("Error loading boulder problems:", error);
+        console.error('Error loading boulder problems:', error);
       }
     }
   },
@@ -373,10 +373,10 @@ watch(
 
 // Floating card event handlers
 const handleFloatingCardEdit = (problem) => {
-  console.log("✏️ Editing problem from ImageGallery:", problem.name);
+  console.log('✏️ Editing problem from ImageGallery:', problem.name);
   // Navigate to HoldDetectionServerView with editing state
   router.push({
-    name: "location-hold-detection-server",
+    name: 'location-hold-detection-server',
     params: {
       locationId: props.locationId,
     },
@@ -389,7 +389,7 @@ const handleFloatingCardEdit = (problem) => {
 };
 
 const handleFloatingCardToggleVisibility = (problem) => {
-  console.log("🔄 Toggling problem visibility from ImageGallery:", problem.name);
+  console.log('🔄 Toggling problem visibility from ImageGallery:', problem.name);
   // Check if we're showing only this problem or showing all problems
   if (boulderProblemsStore.isShowingOnlyOneProblem && !problem.hidden) {
     // Currently showing only this problem - show all problems
@@ -401,7 +401,7 @@ const handleFloatingCardToggleVisibility = (problem) => {
 };
 
 const handleFloatingCardMouseEnter = () => {
-  console.log("🖱️ Mouse entered floating card in ImageGallery");
+  console.log('🖱️ Mouse entered floating card in ImageGallery');
   // Clear any pending hide timeout when mouse enters the tooltip
   if (tooltipHideTimeout) {
     clearTimeout(tooltipHideTimeout);
@@ -410,12 +410,12 @@ const handleFloatingCardMouseEnter = () => {
 };
 
 const handleFloatingCardMouseLeave = () => {
-  console.log("🖱️ Mouse left floating card in ImageGallery");
+  console.log('🖱️ Mouse left floating card in ImageGallery');
   // Hide the tooltip when mouse leaves it
   tooltipHideTimeout = setTimeout(() => {
     floatingCard.value.visible = false;
     hoveredProblemId.value = null;
-    console.log("💫 Hiding floating card (after leaving tooltip)");
+    console.log('💫 Hiding floating card (after leaving tooltip)');
   }, 200); // Shorter delay when leaving tooltip
 };
 </script>

@@ -10,7 +10,7 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed } from 'vue';
 
 const props = defineProps({
   svgMarkup: {
@@ -19,34 +19,34 @@ const props = defineProps({
   },
   interaction: {
     type: String,
-    default: "default",
+    default: 'default',
     validator: (value) =>
       [
-        "default",
-        "selected",
-        "hidden",
-        "hover",
-        "drawing-background",
-        "disabled",
-        "delete-target",
-        "delete-hover",
+        'default',
+        'selected',
+        'hidden',
+        'hover',
+        'drawing-background',
+        'disabled',
+        'delete-target',
+        'delete-hover',
       ].includes(value),
   },
   interactionAllowed: {
     type: String,
-    default: "none",
-    validator: (value) => ["selectable", "forbidden", "none"].includes(value),
+    default: 'none',
+    validator: (value) => ['selectable', 'forbidden', 'none'].includes(value),
   },
   color: {
     type: String,
-    default: "#3b82f6", // blue-500
+    default: '#3b82f6', // blue-500
   },
 });
 
-const emit = defineEmits(["click", "hover"]);
+const emit = defineEmits(['click', 'hover']);
 
 const holdClasses = computed(() => {
-  const classes = ["hold-svg"];
+  const classes = ['hold-svg'];
 
   classes.push(`interaction-${props.interaction}`);
   classes.push(`allowed-${props.interactionAllowed}`);
@@ -58,22 +58,22 @@ const holdStyles = computed(() => {
   const styles = {};
 
   // Apply color for selected and hover states
-  if (props.interaction === "selected" || props.interaction === "hover") {
-    styles["--hold-color"] = props.color;
+  if (props.interaction === 'selected' || props.interaction === 'hover') {
+    styles['--hold-color'] = props.color;
   }
 
   return styles;
 });
 
 const handleClick = () => {
-  if (props.interactionAllowed === "selectable") {
-    emit("click");
+  if (props.interactionAllowed === 'selectable') {
+    emit('click');
   }
 };
 
 const handleHover = (isEntering, event) => {
-  console.log("🎯 HoldSvg handleHover:", { isEntering, hasEvent: !!event });
-  emit("hover", isEntering, event);
+  console.log('🎯 HoldSvg handleHover:', { isEntering, hasEvent: !!event });
+  emit('hover', isEntering, event);
 };
 </script>
 

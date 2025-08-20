@@ -165,12 +165,12 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, watch } from "vue";
-import { usePoseDetection } from "@/composables/usePoseDetection";
+import { ref, computed, nextTick, watch } from 'vue';
+import { usePoseDetection } from '@/composables/usePoseDetection';
 
 // Component state
 const selectedVideo = ref(null);
-const videoPreviewUrl = ref("");
+const videoPreviewUrl = ref('');
 const isDragOver = ref(false);
 const extractedFrames = ref([]);
 const frameResults = ref([]);
@@ -219,9 +219,9 @@ watch(poseResults, (newResults) => {
 // Frame extraction utility
 const extractVideoFrames = async (videoFile, framePercentages = [15, 50, 85]) => {
   return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    const video = document.createElement('video');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
     const frames = [];
     let currentFrameIndex = 0;
 
@@ -256,11 +256,11 @@ const extractVideoFrames = async (videoFile, framePercentages = [15, 50, 85]) =>
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
           // Use higher quality for better detection
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
 
           console.log(`✅ Extracted frame ${currentFrameIndex + 1} at ${timePercent}%:`, {
             seekTime: seekTime.toFixed(2),
-            dataUrlSize: Math.round(dataUrl.length / 1024) + "KB",
+            dataUrlSize: Math.round(dataUrl.length / 1024) + 'KB',
           });
 
           frames.push({
@@ -275,7 +275,7 @@ const extractVideoFrames = async (videoFile, framePercentages = [15, 50, 85]) =>
         };
 
         video.onerror = () => {
-          reject(new Error("Video seeking failed"));
+          reject(new Error('Video seeking failed'));
         };
 
         video.currentTime = seekTime;
@@ -285,7 +285,7 @@ const extractVideoFrames = async (videoFile, framePercentages = [15, 50, 85]) =>
     };
 
     video.onerror = () => {
-      reject(new Error("Failed to load video metadata"));
+      reject(new Error('Failed to load video metadata'));
     };
 
     video.src = URL.createObjectURL(videoFile);
@@ -295,7 +295,7 @@ const extractVideoFrames = async (videoFile, framePercentages = [15, 50, 85]) =>
 // File handling methods
 const handleFileSelect = (event) => {
   const file = event.target.files[0];
-  if (file && file.type.startsWith("video/")) {
+  if (file && file.type.startsWith('video/')) {
     setSelectedVideo(file);
   }
 };
@@ -303,7 +303,7 @@ const handleFileSelect = (event) => {
 const handleDrop = (event) => {
   isDragOver.value = false;
   const file = event.dataTransfer.files[0];
-  if (file && file.type.startsWith("video/")) {
+  if (file && file.type.startsWith('video/')) {
     setSelectedVideo(file);
   }
 };
@@ -321,8 +321,8 @@ const setSelectedVideo = async (file) => {
     const frames = await extractVideoFrames(file);
     extractedFrames.value = frames;
   } catch (err) {
-    console.error("Frame extraction failed:", err);
-    error.value = "Failed to extract frames from video";
+    console.error('Frame extraction failed:', err);
+    error.value = 'Failed to extract frames from video';
   }
 };
 
@@ -330,7 +330,7 @@ const clearVideo = () => {
   selectedVideo.value = null;
   if (videoPreviewUrl.value) {
     URL.revokeObjectURL(videoPreviewUrl.value);
-    videoPreviewUrl.value = "";
+    videoPreviewUrl.value = '';
   }
   extractedFrames.value = [];
   frameResults.value = [];
@@ -357,7 +357,7 @@ const runVideoAnalysis = async () => {
 
       // Create a proper File object with correct MIME type
       const imageFile = new File([blob], `frame-${i}.jpg`, {
-        type: "image/jpeg",
+        type: 'image/jpeg',
         lastModified: Date.now(),
       });
 
@@ -390,7 +390,7 @@ const runVideoAnalysis = async () => {
       }
     }
   } catch (err) {
-    console.error("Video analysis failed:", err);
+    console.error('Video analysis failed:', err);
     error.value = `Video analysis failed: ${err.message}`;
     isProcessingVideo.value = false;
     currentFrameIndex.value = -1;
@@ -402,26 +402,26 @@ const getFrameKeyPointsSummary = (frameResult) => {
   if (!frameResult.poses || frameResult.poses.length === 0) return [];
 
   const keyPointNames = [
-    "nose",
-    "left_eye",
-    "right_eye",
-    "left_ear",
-    "right_ear",
-    "left_shoulder",
-    "right_shoulder",
-    "left_elbow",
-    "right_elbow",
-    "left_wrist",
-    "right_wrist",
-    "left_hip",
-    "right_hip",
-    "left_knee",
-    "right_knee",
-    "left_ankle",
-    "right_ankle",
+    'nose',
+    'left_eye',
+    'right_eye',
+    'left_ear',
+    'right_ear',
+    'left_shoulder',
+    'right_shoulder',
+    'left_elbow',
+    'right_elbow',
+    'left_wrist',
+    'right_wrist',
+    'left_hip',
+    'right_hip',
+    'left_knee',
+    'right_knee',
+    'left_ankle',
+    'right_ankle',
   ];
 
-  const relevantPoints = ["left_wrist", "right_wrist", "left_ankle", "right_ankle"];
+  const relevantPoints = ['left_wrist', 'right_wrist', 'left_ankle', 'right_ankle'];
   const firstPerson = frameResult.poses[0];
 
   return relevantPoints.map((pointName) => {
@@ -429,7 +429,7 @@ const getFrameKeyPointsSummary = (frameResult) => {
     const keypoint = firstPerson.keypoints[actualIndex];
 
     return {
-      name: pointName.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+      name: pointName.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
       detected: keypoint && keypoint.confidence > confidenceThreshold.value,
       x: keypoint ? Math.round(keypoint.x) : null,
       y: keypoint ? Math.round(keypoint.y) : null,
@@ -456,7 +456,7 @@ const drawAllFrameResults = () => {
 
 // Draw result for a single frame
 const drawFrameResult = (canvas, frameResult) => {
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   const frame = frameResult.frameData;
 
   // Load and draw the frame image
@@ -479,46 +479,46 @@ const drawFrameResult = (canvas, frameResult) => {
 
 // Draw pose keypoints on canvas (reused from original)
 const drawPoseKeypoints = (ctx, keypoints, personIndex = 0) => {
-  const colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff"];
+  const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
   const color = colors[personIndex % colors.length];
 
   const keyPointNames = [
-    "nose",
-    "left_eye",
-    "right_eye",
-    "left_ear",
-    "right_ear",
-    "left_shoulder",
-    "right_shoulder",
-    "left_elbow",
-    "right_elbow",
-    "left_wrist",
-    "right_wrist",
-    "left_hip",
-    "right_hip",
-    "left_knee",
-    "right_knee",
-    "left_ankle",
-    "right_ankle",
+    'nose',
+    'left_eye',
+    'right_eye',
+    'left_ear',
+    'right_ear',
+    'left_shoulder',
+    'right_shoulder',
+    'left_elbow',
+    'right_elbow',
+    'left_wrist',
+    'right_wrist',
+    'left_hip',
+    'right_hip',
+    'left_knee',
+    'right_knee',
+    'left_ankle',
+    'right_ankle',
   ];
 
   // Draw keypoints
   keypoints.forEach((keypoint, index) => {
     if (keypoint.confidence > confidenceThreshold.value) {
-      const isClimbingPoint = ["left_wrist", "right_wrist", "left_ankle", "right_ankle"].includes(
+      const isClimbingPoint = ['left_wrist', 'right_wrist', 'left_ankle', 'right_ankle'].includes(
         keyPointNames[index]
       );
 
       ctx.beginPath();
       ctx.arc(keypoint.x, keypoint.y, isClimbingPoint ? 8 : 4, 0, 2 * Math.PI);
-      ctx.fillStyle = isClimbingPoint ? "#ff4444" : color;
+      ctx.fillStyle = isClimbingPoint ? '#ff4444' : color;
       ctx.fill();
 
       // Add label for climbing-relevant points
       if (isClimbingPoint) {
-        ctx.fillStyle = "#000000";
-        ctx.font = "12px Arial";
-        ctx.fillText(keyPointNames[index].replace("_", " "), keypoint.x + 10, keypoint.y - 10);
+        ctx.fillStyle = '#000000';
+        ctx.font = '12px Arial';
+        ctx.fillText(keyPointNames[index].replace('_', ' '), keypoint.x + 10, keypoint.y - 10);
       }
     }
   });

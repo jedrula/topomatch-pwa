@@ -7,9 +7,9 @@ import {
   setDoc,
   serverTimestamp,
   arrayUnion,
-} from "firebase/firestore";
-import { db } from "./firebase";
-import { getCurrentUser } from "./authService";
+} from 'firebase/firestore';
+import { db } from './firebase';
+import { getCurrentUser } from './authService';
 
 /**
  * Service for managing manual holds in Firestore
@@ -23,7 +23,7 @@ export const manualHoldsService = {
    */
   getDocumentId(imageUrl) {
     // Create a safe document ID from the image URL
-    return btoa(imageUrl).replace(/[/+=]/g, "_");
+    return btoa(imageUrl).replace(/[/+=]/g, '_');
   },
 
   /**
@@ -35,7 +35,7 @@ export const manualHoldsService = {
   async loadManualHolds(locationId, imageUrl) {
     try {
       const docId = this.getDocumentId(imageUrl);
-      const holdsRef = doc(db, "locations", locationId, "manualHolds", docId);
+      const holdsRef = doc(db, 'locations', locationId, 'manualHolds', docId);
       const holdsSnap = await getDoc(holdsRef);
 
       if (holdsSnap.exists()) {
@@ -44,10 +44,10 @@ export const manualHoldsService = {
         return data.holds || [];
       }
 
-      console.log("📥 No manual holds found for image");
+      console.log('📥 No manual holds found for image');
       return [];
     } catch (error) {
-      console.error("❌ Error loading manual holds:", error);
+      console.error('❌ Error loading manual holds:', error);
       throw error;
     }
   },
@@ -63,11 +63,11 @@ export const manualHoldsService = {
     try {
       const user = getCurrentUser();
       if (!user) {
-        throw new Error("User must be authenticated to save manual holds");
+        throw new Error('User must be authenticated to save manual holds');
       }
 
       const docId = this.getDocumentId(imageUrl);
-      const holdsRef = doc(db, "locations", locationId, "manualHolds", docId);
+      const holdsRef = doc(db, 'locations', locationId, 'manualHolds', docId);
 
       const holdsData = {
         imageUrl,
@@ -92,7 +92,7 @@ export const manualHoldsService = {
 
       console.log(`💾 Saved ${holds.length} manual holds to Firestore`);
     } catch (error) {
-      console.error("❌ Error saving manual holds:", error);
+      console.error('❌ Error saving manual holds:', error);
       throw error;
     }
   },
@@ -108,7 +108,7 @@ export const manualHoldsService = {
     try {
       const user = getCurrentUser();
       if (!user) {
-        throw new Error("User must be authenticated to add manual holds");
+        throw new Error('User must be authenticated to add manual holds');
       }
 
       // Add user tracking to the hold
@@ -127,10 +127,10 @@ export const manualHoldsService = {
       // Save back to Firestore
       await this.saveManualHolds(locationId, imageUrl, updatedHolds);
 
-      console.log("✅ Added manual hold to Firestore:", enhancedHold.id);
+      console.log('✅ Added manual hold to Firestore:', enhancedHold.id);
       return updatedHolds;
     } catch (error) {
-      console.error("❌ Error adding manual hold:", error);
+      console.error('❌ Error adding manual hold:', error);
       throw error;
     }
   },
@@ -146,7 +146,7 @@ export const manualHoldsService = {
     try {
       const user = getCurrentUser();
       if (!user) {
-        throw new Error("User must be authenticated to remove manual holds");
+        throw new Error('User must be authenticated to remove manual holds');
       }
 
       // Load current holds
@@ -158,10 +158,10 @@ export const manualHoldsService = {
       // Save back to Firestore
       await this.saveManualHolds(locationId, imageUrl, updatedHolds);
 
-      console.log("🗑️ Removed manual hold from Firestore:", holdId);
+      console.log('🗑️ Removed manual hold from Firestore:', holdId);
       return updatedHolds;
     } catch (error) {
-      console.error("❌ Error removing manual hold:", error);
+      console.error('❌ Error removing manual hold:', error);
       throw error;
     }
   },
@@ -175,9 +175,9 @@ export const manualHoldsService = {
   async clearManualHolds(locationId, imageUrl) {
     try {
       await this.saveManualHolds(locationId, imageUrl, []);
-      console.log("🧹 Cleared all manual holds from Firestore");
+      console.log('🧹 Cleared all manual holds from Firestore');
     } catch (error) {
-      console.error("❌ Error clearing manual holds:", error);
+      console.error('❌ Error clearing manual holds:', error);
       throw error;
     }
   },

@@ -11,9 +11,9 @@ import {
   where,
   serverTimestamp,
   writeBatch,
-} from "firebase/firestore";
-import { db } from "./firebase";
-import { getCurrentUser } from "./authService";
+} from 'firebase/firestore';
+import { db } from './firebase';
+import { getCurrentUser } from './authService';
 
 export const boulderProblemsService = {
   /**
@@ -26,33 +26,33 @@ export const boulderProblemsService = {
     try {
       const user = getCurrentUser();
       if (!user) {
-        throw new Error("User must be authenticated to create boulder problems");
+        throw new Error('User must be authenticated to create boulder problems');
       }
 
       // Validate required fields
       if (!problemData.name || !problemData.grade || !problemData.imageId) {
-        throw new Error("Missing required fields: name, grade, or imageId");
+        throw new Error('Missing required fields: name, grade, or imageId');
       }
 
-      const problemsRef = collection(db, "locations", locationId, "boulderProblems");
+      const problemsRef = collection(db, 'locations', locationId, 'boulderProblems');
 
       const newProblem = {
         name: problemData.name,
         grade: problemData.grade,
         holds: problemData.holds || [],
         imageId: problemData.imageId,
-        color: problemData.color || "#ef4444",
+        color: problemData.color || '#ef4444',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: user.uid,
       };
 
       const docRef = await addDoc(problemsRef, newProblem);
-      console.log("Boulder problem created with ID:", docRef.id);
+      console.log('Boulder problem created with ID:', docRef.id);
 
       return docRef.id;
     } catch (error) {
-      console.error("Error creating boulder problem:", error);
+      console.error('Error creating boulder problem:', error);
       throw error;
     }
   },
@@ -68,15 +68,15 @@ export const boulderProblemsService = {
     try {
       const user = getCurrentUser();
       if (!user) {
-        throw new Error("User must be authenticated to update boulder problems");
+        throw new Error('User must be authenticated to update boulder problems');
       }
 
-      const problemRef = doc(db, "locations", locationId, "boulderProblems", problemId);
+      const problemRef = doc(db, 'locations', locationId, 'boulderProblems', problemId);
 
       // Check if the problem exists
       const problemSnap = await getDoc(problemRef);
       if (!problemSnap.exists()) {
-        throw new Error("Boulder problem not found");
+        throw new Error('Boulder problem not found');
       }
 
       const updateData = {
@@ -85,9 +85,9 @@ export const boulderProblemsService = {
       };
 
       await updateDoc(problemRef, updateData);
-      console.log("Boulder problem updated successfully");
+      console.log('Boulder problem updated successfully');
     } catch (error) {
-      console.error("Error updating boulder problem:", error);
+      console.error('Error updating boulder problem:', error);
       throw error;
     }
   },
@@ -102,21 +102,21 @@ export const boulderProblemsService = {
     try {
       const user = getCurrentUser();
       if (!user) {
-        throw new Error("User must be authenticated to delete boulder problems");
+        throw new Error('User must be authenticated to delete boulder problems');
       }
 
-      const problemRef = doc(db, "locations", locationId, "boulderProblems", problemId);
+      const problemRef = doc(db, 'locations', locationId, 'boulderProblems', problemId);
 
       // Check if the problem exists
       const problemSnap = await getDoc(problemRef);
       if (!problemSnap.exists()) {
-        throw new Error("Boulder problem not found");
+        throw new Error('Boulder problem not found');
       }
 
       await deleteDoc(problemRef);
-      console.log("Boulder problem deleted successfully");
+      console.log('Boulder problem deleted successfully');
     } catch (error) {
-      console.error("Error deleting boulder problem:", error);
+      console.error('Error deleting boulder problem:', error);
       throw error;
     }
   },
@@ -128,8 +128,8 @@ export const boulderProblemsService = {
    */
   async getBoulderProblems(locationId) {
     try {
-      const problemsRef = collection(db, "locations", locationId, "boulderProblems");
-      const q = query(problemsRef, orderBy("createdAt", "desc"));
+      const problemsRef = collection(db, 'locations', locationId, 'boulderProblems');
+      const q = query(problemsRef, orderBy('createdAt', 'desc'));
 
       const querySnapshot = await getDocs(q);
       const problems = [];
@@ -147,7 +147,7 @@ export const boulderProblemsService = {
       console.log(`Retrieved ${problems.length} boulder problems for location ${locationId}`);
       return problems;
     } catch (error) {
-      console.error("Error fetching boulder problems:", error);
+      console.error('Error fetching boulder problems:', error);
       throw error;
     }
   },
@@ -160,8 +160,8 @@ export const boulderProblemsService = {
    */
   async getBoulderProblemsByImage(locationId, imageId) {
     try {
-      const problemsRef = collection(db, "locations", locationId, "boulderProblems");
-      const q = query(problemsRef, where("imageId", "==", imageId), orderBy("createdAt", "desc"));
+      const problemsRef = collection(db, 'locations', locationId, 'boulderProblems');
+      const q = query(problemsRef, where('imageId', '==', imageId), orderBy('createdAt', 'desc'));
 
       const querySnapshot = await getDocs(q);
       const problems = [];
@@ -178,7 +178,7 @@ export const boulderProblemsService = {
       console.log(`Retrieved ${problems.length} boulder problems for image ${imageId}`);
       return problems;
     } catch (error) {
-      console.error("Error fetching boulder problems by image:", error);
+      console.error('Error fetching boulder problems by image:', error);
       throw error;
     }
   },
@@ -191,7 +191,7 @@ export const boulderProblemsService = {
    */
   async getBoulderProblem(locationId, problemId) {
     try {
-      const problemRef = doc(db, "locations", locationId, "boulderProblems", problemId);
+      const problemRef = doc(db, 'locations', locationId, 'boulderProblems', problemId);
       const problemSnap = await getDoc(problemRef);
 
       if (problemSnap.exists()) {
@@ -203,11 +203,11 @@ export const boulderProblemsService = {
           updatedAt: data.updatedAt?.toDate(),
         };
       } else {
-        console.log("Boulder problem not found");
+        console.log('Boulder problem not found');
         return null;
       }
     } catch (error) {
-      console.error("Error fetching boulder problem:", error);
+      console.error('Error fetching boulder problem:', error);
       throw error;
     }
   },
@@ -222,11 +222,11 @@ export const boulderProblemsService = {
    */
   async addHoldToProblem(locationId, problemId, hold, holdIndex) {
     try {
-      const problemRef = doc(db, "locations", locationId, "boulderProblems", problemId);
+      const problemRef = doc(db, 'locations', locationId, 'boulderProblems', problemId);
       const problemSnap = await getDoc(problemRef);
 
       if (!problemSnap.exists()) {
-        throw new Error("Boulder problem not found");
+        throw new Error('Boulder problem not found');
       }
 
       const problemData = problemSnap.data();
@@ -256,11 +256,11 @@ export const boulderProblemsService = {
 
       console.log(
         `Hold ${holdIndex} ${
-          existingHoldIndex === -1 ? "added to" : "removed from"
+          existingHoldIndex === -1 ? 'added to' : 'removed from'
         } problem ${problemId}`
       );
     } catch (error) {
-      console.error("Error adding/removing hold to/from problem:", error);
+      console.error('Error adding/removing hold to/from problem:', error);
       throw error;
     }
   },
@@ -274,11 +274,11 @@ export const boulderProblemsService = {
    */
   async removeHoldFromProblem(locationId, problemId, holdIndex) {
     try {
-      const problemRef = doc(db, "locations", locationId, "boulderProblems", problemId);
+      const problemRef = doc(db, 'locations', locationId, 'boulderProblems', problemId);
       const problemSnap = await getDoc(problemRef);
 
       if (!problemSnap.exists()) {
-        throw new Error("Boulder problem not found");
+        throw new Error('Boulder problem not found');
       }
 
       const problemData = problemSnap.data();
@@ -294,7 +294,7 @@ export const boulderProblemsService = {
 
       console.log(`Hold ${holdIndex} removed from problem ${problemId}`);
     } catch (error) {
-      console.error("Error removing hold from problem:", error);
+      console.error('Error removing hold from problem:', error);
       throw error;
     }
   },
@@ -306,7 +306,7 @@ export const boulderProblemsService = {
    */
   async deleteAllBoulderProblemsForLocation(locationId) {
     try {
-      const problemsRef = collection(db, "locations", locationId, "boulderProblems");
+      const problemsRef = collection(db, 'locations', locationId, 'boulderProblems');
       const querySnapshot = await getDocs(problemsRef);
 
       // Use batch delete for efficiency
@@ -319,7 +319,7 @@ export const boulderProblemsService = {
       await batch.commit();
       console.log(`Deleted all boulder problems for location ${locationId}`);
     } catch (error) {
-      console.error("Error deleting all boulder problems for location:", error);
+      console.error('Error deleting all boulder problems for location:', error);
       throw error;
     }
   },
@@ -333,7 +333,7 @@ export const boulderProblemsService = {
    */
   async updateProblemHolds(locationId, problemId, holds) {
     try {
-      const problemRef = doc(db, "locations", locationId, "boulderProblems", problemId);
+      const problemRef = doc(db, 'locations', locationId, 'boulderProblems', problemId);
 
       await updateDoc(problemRef, {
         holds: holds.map((hold) => ({
@@ -345,7 +345,7 @@ export const boulderProblemsService = {
 
       console.log(`Updated holds for problem ${problemId}`);
     } catch (error) {
-      console.error("Error updating problem holds:", error);
+      console.error('Error updating problem holds:', error);
       throw error;
     }
   },

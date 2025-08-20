@@ -1,14 +1,14 @@
 // Pose Detection Worker - YOLOv8 Implementation
 // Based on FatemeZamanian/YOLOv8-pose-onnxruntime-web
 
-console.log("YOLOv8 Pose detection worker initializing...");
+console.log('YOLOv8 Pose detection worker initializing...');
 
 // The ort object is available from the concatenated ONNX code
-if (typeof ort !== "undefined" && ort.env) {
+if (typeof ort !== 'undefined' && ort.env) {
   ort.env.wasm.numThreads = 4;
-  console.log("ONNX Runtime configured successfully");
+  console.log('ONNX Runtime configured successfully');
 } else {
-  console.error("ONNX Runtime not available in worker");
+  console.error('ONNX Runtime not available in worker');
 }
 
 // Worker state
@@ -16,8 +16,8 @@ let yolov8Session = null;
 let nmsSession = null;
 
 // YOLOv8n-pose configuration
-const MODEL_PATH = "/yolov8n-pose.onnx";
-const NMS_PATH = "/modified-nms-yolov8-pose.onnx";
+const MODEL_PATH = '/yolov8n-pose.onnx';
+const NMS_PATH = '/modified-nms-yolov8-pose.onnx';
 const INPUT_SIZE = 640;
 const MODEL_INPUT_SHAPE = [1, 3, 640, 640];
 
@@ -30,15 +30,15 @@ const scoreThreshold = 0.25;
 self.onmessage = async (event) => {
   const { type, imageBuffer, imageInfo } = event.data;
 
-  if (type === "createSession") {
-    console.log("Creating YOLOv8 pose detection sessions...");
+  if (type === 'createSession') {
+    console.log('Creating YOLOv8 pose detection sessions...');
     try {
       const startTime = performance.now();
 
       // Create main YOLOv8 session
       yolov8Session = await ort.InferenceSession.create(MODEL_PATH, {
-        executionProviders: ["wasm"],
-        graphOptimizationLevel: "all",
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'all',
         wasm: {
           numThreads: navigator.hardwareConcurrency
             ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
@@ -50,8 +50,8 @@ self.onmessage = async (event) => {
 
       // Create NMS session
       nmsSession = await ort.InferenceSession.create(NMS_PATH, {
-        executionProviders: ["wasm"],
-        graphOptimizationLevel: "all",
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'all',
         wasm: {
           numThreads: navigator.hardwareConcurrency
             ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
@@ -63,7 +63,7 @@ self.onmessage = async (event) => {
 
       // Warmup the model
       const tensor = new ort.Tensor(
-        "float32",
+        'float32',
         new Float32Array(MODEL_INPUT_SHAPE.reduce((a, b) => a * b)),
         MODEL_INPUT_SHAPE
       );
@@ -72,27 +72,27 @@ self.onmessage = async (event) => {
       const endTime = performance.now();
 
       self.postMessage({
-        type: "sessionCreated",
+        type: 'sessionCreated',
         data: {
           sessionTime: endTime - startTime,
         },
       });
 
-      console.log("YOLOv8 pose detection sessions created successfully");
+      console.log('YOLOv8 pose detection sessions created successfully');
     } catch (error) {
-      console.error("Failed to create pose detection sessions:", error);
+      console.error('Failed to create pose detection sessions:', error);
       self.postMessage({
-        type: "error",
-        data: { message: "Failed to load pose detection models: " + error.message },
+        type: 'error',
+        data: { message: 'Failed to load pose detection models: ' + error.message },
       });
     }
   }
 
-  if (type === "runPoseDetection") {
+  if (type === 'runPoseDetection') {
     if (!yolov8Session || !nmsSession) {
       self.postMessage({
-        type: "error",
-        data: { message: "Pose detection sessions are not initialized." },
+        type: 'error',
+        data: { message: 'Pose detection sessions are not initialized.' },
       });
       return;
     }
@@ -103,8 +103,8 @@ self.onmessage = async (event) => {
     try {
       if (!imageBuffer || !imageInfo) {
         self.postMessage({
-          type: "error",
-          data: { message: "Image buffer and info must be provided." },
+          type: 'error',
+          data: { message: 'Image buffer and info must be provided.' },
         });
         return;
       }
@@ -123,7 +123,7 @@ self.onmessage = async (event) => {
 
       // Create NMS config tensor
       const config = new ort.Tensor(
-        "float32",
+        'float32',
         new Float32Array([
           topk, // topk per class
           iouThreshold, // iou threshold
@@ -151,7 +151,7 @@ self.onmessage = async (event) => {
       const endTime = performance.now();
 
       self.postMessage({
-        type: "poseDetectionComplete",
+        type: 'poseDetectionComplete',
         data: {
           inferenceTime: endTime - startTime,
           results: { poses },
@@ -165,14 +165,14 @@ self.onmessage = async (event) => {
         },
       });
     } catch (error) {
-      console.error("Pose detection inference error:", error);
+      console.error('Pose detection inference error:', error);
       self.postMessage({
-        type: "error",
-        data: { message: "Pose detection failed: " + error.message },
+        type: 'error',
+        data: { message: 'Pose detection failed: ' + error.message },
       });
     } finally {
       // Clean up resources
-      if (imageBitmap && typeof imageBitmap.close === "function") {
+      if (imageBitmap && typeof imageBitmap.close === 'function') {
         imageBitmap.close();
       }
       imageBitmap = null;
@@ -186,7 +186,7 @@ self.onmessage = async (event) => {
  * Following the exact FatemeZamanian approach for coordinate consistency
  */
 function preprocessImageYOLOv8(imageBitmap) {
-  console.log("YOLOv8 preprocessing:", {
+  console.log('YOLOv8 preprocessing:', {
     width: imageBitmap.width,
     height: imageBitmap.height,
   });
@@ -200,14 +200,14 @@ function preprocessImageYOLOv8(imageBitmap) {
   const xRatio = maxSize / imageBitmap.width;
   const yRatio = maxSize / imageBitmap.height;
 
-  console.log("Padding:", { maxSize, xPad, yPad, xRatio, yRatio });
+  console.log('Padding:', { maxSize, xPad, yPad, xRatio, yRatio });
 
   // Create padded canvas (make it square)
   const paddedCanvas = new OffscreenCanvas(maxSize, maxSize);
-  const paddedCtx = paddedCanvas.getContext("2d");
+  const paddedCtx = paddedCanvas.getContext('2d');
 
   // Fill with black (like OpenCV BORDER_CONSTANT)
-  paddedCtx.fillStyle = "black";
+  paddedCtx.fillStyle = 'black';
   paddedCtx.fillRect(0, 0, maxSize, maxSize);
 
   // Draw image with proper padding
@@ -227,7 +227,7 @@ function preprocessImageYOLOv8(imageBitmap) {
 
   // Resize to model input size
   const modelCanvas = new OffscreenCanvas(INPUT_SIZE, INPUT_SIZE);
-  const modelCtx = modelCanvas.getContext("2d");
+  const modelCtx = modelCanvas.getContext('2d');
   modelCtx.drawImage(paddedCanvas, 0, 0, INPUT_SIZE, INPUT_SIZE);
 
   const imageData = modelCtx.getImageData(0, 0, INPUT_SIZE, INPUT_SIZE);
@@ -245,13 +245,13 @@ function preprocessImageYOLOv8(imageBitmap) {
     float32Array[i + 2 * INPUT_SIZE * INPUT_SIZE] = data[pixelIndex + 2] / 255.0; // B channel
   }
 
-  console.log("Tensor created:", {
+  console.log('Tensor created:', {
     shape: MODEL_INPUT_SHAPE,
     size: float32Array.length,
     sampleValues: [float32Array[0], float32Array[1], float32Array[2]],
   });
 
-  const tensor = new ort.Tensor("float32", float32Array, MODEL_INPUT_SHAPE);
+  const tensor = new ort.Tensor('float32', float32Array, MODEL_INPUT_SHAPE);
 
   return { tensor, xRatio, yRatio, xOffset, yOffset };
 }
@@ -268,7 +268,7 @@ function processYOLOv8Results(
   originalWidth,
   originalHeight
 ) {
-  console.log("Processing YOLOv8 results:", {
+  console.log('Processing YOLOv8 results:', {
     selectedDims: selected.dims,
     xRatio,
     yRatio,
@@ -291,7 +291,7 @@ function processYOLOv8Results(
     const maxSize = Math.max(originalWidth, originalHeight);
     const modelToOriginalScale = maxSize / INPUT_SIZE;
 
-    console.log("Coordinate transformation debug:", {
+    console.log('Coordinate transformation debug:', {
       originalSize: `${originalWidth}x${originalHeight}`,
       maxSize,
       modelToOriginalScale,
@@ -351,4 +351,4 @@ function processYOLOv8Results(
   return poses;
 }
 
-console.log("YOLOv8 pose detection worker ready");
+console.log('YOLOv8 pose detection worker ready');

@@ -118,27 +118,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import { locationService } from "../services/locationService.js";
-import { formatDateShort } from "../utils/dateUtils.js";
-import { useUserStore } from "../stores/userStore.js";
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { locationService } from '../services/locationService.js';
+import { formatDateShort } from '../utils/dateUtils.js';
+import { useUserStore } from '../stores/userStore.js';
 
 const router = useRouter();
 const userStore = useUserStore();
 const locations = ref([]);
 const isLoading = ref(true);
-const error = ref("");
+const error = ref('');
 
 const loadLocations = async () => {
   try {
     isLoading.value = true;
-    error.value = "";
+    error.value = '';
     const data = await locationService.getLocations();
     locations.value = data;
   } catch (err) {
-    console.error("Error loading locations:", err);
-    error.value = "Failed to load locations. Please try again.";
+    console.error('Error loading locations:', err);
+    error.value = 'Failed to load locations. Please try again.';
   } finally {
     isLoading.value = false;
   }
