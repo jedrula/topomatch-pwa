@@ -14914,31 +14914,78 @@ console.log("wow3");
 // ort.env.wasm.simd = true;
 ort.env.wasm.numThreads = 4;
 
+// Pose Detection Worker - YOLOv8 Implementation
+// Based on FatemeZamanian/YOLOv8-pose-onnxruntime-web
+
+console.log("YOLOv8 Pose detection worker initializing...");
+
+// The ort object is available from the concatenated ONNX code
+if (typeof ort !== "undefined" && ort.env) {
+  ort.env.wasm.numThreads = 4;
+  console.log("ONNX Runtime configured successfully");
+} else {
+  console.error("ONNX Runtime not available in worker");
+}
+
+// Worker state
+let yolov8Session = null;
+let nmsSession = null;
+
+// YOLOv8n-pose configuration
+const MODEL_PATH = "/yolov8n-pose.onnx";
+const NMS_PATH = "/modified-nms-yolov8-pose.onnx";
+const INPUT_SIZE = 640;
+const MODEL_INPUT_SHAPE = [1, 3, 640, 640];
+
+// Detection configuration
+const topk = 50;
+const iouThreshold = 0.45;
+const scoreThreshold = 0.25;
+
+// Message handler
 self.onmessage = async (event) => {
-  const { type, userImageBuffer, topoImageBuffer } = event.data;
+  const { type, imageBuffer, imageInfo } = event.data;
 
   if (type === "createSession") {
-    console.log("createSession in worker 2");
+    console.log("Creating YOLOv8 pose detection sessions...");
     try {
       const startTime = performance.now();
-      // Use WASM options to enable SIMD and threads if supported
-      const session = await ort.InferenceSession.create(
-        "../../superpoint_lightglue_pipeline.ort.onnx",
-        {
-          executionProviders: ["wasm"],
-          graphOptimizationLevel: "all",
-          wasm: {
-            numThreads: navigator.hardwareConcurrency
-              ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
-              : 2,
-            simd: true,
-            threads: true,
-          },
-        }
-      );
-      const endTime = performance.now();
 
-      self.session = session; // Store the session in the worker
+      // Create main YOLOv8 session
+      yolov8Session = await ort.InferenceSession.create(MODEL_PATH, {
+        executionProviders: ["wasm"],
+        graphOptimizationLevel: "all",
+        wasm: {
+          numThreads: navigator.hardwareConcurrency
+            ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
+            : 2,
+          simd: true,
+          threads: true,
+        },
+      });
+
+      // Create NMS session
+      nmsSession = await ort.InferenceSession.create(NMS_PATH, {
+        executionProviders: ["wasm"],
+        graphOptimizationLevel: "all",
+        wasm: {
+          numThreads: navigator.hardwareConcurrency
+            ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
+            : 2,
+          simd: true,
+          threads: true,
+        },
+      });
+
+      // Warmup the model
+      const tensor = new ort.Tensor(
+        "float32",
+        new Float32Array(MODEL_INPUT_SHAPE.reduce((a, b) => a * b)),
+        MODEL_INPUT_SHAPE
+      );
+      await yolov8Session.run({ images: tensor });
+
+      const endTime = performance.now();
 
       self.postMessage({
         type: "sessionCreated",
@@ -14946,106 +14993,278 @@ self.onmessage = async (event) => {
           sessionTime: endTime - startTime,
         },
       });
+
+      console.log("YOLOv8 pose detection sessions created successfully");
     } catch (error) {
+      console.error("Failed to create pose detection sessions:", error);
       self.postMessage({
         type: "error",
-        data: { message: error.message },
+        data: { message: "Failed to load pose detection models: " + error.message },
       });
     }
   }
 
-  if (type === "runInference") {
-    if (!self.session) {
+  if (type === "runPoseDetection") {
+    if (!yolov8Session || !nmsSession) {
       self.postMessage({
         type: "error",
-        data: { message: "Session is not initialized." },
+        data: { message: "Pose detection sessions are not initialized." },
       });
       return;
     }
 
-    let userBitmap = null;
-    let topoBitmap = null;
-    let userBlob = null;
-    let topoBlob = null;
+    let imageBitmap = null;
+    let imageBlob = null;
+
     try {
-      if (!userImageBuffer || !topoImageBuffer) {
+      if (!imageBuffer || !imageInfo) {
         self.postMessage({
           type: "error",
-          data: { message: "Both user and topo images must be provided." },
+          data: { message: "Image buffer and info must be provided." },
         });
         return;
       }
-      userBlob = new Blob([userImageBuffer]);
-      userBitmap = await createImageBitmap(userBlob);
-      topoBlob = new Blob([topoImageBuffer]);
-      topoBitmap = await createImageBitmap(topoBlob);
-      const images = [userBitmap, topoBitmap];
 
-      // Store original image dimensions for coordinate space conversion
-      const userImageDims = { width: userBitmap.width, height: userBitmap.height };
-      const topoImageDims = { width: topoBitmap.width, height: topoBitmap.height };
-
-      const imgWidth = 256;
-      const imgHeight = 256;
-      const tensors = images.map((image, index) =>
-        preprocessImage(image, imgWidth, imgHeight, index)
-      );
-      const combinedInput = new Float32Array([...tensors[0], ...tensors[1]]);
-      const tensor = new ort.Tensor("float32", combinedInput, [2, 1, imgHeight, imgWidth]);
-      const feeds = { images: tensor };
+      // Create bitmap from buffer
+      imageBlob = new Blob([imageBuffer]);
+      imageBitmap = await createImageBitmap(imageBlob);
 
       const startTime = performance.now();
-      const results = await self.session.run(feeds);
+
+      // Preprocess image using our custom preprocessing
+      const { tensor, xRatio, yRatio, xOffset, yOffset } = preprocessImageYOLOv8(imageBitmap);
+
+      // Run main YOLOv8 inference
+      const { output0 } = await yolov8Session.run({ images: tensor });
+
+      // Create NMS config tensor
+      const config = new ort.Tensor(
+        "float32",
+        new Float32Array([
+          topk, // topk per class
+          iouThreshold, // iou threshold
+          scoreThreshold, // score threshold
+        ])
+      );
+
+      // Run NMS post-processing
+      const { selected } = await nmsSession.run({
+        detection: output0,
+        config: config,
+      });
+
+      // Process results into our format
+      const poses = processYOLOv8Results(
+        selected,
+        xRatio,
+        yRatio,
+        xOffset,
+        yOffset,
+        imageBitmap.width,
+        imageBitmap.height
+      );
+
       const endTime = performance.now();
 
       self.postMessage({
-        type: "inferenceComplete",
+        type: "poseDetectionComplete",
         data: {
           inferenceTime: endTime - startTime,
-          results,
-          images,
-          imgWidth,
-          imgHeight,
-          userImageDims,
-          topoImageDims,
+          results: { poses },
+          imageInfo: {
+            ...imageInfo,
+            originalWidth: imageBitmap.width,
+            originalHeight: imageBitmap.height,
+            xRatio,
+            yRatio,
+          },
         },
       });
     } catch (error) {
+      console.error("Pose detection inference error:", error);
       self.postMessage({
         type: "error",
-        data: { message: error.message },
+        data: { message: "Pose detection failed: " + error.message },
       });
     } finally {
-      // Explicitly release resources to help GC, especially on mobile
-      if (userBitmap && typeof userBitmap.close === "function") userBitmap.close();
-      if (topoBitmap && typeof topoBitmap.close === "function") topoBitmap.close();
-      userBitmap = null;
-      topoBitmap = null;
-      userBlob = null;
-      topoBlob = null;
+      // Clean up resources
+      if (imageBitmap && typeof imageBitmap.close === "function") {
+        imageBitmap.close();
+      }
+      imageBitmap = null;
+      imageBlob = null;
     }
   }
 };
 
-function preprocessImage(image, width, height, index) {
-  const canvas = new OffscreenCanvas(width, height);
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(image, 0, 0, width, height);
-  const imageData = ctx.getImageData(0, 0, width, height).data;
+/**
+ * Preprocess image for YOLOv8 using canvas-based approach
+ * Following the exact FatemeZamanian approach for coordinate consistency
+ */
+function preprocessImageYOLOv8(imageBitmap) {
+  console.log("YOLOv8 preprocessing:", {
+    width: imageBitmap.width,
+    height: imageBitmap.height,
+  });
 
-  const input = new Float32Array(width * height);
-  for (let i = 0; i < width * height; i++) {
-    const r = imageData[i * 4] / 255.0;
-    const g = imageData[i * 4 + 1] / 255.0;
-    const b = imageData[i * 4 + 2] / 255.0;
-    input[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+  // Calculate padding to square (matching OpenCV approach exactly)
+  const maxSize = Math.max(imageBitmap.width, imageBitmap.height);
+  const xPad = maxSize - imageBitmap.width;
+  const yPad = maxSize - imageBitmap.height;
+
+  // These ratios will be used to convert model output back to original coordinates
+  const xRatio = maxSize / imageBitmap.width;
+  const yRatio = maxSize / imageBitmap.height;
+
+  console.log("Padding:", { maxSize, xPad, yPad, xRatio, yRatio });
+
+  // Create padded canvas (make it square)
+  const paddedCanvas = new OffscreenCanvas(maxSize, maxSize);
+  const paddedCtx = paddedCanvas.getContext("2d");
+
+  // Fill with black (like OpenCV BORDER_CONSTANT)
+  paddedCtx.fillStyle = "black";
+  paddedCtx.fillRect(0, 0, maxSize, maxSize);
+
+  // Draw image with proper padding
+  // For vertical image (height > width): pad on sides
+  // For horizontal image (width > height): pad on top/bottom
+  let xOffset = 0,
+    yOffset = 0;
+  if (imageBitmap.height > imageBitmap.width) {
+    // Tall image - pad horizontally (center horizontally)
+    xOffset = xPad / 2;
+    paddedCtx.drawImage(imageBitmap, xOffset, 0, imageBitmap.width, imageBitmap.height);
+  } else {
+    // Wide image - pad vertically (center vertically)
+    yOffset = yPad / 2;
+    paddedCtx.drawImage(imageBitmap, 0, yOffset, imageBitmap.width, imageBitmap.height);
   }
-  return input;
+
+  // Resize to model input size
+  const modelCanvas = new OffscreenCanvas(INPUT_SIZE, INPUT_SIZE);
+  const modelCtx = modelCanvas.getContext("2d");
+  modelCtx.drawImage(paddedCanvas, 0, 0, INPUT_SIZE, INPUT_SIZE);
+
+  const imageData = modelCtx.getImageData(0, 0, INPUT_SIZE, INPUT_SIZE);
+  const data = imageData.data;
+
+  // Convert to tensor format (RGB, CHW, normalized)
+  const float32Array = new Float32Array(3 * INPUT_SIZE * INPUT_SIZE);
+
+  for (let i = 0; i < INPUT_SIZE * INPUT_SIZE; i++) {
+    const pixelIndex = i * 4;
+
+    // RGB format, normalized to [0, 1], CHW layout
+    float32Array[i] = data[pixelIndex] / 255.0; // R channel
+    float32Array[i + INPUT_SIZE * INPUT_SIZE] = data[pixelIndex + 1] / 255.0; // G channel
+    float32Array[i + 2 * INPUT_SIZE * INPUT_SIZE] = data[pixelIndex + 2] / 255.0; // B channel
+  }
+
+  console.log("Tensor created:", {
+    shape: MODEL_INPUT_SHAPE,
+    size: float32Array.length,
+    sampleValues: [float32Array[0], float32Array[1], float32Array[2]],
+  });
+
+  const tensor = new ort.Tensor("float32", float32Array, MODEL_INPUT_SHAPE);
+
+  return { tensor, xRatio, yRatio, xOffset, yOffset };
 }
 
-async function loadImage(url) {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  const bitmap = await createImageBitmap(blob);
-  return bitmap;
+/**
+ * Process YOLOv8 results (after NMS) into pose data
+ */
+function processYOLOv8Results(
+  selected,
+  xRatio,
+  yRatio,
+  xOffset,
+  yOffset,
+  originalWidth,
+  originalHeight
+) {
+  console.log("Processing YOLOv8 results:", {
+    selectedDims: selected.dims,
+    xRatio,
+    yRatio,
+    xOffset,
+    yOffset,
+    originalSize: `${originalWidth}x${originalHeight}`,
+  });
+
+  const poses = [];
+
+  // Loop through selected detections
+  for (let idx = 0; idx < selected.dims[1]; idx++) {
+    const data = selected.data.slice(idx * selected.dims[2], (idx + 1) * selected.dims[2]);
+
+    const box = data.slice(0, 4);
+    const score = data.slice(4, 5)[0];
+    const landmarks = data.slice(5); // 17 keypoints * 3 values each = 51 values
+
+    // Calculate padding offsets and scaling
+    const maxSize = Math.max(originalWidth, originalHeight);
+    const modelToOriginalScale = maxSize / INPUT_SIZE;
+
+    console.log("Coordinate transformation debug:", {
+      originalSize: `${originalWidth}x${originalHeight}`,
+      maxSize,
+      modelToOriginalScale,
+      xOffset,
+      yOffset,
+    });
+
+    const [x, y, w, h] = [
+      box[0] * modelToOriginalScale - xOffset, // left (subtract x offset)
+      box[1] * modelToOriginalScale - yOffset, // top (subtract y offset)
+      box[2] * modelToOriginalScale, // width
+      box[3] * modelToOriginalScale, // height
+    ];
+
+    // Process keypoints (17 keypoints, 3 values each: x, y, confidence)
+    const keypoints = [];
+    for (let k = 0; k < 17; k++) {
+      // Model outputs keypoints in 640x640 space
+      const modelKpX = landmarks[k * 3];
+      const modelKpY = landmarks[k * 3 + 1];
+      const kpConf = landmarks[k * 3 + 2];
+
+      // Convert from model space (640x640) to padded space, then to original image space
+      let kpX = modelKpX * modelToOriginalScale - xOffset;
+      let kpY = modelKpY * modelToOriginalScale - yOffset;
+
+      if (k < 3) {
+        // Log first 3 keypoints for debugging
+        console.log(`Keypoint ${k} transformation:`, {
+          modelCoords: { x: modelKpX, y: modelKpY },
+          afterScale: { x: modelKpX * modelToOriginalScale, y: modelKpY * modelToOriginalScale },
+          afterOffset: { x: kpX, y: kpY },
+          confidence: kpConf,
+        });
+      }
+
+      keypoints.push({
+        x: Math.max(0, Math.min(originalWidth, kpX)),
+        y: Math.max(0, Math.min(originalHeight, kpY)),
+        confidence: kpConf,
+      });
+    }
+
+    poses.push({
+      bbox: {
+        x: Math.max(0, x - w / 2),
+        y: Math.max(0, y - h / 2),
+        width: Math.min(originalWidth, w),
+        height: Math.min(originalHeight, h),
+      },
+      confidence: score,
+      keypoints,
+    });
+  }
+
+  console.log(`Processed ${poses.length} poses`);
+  return poses;
 }
+
+console.log("YOLOv8 pose detection worker ready");
