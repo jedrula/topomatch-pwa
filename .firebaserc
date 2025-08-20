@@ -1,6 +1,7 @@
 {
   "projects": {
-    "default": "demo-offline-vue-pwa"
+    "default": "topomatch-pwa",
+    "production": "topomatch-pwa"
   },
   "targets": {},
   "etags": {}

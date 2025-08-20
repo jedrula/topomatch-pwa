@@ -4,17 +4,36 @@ import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "demo-api-key",
-  authDomain: "demo-offline-vue-pwa.firebaseapp.com",
-  projectId: "demo-offline-vue-pwa",
-  storageBucket: "demo-offline-vue-pwa.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "demo-app-id",
+// Firebase configuration based on environment
+const getFirebaseConfig = () => {
+  // Check if we're in development mode or should use emulators
+  const useEmulators = import.meta.env.DEV || import.meta.env.VITE_USE_EMULATORS === "true";
+
+  if (useEmulators) {
+    // Development/Emulator configuration
+    return {
+      apiKey: "demo-api-key",
+      authDomain: "demo-offline-vue-pwa.firebaseapp.com",
+      projectId: "demo-offline-vue-pwa",
+      storageBucket: "demo-offline-vue-pwa.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "demo-app-id",
+    };
+  } else {
+    // Production configuration
+    return {
+      projectId: "topomatch-pwa",
+      appId: "1:592023645230:web:0de421f7ba777652ef43bf",
+      storageBucket: "topomatch-pwa.firebasestorage.app",
+      apiKey: "AIzaSyD2LND6HuSMwEFL70ke48mJczTP5uScMW0",
+      authDomain: "topomatch-pwa.firebaseapp.com",
+      messagingSenderId: "592023645230"
+    };
+  }
 };
 
 // Initialize Firebase
+const firebaseConfig = getFirebaseConfig();
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Storage
@@ -29,11 +48,15 @@ const db = getFirestore(app);
 // Initialize Firebase Auth
 const auth = getAuth(app);
 
-// Connect to emulator if in development
-if (import.meta.env.DEV) {
+// Connect to emulator if in development or explicitly enabled
+const useEmulators = import.meta.env.DEV || import.meta.env.VITE_USE_EMULATORS === "true";
+
+if (useEmulators) {
+  console.log("🔧 Connecting to Firebase emulators...");
+
   try {
     connectStorageEmulator(storage, "localhost", 9199);
-    console.log("Connected to Firebase Storage emulator");
+    console.log("✅ Connected to Firebase Storage emulator");
   } catch (error) {
     // Emulator might already be connected
     if (error.code !== "storage/emulator-config-failed") {
@@ -43,7 +66,7 @@ if (import.meta.env.DEV) {
 
   try {
     connectFunctionsEmulator(functions, "localhost", 5001);
-    console.log("Connected to Firebase Functions emulator");
+    console.log("✅ Connected to Firebase Functions emulator");
   } catch (error) {
     // Emulator might already be connected
     if (error.code !== "functions/emulator-config-failed") {
@@ -53,7 +76,7 @@ if (import.meta.env.DEV) {
 
   try {
     connectFirestoreEmulator(db, "localhost", 8080);
-    console.log("Connected to Firestore emulator");
+    console.log("✅ Connected to Firestore emulator");
   } catch (error) {
     // Emulator might already be connected
     if (error.code !== "firestore/emulator-config-failed") {
@@ -63,13 +86,15 @@ if (import.meta.env.DEV) {
 
   try {
     connectAuthEmulator(auth, "http://localhost:9099");
-    console.log("Connected to Firebase Auth emulator");
+    console.log("✅ Connected to Firebase Auth emulator");
   } catch (error) {
     // Emulator might already be connected
     if (error.code !== "auth/emulator-config-failed") {
       console.warn("Auth emulator connection error:", error);
     }
   }
+} else {
+  console.log("🚀 Using production Firebase services");
 }
 
 export { storage, functions, db, auth };
