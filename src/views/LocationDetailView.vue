@@ -457,6 +457,7 @@
             :location-id="route.params.locationId"
             @uploaded="handleImageUploadComplete"
             @error="handleImageUploadError"
+            @all-complete="handleAllUploadsComplete"
           />
         </div>
 
@@ -817,6 +818,10 @@ const error = ref("");
 const showUploadModal = ref(false);
 const showBetaUploadModal = ref(false);
 
+// Upload tracking state
+const pendingMetadataSaves = ref(0);
+const totalUploadsExpected = ref(0);
+
 // Video analysis state
 const videoAnalysisResult = ref(null);
 const extractedFrame = ref(null);
@@ -1088,16 +1093,52 @@ const handleImageUploadComplete = async (uploadResult) => {
     });
   } catch (error) {
     console.error("Error saving image metadata:", error);
-    // Still close modal even if metadata save fails
+    // Still continue - don't fail the entire upload for one metadata save failure
   }
 
-  // Close the modal after successful upload
-  showUploadModal.value = false;
+  // Decrement pending counter
+  pendingMetadataSaves.value--;
+  
+  // Check if all uploads and metadata saves are complete
+  if (pendingMetadataSaves.value <= 0) {
+    console.log("All uploads and metadata saves complete");
+    showUploadModal.value = false;
+    // Reset counters
+    pendingMetadataSaves.value = 0;
+    totalUploadsExpected.value = 0;
+  }
 };
 
 const handleImageUploadError = (error) => {
   console.error("Image upload failed:", error);
-  // Handle upload error (show notification, etc.)
+  // Decrement pending counter even on error
+  pendingMetadataSaves.value--;
+  
+  // Check if all uploads are processed (success or error)
+  if (pendingMetadataSaves.value <= 0) {
+    console.log("All uploads processed (with some errors)");
+    showUploadModal.value = false;
+    // Reset counters
+    pendingMetadataSaves.value = 0;
+    totalUploadsExpected.value = 0;
+  }
+};
+
+const handleAllUploadsComplete = (uploadStats) => {
+  console.log("Storage uploads complete:", uploadStats);
+  
+  // Initialize the metadata save counter
+  totalUploadsExpected.value = uploadStats.completedUploads;
+  pendingMetadataSaves.value = uploadStats.completedUploads;
+  
+  // If no successful uploads, close modal immediately
+  if (uploadStats.completedUploads === 0) {
+    console.log("No successful uploads, closing modal");
+    showUploadModal.value = false;
+  }
+  
+  // Note: Modal will be closed when all metadata saves complete
+  // This is handled in handleImageUploadComplete
 };
 
 const handleBetaVideoSelected = (videoFile) => {

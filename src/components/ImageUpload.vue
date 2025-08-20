@@ -204,7 +204,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["uploaded", "error"]);
+const emit = defineEmits(["uploaded", "error", "all-complete"]);
 
 const fileInput = ref(null);
 const uploadQueue = ref([]);
@@ -386,6 +386,8 @@ const startUploads = async () => {
   generalError.value = "";
 
   const pendingItems = uploadQueue.value.filter((item) => item.status === "pending");
+  let completedCount = 0;
+  let errorCount = 0;
 
   // Upload files sequentially to avoid overwhelming the server
   for (const item of pendingItems) {
@@ -398,13 +400,25 @@ const startUploads = async () => {
         downloadUrl: item.downloadUrl,
         locationId: props.locationId,
       });
+
+      completedCount++;
     } catch (error) {
       console.error("Upload failed:", error);
       emit("error", error.message);
+      errorCount++;
     }
   }
 
   isUploading.value = false;
+
+  // Emit all-complete event after all uploads are processed
+  if (pendingItems.length > 0) {
+    emit("all-complete", {
+      totalUploads: pendingItems.length,
+      completedUploads: completedCount,
+      failedUploads: errorCount,
+    });
+  }
 };
 
 // Queue management
