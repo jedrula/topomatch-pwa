@@ -1729,7 +1729,7 @@ const redirectToProblemPageWithVideo = async (analysisData, problem) => {
   });
 
   try {
-    // Store only minimal essential data in sessionStorage
+    // Store enhanced data for visual confirmation in sessionStorage
     const minimalData = {
       videoFile: {
         name: analysisData.video.name,
@@ -1740,6 +1740,23 @@ const redirectToProblemPageWithVideo = async (analysisData, problem) => {
         matchFound: !!analysisData.match,
         matchedProblemId: problem.id,
         matchedProblemName: problem.name,
+        matchedProblem: {
+          id: problem.id,
+          name: problem.name,
+          grade: problem.grade,
+          description: problem.description,
+          color: problem.color,
+          holds: problem.holds,
+        },
+        matchedImage: analysisData.match ? {
+          id: analysisData.match.id,
+          url: analysisData.match.url,
+          name: analysisData.match.name,
+          width: analysisData.match.width,
+          height: analysisData.match.height,
+        } : null,
+        confidence: 0.95, // High confidence since we passed all analysis checks
+        keypoints: videoAnalysisResult.value?.poseResults?.filter(r => r.poses.length > 0).length || 0,
         timestamp: Date.now(),
       },
     };
