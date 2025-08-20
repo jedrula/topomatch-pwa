@@ -149,24 +149,16 @@
       <div class="flex items-center justify-between pt-4 border-t">
         <p class="text-sm text-gray-600">
           {{ completedUploads }}/{{ uploadQueue.length }} completed
+          {{ isUploading ? '(uploading...)' : '' }}
         </p>
 
         <div class="space-x-2">
           <button
             @click="clearCompleted"
-            v-if="completedUploads > 0"
+            v-if="completedUploads > 0 && !isUploading"
             class="px-3 py-1 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
           >
             Clear Completed
-          </button>
-
-          <button
-            @click="startUploads"
-            v-if="pendingUploads > 0"
-            :disabled="isUploading"
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {{ isUploading ? "Uploading..." : `Upload ${pendingUploads} Images` }}
           </button>
         </div>
       </div>
@@ -213,10 +205,6 @@ const isUploading = ref(false);
 const generalError = ref("");
 
 // Computed properties
-const pendingUploads = computed(
-  () => uploadQueue.value.filter((upload) => upload.status === "pending").length
-);
-
 const completedUploads = computed(
   () => uploadQueue.value.filter((upload) => upload.status === "complete").length
 );
@@ -298,6 +286,11 @@ const addFilesToQueue = (files) => {
   // Only clear error if no validation errors occurred
   if (!hasError) {
     generalError.value = "";
+  }
+
+  // Auto-start uploads immediately after adding files
+  if (validFiles.length > 0) {
+    startUploads();
   }
 };
 
@@ -386,39 +379,50 @@ const startUploads = async () => {
   generalError.value = "";
 
   const pendingItems = uploadQueue.value.filter((item) => item.status === "pending");
-  let completedCount = 0;
-  let errorCount = 0;
+  
+  if (pendingItems.length === 0) {
+    isUploading.value = false;
+    return;
+  }
 
-  // Upload files sequentially to avoid overwhelming the server
-  for (const item of pendingItems) {
+  console.log(`Starting ${pendingItems.length} uploads in parallel`);
+
+  // Upload all files in parallel for better performance
+  const uploadPromises = pendingItems.map(async (item) => {
     try {
       await uploadSingleFile(item);
 
-      // Emit uploaded event with image info
+      // Emit uploaded event with image info immediately after each upload completes
       emit("uploaded", {
         fileName: item.file.name,
         downloadUrl: item.downloadUrl,
         locationId: props.locationId,
       });
 
-      completedCount++;
+      return { success: true, item };
     } catch (error) {
       console.error("Upload failed:", error);
       emit("error", error.message);
-      errorCount++;
+      return { success: false, error, item };
     }
-  }
+  });
+
+  // Wait for all uploads to complete
+  const results = await Promise.all(uploadPromises);
+  
+  const completedCount = results.filter(r => r.success).length;
+  const errorCount = results.filter(r => !r.success).length;
 
   isUploading.value = false;
 
-  // Emit all-complete event after all uploads are processed
-  if (pendingItems.length > 0) {
-    emit("all-complete", {
-      totalUploads: pendingItems.length,
-      completedUploads: completedCount,
-      failedUploads: errorCount,
-    });
-  }
+  // Emit all-complete event after ALL uploads are processed
+  emit("all-complete", {
+    totalUploads: pendingItems.length,
+    completedUploads: completedCount,
+    failedUploads: errorCount,
+  });
+
+  console.log(`Upload batch complete: ${completedCount} succeeded, ${errorCount} failed`);
 };
 
 // Queue management

@@ -23,7 +23,8 @@
     "backup:import:prod": "node scripts/backup.cjs import-prod",
     "backup:package": "node scripts/backup.cjs package",
     "backup:import:seed": "node scripts/backup.cjs import-seed",
-    "backup:list": "node scripts/backup.cjs list"
+    "backup:list": "node scripts/backup.cjs list",
+    "deploy:frontend": "npm run build && firebase deploy --only hosting"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.7.1",
