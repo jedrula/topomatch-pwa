@@ -1,5 +1,8 @@
 [
   {
+    "_comment": "Firebase Storage CORS configuration - allows browser fetch() requests from specified origins",
+    "_usage": "Apply with: gsutil cors set cors.json gs://topomatch-pwa.firebasestorage.app",
+    "_docs": "See FIREBASE_CORS_SETUP.md for detailed setup instructions",
     "origin": [
       "https://topomatch-pwa.web.app",
       "https://topomatch-pwa.firebaseapp.com",

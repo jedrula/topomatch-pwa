@@ -16,6 +16,15 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 npm install
 ```
 
+### Firebase Storage CORS Configuration
+
+For hold detection functionality to work, Firebase Storage CORS must be configured. See [FIREBASE_CORS_SETUP.md](./FIREBASE_CORS_SETUP.md) for detailed instructions.
+
+**Quick setup:**
+```bash
+gsutil cors set cors.json gs://topomatch-pwa.firebasestorage.app
+```
+
 ### Compile and Hot-Reload for Development
 
 ```sh
