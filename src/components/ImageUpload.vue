@@ -149,7 +149,7 @@
       <div class="flex items-center justify-between pt-4 border-t">
         <p class="text-sm text-gray-600">
           {{ completedUploads }}/{{ uploadQueue.length }} completed
-          {{ isUploading ? '(uploading...)' : '' }}
+          {{ isUploading ? "(uploading...)" : "" }}
         </p>
 
         <div class="space-x-2">
@@ -379,7 +379,7 @@ const startUploads = async () => {
   generalError.value = "";
 
   const pendingItems = uploadQueue.value.filter((item) => item.status === "pending");
-  
+
   if (pendingItems.length === 0) {
     isUploading.value = false;
     return;
@@ -409,9 +409,9 @@ const startUploads = async () => {
 
   // Wait for all uploads to complete
   const results = await Promise.all(uploadPromises);
-  
-  const completedCount = results.filter(r => r.success).length;
-  const errorCount = results.filter(r => !r.success).length;
+
+  const completedCount = results.filter((r) => r.success).length;
+  const errorCount = results.filter((r) => !r.success).length;
 
   isUploading.value = false;
 

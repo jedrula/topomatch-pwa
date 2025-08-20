@@ -439,8 +439,13 @@
     >
       <div class="bg-white rounded-lg max-w-md w-full max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between p-6 pb-4 flex-shrink-0">
-          <h3 class="text-lg font-semibold">Upload Images</h3>
-          <button @click="showUploadModal = false" class="text-gray-400 hover:text-gray-600">
+          <div>
+            <h3 class="text-lg font-semibold">Upload Images</h3>
+            <p v-if="uploadsInProgress" class="text-sm text-blue-600 mt-1">
+              Processing {{ pendingMetadataSaves }} of {{ totalUploadsExpected }} uploads...
+            </p>
+          </div>
+          <button @click="handleUploadModalClose" class="text-gray-400 hover:text-gray-600">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
@@ -463,10 +468,16 @@
 
         <div class="flex gap-2 p-6 pt-4 flex-shrink-0 border-t">
           <button
-            @click="showUploadModal = false"
-            class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+            @click="handleUploadModalClose"
+            :disabled="uploadsInProgress"
+            :class="[
+              'flex-1 px-4 py-2 rounded-md transition-colors',
+              uploadsInProgress
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-200 text-gray-800 hover:bg-gray-300',
+            ]"
           >
-            Close
+            {{ uploadsInProgress ? "Uploading..." : "Close" }}
           </button>
         </div>
       </div>
@@ -839,6 +850,11 @@ const expandedGrades = ref(new Set());
 
 const locationId = route.params.locationId;
 
+// Computed property to check if uploads are in progress
+const uploadsInProgress = computed(() => {
+  return pendingMetadataSaves.value > 0;
+});
+
 // Boulder problems summary grouped by grade
 const boulderProblemsSummary = computed(() => {
   if (!boulderProblemsStore.boulderProblems.length) return [];
@@ -1073,8 +1089,21 @@ const isHeicFile = (fileName) => {
   return lowerName.endsWith(".heic") || lowerName.endsWith(".heif");
 };
 
+const handleUploadModalClose = () => {
+  if (uploadsInProgress.value) {
+    // Don't close modal while uploads are in progress
+    // You could show a warning here if desired
+    console.log("Cannot close upload modal while uploads are in progress");
+    return;
+  }
+  showUploadModal.value = false;
+};
+
 const handleImageUploadComplete = async (uploadResult) => {
   console.log("Image uploaded successfully:", uploadResult);
+
+  // Increment pending metadata saves counter
+  pendingMetadataSaves.value++;
 
   try {
     // Save image metadata to Firestore via backend function
@@ -1098,9 +1127,9 @@ const handleImageUploadComplete = async (uploadResult) => {
 
   // Decrement pending counter
   pendingMetadataSaves.value--;
-  
+
   // Check if all uploads and metadata saves are complete
-  if (pendingMetadataSaves.value <= 0) {
+  if (pendingMetadataSaves.value <= 0 && totalUploadsExpected.value > 0) {
     console.log("All uploads and metadata saves complete");
     showUploadModal.value = false;
     // Reset counters
@@ -1111,32 +1140,30 @@ const handleImageUploadComplete = async (uploadResult) => {
 
 const handleImageUploadError = (error) => {
   console.error("Image upload failed:", error);
-  // Decrement pending counter even on error
-  pendingMetadataSaves.value--;
-  
-  // Check if all uploads are processed (success or error)
-  if (pendingMetadataSaves.value <= 0) {
-    console.log("All uploads processed (with some errors)");
-    showUploadModal.value = false;
-    // Reset counters
-    pendingMetadataSaves.value = 0;
-    totalUploadsExpected.value = 0;
-  }
+  // Note: We don't increment pendingMetadataSaves for failed uploads
+  // because failed uploads don't trigger metadata saves
+
+  // The totalUploadsExpected is set correctly in handleAllUploadsComplete
+  // based on successful uploads only, so we don't need to decrement anything here
 };
 
 const handleAllUploadsComplete = (uploadStats) => {
-  console.log("Storage uploads complete:", uploadStats);
-  
-  // Initialize the metadata save counter
+  console.log("All storage uploads complete:", uploadStats);
+
+  // Set the expected number of metadata saves based on successful uploads
   totalUploadsExpected.value = uploadStats.completedUploads;
-  pendingMetadataSaves.value = uploadStats.completedUploads;
-  
+
+  // The pendingMetadataSaves will be incremented in handleImageUploadComplete
+  // and decremented as each metadata save completes
+
   // If no successful uploads, close modal immediately
   if (uploadStats.completedUploads === 0) {
     console.log("No successful uploads, closing modal");
     showUploadModal.value = false;
+    pendingMetadataSaves.value = 0;
+    totalUploadsExpected.value = 0;
   }
-  
+
   // Note: Modal will be closed when all metadata saves complete
   // This is handled in handleImageUploadComplete
 };

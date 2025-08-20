@@ -6,7 +6,7 @@
 class HoldDetectionServerService {
   constructor() {
     // Default API URL - can be configured
-    this.apiUrl = "http://192.168.0.243:8000";
+    this.apiUrl = "https://6d2401b5f155.ngrok-free.app";
     this.currentJobId = null;
   }
 
@@ -51,25 +51,66 @@ class HoldDetectionServerService {
   }
 
   /**
-   * Fetch image from Firebase Storage and convert to blob
+   * Fetch image from Firebase Storage using direct fetch
    */
   async fetchImageAsBlob(imageUrl) {
+    console.log("🔍 Using direct fetch for all Firebase Storage URLs");
+    return await this.fetchImageAsBlobDirect(imageUrl);
+  }
+
+  /**
+   * Direct fetch method for Firebase Storage URLs with tokens
+   */
+  async fetchImageAsBlobDirect(imageUrl) {
     try {
-      const response = await fetch(imageUrl);
+      console.log("🔍 Fetching image via direct fetch:", imageUrl);
+
+      // Firebase Storage URLs with tokens should work with cors mode
+      const fetchOptions = {
+        method: "GET",
+        mode: "cors",
+        cache: "no-cache",
+        credentials: "omit", // Don't send cookies, token is in URL
+      };
+
+      console.log("🔍 Using cors mode with token authentication");
+
+      const response = await fetch(imageUrl, fetchOptions);
+
+      console.log("🔍 Direct fetch response:", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        type: response.type,
+      });
+
       if (!response.ok) {
+        if (response.status === 0) {
+          throw new Error(
+            `CORS Error: Cannot fetch image from Firebase Storage.`
+          );
+        }
         throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
       }
 
       const blob = await response.blob();
       const sizeMB = blob.size / 1024 / 1024;
 
+      console.log("✅ Image fetched successfully via direct fetch:", {
+        sizeMB: sizeMB.toFixed(2),
+        type: blob.type,
+        size: blob.size,
+      });
+
       return {
         success: true,
         blob,
         sizeMB,
-        message: `Image fetched successfully (${sizeMB.toFixed(2)} MB)`,
+        message: `Image fetched successfully via direct fetch (${sizeMB.toFixed(2)} MB)`,
       };
     } catch (error) {
+      console.error("❌ Direct fetch failed:", error);
+
       return {
         success: false,
         error: error.message,
