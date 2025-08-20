@@ -356,45 +356,34 @@
               @click="openVideoGallery(index)"
             >
               <!-- Video thumbnail/preview -->
-              <div class="w-full h-full relative bg-gradient-to-br from-gray-800 to-gray-900 flex flex-col items-center justify-center p-3">
-                <!-- Video title -->
-                <svg
-                  class="w-12 h-12 text-white mb-2"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-                <p class="text-xs text-white text-center font-medium leading-tight">
-                  {{ video.name.length > 25 ? video.name.substring(0, 25) + '...' : video.name }}
-                </p>
+              <div class="w-full h-full relative">
+                <video
+                  :src="video.downloadUrl"
+                  class="w-full h-full object-cover"
+                  muted
+                  preload="metadata"
+                  @loadedmetadata="
+                    (e) => {
+                      e.target.currentTime = 1;
+                    }
+                  "
+                  @seeked="
+                    (e) => {
+                      e.target.style.opacity = '1';
+                      e.target.parentElement.querySelector('.loading-placeholder').style.display =
+                        'none';
+                    }
+                  "
+                  style="opacity: 0; transition: opacity 0.3s ease"
+                />
 
-                <!-- Play button overlay -->
+                <!-- Loading placeholder -->
                 <div
-                  class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all"
+                  class="loading-placeholder absolute inset-0 bg-gray-800 flex items-center justify-center"
                 >
-                  <svg
-                    class="w-16 h-16 text-white drop-shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
-                </div>
-              </div>
-
-              <!-- Hover overlay with metadata -->
-              <div
-                class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-70 transition-all duration-200 flex items-end"
-              >
-                <div class="p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                  <p class="text-sm font-medium">{{ video.name }}</p>
-                  <p class="text-xs text-gray-300">
-                    {{ formatVideoDate(video.uploadedAt) }}
-                  </p>
-                  <p class="text-xs text-gray-300">
-                    {{ formatFileSize(video.size) }}
-                  </p>
                 </div>
               </div>
             </div>
@@ -785,19 +774,6 @@ const openVideoGallery = (index = 0) => {
 
 const closeVideoGallery = () => {
   isVideoGalleryOpen.value = false;
-};
-
-// Video formatting helpers
-const formatVideoDate = (dateString) => {
-  try {
-    return new Date(dateString).toLocaleDateString();
-  } catch {
-    return dateString;
-  }
-};
-
-const formatFileSize = (bytes) => {
-  return videoService.formatFileSize(bytes);
 };
 
 const handleBetaUploadClick = () => {

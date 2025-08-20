@@ -1,17 +1,15 @@
 <template>
   <div
     v-if="isOpen"
-    class="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center"
+    class="fixed inset-0 z-[9999] bg-black bg-opacity-95 flex items-center justify-center"
     @click="closeOnBackdrop"
     @keydown.esc="closeGallery"
-    @keydown.left="previousVideo"
-    @keydown.right="nextVideo"
     tabindex="0"
   >
     <!-- Close button -->
     <button
       @click="closeGallery"
-      class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
+      class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-[10000]"
     >
       <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -23,46 +21,16 @@
       </svg>
     </button>
 
-    <!-- Video counter -->
-    <div class="absolute top-4 left-4 text-white bg-black bg-opacity-50 px-3 py-1 rounded text-sm">
-      {{ currentIndex + 1 }} / {{ videos.length }}
-    </div>
-
-    <!-- Previous button -->
-    <button
-      v-if="videos.length > 1"
-      @click="previousVideo"
-      class="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors"
-      :disabled="currentIndex === 0"
-      :class="{ 'opacity-50 cursor-not-allowed': currentIndex === 0 }"
-    >
-      <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-      </svg>
-    </button>
-
-    <!-- Next button -->
-    <button
-      v-if="videos.length > 1"
-      @click="nextVideo"
-      class="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors"
-      :disabled="currentIndex === videos.length - 1"
-      :class="{ 'opacity-50 cursor-not-allowed': currentIndex === videos.length - 1 }"
-    >
-      <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-      </svg>
-    </button>
-
     <!-- Main video display -->
     <div class="flex flex-col items-center justify-center max-w-6xl max-h-full p-4">
-      <div class="relative w-full h-full flex items-center justify-center">
+      <div class="relative w-full flex-1 flex items-center justify-center">
         <!-- Video player -->
         <video
           v-if="currentVideo"
           :src="currentVideo.downloadUrl"
           controls
-          class="max-h-screen rounded-lg"
+          autoplay
+          class="max-h-screen max-w-screen rounded-lg"
           @loadedmetadata="onVideoLoaded"
         />
 
@@ -71,51 +39,19 @@
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
         </div>
       </div>
-
-      <!-- Video info -->
-      <div v-if="currentVideo" class="mt-4 text-white text-center max-w-2xl">
-        <h3 class="text-lg font-semibold mb-2">{{ currentVideo.name }}</h3>
-        <div class="text-sm text-gray-300 space-y-1">
-          <p v-if="currentVideo.uploadedBy">Uploaded by {{ currentVideo.uploadedBy }}</p>
-          <p v-if="currentVideo.uploadedAt">
-            {{ formatDate(currentVideo.uploadedAt) }}
-          </p>
-          <p v-if="currentVideo.size">
-            {{ formatFileSize(currentVideo.size) }}
-          </p>
-        </div>
-      </div>
     </div>
 
-    <!-- Thumbnail strip -->
+    <!-- Video info - Bottom right corner -->
     <div
-      v-if="videos.length > 1"
-      class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 bg-black bg-opacity-50 p-2 rounded-lg max-w-xl overflow-x-auto"
+      v-if="currentVideo"
+      class="absolute bottom-6 right-6 text-white text-right max-w-xs bg-black bg-opacity-50 p-3 rounded-lg text-sm"
     >
-      <button
-        v-for="(video, index) in videos"
-        :key="video.id"
-        @click="currentIndex = index"
-        :class="[
-          'w-16 h-12 rounded border-2 transition-all flex-shrink-0 overflow-hidden relative',
-          index === currentIndex
-            ? 'border-white bg-gray-700'
-            : 'border-gray-500 hover:border-gray-300 opacity-70 hover:opacity-100 bg-gray-800',
-        ]"
-      >
-        <!-- Video thumbnail content -->
-        <div class="w-full h-full flex items-center justify-center">
-          <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-        </div>
-        
-        <!-- Current video indicator -->
-        <div
-          v-if="index === currentIndex"
-          class="absolute inset-0 border-2 border-white rounded"
-        ></div>
-      </button>
+      <h3 class="font-medium mb-1 text-gray-200">{{ currentVideo.name }}</h3>
+      <div class="text-xs text-gray-400 space-y-0.5">
+        <p v-if="currentVideo.uploadedBy">{{ currentVideo.uploadedBy }}</p>
+        <p v-if="currentVideo.uploadedAt">{{ formatDate(currentVideo.uploadedAt) }}</p>
+        <p v-if="currentVideo.size">{{ formatFileSize(currentVideo.size) }}</p>
+      </div>
     </div>
   </div>
 </template>
@@ -155,18 +91,6 @@ const closeGallery = () => {
 const closeOnBackdrop = (event) => {
   if (event.target === event.currentTarget) {
     closeGallery();
-  }
-};
-
-const previousVideo = () => {
-  if (currentIndex.value > 0) {
-    currentIndex.value--;
-  }
-};
-
-const nextVideo = () => {
-  if (currentIndex.value < props.videos.length - 1) {
-    currentIndex.value++;
   }
 };
 
@@ -217,12 +141,6 @@ const handleKeydown = (event) => {
   switch (event.key) {
     case "Escape":
       closeGallery();
-      break;
-    case "ArrowLeft":
-      previousVideo();
-      break;
-    case "ArrowRight":
-      nextVideo();
       break;
   }
 };
