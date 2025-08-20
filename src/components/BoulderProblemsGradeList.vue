@@ -124,6 +124,7 @@
 
 <script setup>
 import { ref, computed } from "vue";
+import { getGradeColor } from "@/utils/gradingUtils";
 
 const props = defineProps({
   /**
@@ -194,28 +195,5 @@ const toggleGradeExpansion = (grade) => {
   }
   // Trigger reactivity
   expandedGrades.value = new Set(expandedGrades.value);
-};
-
-const getGradeColor = (grade) => {
-  const colors = {
-    'V0': '#4ade80',    // green-400
-    'V1': '#34d399',    // emerald-400  
-    'V2': '#22d3ee',    // cyan-400
-    'V3': '#60a5fa',    // blue-400
-    'V4': '#a78bfa',    // violet-400
-    'V5': '#c084fc',    // purple-400
-    'V6': '#f472b6',    // pink-400
-    'V7': '#fb7185',    // rose-400
-    'V8': '#f87171',    // red-400
-    'V9': '#fb923c',    // orange-400
-    'V10': '#fbbf24',   // amber-400
-    'V11': '#facc15',   // yellow-400
-    'V12': '#a3a3a3',   // neutral-400
-    'V13': '#71717a',   // zinc-500
-    'V14': '#525252',   // neutral-600
-    'V15': '#374151',   // gray-700
-    'V16': '#1f2937'    // gray-800
-  };
-  return colors[grade] || '#6b7280'; // gray-500 as default
 };
 </script>

@@ -110,12 +110,24 @@
           class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
         >
           <div class="flex items-start space-x-2 mb-3">
-            <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <svg
+              class="w-5 h-5 text-blue-600 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              ></path>
             </svg>
             <div class="flex-1">
               <h4 class="text-sm font-medium text-blue-800">🤖 AI Analysis Complete</h4>
-              <p class="text-xs text-blue-600">Your video was automatically matched to this problem:</p>
+              <p class="text-xs text-blue-600">
+                Your video was automatically matched to this problem:
+              </p>
             </div>
           </div>
 
@@ -124,34 +136,17 @@
             <div class="flex items-start space-x-4">
               <!-- Boulder Image with Problem Highlight -->
               <div class="flex-shrink-0">
-                <div class="relative">
-                  <img
-                    v-if="aiAnalysisData.matchedImage"
-                    ref="aiImageElement"
-                    :src="aiAnalysisData.matchedImage.url"
-                    :alt="aiAnalysisData.matchedImage.name"
-                    class="w-32 h-32 object-contain rounded border"
-                    @load="onAiImageLoad"
-                  />
-                  <!-- Hold Highlights SVG Overlay -->
-                  <svg
-                    v-if="aiImageLoaded && aiAnalysisData.problem?.holds"
-                    class="absolute inset-0 w-full h-full pointer-events-none"
-                    :viewBox="aiImageViewBox"
-                    preserveAspectRatio="xMidYMid meet"
-                  >
-                    <HoldSvg
-                      v-for="(problemHold, holdIndex) in aiAnalysisData.problem.holds"
-                      :key="`analysis-${holdIndex}`"
-                      :svg-markup="problemHold.hold?.svgMarkup || ''"
-                      :interaction="'highlight'"
-                      :interaction-allowed="'none'"
-                      :color="aiAnalysisData.problem.color"
-                    />
-                  </svg>
-                </div>
+                <BoulderImageWithHolds
+                  v-if="aiAnalysisData.matchedImage"
+                  :image-url="aiAnalysisData.matchedImage.url"
+                  :image-alt="aiAnalysisData.matchedImage.name"
+                  :problems="aiAnalysisData.problem ? [aiAnalysisData.problem] : []"
+                  image-class="w-32 h-32 object-contain rounded border"
+                  :show-holds="true"
+                  :selected-problem-id="aiAnalysisData.problem?.id"
+                />
                 <p class="text-xs text-gray-500 mt-1 text-center max-w-32 truncate">
-                  {{ aiAnalysisData.matchedImage?.name || 'Boulder Image' }}
+                  {{ aiAnalysisData.matchedImage?.name || "Boulder Image" }}
                 </p>
               </div>
 
@@ -161,32 +156,51 @@
                   <div
                     v-if="aiAnalysisData.detectedProblem?.grade"
                     class="w-3 h-3 rounded-full"
-                    :style="{ backgroundColor: getGradeColor(aiAnalysisData.detectedProblem.grade) }"
+                    :style="{
+                      backgroundColor: getGradeColor(aiAnalysisData.detectedProblem.grade),
+                    }"
                   ></div>
-                  <span class="font-medium text-gray-900">{{ aiAnalysisData.detectedProblem?.name || 'Detected Problem' }}</span>
+                  <span class="font-medium text-gray-900">{{
+                    aiAnalysisData.detectedProblem?.name || "Detected Problem"
+                  }}</span>
                   <span v-if="aiAnalysisData.detectedProblem?.grade" class="text-sm text-gray-600">
                     {{ getGradeLabel(aiAnalysisData.detectedProblem.grade) }}
                   </span>
                 </div>
-                
-                <p v-if="aiAnalysisData.detectedProblem?.description" class="text-sm text-gray-600 mb-2">
+
+                <p
+                  v-if="aiAnalysisData.detectedProblem?.description"
+                  class="text-sm text-gray-600 mb-2"
+                >
                   {{ aiAnalysisData.detectedProblem.description }}
                 </p>
-                
+
                 <!-- Analysis Confidence -->
                 <div class="text-xs text-gray-500 space-y-1">
                   <div v-if="aiAnalysisData.confidence">
-                    <strong>Match confidence:</strong> {{ Math.round(aiAnalysisData.confidence * 100) }}%
+                    <strong>Match confidence:</strong>
+                    {{ Math.round(aiAnalysisData.confidence * 100) }}%
                   </div>
                   <div v-if="aiAnalysisData.keypoints">
-                    <strong>Keypoints analyzed:</strong> {{ aiAnalysisData.keypoints }} poses detected
+                    <strong>Keypoints analyzed:</strong> {{ aiAnalysisData.keypoints }} poses
+                    detected
                   </div>
                 </div>
 
                 <!-- Verification -->
                 <div class="mt-2 flex items-center space-x-2 text-xs">
-                  <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  <svg
+                    class="w-4 h-4 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    ></path>
                   </svg>
                   <span class="text-green-700">Video will be tagged with this problem</span>
                 </div>
@@ -279,9 +293,9 @@
 import { ref, computed, onMounted } from "vue";
 import { useAscentStore } from "@/stores/ascentStore";
 import VideoUpload from "@/components/VideoUpload.vue";
-import HoldSvg from "@/components/HoldSvg.vue";
+import BoulderImageWithHolds from "@/components/BoulderImageWithHolds.vue";
 import { videoService } from "@/services/videoService";
-import { getGradeLabel } from "@/utils/gradingUtils";
+import { getGradeLabel, getGradeColor } from "@/utils/gradingUtils";
 
 const props = defineProps({
   locationId: {
@@ -296,47 +310,6 @@ const props = defineProps({
 
 const ascentStore = useAscentStore();
 
-// Grade color mapping
-const getGradeColor = (grade) => {
-  const colors = {
-    VB: "#10b981", // green-500
-    V0: "#059669", // green-600
-    "V0+": "#047857", // green-700
-    V1: "#0d9488", // teal-600
-    "V1+": "#0f766e", // teal-700
-    V2: "#0891b2", // sky-600
-    "V2+": "#0e7490", // sky-700
-    V3: "#0284c7", // blue-600
-    "V3+": "#1d4ed8", // blue-700
-    V4: "#2563eb", // blue-600
-    "V4+": "#1e40af", // blue-700
-    V5: "#7c3aed", // violet-600
-    "V5+": "#6d28d9", // violet-700
-    V6: "#c026d3", // fuchsia-600
-    "V6+": "#a21caf", // fuchsia-700
-    V7: "#db2777", // pink-600
-    "V7+": "#be185d", // pink-700
-    V8: "#dc2626", // red-600
-    "V8+": "#b91c1c", // red-700
-    V9: "#ea580c", // orange-600
-    "V9+": "#c2410c", // orange-700
-    V10: "#d97706", // amber-600
-    "V10+": "#b45309", // amber-700
-    V11: "#ca8a04", // yellow-600
-    "V11+": "#a16207", // yellow-700
-    V12: "#65a30d", // lime-600
-    "V12+": "#4d7c0f", // lime-700
-    V13: "#16a34a", // green-600
-    "V13+": "#15803d", // green-700
-    V14: "#374151", // gray-700
-    "V14+": "#1f2937", // gray-800
-    V15: "#374151", // gray-700
-    "V15+": "#1f2937", // gray-800
-    V16: "#1f2937", // gray-800
-  };
-  return colors[grade] || "#6b7280"; // gray-500 as default
-};
-
 // Form data
 const formData = ref({
   attemptType: "",
@@ -349,27 +322,6 @@ const formData = ref({
 // Video upload state
 const isVideoUploading = ref(false);
 const aiAnalysisData = ref(null); // Store AI analysis data for visual confirmation
-
-// AI image loading state
-const aiImageElement = ref(null);
-const aiImageLoaded = ref(false);
-
-// SVG viewBox for AI image overlay positioning
-const aiImageViewBox = computed(() => {
-  if (!aiImageElement.value) return "0 0 1000 1000";
-
-  const img = aiImageElement.value;
-  const naturalWidth = img.naturalWidth || 1000;
-  const naturalHeight = img.naturalHeight || 1000;
-
-  return `0 0 ${naturalWidth} ${naturalHeight}`;
-});
-
-// Handle AI image load event
-const onAiImageLoad = () => {
-  aiImageLoaded.value = true;
-  console.log("🖼️ AI image loaded, viewBox:", aiImageViewBox.value);
-};
 
 // Check for prefilled video data on mount
 onMounted(async () => {
@@ -426,10 +378,10 @@ const checkForPrefilledVideo = async () => {
         if (analysisInfo) {
           aiAnalysisData.value = {
             detectedProblem: analysisInfo.analysisResult?.matchedProblem || {
-              name: analysisInfo.analysisResult?.matchedProblemName || "Unknown Problem"
+              name: analysisInfo.analysisResult?.matchedProblemName || "Unknown Problem",
             },
             problem: analysisInfo.analysisResult?.matchedProblem || {
-              name: analysisInfo.analysisResult?.matchedProblemName || "Unknown Problem"
+              name: analysisInfo.analysisResult?.matchedProblemName || "Unknown Problem",
             },
             matchedImage: analysisInfo.analysisResult?.matchedImage || null,
             confidence: analysisInfo.analysisResult?.confidence || 0.9,

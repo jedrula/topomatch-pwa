@@ -791,7 +791,7 @@ import ImageGallery from "../components/ImageGallery.vue";
 import VideoGallery from "../components/VideoGallery.vue";
 import VideoFrameMatcher from "../components/VideoFrameMatcherEnhanced.vue";
 import { formatDate, isSameDateTime } from "../utils/dateUtils.js";
-import { getGradeLabel, getGradeDifficulty } from "../utils/gradingUtils.js";
+import { getGradeLabel, getGradeDifficulty, getGradeColor } from "../utils/gradingUtils.js";
 import { useUserStore } from "../stores/userStore.js";
 import { transformPoint } from "../utils/homographyUtils.js";
 import { videoService } from "../services/videoService.js";
@@ -1696,29 +1696,6 @@ const toggleGradeExpansion = (grade) => {
   expandedGrades.value = new Set(expandedGrades.value);
 };
 
-const getGradeColor = (grade) => {
-  const colors = {
-    V0: "#4ade80", // green-400
-    V1: "#34d399", // emerald-400
-    V2: "#22d3ee", // cyan-400
-    V3: "#60a5fa", // blue-400
-    V4: "#a78bfa", // violet-400
-    V5: "#c084fc", // purple-400
-    V6: "#f472b6", // pink-400
-    V7: "#fb7185", // rose-400
-    V8: "#f87171", // red-400
-    V9: "#fb923c", // orange-400
-    V10: "#fbbf24", // amber-400
-    V11: "#facc15", // yellow-400
-    V12: "#a3a3a3", // neutral-400
-    V13: "#71717a", // zinc-500
-    V14: "#525252", // neutral-600
-    V15: "#374151", // gray-700
-    V16: "#1f2937", // gray-800
-  };
-  return colors[grade] || "#6b7280"; // gray-500 as default
-};
-
 // Redirect to problem page with video data
 const redirectToProblemPageWithVideo = async (analysisData, problem) => {
   console.log("🚀 Redirecting to problem page with video data:", {
@@ -1748,15 +1725,18 @@ const redirectToProblemPageWithVideo = async (analysisData, problem) => {
           color: problem.color,
           holds: problem.holds,
         },
-        matchedImage: analysisData.match ? {
-          id: analysisData.match.id,
-          url: analysisData.match.url,
-          name: analysisData.match.name,
-          width: analysisData.match.width,
-          height: analysisData.match.height,
-        } : null,
+        matchedImage: analysisData.match
+          ? {
+              id: analysisData.match.id,
+              url: analysisData.match.url,
+              name: analysisData.match.name,
+              width: analysisData.match.width,
+              height: analysisData.match.height,
+            }
+          : null,
         confidence: 0.95, // High confidence since we passed all analysis checks
-        keypoints: videoAnalysisResult.value?.poseResults?.filter(r => r.poses.length > 0).length || 0,
+        keypoints:
+          videoAnalysisResult.value?.poseResults?.filter((r) => r.poses.length > 0).length || 0,
         timestamp: Date.now(),
       },
     };
