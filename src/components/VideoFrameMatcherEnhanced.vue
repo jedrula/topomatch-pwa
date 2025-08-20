@@ -291,68 +291,6 @@
                 onto the boulder image using homography.
               </p>
             </div>
-
-            <!-- Boulder Problem Analysis Summary -->
-            <div
-              v-if="climbedBoulderAnalysis"
-              class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
-            >
-              <h5 class="text-sm font-medium text-blue-900 mb-2">Boulder Problem Analysis</h5>
-
-              <div v-if="climbedBoulderAnalysis.winner" class="space-y-2">
-                <div class="p-3 bg-blue-100 rounded border border-blue-300">
-                  <div class="flex items-center space-x-2 mb-1">
-                    <svg
-                      class="w-4 h-4 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <span class="font-medium text-blue-900">Most Likely Boulder Problem:</span>
-                  </div>
-                  <div class="text-lg font-bold text-blue-800">
-                    {{ climbedBoulderAnalysis.winner.name }}
-                  </div>
-                  <div class="text-sm text-blue-700 mt-1">
-                    {{ climbedBoulderAnalysis.analysis }}
-                  </div>
-                </div>
-
-                <div v-if="climbedBoulderAnalysis.allProblems.length > 1" class="text-xs">
-                  <div class="font-medium text-gray-700 mb-1">All Matches:</div>
-                  <div class="space-y-1">
-                    <div
-                      v-for="(problemData, index) in climbedBoulderAnalysis.allProblems"
-                      :key="index"
-                      class="flex justify-between items-center p-2 bg-gray-100 rounded"
-                    >
-                      <span class="font-medium">{{ problemData.problem.name }}</span>
-                      <span class="text-gray-600">
-                        {{ problemData.votes }}/{{
-                          climbedBoulderAnalysis.totalKeypoints
-                        }}
-                        keypoints ({{
-                          Math.round(
-                            (problemData.votes / climbedBoulderAnalysis.totalKeypoints) * 100
-                          )
-                        }}%)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div v-else class="text-sm text-gray-600">
-                {{ climbedBoulderAnalysis.analysis }}
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -414,7 +352,7 @@ import { useInferenceStore } from "@/stores/inferenceStore";
 import { useBoulderProblemsStore } from "@/stores/boulderProblemsStore";
 
 // Props
-const props = defineProps({
+defineProps({
   comparisonImages: {
     type: Array,
     default: () => [],
@@ -464,68 +402,9 @@ const visualizationDimensions = ref({ width: 0, height: 0 });
 // Store instances
 const boulderProblemsStore = useBoulderProblemsStore();
 
-// Computed properties
-const climbedBoulderAnalysis = computed(() => {
-  if (!transformedPoses.value.length) return null;
-
-  // Collect all closest problems from all keypoints
-  const problemVotes = {};
-  const allKeypoints = [];
-
-  transformedPoses.value.forEach((frame) => {
-    const keypointRows = getKeypointRows(frame);
-    keypointRows.forEach((keypoint) => {
-      allKeypoints.push(keypoint);
-      if (keypoint.closestProblem) {
-        const problemId = keypoint.closestProblem.id || keypoint.closestProblem.name;
-        if (!problemVotes[problemId]) {
-          problemVotes[problemId] = {
-            problem: keypoint.closestProblem,
-            votes: 0,
-            totalDistance: 0,
-            keypoints: [],
-          };
-        }
-        problemVotes[problemId].votes++;
-        problemVotes[problemId].totalDistance += keypoint.distanceToHold;
-        problemVotes[problemId].keypoints.push({
-          name: keypoint.name,
-          distance: keypoint.distanceToHold,
-        });
-      }
-    });
-  });
-
-  if (Object.keys(problemVotes).length === 0) {
-    return { winner: null, analysis: "No boulder problems matched any keypoints." };
-  }
-
-  // Find the winner (most votes, then by average distance)
-  const sortedProblems = Object.values(problemVotes).sort((a, b) => {
-    if (b.votes !== a.votes) {
-      return b.votes - a.votes; // Most votes first
-    }
-    return a.totalDistance / a.votes - b.totalDistance / b.votes; // Closest average distance
-  });
-
-  const winner = sortedProblems[0];
-  const totalKeypoints = allKeypoints.length;
-  const matchPercentage = Math.round((winner.votes / totalKeypoints) * 100);
-  const avgDistance = Math.round(winner.totalDistance / winner.votes);
-
-  return {
-    winner: winner.problem,
-    votes: winner.votes,
-    totalKeypoints,
-    matchPercentage,
-    avgDistance,
-    analysis: `${matchPercentage}% of keypoints (${winner.votes}/${totalKeypoints}) matched "${winner.problem.name}" with an average distance of ${avgDistance}px.`,
-    allProblems: sortedProblems,
-  };
-});
-
 // Get boulder problems for the matched image
 const matchedImageBoulderProblems = computed(() => {
+  if (!bestMatch.value?.id) return [];
   // Use the same filtering logic as LocationDetailView that works
   return boulderProblemsStore.boulderProblems.filter(
     (problem) => problem.imageId === bestMatch.value.id
@@ -561,17 +440,39 @@ const findClosestHold = (keypointX, keypointY) => {
   // Check all holds across all problems for this image
   problemsForImage.forEach((problem) => {
     if (problem.holds && Array.isArray(problem.holds)) {
-      problem.holds.forEach(({ hold }) => {
-        // Extract hold coordinates - handle different possible formats
-        const holdX = hold.center_x;
-        const holdY = hold.center_y;
+      problem.holds.forEach((holdData, index) => {
+        const hold = holdData.hold;
+
+        // Extract hold coordinates - handle different possible formats (same logic as runHoldAnalysis)
+        let holdX, holdY;
+
+        if (hold.coordinates) {
+          holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
+          holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
+        } else if (hold.bbox && Array.isArray(hold.bbox)) {
+          holdX = hold.bbox[0] + hold.bbox[2] / 2;
+          holdY = hold.bbox[1] + hold.bbox[3] / 2;
+        } else if (hold.x !== undefined && hold.y !== undefined) {
+          holdX = hold.x + (hold.width || 0) / 2;
+          holdY = hold.y + (hold.height || 0) / 2;
+        } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
+          holdX = hold.center_x;
+          holdY = hold.center_y;
+        } else {
+          console.warn("Unknown hold coordinate format:", hold);
+          return; // Skip this hold
+        }
 
         // Calculate Euclidean distance
         const distance = Math.sqrt(Math.pow(keypointX - holdX, 2) + Math.pow(keypointY - holdY, 2));
 
         if (distance < minDistance) {
           minDistance = distance;
-          closestHold = hold;
+          closestHold = {
+            ...hold,
+            holdIndex: holdData.holdIndex || index,
+            id: hold.id || `hold_${index}`,
+          };
           closestProblem = problem;
         }
       });
@@ -1168,6 +1069,6 @@ defineExpose({
 <style scoped>
 /* Enhanced video frame matcher component styles */
 .video-frame-matcher-component {
-  @apply w-full;
+  width: 100%;
 }
 </style>

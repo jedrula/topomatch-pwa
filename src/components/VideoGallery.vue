@@ -48,6 +48,9 @@
     >
       <h3 class="font-medium mb-1 text-gray-200">{{ currentVideo.name }}</h3>
       <div class="text-xs text-gray-400 space-y-0.5">
+        <p v-if="currentVideo.problemName" class="text-blue-300">
+          Problem: {{ currentVideo.problemName }}
+        </p>
         <p v-if="currentVideo.uploadedBy">{{ currentVideo.uploadedBy }}</p>
         <p v-if="currentVideo.uploadedAt">{{ formatDate(currentVideo.uploadedAt) }}</p>
         <p v-if="currentVideo.size">{{ formatFileSize(currentVideo.size) }}</p>

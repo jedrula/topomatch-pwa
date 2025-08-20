@@ -147,46 +147,74 @@
                 v-if="expandedGrades.has(gradeGroup.label)"
                 class="bg-white divide-y divide-gray-100"
               >
-                <router-link
+                <div
                   v-for="problem in gradeGroup.problems"
                   :key="problem.id"
-                  :to="{
-                    name: 'boulder-problem-detail',
-                    params: {
-                      locationId: route.params.locationId,
-                      problemId: problem.id,
-                    },
-                  }"
-                  class="block px-4 py-3 hover:bg-blue-50 transition-colors group"
+                  class="px-4 py-3 hover:bg-blue-50 transition-colors group"
                 >
                   <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-3 flex-1 min-w-0">
                       <div
                         class="w-2 h-2 rounded-full"
                         :style="{ backgroundColor: problem.color }"
                       ></div>
-                      <span class="font-medium text-gray-900 group-hover:text-blue-700">
-                        {{ problem.name }}
-                      </span>
-                    </div>
-                    <div class="flex items-center space-x-2 text-sm text-gray-500">
-                      <span>{{ problem.holds?.length || 0 }} holds</span>
-                      <svg
-                        class="w-4 h-4 text-gray-400 group-hover:text-blue-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                      <router-link
+                        :to="{
+                          name: 'boulder-problem-detail',
+                          params: {
+                            locationId: route.params.locationId,
+                            problemId: problem.id,
+                          },
+                        }"
+                        class="font-medium text-gray-900 group-hover:text-blue-700 truncate"
                       >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
+                        {{ problem.name }}
+                      </router-link>
+                    </div>
+                    <div class="flex items-center space-x-2 text-sm text-gray-500 flex-shrink-0">
+                      <span>{{ problem.holds?.length || 0 }} holds</span>
+                      <span>•</span>
+                      <span>{{ getProblemVideoCount(problem.id) }} videos</span>
+                      <!-- Quick video access button -->
+                      <button
+                        v-if="getProblemVideoCount(problem.id) > 0"
+                        @click="openProblemVideos(problem)"
+                        class="ml-2 p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded transition-colors"
+                        title="View beta videos"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </button>
+                      <!-- Problem detail link arrow -->
+                      <router-link
+                        :to="{
+                          name: 'boulder-problem-detail',
+                          params: {
+                            locationId: route.params.locationId,
+                            problemId: problem.id,
+                          },
+                        }"
+                        class="p-1 text-gray-400 hover:text-blue-500 rounded transition-colors"
+                        title="View problem details"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </router-link>
                     </div>
                   </div>
-                </router-link>
+                </div>
               </div>
             </div>
           </div>
@@ -576,6 +604,7 @@
                     allFrames = [];
                     poseResults = [];
                     analysisPhase = '';
+                    pendingRedirectData = null;
                   "
                   class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
                 >
@@ -587,6 +616,143 @@
                   class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+
+            <!-- Success Result with Manual Continue -->
+            <div
+              v-if="videoAnalysisResult.success && pendingRedirectData"
+              class="bg-green-50 border border-green-200 rounded-lg p-4"
+            >
+              <div class="flex items-start space-x-3 mb-4">
+                <div class="flex-shrink-0">
+                  <svg
+                    class="w-6 h-6 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-lg font-medium text-green-900">Analysis Complete!</h4>
+                  <p class="text-sm text-green-700 mt-1">
+                    AI successfully identified the boulder problem from your video.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Analysis Results -->
+              <div class="space-y-4">
+                <!-- Identified Problem -->
+                <div class="bg-white border border-green-200 rounded-lg p-4">
+                  <h5 class="text-md font-medium text-gray-900 mb-2">Identified Boulder Problem</h5>
+                  <div class="flex items-center space-x-3">
+                    <div
+                      class="w-3 h-3 rounded-full"
+                      :style="{ backgroundColor: getGradeColor(pendingRedirectData.problem.grade) }"
+                    ></div>
+                    <div>
+                      <span class="font-semibold text-gray-900">{{
+                        pendingRedirectData.problem.name
+                      }}</span>
+                      <span class="text-sm text-gray-600 ml-2">{{
+                        getGradeLabel(pendingRedirectData.problem.grade)
+                      }}</span>
+                    </div>
+                  </div>
+                  <p
+                    v-if="pendingRedirectData.problem.description"
+                    class="text-sm text-gray-600 mt-2"
+                  >
+                    {{ pendingRedirectData.problem.description }}
+                  </p>
+                </div>
+
+                <!-- Analysis Details from VideoFrameMatcherEnhanced -->
+                <div
+                  v-if="videoAnalysisResult.holdAnalysis?.bestMatch"
+                  class="bg-white border border-green-200 rounded-lg p-4"
+                >
+                  <h5 class="text-md font-medium text-gray-900 mb-2">AI Analysis Details</h5>
+
+                  <!-- Show pose detection summary -->
+                  <div class="text-sm text-gray-600 space-y-1">
+                    <p>
+                      <strong>Frames analyzed:</strong>
+                      {{ videoAnalysisResult.allFrames?.length || 0 }}
+                    </p>
+                    <p>
+                      <strong>Poses detected:</strong>
+                      {{
+                        videoAnalysisResult.poseResults?.filter((r) => r.poses.length > 0).length ||
+                        0
+                      }}
+                    </p>
+                    <p>
+                      <strong>Hold analysis:</strong>
+                      {{ videoAnalysisResult.holdAnalysis.bestMatch.votes || 0 }} keypoints matched
+                    </p>
+                  </div>
+
+                  <!-- Show pose visualization if available -->
+                  <div v-if="videoAnalysisResult.frame" class="mt-3">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Analyzed Frame</p>
+                    <img
+                      :src="videoAnalysisResult.frame.url"
+                      alt="Analyzed video frame"
+                      class="w-full max-w-xs h-32 object-cover rounded-lg border mx-auto"
+                    />
+                  </div>
+                </div>
+
+                <!-- Matched Image -->
+                <div
+                  v-if="videoAnalysisResult.match"
+                  class="bg-white border border-green-200 rounded-lg p-4"
+                >
+                  <h5 class="text-md font-medium text-gray-900 mb-2">Matched Boulder Image</h5>
+                  <img
+                    :src="videoAnalysisResult.match.url"
+                    alt="Matched boulder image"
+                    class="w-full max-w-md h-48 object-cover rounded-lg border mx-auto"
+                  />
+                  <p class="text-xs text-gray-500 mt-2 text-center">
+                    {{ videoAnalysisResult.match.name }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="mt-6 flex justify-center space-x-3">
+                <button
+                  type="button"
+                  @click="continueToUpload"
+                  class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                >
+                  Continue to Upload Video
+                </button>
+                <button
+                  type="button"
+                  @click="
+                    videoAnalysisResult = null;
+                    extractedFrame = null;
+                    matchedBoulderImage = null;
+                    allFrames = [];
+                    poseResults = [];
+                    analysisPhase = '';
+                    pendingRedirectData = null;
+                  "
+                  class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Try Another Video
                 </button>
               </div>
             </div>
@@ -607,7 +773,7 @@
 
     <!-- Video Gallery Modal -->
     <VideoGallery
-      :videos="videos"
+      :videos="filteredVideos"
       :initial-index="videoGalleryIndex"
       :is-open="isVideoGalleryOpen"
       @close="closeVideoGallery"
@@ -642,8 +808,10 @@ const location = ref(null);
 const images = ref([]); // Placeholder for location images
 const videos = ref([]); // Beta videos for location
 const videosLoading = ref(false);
+const problemVideoCounts = ref({}); // Cache for video counts per problem
 const isVideoGalleryOpen = ref(false);
 const videoGalleryIndex = ref(0);
+const currentVideoFilter = ref(null); // For filtering videos by problem;
 const isLoading = ref(true);
 const error = ref("");
 const showUploadModal = ref(false);
@@ -659,6 +827,7 @@ const matchedBoulderImage = ref(null);
 const allFrames = ref([]); // Will store 3 frames after match found
 const poseResults = ref([]); // Will store pose detection results
 const analysisPhase = ref(""); // 'matching', 'extracting-frames', 'detecting-poses', 'analyzing-holds'
+const pendingRedirectData = ref(null); // Store analysis data for manual redirect after review
 
 // Grade expansion state
 const expandedGrades = ref(new Set());
@@ -758,11 +927,37 @@ const loadLocationVideos = async () => {
     const locationVideos = await videoService.getLocationVideos(locationId);
     videos.value = locationVideos;
     console.log("Loaded location videos:", videos.value);
+
+    // Also load video counts for each problem
+    await loadProblemVideoCounts();
   } catch (err) {
     console.error("Error loading location videos:", err);
     videos.value = [];
   } finally {
     videosLoading.value = false;
+  }
+};
+
+// Load video counts for all problems
+const loadProblemVideoCounts = async () => {
+  try {
+    const counts = {};
+
+    // Get video counts for each boulder problem
+    for (const problem of boulderProblemsStore.boulderProblems) {
+      try {
+        const count = await videoService.getProblemVideoCount(locationId, problem.id);
+        counts[problem.id] = count;
+      } catch (err) {
+        console.warn(`Failed to load video count for problem ${problem.id}:`, err);
+        counts[problem.id] = 0;
+      }
+    }
+
+    problemVideoCounts.value = counts;
+    console.log("Loaded problem video counts:", counts);
+  } catch (err) {
+    console.error("Error loading problem video counts:", err);
   }
 };
 
@@ -774,7 +969,52 @@ const openVideoGallery = (index = 0) => {
 
 const closeVideoGallery = () => {
   isVideoGalleryOpen.value = false;
+  currentVideoFilter.value = null; // Clear filter when closing
 };
+
+// Method to get video count for a specific problem
+const getProblemVideoCount = (problemId) => {
+  return problemVideoCounts.value[problemId] || 0;
+};
+
+// Method to open videos filtered by specific problem
+const openProblemVideos = async (problem) => {
+  try {
+    // Get videos for this specific problem
+    const problemVideos = await videoService.getProblemVideos(locationId, problem.id);
+
+    if (problemVideos.length === 0) {
+      // No videos for this problem
+      return;
+    }
+
+    // Set filter and open gallery
+    currentVideoFilter.value = problem;
+    videoGalleryIndex.value = 0;
+    isVideoGalleryOpen.value = true;
+  } catch (error) {
+    console.error("Error loading problem videos:", error);
+  }
+};
+
+// Computed property for filtered videos
+const filteredVideos = computed(() => {
+  let videosToShow = currentVideoFilter.value
+    ? videos.value.filter((video) => video.problemId === currentVideoFilter.value.id)
+    : videos.value;
+
+  // Add problem names to videos
+  return videosToShow.map((video) => {
+    console.log("boulderProblemsStore.boulderProblem", video, boulderProblemsStore.boulderProblems);
+    const problem = boulderProblemsStore.boulderProblems.find((p) => p.id === video.problemId);
+    console.log("problem", problem);
+
+    return {
+      ...video,
+      problemName: problem?.name || "Unknown Problem",
+    };
+  });
+});
 
 const handleBetaUploadClick = () => {
   if (!userStore.user) {
@@ -967,15 +1207,22 @@ const handleBetaAnalysisComplete = async (analysisData) => {
 
   let holdAnalysisResult = null;
   try {
-    holdAnalysisResult = await runHoldAnalysis(frameResults, analysisData.match?.homographyMatrix);
+    holdAnalysisResult = await runHoldAnalysis(
+      frameResults,
+      analysisData.match?.homographyMatrix,
+      analysisData.match
+    );
 
     if (holdAnalysisResult?.bestMatch) {
       console.log("🎯 Best matching problem:", holdAnalysisResult.bestMatch.problem.name);
       analysisPhase.value = "complete";
 
-      // Redirect to problem page with video data
-      await redirectToProblemPageWithVideo(analysisData, holdAnalysisResult.bestMatch.problem);
-      return; // Early return to avoid setting additional state
+      // Store data for potential redirect but don't redirect automatically
+      // Let user review the analysis first
+      pendingRedirectData.value = {
+        analysisData,
+        problem: holdAnalysisResult.bestMatch.problem,
+      };
     } else if (holdAnalysisResult) {
       console.log("⚠️ Hold analysis completed but no matches found");
       analysisPhase.value = "complete";
@@ -1024,15 +1271,29 @@ const handleBetaVideoCleared = () => {
   allFrames.value = [];
   poseResults.value = [];
   analysisPhase.value = "";
+  pendingRedirectData.value = null;
+};
+
+// Handle manual continue after analysis review
+const continueToUpload = async () => {
+  if (!pendingRedirectData.value) {
+    console.error("No pending redirect data available");
+    return;
+  }
+
+  const { analysisData, problem } = pendingRedirectData.value;
+  await redirectToProblemPageWithVideo(analysisData, problem);
 };
 
 // Phase 4: Hold Analysis - Compare poses with boulder problems
-const runHoldAnalysis = async (frameResults, homographyMatrix) => {
+const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => {
   console.log("🎯 Phase 4: Starting hold analysis...");
   console.log("📊 Input data:", {
     frameResultsLength: frameResults?.length || 0,
     hasHomography: !!homographyMatrix,
     locationId: route.params.id,
+    matchedImageId: matchedImage?.id,
+    matchedImageName: matchedImage?.name,
   });
 
   if (!homographyMatrix) {
@@ -1046,14 +1307,26 @@ const runHoldAnalysis = async (frameResults, homographyMatrix) => {
   }
 
   try {
-    // Get all boulder problems for this location
-    const problemsForLocation = boulderProblemsStore.sortedProblems.filter(
-      (problem) => problem.locationId === route.params.id
-    );
+    // Get boulder problems for the matched image only
+    let problemsForLocation;
 
-    console.log(
-      `🔍 Found ${problemsForLocation.length} boulder problems for location ${route.params.id}`
-    );
+    if (matchedImage?.id) {
+      // Filter to only boulder problems that exist on the matched image
+      problemsForLocation = boulderProblemsStore.sortedProblems.filter(
+        (problem) => problem.locationId === route.params.id && problem.imageId === matchedImage.id
+      );
+      console.log(
+        `🔍 Found ${problemsForLocation.length} boulder problems for matched image "${matchedImage.name}" (ID: ${matchedImage.id})`
+      );
+    } else {
+      // Fallback: use all problems for the location (old behavior)
+      problemsForLocation = boulderProblemsStore.sortedProblems.filter(
+        (problem) => problem.locationId === route.params.id
+      );
+      console.log(
+        `⚠️ No matched image ID available, using all ${problemsForLocation.length} boulder problems for location ${route.params.id}`
+      );
+    }
 
     if (problemsForLocation.length === 0) {
       console.log("ℹ️ No boulder problems found for this location");
