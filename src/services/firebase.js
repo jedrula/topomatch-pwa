@@ -9,13 +9,20 @@ const getFirebaseConfig = () => {
   // Check if we're in development mode or should use emulators
   const useEmulators = import.meta.env.DEV || import.meta.env.VITE_USE_EMULATORS === "true";
 
+  console.log("🔍 Environment debug:", {
+    "import.meta.env.DEV": import.meta.env.DEV,
+    "import.meta.env.VITE_USE_EMULATORS": import.meta.env.VITE_USE_EMULATORS,
+    useEmulators: useEmulators,
+    mode: import.meta.env.MODE,
+  });
+
   if (useEmulators) {
     // Development/Emulator configuration
     return {
       apiKey: "demo-api-key",
-      authDomain: "demo-offline-vue-pwa.firebaseapp.com",
-      projectId: "demo-offline-vue-pwa",
-      storageBucket: "demo-offline-vue-pwa.appspot.com",
+      authDomain: "topomatch-pwa.firebaseapp.com",
+      projectId: "topomatch-pwa",
+      storageBucket: "topomatch-pwa.appspot.com",
       messagingSenderId: "123456789",
       appId: "demo-app-id",
     };
@@ -27,7 +34,7 @@ const getFirebaseConfig = () => {
       storageBucket: "topomatch-pwa.firebasestorage.app",
       apiKey: "AIzaSyD2LND6HuSMwEFL70ke48mJczTP5uScMW0",
       authDomain: "topomatch-pwa.firebaseapp.com",
-      messagingSenderId: "592023645230"
+      messagingSenderId: "592023645230",
     };
   }
 };

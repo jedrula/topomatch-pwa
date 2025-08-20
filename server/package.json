@@ -18,6 +18,7 @@
     "migrate:production": "fireway --require=ts-node/register migrate",
     "make-admin": "node scripts/make-admin.js",
     "make-admin:emulator": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/make-admin.js",
+    "indexes:save": "firebase firestore:indexes --project topomatch-pwa > ../firestore.indexes.json",
     "check-admin": "node scripts/check-admin.js",
     "check-admin:emulator": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/check-admin.js"
   },
