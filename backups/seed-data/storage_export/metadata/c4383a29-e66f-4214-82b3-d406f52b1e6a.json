@@ -1,0 +1,28 @@
+{
+  "name": "locations/YIYwNAjQ0uycov4oGy7Z/problems/ql3vhLj0QOK2Q86PW44e/videos/video-1755675727384-0ock283aw",
+  "bucket": "demo-offline-vue-pwa.appspot.com",
+  "metageneration": 1,
+  "generation": 1755675727556,
+  "contentType": "video/quicktime",
+  "storageClass": "STANDARD",
+  "contentDisposition": "inline",
+  "downloadTokens": [
+    "15481782-653f-4549-ae0b-fdb94b821d02"
+  ],
+  "etag": "2nCiM6JkrIAtZC3/wudGzyL5Chg",
+  "customMetadata": {
+    "locationId": "YIYwNAjQ0uycov4oGy7Z",
+    "problemId": "ql3vhLj0QOK2Q86PW44e",
+    "ascentId": "temp-ascent-1755675727384",
+    "userId": "6PMVkWYWugo4FY7GIOZ4QqaLKeec",
+    "uploadedBy": "andrzej.swaton@gmail.com",
+    "originalName": "FLOW_IMG_8013.mov",
+    "fileSize": "28324330",
+    "uploadedAt": "2025-08-20T07:42:07.384Z"
+  },
+  "timeCreated": "2025-08-20T07:42:07.556Z",
+  "updated": "2025-08-20T07:42:07.556Z",
+  "size": 28324330,
+  "md5Hash": "Tx9fGxYJBJRtxC6MJpMEow==",
+  "crc32c": "3159205580"
+}
