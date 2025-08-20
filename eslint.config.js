@@ -23,4 +23,14 @@ export default defineConfig([
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
   ...pluginOxlint.configs['flat/recommended'],
+  
+  // Custom rules
+  {
+    rules: {
+      'quotes': ['error', 'single', { 
+        'avoidEscape': true,
+        'allowTemplateLiterals': true 
+      }],
+    },
+  },
 ])

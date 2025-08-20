@@ -422,7 +422,7 @@
 
                     <!-- Delete button -->
                     <button
-                      @click="deleteProblem(problem)"
+                      @click="deleteProblem(problem.id)"
                       :disabled="boulderProblemsStore.isCreatingProblem || editingProblem"
                       title="Delete problem"
                       class="p-1 text-gray-400 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
