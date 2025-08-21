@@ -73,7 +73,7 @@
           <div class="relative h-48 bg-gray-200">
             <img
               v-if="location.heroImageUrl"
-              :src="location.heroImageUrl"
+              :src="fixLocalhostUrl(location.heroImageUrl)"
               :alt="location.name"
               class="w-full h-full object-cover"
             />
@@ -123,6 +123,7 @@ import { useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
 import { formatDateShort } from '../utils/dateUtils.js';
 import { useUserStore } from '../stores/userStore.js';
+import { fixLocalhostUrl } from '../services/storageUtils.js';
 
 const router = useRouter();
 const userStore = useUserStore();

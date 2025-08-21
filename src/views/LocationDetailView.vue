@@ -32,7 +32,7 @@
         <div class="relative h-64 rounded-lg overflow-hidden bg-gray-200">
           <img
             v-if="location.heroImageUrl"
-            :src="location.heroImageUrl"
+            :src="fixLocalhostUrl(location.heroImageUrl)"
             :alt="location.name"
             class="w-full h-full object-cover"
           />
@@ -851,6 +851,7 @@ import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradi
 import { useUserStore } from '../stores/userStore.js';
 import { transformPoint } from '../utils/homographyUtils.js';
 import { videoService } from '../services/videoService.js';
+import { fixLocalhostUrl } from '../services/storageUtils.js';
 
 const route = useRoute();
 const router = useRouter();
