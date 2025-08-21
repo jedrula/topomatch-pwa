@@ -6,7 +6,7 @@ const { getFirestore } = require('firebase-admin/firestore');
 
 // Initialize Firebase Admin with project ID
 initializeApp({
-  projectId: 'demo-offline-vue-pwa',
+  projectId: 'topomatch-pwa',
 });
 
 const auth = getAuth();
