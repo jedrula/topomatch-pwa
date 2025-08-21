@@ -1,7 +1,7 @@
 {
-  "projectId": "demo-offline-vue-pwa",
-  "storageBucket": "demo-offline-vue-pwa.appspot.com",
-  "databaseURL": "https://demo-offline-vue-pwa.firebaseio.com",
+  "projectId": "topomatch-pwa",
+  "storageBucket": "topomatch-pwa.appspot.com",
+  "databaseURL": "https://topomatch-pwa.firebaseio.com",
   "migrationPath": "./migrations",
   "emulator": {
     "host": "localhost",

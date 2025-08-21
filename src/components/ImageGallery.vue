@@ -55,7 +55,7 @@
     </button>
 
     <!-- Main image -->
-    <div class="max-w-[90vw] max-h-[90vh] flex items-center justify-center relative" @click.stop>
+    <div class="max-w-[90vw] max-h-[90vh] flex items-center justify-center relative" @click.stop="handleImageContainerClick">
       <div class="relative">
         <img
           v-if="currentImage"
@@ -71,9 +71,10 @@
         <svg
           v-if="imageLoaded && currentImageProblems.length > 0"
           :key="`overlay-${currentImage?.id}`"
-          class="absolute inset-0 w-full h-full pointer-events-none"
+          class="absolute inset-0 w-full h-full"
           :viewBox="imageViewBox"
           preserveAspectRatio="none"
+          style="pointer-events: none;"
         >
           <!-- Problem Holds as SVGs -->
           <template v-for="problem in currentImageProblems" :key="problem.id">
@@ -82,10 +83,10 @@
               :data-problem-id="problem.id"
               :key="`${problem.id}-${holdIndex}`"
               :svg-markup="ensureHoldHasSvgMarkup(problemHold.hold).svgMarkup"
-              :interaction="hoveredProblemId === problem.id ? 'hover' : 'default'"
+              :interaction="getProblemInteraction(problem.id)"
               :interaction-allowed="'selectable'"
               :color="problem.color"
-              @click="goToProblemDetail(problem)"
+              @click="handleProblemClick(problem, $event)"
               @hover="(isEntering, event) => handleProblemHover(problem.id, isEntering, event)"
             />
           </template>
@@ -135,7 +136,7 @@
 </template>
 
 <script setup>
-import { computed, watch, nextTick, ref } from 'vue';
+import { computed, watch, nextTick, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
@@ -171,6 +172,10 @@ const boulderProblemsStore = useBoulderProblemsStore();
 const imageElement = ref(null);
 const imageLoaded = ref(false);
 const hoveredProblemId = ref(null);
+
+// Mobile tap-to-toggle functionality
+const tappedProblemId = ref(null);
+const isTouchDevice = ref(false);
 
 // Floating problem card state
 const floatingCard = ref({
@@ -275,6 +280,64 @@ const onImageLoad = () => {
   });
 };
 
+// Touch device detection
+const detectTouchDevice = () => {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+};
+
+// Initialize touch detection
+onMounted(() => {
+  isTouchDevice.value = detectTouchDevice();
+});
+
+// Get interaction state for a problem (handles both hover and tap states)
+const getProblemInteraction = (problemId) => {
+  // On touch devices, prioritize tapped state over hover
+  if (isTouchDevice.value && tappedProblemId.value === problemId) {
+    return 'hover'; // Use 'hover' interaction for visual consistency
+  }
+  // On non-touch devices or when nothing is tapped, use hover state
+  if (hoveredProblemId.value === problemId) {
+    return 'hover';
+  }
+  return 'default';
+};
+
+// Handle click/tap on problem holds
+const handleProblemClick = (problem, event) => {
+  console.log('🎯 ImageGallery handleProblemClick:', { problemId: problem.id, isTouchDevice: isTouchDevice.value });
+  
+  if (isTouchDevice.value) {
+    // On touch devices, toggle the tapped state
+    if (tappedProblemId.value === problem.id) {
+      // Tapping the same problem again - hide tooltip and deselect
+      tappedProblemId.value = null;
+      floatingCard.value.visible = false;
+    } else {
+      // Tapping a different problem - show tooltip and select
+      tappedProblemId.value = problem.id;
+      showFloatingCard(problem, event);
+    }
+  } else {
+    // On non-touch devices, navigate to problem detail (original behavior)
+    goToProblemDetail(problem);
+  }
+};
+
+// Helper function to show floating card
+const showFloatingCard = (problem, event) => {
+  const rect = event.target.getBoundingClientRect();
+  const mouseX = rect.left + rect.width / 2;
+  const mouseY = rect.top + rect.height / 2;
+  
+  floatingCard.value = {
+    visible: true,
+    problem: problem,
+    position: { x: mouseX, y: mouseY },
+  };
+  console.log('💫 Showing floating card for problem:', problem.name);
+};
+
 const goToProblemDetail = (problem) => {
   router.push({
     name: 'boulder-problem-detail',
@@ -283,6 +346,21 @@ const goToProblemDetail = (problem) => {
       problemId: problem.id,
     },
   });
+};
+
+// Handle clicks on the image container (for "click outside" behavior on mobile)
+const handleImageContainerClick = (event) => {
+  // On touch devices, if clicking outside of holds (on the image itself),
+  // hide any active tooltips
+  if (isTouchDevice.value && tappedProblemId.value !== null) {
+    // Check if the click target is not a hold SVG element
+    const isClickOnHold = event.target.closest('[data-problem-id]');
+    if (!isClickOnHold) {
+      tappedProblemId.value = null;
+      floatingCard.value.visible = false;
+      console.log('🎯 Hiding tooltip - clicked outside holds');
+    }
+  }
 };
 
 const handleProblemHover = (problemId, isEntering, event) => {

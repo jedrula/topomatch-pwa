@@ -330,65 +330,6 @@
                 onto the boulder image using homography.
               </p>
             </div>
-
-            <!-- Boulder Problem Scoring Results -->
-            <div v-if="boulderProblemScores.length > 0" class="mt-6">
-              <h5 class="text-sm font-medium text-gray-900 mb-3">Boulder Problem Scores</h5>
-              <div class="bg-gray-50 rounded-lg p-4">
-                <div class="space-y-3">
-                  <div 
-                    v-for="(result, index) in boulderProblemScores.slice(0, 5)" 
-                    :key="result.problem.id"
-                    class="flex items-center justify-between p-3 bg-white rounded border"
-                    :class="{
-                      'border-green-200 bg-green-50': index === 0,
-                      'border-blue-200 bg-blue-50': index === 1,
-                      'border-orange-200 bg-orange-50': index === 2
-                    }"
-                  >
-                    <div class="flex-1">
-                      <div class="flex items-center space-x-2">
-                        <span 
-                          v-if="index < 3"
-                          class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium"
-                          :class="{
-                            'bg-green-100 text-green-800': index === 0,
-                            'bg-blue-100 text-blue-800': index === 1,
-                            'bg-orange-100 text-orange-800': index === 2
-                          }"
-                        >
-                          {{ index + 1 }}
-                        </span>
-                        <span v-else class="w-6 text-center text-sm text-gray-500">{{ index + 1 }}</span>
-                        <h6 class="font-medium text-gray-900">{{ result.problem.name }}</h6>
-                      </div>
-                      <p class="text-xs text-gray-500 mt-1">
-                        {{ result.problem.holds?.length || 0 }} holds • Grade: {{ result.problem.grade?.label || 'Unknown' }}
-                      </p>
-                    </div>
-                    <div class="text-right">
-                      <div 
-                        class="text-lg font-semibold"
-                        :class="{
-                          'text-green-600': index === 0,
-                          'text-blue-600': index === 1,
-                          'text-orange-600': index === 2,
-                          'text-gray-600': index >= 3
-                        }"
-                      >
-                        {{ result.score.toFixed(3) }}
-                      </div>
-                      <div class="text-xs text-gray-500">
-                        {{ Math.round(result.confidence * 100) }}% confidence
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <p class="text-xs text-gray-500 mt-3">
-                  <strong>Simple scoring approach:</strong> For each keypoint, the best scoring hold from each boulder problem is selected, then scores are summed across all keypoints and frames.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -509,17 +450,6 @@ const matchedImageBoulderProblems = computed(() => {
   );
 });
 
-// Calculate boulder problem scores using the simple table-based approach
-const boulderProblemScores = computed(() => {
-  return calculateBoulderProblemScores();
-});
-
-// Get the best matching boulder problem
-const bestBoulderMatch = computed(() => {
-  const scores = boulderProblemScores.value;
-  return scores.length > 0 ? scores[0] : null;
-});
-
 // Use the working pose detection composable
 const { runPoseDetection, poseResults, sessionReady, isAnalyzing } = usePoseDetection();
 
@@ -607,16 +537,6 @@ const findClosestHolds = (keypointX, keypointY) => {
   return { closest, secondClosest, thirdClosest };
 };
 
-// Legacy function for backward compatibility
-const findClosestHold = (keypointX, keypointY) => {
-  const result = findClosestHolds(keypointX, keypointY);
-  return {
-    hold: result.closest.hold,
-    problem: result.closest.problem,
-    distance: result.closest.distance,
-  };
-};
-
 const getKeypointRows = (frame) => {
   const keypointNames = ['Left Wrist', 'Right Wrist', 'Left Ankle', 'Right Ankle'];
   const keypointData = [];
@@ -677,68 +597,6 @@ const getKeypointRows = (frame) => {
   }
 
   return keypointData;
-};
-
-// Calculate boulder problem scores based on the simple table approach
-const calculateBoulderProblemScores = () => {
-  if (!transformedPoses.value || transformedPoses.value.length === 0) {
-    return [];
-  }
-
-  const problemScores = new Map(); // problemId -> total score
-
-  // Iterate through all keypoints in all frames
-  transformedPoses.value.forEach((frame) => {
-    const keypointRows = getKeypointRows(frame);
-    
-    keypointRows.forEach((keypoint) => {
-      // For each keypoint, consider all three closest holds but only take the best from each problem
-      const candidates = [
-        { problem: keypoint.closestProblem, score: keypoint.closestScore },
-        { problem: keypoint.secondClosestProblem, score: keypoint.secondClosestScore },
-        { problem: keypoint.thirdClosestProblem, score: keypoint.thirdClosestScore }
-      ].filter(c => c.problem && c.score > 0);
-
-      // Group by problem and take the highest score from each problem for this keypoint
-      const problemBestScores = new Map();
-      candidates.forEach(candidate => {
-        const problemId = candidate.problem.id;
-        const currentBest = problemBestScores.get(problemId) || 0;
-        if (candidate.score > currentBest) {
-          problemBestScores.set(problemId, candidate.score);
-        }
-      });
-
-      // Add the best score from each problem to the total
-      problemBestScores.forEach((score, problemId) => {
-        const currentTotal = problemScores.get(problemId) || 0;
-        problemScores.set(problemId, currentTotal + score);
-      });
-    });
-  });
-
-  // Convert to array and sort by score
-  const results = Array.from(problemScores.entries())
-    .map(([problemId, totalScore]) => {
-      const problem = matchedImageBoulderProblems.value.find(p => p.id === problemId);
-      return {
-        problem,
-        score: totalScore,
-        confidence: Math.min(totalScore / 10, 1.0) // Rough confidence estimate
-      };
-    })
-    .filter(result => result.problem) // Remove any problems we couldn't find
-    .sort((a, b) => b.score - a.score);
-
-  console.log('🏆 Boulder Problem Scores (Table-based approach):', 
-    results.slice(0, 5).map(r => ({
-      name: r.problem.name,
-      score: r.score.toFixed(3),
-      confidence: `${Math.round(r.confidence * 100)}%`
-    }))
-  );
-
-  return results;
 };
 
 const handleVideoSelect = async (event) => {

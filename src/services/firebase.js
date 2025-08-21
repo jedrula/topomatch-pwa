@@ -65,8 +65,29 @@ const useEmulators =
 if (useEmulators) {
   console.log('🔧 Connecting to Firebase emulators...');
 
+  // Determine the emulator host - use localhost if running on the same machine,
+  // or the current hostname if accessing from another device (like mobile)
+  const getEmulatorHost = () => {
+    // If explicitly set via environment variable, use that
+    if (import.meta.env.VITE_EMULATOR_HOST) {
+      return import.meta.env.VITE_EMULATOR_HOST;
+    }
+    
+    // Check if we're accessing via an IP address (likely mobile testing)
+    const hostname = window.location.hostname;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      console.log(`🔧 Detected non-localhost access (${hostname}), using ${hostname} for emulators`);
+      return hostname;
+    }
+    
+    return 'localhost';
+  };
+
+  const emulatorHost = getEmulatorHost();
+  console.log(`🔧 Using emulator host: ${emulatorHost}`);
+
   try {
-    connectStorageEmulator(storage, 'localhost', 9199);
+    connectStorageEmulator(storage, emulatorHost, 9199);
     console.log('✅ Connected to Firebase Storage emulator');
   } catch (error) {
     // Emulator might already be connected
@@ -76,7 +97,7 @@ if (useEmulators) {
   }
 
   try {
-    connectFunctionsEmulator(functions, 'localhost', 5001);
+    connectFunctionsEmulator(functions, emulatorHost, 5001);
     console.log('✅ Connected to Firebase Functions emulator');
   } catch (error) {
     // Emulator might already be connected
@@ -86,7 +107,7 @@ if (useEmulators) {
   }
 
   try {
-    connectFirestoreEmulator(db, 'localhost', 8080);
+    connectFirestoreEmulator(db, emulatorHost, 8080);
     console.log('✅ Connected to Firestore emulator');
   } catch (error) {
     // Emulator might already be connected
@@ -96,7 +117,7 @@ if (useEmulators) {
   }
 
   try {
-    connectAuthEmulator(auth, 'http://localhost:9099');
+    connectAuthEmulator(auth, `http://${emulatorHost}:9099`);
     console.log('✅ Connected to Firebase Auth emulator');
   } catch (error) {
     // Emulator might already be connected

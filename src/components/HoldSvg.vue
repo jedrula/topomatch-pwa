@@ -85,6 +85,7 @@ const handleHover = (isEntering, event) => {
 
 .selectable {
   cursor: pointer;
+  pointer-events: auto;
 }
 
 /* Default: invisible */
