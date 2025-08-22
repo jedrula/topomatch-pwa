@@ -686,6 +686,7 @@ import BoulderProblemsManager from '@/components/BoulderProblemsManager.vue';
 import FloatingBoulderProblemCard from '@/components/FloatingBoulderProblemCard.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
+import { getResizedImageUrl } from '@/utils/imageResize.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -1256,7 +1257,7 @@ const loadImageFromQuery = async () => {
       if (imageRecord) {
         currentImage.value = {
           id: imageRecord.id,
-          url: imageRecord.downloadUrl,
+          url: getResizedImageUrl(imageRecord.downloadUrl, '1920x1440', 'jpeg'),
           name: imageRecord.fileName,
         };
         console.log('✅ Loaded image for hold detection:', currentImage.value);
