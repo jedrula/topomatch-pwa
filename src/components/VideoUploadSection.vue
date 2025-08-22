@@ -262,11 +262,18 @@
                     <!-- Matched Boulder Photo -->
                     <div class="flex-1">
                       <p class="text-xs text-blue-700 mb-1">Matched Boulder Photo:</p>
-                      <img
-                        :src="currentPhoto.url"
-                        :alt="currentPhoto.name"
-                        class="w-full max-h-48 object-contain rounded-lg bg-gray-50"
-                      />
+                      <picture>
+                        <source 
+                          :srcset="getResizedImageUrl(currentPhoto.url, '800x600', 'webp')"
+                          type="image/webp"
+                        />
+                        <img
+                          :src="getResizedImageUrl(currentPhoto.url, '800x600', 'jpeg')"
+                          :alt="currentPhoto.name"
+                          class="w-full max-h-48 object-contain rounded-lg bg-gray-50"
+                          loading="lazy"
+                        />
+                      </picture>
                     </div>
                   </div>
                 </div>
@@ -322,11 +329,18 @@
                     <!-- Matched Boulder Photo -->
                     <div class="flex-1">
                       <p class="text-xs text-gray-500 mb-1">Matched Boulder Photo:</p>
-                      <img
-                        :src="currentPhoto.url"
-                        :alt="currentPhoto.name"
-                        class="w-full max-h-64 object-contain rounded-lg bg-gray-50"
-                      />
+                      <picture>
+                        <source 
+                          :srcset="getResizedImageUrl(currentPhoto.url, '800x600', 'webp')"
+                          type="image/webp"
+                        />
+                        <img
+                          :src="getResizedImageUrl(currentPhoto.url, '800x600', 'jpeg')"
+                          :alt="currentPhoto.name"
+                          class="w-full max-h-64 object-contain rounded-lg bg-gray-50"
+                          loading="lazy"
+                        />
+                      </picture>
                     </div>
                   </div>
 
@@ -416,11 +430,18 @@
                       v-if="regionPhotos.length > 0"
                       class="w-full h-48 flex items-center justify-center"
                     >
-                      <img
-                        :src="currentPhoto.url"
-                        :alt="currentPhoto.name"
-                        class="max-w-full max-h-48 object-contain rounded-lg"
-                      />
+                      <picture>
+                        <source 
+                          :srcset="getResizedImageUrl(currentPhoto.url, '800x600', 'webp')"
+                          type="image/webp"
+                        />
+                        <img
+                          :src="getResizedImageUrl(currentPhoto.url, '800x600', 'jpeg')"
+                          :alt="currentPhoto.name"
+                          class="max-w-full max-h-48 object-contain rounded-lg"
+                          loading="lazy"
+                        />
+                      </picture>
                     </div>
 
                     <!-- No photos state -->
@@ -578,6 +599,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue';
 import VideoFrameMatcher from './VideoFrameMatcher.vue';
+import { getResizedImageUrl } from '@/utils/imageResize.js';
 
 const props = defineProps({
   regionPhotos: {

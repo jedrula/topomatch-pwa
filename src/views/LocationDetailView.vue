@@ -312,13 +312,23 @@
                   <p class="text-xs text-gray-500">{{ image.name.split("-").pop() }}</p>
                 </div>
               </div>
-              <img
+              <picture
                 v-else
-                :src="image.url"
-                :alt="image.name"
-                class="w-full h-full object-cover hover:opacity-75 transition-opacity cursor-pointer"
-                @click="openImageModal(image)"
-              />
+              >
+                <!-- WebP format for modern browsers -->
+                <source 
+                  :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
+                  type="image/webp"
+                />
+                <!-- JPEG fallback -->
+                <img
+                  :src="getResizedImageUrl(image.url, '300x300', 'jpeg')"
+                  :alt="image.name"
+                  class="w-full h-full object-cover hover:opacity-75 transition-opacity cursor-pointer"
+                  @click="openImageModal(image)"
+                  loading="lazy"
+                />
+              </picture>
 
               <!-- Admin Edit Icon (only for admins, only for non-HEIC images) -->
               <button
@@ -852,6 +862,7 @@ import { useUserStore } from '../stores/userStore.js';
 import { transformPoint } from '../utils/homographyUtils.js';
 import { videoService } from '../services/videoService.js';
 import { fixLocalhostUrl } from '../services/storageUtils.js';
+import { getResizedImageUrl } from '../utils/imageResize.js';
 
 const route = useRoute();
 const router = useRouter();

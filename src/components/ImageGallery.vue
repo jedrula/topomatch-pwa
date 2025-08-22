@@ -57,15 +57,32 @@
     <!-- Main image -->
     <div class="max-w-[90vw] max-h-[90vh] flex items-center justify-center relative" @click.stop="handleImageContainerClick">
       <div class="relative">
-        <img
+        <picture
           v-if="currentImage"
           :key="currentImage.id"
-          :src="currentImage.url"
-          :alt="currentImage.name"
-          class="max-w-full max-h-full object-contain"
-          @load="onImageLoad"
-          ref="imageElement"
-        />
+        >
+          <!-- WebP sources for modern browsers -->
+          <source 
+            :srcset="getResponsiveImageSrcset(currentImage.url, 'webp')"
+            sizes="(max-width: 768px) 800px, (max-width: 1920px) 1920px, 100vw"
+            type="image/webp"
+          />
+          <!-- JPEG fallback for older browsers -->
+          <source 
+            :srcset="getResponsiveImageSrcset(currentImage.url, 'jpeg')"
+            sizes="(max-width: 768px) 800px, (max-width: 1920px) 1920px, 100vw"
+            type="image/jpeg"
+          />
+          <!-- Fallback img element -->
+          <img
+            :src="getOptimalImageUrl(currentImage.url, 1920)"
+            :alt="currentImage.name"
+            class="max-w-full max-h-full object-contain"
+            @load="onImageLoad"
+            ref="imageElement"
+            loading="lazy"
+          />
+        </picture>
 
         <!-- Boulder Problems SVG Overlay -->
         <svg
@@ -118,7 +135,12 @@
           index === currentIndex ? 'border-white' : 'border-transparent opacity-60 hover:opacity-80'
         "
       >
-        <img :src="image.url" :alt="image.name" class="w-full h-full object-cover" />
+        <img 
+          :src="getResizedImageUrl(image.url, '300x300', 'webp')" 
+          :alt="image.name" 
+          class="w-full h-full object-cover"
+          loading="lazy"
+        />
       </button>
     </div>
 
@@ -142,6 +164,7 @@ import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
+import { getResizedImageUrl, getOptimalImageUrl } from '@/utils/imageResize.js';
 
 const props = defineProps({
   images: {
@@ -289,6 +312,13 @@ const detectTouchDevice = () => {
 onMounted(() => {
   isTouchDevice.value = detectTouchDevice();
 });
+
+// Helper function to generate responsive srcset
+const getResponsiveImageSrcset = (originalUrl, format = 'webp') => {
+  const mobile = getResizedImageUrl(originalUrl, '800x600', format);
+  const desktop = getResizedImageUrl(originalUrl, '1920x1440', format);
+  return `${mobile} 800w, ${desktop} 1920w`;
+};
 
 // Get interaction state for a problem (handles both hover and tap states)
 const getProblemInteraction = (problemId) => {
