@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "topomatch-pwa",
+    "production": "topomatch-pwa"
+  },
+  "targets": {},
+  "etags": {
+    "topomatch-pwa": {
+      "extensionInstances": {}
+    }
+  }
+}

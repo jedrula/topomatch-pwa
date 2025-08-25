@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { holdDetectionServerService } from '../services/holdDetectionServerService.js';
+import { configService } from '../services/configService.js';
 import {
   getCachedDetectionResult,
   setCachedDetectionResult,
@@ -20,9 +21,20 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
   const statusMessage = ref('Ready to process images');
   const error = ref(null);
 
-  // API configuration
-  const apiUrl = ref('https://6d2401b5f155.ngrok-free.app');
+  // API configuration - now using configService
+  const apiUrl = ref(configService.getHoldDetectionServerUrl());
   const apiHealthy = ref(false);
+
+  // Set up listener for configuration changes
+  configService.setupConfigListener((newConfig) => {
+    const newUrl = newConfig.holdDetectionServer.apiUrl;
+    if (newUrl !== apiUrl.value) {
+      console.log(`🔄 Store: Hold Detection Server URL updated: ${apiUrl.value} → ${newUrl}`);
+      apiUrl.value = newUrl;
+      // Re-check health with new URL (will be defined below)
+      setTimeout(() => testApiHealth(), 100);
+    }
+  });
 
   // Processing progress
   const currentStep = ref(0);
