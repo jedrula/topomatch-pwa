@@ -2,19 +2,44 @@
  * Hold Detection Server API Service
  * Handles communication with the Python/CUDA hold detection server
  */
+import { configService } from './configService.js';
 
 class HoldDetectionServerService {
   constructor() {
-    // Default API URL - can be configured
-    this.apiUrl = 'https://6d2401b5f155.ngrok-free.app';
+    // Initialize with default URL from config service
+    this.apiUrl = configService.getHoldDetectionServerUrl();
     this.currentJobId = null;
+    
+    // Set up listener for configuration changes
+    this.setupConfigListener();
   }
 
   /**
-   * Set API URL for the server
+   * Set up real-time listener for configuration changes
+   */
+  setupConfigListener() {
+    configService.setupConfigListener((newConfig) => {
+      const newUrl = newConfig.holdDetectionServer.apiUrl;
+      if (newUrl !== this.apiUrl) {
+        console.log(`🔄 Hold Detection Server URL updated: ${this.apiUrl} → ${newUrl}`);
+        this.apiUrl = newUrl;
+      }
+    });
+  }
+
+  /**
+   * Set API URL for the server (deprecated - use admin panel instead)
    */
   setApiUrl(url) {
+    console.warn('⚠️ setApiUrl is deprecated. Use the admin panel to configure URLs.');
     this.apiUrl = url.replace(/\/$/, ''); // Remove trailing slash
+  }
+
+  /**
+   * Get current API URL
+   */
+  getApiUrl() {
+    return this.apiUrl;
   }
 
   /**
@@ -123,8 +148,12 @@ class HoldDetectionServerService {
    * Compress image using browser-image-compression (if available)
    */
   async compressImage(blob, options = {}) {
-    // Check if compression library is available
-    if (typeof imageCompression === 'undefined') {
+    // Check if compression library is available by trying to import it
+    let imageCompression;
+    try {
+      const compressionModule = await import('browser-image-compression');
+      imageCompression = compressionModule.default;
+    } catch (error) {
       console.warn('Image compression library not available, using original image');
       return {
         success: true,

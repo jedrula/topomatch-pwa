@@ -297,7 +297,67 @@ const hasAnyHolds = computed(() => {
 
 const svgViewBox = computed(() => {
   if (!props.imageElement) return '0 0 100 100';
+  
   const { naturalWidth, naturalHeight } = props.imageElement;
+  
+  // Debug: Log what we have
+  console.log('🔍 SVG ViewBox Debug:', {
+    hasDetectionResults: !!props.detectionResults,
+    compressionRatio: props.detectionResults?.compressionRatio,
+    naturalDimensions: { width: naturalWidth, height: naturalHeight }
+  });
+  
+  // If we have compression info, calculate the actual processed image dimensions
+  if (props.detectionResults?.compressionRatio && props.detectionResults.compressionRatio > 1) {
+    // Get compression settings from the server store to determine processed dimensions
+    const serverStore = useHoldDetectionServerStore();
+    const compressionSettings = serverStore.compressionSettings;
+    
+    console.log('🔍 Compression settings:', compressionSettings);
+    
+    if (compressionSettings.enabled && compressionSettings.maxWidthOrHeight) {
+      const maxDimension = compressionSettings.maxWidthOrHeight;
+      
+      // Calculate the processed dimensions based on the maxWidthOrHeight constraint
+      let processedWidth, processedHeight;
+      
+      if (naturalWidth > naturalHeight) {
+        // Landscape orientation
+        if (naturalWidth > maxDimension) {
+          processedWidth = maxDimension;
+          processedHeight = Math.round((naturalHeight * maxDimension) / naturalWidth);
+        } else {
+          processedWidth = naturalWidth;
+          processedHeight = naturalHeight;
+        }
+      } else {
+        // Portrait orientation
+        if (naturalHeight > maxDimension) {
+          processedHeight = maxDimension;
+          processedWidth = Math.round((naturalWidth * maxDimension) / naturalHeight);
+        } else {
+          processedWidth = naturalWidth;
+          processedHeight = naturalHeight;
+        }
+      }
+      
+      console.log('🔧 SVG ViewBox calculated from compression settings:', {
+        natural: { width: naturalWidth, height: naturalHeight },
+        processed: { width: processedWidth, height: processedHeight },
+        compressionRatio: props.detectionResults.compressionRatio,
+        maxDimension,
+        scaleFactor: {
+          x: processedWidth / naturalWidth,
+          y: processedHeight / naturalHeight
+        },
+        viewBox: `0 0 ${processedWidth} ${processedHeight}`
+      });
+      
+      return `0 0 ${processedWidth} ${processedHeight}`;
+    }
+  }
+  
+  // No compression or compression info - use natural dimensions
   return `0 0 ${naturalWidth} ${naturalHeight}`;
 });
 
