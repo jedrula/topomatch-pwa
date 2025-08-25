@@ -382,6 +382,7 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import VideoFrameMatcherEnhanced from '@/components/VideoFrameMatcherEnhanced.vue';
 import { locationService } from '@/services/locationService';
 import { boulderProblemsServiceV2 as boulderProblemsService } from '@/services/boulderProblemsServiceV2';
+import { getResizedImageUrl } from '@/utils/imageResize.js';
 
 // State
 const results = ref({
@@ -448,7 +449,7 @@ const loadComparisonImages = async () => {
               allImages.push({
                 id: image.id,
                 name: image.fileName,
-                url: image.downloadUrl,
+                url: getResizedImageUrl(image.downloadUrl, '1920x1440', 'jpeg'),
                 locationId: location.id,
                 locationName: location.name,
                 boulderProblems: boulderProblems.length,
