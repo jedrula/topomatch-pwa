@@ -162,8 +162,13 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       console.log('✅ Using cached detection results for:', imageUrl);
       console.log('📦 Cached result contains:', Object.keys(cachedResult.result || {}));
 
-      // Set results immediately
-      results.value = cachedResult.result;
+      // Set results immediately with compression info
+      results.value = {
+        ...cachedResult.result,
+        // Include compression info for overlay coordinate adjustment
+        compressionRatio: cachedResult.metrics?.compressionRatio,
+        originalSize: cachedResult.metrics?.originalSize,
+      };
       processingMetrics.value = cachedResult.metrics;
 
       // Update status to show cached results
@@ -224,7 +229,12 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       }
 
       // Success!
-      results.value = pollResult.result;
+      results.value = {
+        ...pollResult.result,
+        // Include compression info for overlay coordinate adjustment
+        compressionRatio: processingMetrics.value.compressionRatio,
+        originalSize: processingMetrics.value.originalSize,
+      };
       processingStatus.value = 'completed';
       updateProgress(4, 100, 'Processing completed successfully!');
 
