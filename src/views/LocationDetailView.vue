@@ -828,7 +828,7 @@
     </div>
 
     <!-- Image Gallery Modal -->
-    <ImageGallery
+    <ImageGallerySimplified
       :images="images"
       :initial-index="initialImageIndex"
       :is-open="isGalleryOpen"
@@ -853,7 +853,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
 import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
 import ImageUpload from '../components/ImageUpload.vue';
-import ImageGallery from '../components/ImageGallery.vue';
+import ImageGallerySimplified from '../components/ImageGallerySimplified.vue';
 import VideoGallery from '../components/VideoGallery.vue';
 import VideoFrameMatcher from '../components/VideoFrameMatcherEnhanced.vue';
 import { formatDate, isSameDateTime } from '../utils/dateUtils.js';

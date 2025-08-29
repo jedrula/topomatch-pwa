@@ -17,7 +17,7 @@
 <template>
   <div class="relative">
     <img
-      ref="imageElement"
+      :ref="overlay.imageRef"
       :src="imageUrl"
       :alt="imageAlt"
       :class="imageClass"
@@ -26,7 +26,7 @@
     
     <!-- Hold Highlights SVG Overlay -->
     <svg
-      v-if="imageLoaded && showHolds && problems?.length > 0"
+      v-if="overlay.isImageLoaded && showHolds && problems?.length > 0"
       class="absolute inset-0 w-full h-full pointer-events-none"
       :viewBox="imageViewBox"
       preserveAspectRatio="xMidYMid meet"
@@ -51,8 +51,9 @@
 <script setup>
 import HoldSvg from './HoldSvg.vue';
 import { useImageOverlay } from '@/composables/useImageOverlay';
+import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
   imageUrl: {
     type: String,
     required: true,
@@ -82,16 +83,18 @@ defineProps({
 const emit = defineEmits(['problem-click', 'problem-hover', 'image-load']);
 
 // Use the image overlay composable
-const {
-  imageElement,
-  imageLoaded,
-  imageViewBox,
-  onImageLoad: handleImageLoad,
-} = useImageOverlay();
+const overlay = useImageOverlay();
+
+// Computed viewBox for the current image
+const imageViewBox = computed(() => {
+  // For boulder problems, we don't have the detection results directly
+  // But we can try to get them from cache using the image URL
+  return overlay.getViewBox(null, props.imageUrl);
+});
 
 // Wrap the image load handler to emit event
 const onImageLoad = () => {
-  handleImageLoad();
+  overlay.handleImageLoad();
   // Emit for parent components that need to know when image loads
   emit('image-load');
 };

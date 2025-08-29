@@ -78,15 +78,15 @@
             :src="getOptimalImageUrl(currentImage.url, 1920)"
             :alt="currentImage.name"
             class="max-w-full max-h-full object-contain"
-            @load="onImageLoad"
-            ref="imageElement"
+            @load="overlay.handleImageLoad"
+            :ref="overlay.imageRef"
             loading="lazy"
           />
         </picture>
 
         <!-- Boulder Problems SVG Overlay -->
         <svg
-          v-if="imageLoaded && currentImageProblems.length > 0"
+          v-if="overlay.isImageLoaded && currentImageProblems.length > 0"
           :key="`overlay-${currentImage?.id}`"
           class="absolute inset-0 w-full h-full"
           :viewBox="imageViewBox"
@@ -158,13 +158,16 @@
 </template>
 
 <script setup>
-import { computed, watch, nextTick, ref, onMounted } from 'vue';
+import { computed, watch, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { getResizedImageUrl, getOptimalImageUrl } from '@/utils/imageResize.js';
+import { useImageOverlay } from '@/composables/useImageOverlay.js';
+import { getCachedDetectionResult } from '@/services/detectionCacheService.js';
+import { getDefaultCompressionSettings } from '@/utils/imageMetadata.js';
 
 const props = defineProps({
   images: {
@@ -191,13 +194,45 @@ const route = useRoute();
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
 
+// Detection results for proper overlay calculation
+const detectionResults = ref(null);
+
 // Boulder problems functionality
-const imageElement = ref(null);
-const imageLoaded = ref(false);
 const hoveredProblemId = ref(null);
 
 // Mobile tap-to-toggle functionality
 const tappedProblemId = ref(null);
+
+// Current image computed
+const currentImage = computed(() => {
+  if (!props.images || props.images.length === 0) return null;
+
+  const imageId = route.query.imageId;
+  if (imageId) {
+    const foundImage = props.images.find((img) => img.id === imageId);
+    if (foundImage) return foundImage;
+  }
+
+  return props.images[props.initialIndex] || props.images[0];
+});
+
+// Use the image overlay composable
+const overlay = useImageOverlay();
+
+// Computed viewBox for the current image
+const imageViewBox = computed(() => {
+  // Use detection results if available for accurate viewBox calculation
+  if (detectionResults.value) {
+    const imageInfo = detectionResults.value.image_info;
+    if (imageInfo && imageInfo.width && imageInfo.height) {
+      return `0 0 ${imageInfo.width} ${imageInfo.height}`;
+    }
+  }
+  
+  // Fallback to overlay composable approach
+  const imageUrl = currentImage.value?.url;
+  return overlay.getViewBox(null, imageUrl);
+});
 const isTouchDevice = ref(false);
 
 // Floating problem card state
@@ -220,10 +255,6 @@ const currentIndex = computed(() => {
   return props.initialIndex;
 });
 
-const currentImage = computed(() => {
-  return props.images[currentIndex.value] || null;
-});
-
 // Boulder problems for the current image
 const currentImageProblems = computed(() => {
   if (!currentImage.value || !boulderProblemsStore.boulderProblems.length) {
@@ -234,17 +265,6 @@ const currentImageProblems = computed(() => {
   return boulderProblemsStore.boulderProblems.filter(
     (problem) => problem.imageId === currentImage.value.id
   );
-});
-
-// SVG viewBox for overlay positioning
-const imageViewBox = computed(() => {
-  if (!imageElement.value) return '0 0 1000 1000';
-
-  const img = imageElement.value;
-  const naturalWidth = img.naturalWidth || 1000;
-  const naturalHeight = img.naturalHeight || 1000;
-
-  return `0 0 ${naturalWidth} ${naturalHeight}`;
 });
 
 const closeGallery = () => {
@@ -287,20 +307,6 @@ const navigateToImage = (index) => {
     });
   }
   emit('navigate', clampedIndex);
-};
-
-const onImageLoad = () => {
-  // Use nextTick to ensure DOM has updated before setting imageLoaded
-  nextTick(() => {
-    imageLoaded.value = true;
-    console.log('🖼️ Image loaded, viewBox:', imageViewBox.value);
-
-    // Focus the gallery for keyboard navigation
-    const galleryEl = document.querySelector('[tabindex="0"]');
-    if (galleryEl) {
-      galleryEl.focus();
-    }
-  });
 };
 
 // Touch device detection
@@ -446,11 +452,33 @@ watch(
   }
 );
 
+// Watch for current image changes to load detection results
+watch(
+  currentImage,
+  async (newImage) => {
+    if (newImage?.url) {
+      try {
+        console.log('📊 Loading detection results for image:', newImage.url);
+        const defaultSettings = getDefaultCompressionSettings();
+        const cachedResult = await getCachedDetectionResult(newImage.url, defaultSettings);
+        detectionResults.value = cachedResult;
+        console.log('📊 Detection results loaded:', cachedResult ? 'Found' : 'Not found');
+      } catch (error) {
+        console.error('Error loading detection results:', error);
+        detectionResults.value = null;
+      }
+    } else {
+      detectionResults.value = null;
+    }
+  },
+  { immediate: true }
+);
+
 // Watch for current image changes to reset loaded state
 watch(
   () => currentImage.value,
   () => {
-    imageLoaded.value = false;
+    overlay.isImageLoaded.value = false;
     // Also hide any visible tooltip when changing images
     floatingCard.value.visible = false;
     hoveredProblemId.value = null;
