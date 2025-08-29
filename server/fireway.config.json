@@ -1,6 +1,6 @@
 {
   "projectId": "topomatch-pwa",
-  "storageBucket": "topomatch-pwa.appspot.com",
+  "storageBucket": "topomatch-pwa.firebasestorage.app",
   "databaseURL": "https://topomatch-pwa.firebaseio.com",
   "migrationPath": "./migrations",
   "emulator": {

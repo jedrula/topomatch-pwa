@@ -6,7 +6,9 @@
   "targets": {},
   "etags": {
     "topomatch-pwa": {
-      "extensionInstances": {}
+      "extensionInstances": {
+        "storage-resize-images-x2dt": "39db5018da2fb4c3f15fec8a9648739dbcd7bf321b9d397e344d12bf868f5e23"
+      }
     }
   }
 }

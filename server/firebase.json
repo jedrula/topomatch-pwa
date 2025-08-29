@@ -20,5 +20,7 @@
       ]
     }
   ],
-  "extensions": {}
+  "extensions": {
+    "storage-resize-images-x2dt": "firebase/storage-resize-images@0.2.10"
+  }
 }
