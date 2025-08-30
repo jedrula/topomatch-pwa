@@ -168,7 +168,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     const colorIndex = boulderProblems.value.length % problemColors.length;
     const problemName = name || `Problem ${boulderProblems.value.length + 1}`;
 
-    // Create optimistic local problem
+    // Create optimistic local problem (no viewBox stored here anymore)
     const localProblem = {
       id: getNextLocalId(),
       name: problemName,
@@ -186,7 +186,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     isCreatingProblem.value = true;
 
     try {
-      // Create on backend
+      // Create on backend (no viewBox stored in boulder problem anymore)
       const problemId = await boulderProblemsService.createBoulderProblem(currentLocationId.value, {
         name: problemName,
         grade: gradeObject,
@@ -466,7 +466,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     error.value = null;
 
     try {
-      // Update the entire problem with current state
+      // Update the entire problem with current state (no viewBox)
       await boulderProblemsService.updateBoulderProblem(currentLocationId.value, problemId, {
         name: problem.name,
         grade: problem.grade,

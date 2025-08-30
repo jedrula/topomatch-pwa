@@ -2,7 +2,7 @@
   <div class="absolute inset-0 w-full h-full pointer-events-none">
     <!-- Main SVG overlay with both AI and manual holds -->
     <svg
-      v-if="hasAnyHolds || serverStore.isDrawingMode"
+      v-if="aiSvgMarkups.length > 0 || serverStore.manualHolds.length > 0 || serverStore.isDrawingMode || serverStore.isDeleteMode"
       class="absolute inset-0 w-full h-full pointer-events-none z-10"
       :viewBox="svgViewBox"
       preserveAspectRatio="xMidYMid meet"
@@ -165,7 +165,7 @@
         </div>
       </div>
 
-      <div class="mt-2 text-xs text-red-600">Click on any hold to delete it</div>
+      <div class="mt-2 text-xs text-red-600">Click on any hold to delete it (AI or manual)</div>
     </div>
   </div>
 </template>
@@ -250,7 +250,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change']);
+const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change', 'delete-hold']);
 
 const serverStore = useHoldDetectionServerStore();
 const boulderProblemsStore = useBoulderProblemsStore();
@@ -290,10 +290,6 @@ const isAnyDrawingMode = computed(() => {
 // Computed properties
 const aiHolds = computed(() => props.detectionResults?.holds || []);
 const aiSvgMarkups = computed(() => props.detectionResults?.svg_markups || []);
-
-const hasAnyHolds = computed(() => {
-  return aiSvgMarkups.value.length > 0 || serverStore.manualHolds.length > 0;
-});
 
 const svgViewBox = computed(() => {
   if (!props.imageElement) return '0 0 100 100';
@@ -552,6 +548,9 @@ const createHoldFromPath = () => {
 
   // Create hold with the same structure as AI detection results
   const hold = {
+    // Unique identifier for manual hold
+    id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    
     // Core bounding box properties (match YOLO output)
     x: boundingBox.x,
     y: boundingBox.y,
@@ -651,18 +650,12 @@ const getHoldProblemId = (holdIndex) => {
 
 // Get interaction state for hold based on its current state (from UnifiedHoldOverlay)
 const getHoldInteraction = (holdIndex) => {
-  // During delete mode, AI holds are not deletable but show as disabled
+  // During delete mode, both AI and manual holds can be deleted
   if (serverStore.isDeleteMode) {
-    // AI holds (first part of combined holds array) cannot be deleted
-    if (holdIndex < aiHolds.value.length) {
-      return 'disabled'; // AI holds cannot be deleted
+    if (hoveredHoldIndex.value === holdIndex) {
+      return 'delete-hover'; // Special hover state for delete mode
     } else {
-      // Manual holds can be deleted
-      if (hoveredHoldIndex.value === holdIndex) {
-        return 'delete-hover'; // Special hover state for delete mode
-      } else {
-        return 'delete-target'; // Show as deletable
-      }
+      return 'delete-target'; // Show as deletable
     }
   }
 
@@ -754,6 +747,11 @@ const getHoldInteraction = (holdIndex) => {
 
 // Get interaction allowed state for hold (from UnifiedHoldOverlay)
 const getHoldInteractionAllowed = (holdIndex) => {
+  // In delete mode, both AI and manual holds are selectable for deletion
+  if (serverStore.isDeleteMode) {
+    return 'selectable'; // All holds can be deleted
+  }
+
   // Magic Wand mode - only selected holds are clickable
   if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
     return props.magicWandSelection.selectedIndices.includes(holdIndex) ? 'selectable' : 'none';
@@ -844,9 +842,12 @@ const getManualHoldColor = (hold, manualIndex) => {
 };
 
 const handleHoldClick = (hold, index) => {
-  // In delete mode, AI holds cannot be deleted
+  // In delete mode, both AI and manual holds can be deleted
   if (serverStore.isDeleteMode) {
-    console.log('🗑️ Cannot delete AI-detected holds');
+    console.log('🗑️ Deleting AI-detected hold:', hold);
+    // For AI holds, we need to remove them from the detection results
+    // This will require updating the parent component or store
+    emit('delete-hold', { hold, index, type: 'ai' });
     return;
   }
 
@@ -870,7 +871,10 @@ const handleHoldHover = (index, isEntering, event) => {
 const handleManualHoldClick = (hold, manualIndex) => {
   if (serverStore.isDeleteMode) {
     console.log('🗑️ Deleting manual hold:', hold);
-    serverStore.removeManualHold(hold.id, props.locationId, props.imageUrl);
+    // For manual holds, we can delete them directly from the store
+    serverStore.removeManualHold(hold.id);
+    // Also emit for consistency
+    emit('delete-hold', { hold, index: manualIndex, type: 'manual' });
     return;
   }
 

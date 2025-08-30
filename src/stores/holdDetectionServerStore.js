@@ -1,540 +1,503 @@
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
-import { holdDetectionServerService } from '../services/holdDetectionServerService.js';
-import { configService } from '../services/configService.js';
-import {
-  getCachedDetectionResult,
-  setCachedDetectionResult,
-  clearAllDetectionCache,
-  clearExpiredDetectionCache,
-  clearDetectionCacheForImage,
-  hasCachedDetectionResult,
-} from '../services/detectionCacheService.js';
-import { manualHoldsService } from '../services/manualHoldsService.js';
-import { ensureHoldHasSvgMarkup } from '../utils/svgUtils.js';
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { useHoldDetectionPersistenceStore } from './holdDetectionPersistenceStore'
+import { configService } from '../services/configService.js'
+import { holdDetectionService } from '../services/holdDetectionService.js'
 
+/**
+ * Simplified Hold Detection Server Store
+ * Only handles AI detection and integrates with unified persistence system
+ */
 export const useHoldDetectionServerStore = defineStore('holdDetectionServer', () => {
   // Core state
-  const isProcessing = ref(false);
-  const currentJobId = ref(null);
-  const processingStatus = ref('ready'); // ready, fetching, uploading, processing, completed, error
-  const statusMessage = ref('Ready to process images');
-  const error = ref(null);
-
-  // API configuration - now using configService
-  const apiUrl = ref(configService.getHoldDetectionServerUrl());
-  const apiHealthy = ref(false);
-
-  // Set up listener for configuration changes
-  configService.setupConfigListener((newConfig) => {
-    const newUrl = newConfig.holdDetectionServer.apiUrl;
-    if (newUrl !== apiUrl.value) {
-      console.log(`🔄 Store: Hold Detection Server URL updated: ${apiUrl.value} → ${newUrl}`);
-      apiUrl.value = newUrl;
-      // Re-check health with new URL (will be defined below)
-      setTimeout(() => testApiHealth(), 100);
-    }
-  });
-
-  // Processing progress
-  const currentStep = ref(0);
-  const totalSteps = ref(4);
-  const progressPercent = ref(0);
-  const detailedProgress = ref(null);
-
-  // Results
-  const results = ref(null);
-  const processingMetrics = ref(null);
-
-  // Manual holds
-  const manualHolds = ref([]);
-  const isDrawingMode = ref(false);
-  const isDeleteMode = ref(false);
-  const isQuickDrawMode = ref(false); // Auto drawing mode for boulder problem creation
-
-  // Compression settings
+  const isProcessing = ref(false)
+  const statusMessage = ref('Ready')
+  const error = ref(null)
+  const results = ref(null)
+  
+  // Progress tracking
+  const currentStep = ref(1)
+  const totalSteps = ref(4)
+  const progressPercent = ref(0)
+  const detailedProgress = ref(null)
+  
+  // API settings - reactive to config service changes
+  const apiUrl = computed(() => configService.getHoldDetectionServerUrl())
+  const apiHealthy = ref(false)
+  
+  // Manual holds state (simplified)
+  const manualHolds = ref([])
+  const isDrawingMode = ref(false)
+  const isDeleteMode = ref(false)
+  const isAdminHighlightMode = ref(false)
+  
+  // Compression settings (for UI compatibility)
   const compressionSettings = ref({
     enabled: true,
-    maxSizeMB: 1,
-    maxWidthOrHeight: 1920,
-    useWebWorker: true,
-  });
-
-  // Computed properties
-  const isReady = computed(() => processingStatus.value === 'ready' && apiHealthy.value);
-  const hasResults = computed(() => results.value !== null);
-  const isLoading = computed(() => isProcessing.value);
-
-  // Can process either via API (when healthy) or cache (when available)
-  const canProcessImage = (imageUrl) => {
-    if (!imageUrl) return false;
-    return apiHealthy.value || hasCachedDetectionResult(imageUrl, compressionSettings.value);
-  };
-
-  const holdCount = computed(() => {
-    return results.value?.yolo_results?.total_detections || 0;
-  });
-
+    maxSizeMB: 2.0,
+    maxWidthOrHeight: 2048
+  })
+  
+  // Computed
+  const hasResults = computed(() => results.value !== null)
+  const isReady = computed(() => !isProcessing.value && apiHealthy.value)
+  
+  // Processing time computed from results
   const processingTime = computed(() => {
-    return results.value?.processing_time || 0;
-  });
-
-  const svgCount = computed(() => {
-    return results.value?.svg_files?.length || 0;
-  });
-
-  // Combined holds (AI + manual) for unified display
-  const combinedHolds = computed(() => {
-    const aiHolds = results.value?.holds || [];
-    // Ensure manual holds have svgMarkup for consistent display
-    const enrichedManualHolds = manualHolds.value.map(ensureHoldHasSvgMarkup);
-    return [...aiHolds, ...enrichedManualHolds];
-  });
-
-  const combinedSvgMarkups = computed(() => {
-    const aiSvgs = results.value?.svg_markups || [];
-    // Ensure manual holds have svgMarkup, convert from pathPoints if needed
-    const manualSvgs = manualHolds.value.map((hold) => {
-      const enrichedHold = ensureHoldHasSvgMarkup(hold);
-      return enrichedHold.svgMarkup;
-    });
-    return [...aiSvgs, ...manualSvgs];
-  });
-
-  const totalHoldCount = computed(() => {
-    return combinedHolds.value.length;
-  });
-
+    return results.value?.processingTime || 0
+  })
+  
+  // Hold count computed from results
+  const holdCount = computed(() => {
+    return results.value?.holds?.length || 0
+  })
+  
+  // Check if an image can be processed
+  const canProcessImage = (imageUrl) => {
+    return imageUrl && apiHealthy.value && !isProcessing.value
+  }
+  
+  // Get persistence store
+  const persistenceStore = useHoldDetectionPersistenceStore()
+  
   // Actions
-  const setApiUrl = (url) => {
-    apiUrl.value = url;
-    holdDetectionServerService.setApiUrl(url);
-  };
-
   const testApiHealth = async () => {
     try {
-      console.log('🔍 Testing API health with URL:', apiUrl.value);
-      statusMessage.value = 'Testing API connection...';
-
-      const healthResult = await holdDetectionServerService.testHealth();
-
-      if (healthResult.success) {
-        apiHealthy.value = true;
-        statusMessage.value = 'API is ready';
-        console.log('✅ API Health check successful');
-        return { success: true, data: healthResult.data };
+      statusMessage.value = 'Testing API connection...'
+      const response = await fetch(`${apiUrl.value}/health`, {
+        method: 'GET',
+        headers: {
+          'ngrok-skip-browser-warning': 'true' // Required for ngrok tunnels
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        apiHealthy.value = true
+        statusMessage.value = 'API is ready'
+        console.log('✅ API Health check successful:', data)
+        return { success: true, data }
       } else {
-        apiHealthy.value = false;
-        error.value = healthResult.error;
-        statusMessage.value = healthResult.message;
-        console.log('❌ API Health check failed:', healthResult.error);
-        return { success: false, error: healthResult.error };
+        throw new Error(`API returned ${response.status}: ${response.statusText}`)
       }
     } catch (err) {
-      apiHealthy.value = false;
-      error.value = err.message;
-      statusMessage.value = `API connection failed: ${err.message}`;
-      console.log('❌ API Health exception:', err.message);
-      return { success: false, error: err.message };
+      apiHealthy.value = false
+      error.value = err.message
+      statusMessage.value = `API connection failed: ${err.message}`
+      console.error('❌ API Health check failed:', err)
+      return { success: false, error: err.message }
     }
-  };
-
-  const updateProgress = (step, percent, message) => {
-    currentStep.value = step;
-    progressPercent.value = percent;
-    if (message) {
-      statusMessage.value = message;
-    }
-  };
-
-  const processImage = async (imageUrl) => {
+  }
+  
+  const processImage = async (imageUrl, locationId = null, imageId = null) => {
     if (!imageUrl) {
-      error.value = 'No image URL provided';
-      return { success: false, error: 'No image URL provided' };
+      error.value = 'No image URL provided'
+      return { success: false, error: 'No image URL provided' }
     }
-
-    // Check cache first - we can load cached results even if API is down
-    console.log('🔍 Checking cache for image:', imageUrl);
-    console.log('🔧 Cache settings:', compressionSettings.value);
-
-    const cachedResult = getCachedDetectionResult(imageUrl, compressionSettings.value);
-    if (cachedResult) {
-      console.log('✅ Using cached detection results for:', imageUrl);
-      console.log('📦 Cached result contains:', Object.keys(cachedResult.result || {}));
-
-      // Set results immediately with compression info
-      results.value = {
-        ...cachedResult.result,
-        // Include compression info for overlay coordinate adjustment
-        compressionRatio: cachedResult.metrics?.compressionRatio,
-        originalSize: cachedResult.metrics?.originalSize,
-      };
-      processingMetrics.value = cachedResult.metrics;
-
-      // Update status to show cached results
-      processingStatus.value = 'completed';
-      statusMessage.value = 'Results loaded from cache';
-      error.value = null;
-
-      return {
-        success: true,
-        result: cachedResult.result,
-        metrics: cachedResult.metrics,
-        fromCache: true,
-      };
-    }
-
-    // Only check API health if we need to make a server request
+    
     if (!apiHealthy.value) {
-      error.value = 'API is not healthy. Please test connection first.';
-      return { success: false, error: 'API is not healthy' };
+      error.value = 'API is not healthy. Please test connection first.'
+      return { success: false, error: 'API is not healthy' }
     }
-
+    
     try {
-      // Reset state
-      isProcessing.value = true;
-      error.value = null;
-      results.value = null;
-      processingMetrics.value = null;
-      currentJobId.value = null;
-      detailedProgress.value = null;
-
-      // Step 1-3: Upload workflow
-      processingStatus.value = 'uploading';
-      updateProgress(1, 10, 'Starting image processing...');
-
-      const processResult = await holdDetectionServerService.processImage(imageUrl, {
-        compression: compressionSettings.value,
-      });
-
-      if (!processResult.success) {
-        throw new Error(processResult.error);
+      isProcessing.value = true
+      error.value = null
+      results.value = null
+      progressPercent.value = 0
+      currentStep.value = 1
+      
+      // Step 1: Fetch image from Firebase Storage
+      statusMessage.value = 'Fetching image from Firebase Storage...'
+      progressPercent.value = 10
+      
+      console.log('🖼️ Fetching image from URL:', imageUrl)
+      const imageResponse = await fetch(imageUrl, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+        credentials: 'omit', // Don't send cookies, token is in URL
+      })
+      
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status}`)
       }
-
-      // Store job ID and metrics
-      currentJobId.value = processResult.jobId;
-      processingMetrics.value = {
-        originalSize: processResult.fetchInfo.originalSize,
-        compressionRatio: processResult.fetchInfo.compressionRatio,
-      };
-
+      
+      // Step 2: Convert to blob for upload
+      statusMessage.value = 'Preparing image for upload...'
+      progressPercent.value = 25
+      
+      const imageBlob = await imageResponse.blob()
+      console.log('📦 Image blob size:', imageBlob.size, 'bytes')
+      
+      // Step 3: Upload to API for processing (original endpoint)
+      currentStep.value = 2
+      statusMessage.value = 'Uploading to server...'
+      progressPercent.value = 50
+      
+      const formData = new FormData()
+      formData.append('file', imageBlob, 'climbing_wall.jpg') // Original field name was 'file'
+      
+      console.log('🚀 Uploading to:', `${apiUrl.value}/api/v1/process`)
+      const uploadResponse = await fetch(`${apiUrl.value}/api/v1/process`, {
+        method: 'POST',
+        headers: {
+          'ngrok-skip-browser-warning': 'true' // Required for ngrok tunnels
+          // Note: Don't set Content-Type, let browser set it with boundary for FormData
+        },
+        body: formData
+      })
+      
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text()
+        throw new Error(`Upload failed: ${uploadResponse.status}: ${errorText}`)
+      }
+      
+      const uploadResult = await uploadResponse.json()
+      const jobId = uploadResult.job_id
+      console.log('✅ Upload successful, job ID:', jobId)
+      
       // Step 4: Poll for results
-      processingStatus.value = 'processing';
-      updateProgress(4, 30, 'Processing image on server...');
-
-      const pollResult = await pollWithProgress(processResult.jobId);
-
-      if (!pollResult.success) {
-        throw new Error(pollResult.error);
+      currentStep.value = 3
+      statusMessage.value = 'Processing on server...'
+      progressPercent.value = 75
+      
+      const result = await pollForResults(jobId)
+      console.log('✅ Detection results received:', result)
+      console.log('🔍 DEBUG: Full server response structure:', {
+        holds: result.holds?.length || 0,
+        svg_markups: result.svg_markups?.length || 0,
+        svg_markups_sample: result.svg_markups?.[0]?.substring?.(0, 100) || 'No SVG data',
+        other_keys: Object.keys(result)
+      })
+      
+      // Step 5: Complete
+      currentStep.value = 4
+      progressPercent.value = 100
+      statusMessage.value = 'Processing completed successfully!'
+      
+      results.value = result
+      
+      // Auto-enable admin highlight mode when results are loaded
+      if (result && (result.holds?.length > 0 || result.svg_markups?.length > 0)) {
+        setAdminHighlightMode(true)
       }
-
-      // Success!
-      results.value = {
-        ...pollResult.result,
-        // Include compression info for overlay coordinate adjustment
-        compressionRatio: processingMetrics.value.compressionRatio,
-        originalSize: processingMetrics.value.originalSize,
-      };
-      processingStatus.value = 'completed';
-      updateProgress(4, 100, 'Processing completed successfully!');
-
-      console.log('Processing completed:', results.value);
-
-      // Cache the successful result using the cache service
-      const resultToCache = {
-        result: pollResult.result,
-        metrics: processingMetrics.value,
-      };
-      console.log('💾 Caching new detection results for:', imageUrl);
-      setCachedDetectionResult(imageUrl, compressionSettings.value, resultToCache);
-
-      return {
-        success: true,
-        result: results.value,
-        metrics: processingMetrics.value,
-        fromCache: false,
-      };
+      
+      return { success: true, result }
     } catch (err) {
-      error.value = err.message;
-      processingStatus.value = 'error';
-      statusMessage.value = `Processing failed: ${err.message}`;
-      console.error('Processing failed:', err);
-
-      return { success: false, error: err.message };
+      error.value = err.message
+      statusMessage.value = `Processing failed: ${err.message}`
+      console.error('❌ Processing failed:', err)
+      return { success: false, error: err.message }
     } finally {
-      isProcessing.value = false;
+      isProcessing.value = false
     }
-  };
-
-  // Internal polling function with progress updates
-  const pollWithProgress = async (jobId) => {
-    const maxAttempts = 60;
-    const intervalMs = 2000;
-    let attempts = 0;
-
+  }
+  
+  // Poll for job status and results (original polling pattern)
+  const pollForResults = async (jobId, maxAttempts = 60, intervalMs = 2000) => {
+    let attempts = 0
+    
     const poll = async () => {
-      attempts++;
-
+      attempts++
+      
       if (attempts > maxAttempts) {
-        throw new Error('Processing timeout: Maximum attempts exceeded');
+        throw new Error('Polling timeout: Maximum attempts exceeded')
       }
-
-      const statusResult = await holdDetectionServerService.getJobStatus(jobId);
-
-      if (!statusResult.success) {
-        throw new Error(statusResult.error);
+      
+      console.log(`🔄 Polling job ${jobId}, attempt ${attempts}/${maxAttempts}`)
+      
+      const response = await fetch(`${apiUrl.value}/api/v1/status/${jobId}`, {
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Status check failed: ${response.status}`)
       }
-
-      const { status, result, detailedProgress: progress } = statusResult;
-
+      
+      const statusResult = await response.json()
+      const { status, result } = statusResult
+      
       // Update detailed progress if available
-      if (progress) {
-        detailedProgress.value = progress;
+      if (statusResult.detailed_progress) {
+        detailedProgress.value = statusResult.detailed_progress
       }
-
-      // Update progress percentage
-      const baseProgress = 30;
-      const processingProgress = Math.min(60, baseProgress + attempts * 1);
-      updateProgress(4, processingProgress, `Processing... (${status})`);
-
+      
       if (status === 'completed') {
-        return {
-          success: true,
-          result,
-          message: 'Processing completed successfully',
-        };
+        return result
       }
-
+      
       if (status === 'failed') {
-        const errorMsg = result?.error_message || 'Unknown error';
-        throw new Error(`Server processing failed: ${errorMsg}`);
+        const errorMsg = result?.error_message || 'Unknown error'
+        throw new Error(`Processing failed: ${errorMsg}`)
       }
-
+      
       // Still processing, wait and retry
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-      return poll();
-    };
-
-    return poll();
-  };
-
-  const clearResults = (clearCache = false) => {
-    results.value = null;
-    error.value = null;
-    currentJobId.value = null;
-    processingMetrics.value = null;
-    detailedProgress.value = null;
-    processingStatus.value = 'ready';
-    statusMessage.value = 'Ready to process images';
-    currentStep.value = 0;
-    progressPercent.value = 0;
-
-    if (clearCache) {
-      clearAllDetectionCache();
+      statusMessage.value = `Processing on server... (${status})`
+      await new Promise((resolve) => setTimeout(resolve, intervalMs))
+      return poll()
     }
-  };
-
+    
+    return await poll()
+  }
+  
+  const clearResults = () => {
+    results.value = null
+    error.value = null
+    statusMessage.value = 'Ready'
+    progressPercent.value = 0
+    currentStep.value = 1
+  }
+  
   const resetState = () => {
-    isProcessing.value = false;
-    clearResults();
-  };
-
-  // Manual hold management actions
-  const addManualHold = async (hold, locationId, imageUrl) => {
-    // Generate unique ID for manual hold
-    const id = `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const manualHold = {
-      ...hold,
-      id,
-      confidence: 1.0, // Manual holds have 100% confidence
-      type: 'manual',
-      timestamp: new Date().toISOString(),
-    };
-
-    try {
-      // Add to local state immediately for responsive UI
-      manualHolds.value.push(manualHold);
-      console.log('✅ Added manual hold locally:', manualHold);
-
-      // Save to Firestore if locationId and imageUrl are provided
-      if (locationId && imageUrl) {
-        await manualHoldsService.addManualHold(locationId, imageUrl, manualHold);
-        console.log('☁️ Saved manual hold to Firestore');
-      }
-
-      return manualHold;
-    } catch (error) {
-      // If Firestore save fails, remove from local state
-      const index = manualHolds.value.findIndex((hold) => hold.id === id);
-      if (index !== -1) {
-        manualHolds.value.splice(index, 1);
-      }
-      console.error('❌ Error adding manual hold:', error);
-      throw error;
+    clearResults()
+    manualHolds.value = []
+    isDrawingMode.value = false
+    isDeleteMode.value = false
+    isAdminHighlightMode.value = false
+    detailedProgress.value = null
+    isProcessing.value = false
+  }
+  
+  const addManualHold = (hold) => {
+    manualHolds.value.push(hold)
+  }
+  
+  const removeManualHold = (holdId) => {
+    const index = manualHolds.value.findIndex(h => h.id === holdId)
+    if (index !== -1) {
+      manualHolds.value.splice(index, 1)
     }
-  };
-
-  const removeManualHold = async (holdId, locationId, imageUrl) => {
-    try {
-      // Remove from local state immediately for responsive UI
-      const index = manualHolds.value.findIndex((hold) => hold.id === holdId);
-      let removedHold = null;
-
-      if (index !== -1) {
-        removedHold = manualHolds.value.splice(index, 1)[0];
-        console.log('🗑️ Removed manual hold locally:', holdId);
+  }
+  
+  const removeAIHold = async (holdIndex, locationId, imageId) => {
+    if (!results.value || !results.value.holds) return
+    
+    // Get the hold ID before removing it
+    const holdToRemove = results.value.holds[holdIndex]
+    if (!holdToRemove) return
+    
+    // Create copies of the arrays
+    const updatedHolds = [...results.value.holds]
+    const updatedSvgMarkups = results.value.svg_markups ? [...results.value.svg_markups] : []
+    
+    // Remove the hold at the specified index
+    if (holdIndex >= 0 && holdIndex < updatedHolds.length) {
+      updatedHolds.splice(holdIndex, 1)
+      
+      // Also remove the corresponding SVG markup
+      if (updatedSvgMarkups.length > holdIndex) {
+        updatedSvgMarkups.splice(holdIndex, 1)
       }
-
-      // Remove from Firestore if locationId and imageUrl are provided
-      if (locationId && imageUrl) {
-        await manualHoldsService.removeManualHold(locationId, imageUrl, holdId);
-        console.log('☁️ Removed manual hold from Firestore');
+      
+      // Update the results locally first
+      results.value = {
+        ...results.value,
+        holds: updatedHolds,
+        svg_markups: updatedSvgMarkups
       }
-    } catch (error) {
-      // If Firestore removal fails, reload from Firestore to sync state
-      if (locationId && imageUrl) {
-        await loadManualHolds(locationId, imageUrl);
+      
+      // Persist the deletion to the database using the hold's ID
+      try {
+        if (locationId && imageId && holdToRemove.id) {
+          await holdDetectionService.removeHold(locationId, imageId, holdToRemove.id)
+          console.log(`🗑️ AI hold ${holdToRemove.id} removed from database`)
+        }
+      } catch (error) {
+        console.error('❌ Error removing AI hold from database:', error)
       }
-      console.error('❌ Error removing manual hold:', error);
-      throw error;
+      
+      console.log(`🗑️ AI hold at index ${holdIndex} removed from detection results`)
     }
-  };
-
-  const clearManualHolds = async (locationId, imageUrl) => {
-    try {
-      // Clear local state immediately
-      manualHolds.value = [];
-      console.log('🧹 Cleared all manual holds locally');
-
-      // Clear from Firestore if locationId and imageUrl are provided
-      if (locationId && imageUrl) {
-        await manualHoldsService.clearManualHolds(locationId, imageUrl);
-        console.log('☁️ Cleared manual holds from Firestore');
-      }
-    } catch (error) {
-      console.error('❌ Error clearing manual holds:', error);
-      throw error;
-    }
-  };
-
+  }
+  
+  const clearManualHolds = () => {
+    manualHolds.value = []
+  }
+  
   const setDrawingMode = (enabled) => {
-    isDrawingMode.value = enabled;
+    isDrawingMode.value = enabled
     if (enabled) {
-      isDeleteMode.value = false; // Disable delete mode when drawing
-      isQuickDrawMode.value = false; // Disable quick draw mode when in explicit drawing
+      isDeleteMode.value = false
+      isAdminHighlightMode.value = false
     }
-    console.log('✏️ Drawing mode:', enabled ? 'enabled' : 'disabled');
-  };
-
+  }
+  
   const setDeleteMode = (enabled) => {
-    isDeleteMode.value = enabled;
+    isDeleteMode.value = enabled
     if (enabled) {
-      isDrawingMode.value = false; // Disable drawing mode when deleting
-      isQuickDrawMode.value = false; // Disable quick draw mode when deleting
+      isDrawingMode.value = false
+      isAdminHighlightMode.value = false
     }
-    console.log('🗑️ Delete mode:', enabled ? 'enabled' : 'disabled');
-  };
-
-  const setQuickDrawMode = (enabled) => {
-    isQuickDrawMode.value = enabled;
+  }
+  
+  const setAdminHighlightMode = (enabled) => {
+    isAdminHighlightMode.value = enabled
     if (enabled) {
-      isDrawingMode.value = false; // Disable explicit drawing mode
-      isDeleteMode.value = false; // Disable delete mode
+      isDrawingMode.value = false
+      isDeleteMode.value = false
     }
-    console.log('⚡ Quick draw mode:', enabled ? 'enabled' : 'disabled');
-  };
-
-  // Load manual holds from Firestore
-  const loadManualHolds = async (locationId, imageUrl) => {
+  }
+  
+  // Simplified save/load manual holds (using unified persistence)
+  const loadManualHolds = async (locationId, imageId) => {
     try {
-      if (!locationId || !imageUrl) {
-        console.log('📥 No location or image URL provided, skipping manual holds load');
-        manualHolds.value = [];
-        return;
+      await persistenceStore.loadStoredDetection(imageId)
+      
+      const detection = persistenceStore.getDetectionForImage(imageId)
+      if (detection) {
+        manualHolds.value = detection.detectionResults?.manualHolds || []
       }
-
-      const holds = await manualHoldsService.loadManualHolds(locationId, imageUrl);
-      manualHolds.value = holds;
-      console.log('📥 Loaded manual holds from Firestore:', holds.length);
     } catch (error) {
-      console.error('❌ Error loading manual holds:', error);
-      // Don't throw error - just log it and continue with empty holds
-      manualHolds.value = [];
+      console.error('Error loading manual holds:', error)
     }
-  };
-
-  // Save all current manual holds to Firestore
-  const saveManualHolds = async (locationId, imageUrl) => {
+  }
+  
+  const saveManualHolds = async (locationId, imageId, imageUrl = null) => {
     try {
-      if (!locationId || !imageUrl) {
-        console.log('💾 No location or image URL provided, skipping manual holds save');
-        return;
-      }
-
-      await manualHoldsService.saveManualHolds(locationId, imageUrl, manualHolds.value);
-      console.log('💾 Saved manual holds to Firestore:', manualHolds.value.length);
+      if (manualHolds.value.length === 0) return
+      
+      // Use the dedicated manual holds saving method
+      await holdDetectionService.saveManualHolds(
+        locationId, 
+        imageId, 
+        manualHolds.value, 
+        imageUrl
+      )
+      
+      // Reload the detection data to keep the store in sync
+      await persistenceStore.loadStoredDetection(imageId)
+      
+      console.log(`✅ Saved ${manualHolds.value.length} manual holds`)
     } catch (error) {
-      console.error('❌ Error saving manual holds:', error);
-      throw error;
+      console.error('Error saving manual holds:', error)
     }
-  };
-
-  // Initialize service with URL and clean up expired cache
-  holdDetectionServerService.setApiUrl(apiUrl.value);
-  clearExpiredDetectionCache(); // Clean up on store initialization
-
+  }
+  
+  // Load all detection results (AI + manual) from persistence
+  const loadDetectionResults = async (locationId, imageId) => {
+    console.log(locationId, imageId);
+    try {
+      console.log(locationId, imageId);
+      if (!locationId || !imageId) return false
+      
+      // Initialize persistence store
+      persistenceStore.initializeForLocation(locationId)
+      
+      // Load stored detection
+      const existingDetection = await persistenceStore.loadStoredDetection(imageId)
+      
+      if (existingDetection?.detectionResults) {
+        const aiHolds = existingDetection.detectionResults.aiHolds || []
+        const storedManualHolds = existingDetection.detectionResults.manualHolds || []
+        
+        console.log(`📦 Loading detection results:`, {
+          aiHolds: aiHolds.length,
+          manualHolds: storedManualHolds.length
+        })
+        
+        console.log('🔍 DEBUG: Loaded aiHolds from Firestore:', aiHolds.map(h => ({ id: h.id, hasSvg: !!h.svgMarkup })))
+        
+        // Load AI holds into results format
+        if (aiHolds.length > 0) {
+          const metadata = existingDetection.detectionResults.metadata || {}
+          results.value = {
+            holds: aiHolds.map(hold => ({
+              x: hold.bbox?.[0] || hold.x || 0,
+              y: hold.bbox?.[1] || hold.y || 0,
+              width: hold.bbox?.[2] || hold.width || 50,
+              height: hold.bbox?.[3] || hold.height || 50,
+              confidence: hold.detectionConfidence || hold.confidence || 0.5,
+              type: hold.holdType || hold.type || 'unknown',
+              id: hold.id
+            })),
+            svg_markups: aiHolds.map((hold, index) => {
+              // If SVG markup exists, use it; otherwise generate a fallback rectangle
+              if (hold.svgMarkup) {
+                return hold.svgMarkup
+              } else {
+                // Generate a simple rectangle SVG as fallback
+                const x = hold.bbox?.[0] || hold.x || 0
+                const y = hold.bbox?.[1] || hold.y || 0
+                const width = hold.bbox?.[2] || hold.width || 50
+                const height = hold.bbox?.[3] || hold.height || 50
+                return `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2"/>`
+              }
+            }),
+            // Include timing information from metadata
+            processing_time: metadata.processingTime || 0,
+            yolo_results: metadata.yoloInferenceTime ? { inference_time: metadata.yoloInferenceTime } : undefined,
+            sam2_results: metadata.sam2ProcessingTime ? { processing_time: metadata.sam2ProcessingTime } : undefined,
+            svg_generation_time: metadata.svgGenerationTime || 0,
+            metadata
+          }
+        }
+        
+        // Load manual holds
+        manualHolds.value = storedManualHolds
+        
+        // Auto-enable admin highlight mode when detection results are loaded
+        if (results.value && (results.value.holds?.length > 0 || results.value.svg_markups?.length > 0)) {
+          setAdminHighlightMode(true)
+        }
+        
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.error('Error loading detection results:', error)
+      return false
+    }
+  }
+  
+  // Stub methods for compatibility
+  const hasCachedResults = () => false
+  const clearCacheForImage = (imageUrl, compressionSettings) => false
+  
   return {
     // State
     isProcessing,
-    currentJobId,
-    processingStatus,
     statusMessage,
     error,
-    apiUrl,
-    apiHealthy,
+    results,
     currentStep,
     totalSteps,
     progressPercent,
     detailedProgress,
-    results,
-    processingMetrics,
-    compressionSettings,
+    apiUrl,
+    apiHealthy,
     manualHolds,
     isDrawingMode,
     isDeleteMode,
-    isQuickDrawMode,
-
+    isAdminHighlightMode,
+    compressionSettings,
+    
     // Computed
-    isReady,
     hasResults,
-    isLoading,
-    holdCount,
+    isReady,
     processingTime,
-    svgCount,
+    holdCount,
     canProcessImage,
-    combinedHolds,
-    combinedSvgMarkups,
-    totalHoldCount,
-
+    
     // Actions
-    setApiUrl,
     testApiHealth,
     processImage,
     clearResults,
     resetState,
     addManualHold,
     removeManualHold,
+    removeAIHold,
     clearManualHolds,
     setDrawingMode,
     setDeleteMode,
-    setQuickDrawMode,
+    setAdminHighlightMode,
     loadManualHolds,
     saveManualHolds,
-
-    // Cache management (delegated to cache service)
-    clearAllCache: clearAllDetectionCache,
-    clearExpiredCache: clearExpiredDetectionCache,
-    clearCacheForImage: clearDetectionCacheForImage,
-    hasCachedResults: (imageUrl) => hasCachedDetectionResult(imageUrl, compressionSettings.value),
-  };
-});
+    loadDetectionResults,
+    hasCachedResults,
+    clearCacheForImage
+  }
+})

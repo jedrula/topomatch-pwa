@@ -17,25 +17,14 @@ import { getCurrentUser } from './authService';
  */
 export const manualHoldsService = {
   /**
-   * Generate a document ID from image URL
-   * @param {string} imageUrl - The image URL
-   * @returns {string} Document ID
-   */
-  getDocumentId(imageUrl) {
-    // Create a safe document ID from the image URL
-    return btoa(imageUrl).replace(/[/+=]/g, '_');
-  },
-
-  /**
    * Load manual holds for an image
    * @param {string} locationId - The location ID
-   * @param {string} imageUrl - The image URL
+   * @param {string} imageId - The image ID (used as document ID)
    * @returns {Promise<Array>} Array of manual holds
    */
-  async loadManualHolds(locationId, imageUrl) {
+  async loadManualHolds(locationId, imageId) {
     try {
-      const docId = this.getDocumentId(imageUrl);
-      const holdsRef = doc(db, 'locations', locationId, 'manualHolds', docId);
+      const holdsRef = doc(db, 'locations', locationId, 'manualHolds', imageId);
       const holdsSnap = await getDoc(holdsRef);
 
       if (holdsSnap.exists()) {
@@ -55,19 +44,19 @@ export const manualHoldsService = {
   /**
    * Save manual holds for an image
    * @param {string} locationId - The location ID
-   * @param {string} imageUrl - The image URL
+   * @param {string} imageId - The image ID (used as document ID)
    * @param {Array} holds - Array of manual holds
+   * @param {string} imageUrl - The image URL (for metadata)
    * @returns {Promise<void>}
    */
-  async saveManualHolds(locationId, imageUrl, holds) {
+  async saveManualHolds(locationId, imageId, holds, imageUrl) {
     try {
       const user = getCurrentUser();
       if (!user) {
         throw new Error('User must be authenticated to save manual holds');
       }
 
-      const docId = this.getDocumentId(imageUrl);
-      const holdsRef = doc(db, 'locations', locationId, 'manualHolds', docId);
+      const holdsRef = doc(db, 'locations', locationId, 'manualHolds', imageId);
 
       const holdsData = {
         imageUrl,
@@ -100,11 +89,12 @@ export const manualHoldsService = {
   /**
    * Add a single manual hold
    * @param {string} locationId - The location ID
-   * @param {string} imageUrl - The image URL
+   * @param {string} imageId - The image ID (used as document ID)
    * @param {Object} hold - The hold to add
+   * @param {string} imageUrl - The image URL (for metadata)
    * @returns {Promise<Array>} Updated holds array
    */
-  async addManualHold(locationId, imageUrl, hold) {
+  async addManualHold(locationId, imageId, hold, imageUrl) {
     try {
       const user = getCurrentUser();
       if (!user) {
@@ -119,13 +109,13 @@ export const manualHoldsService = {
       };
 
       // Load current holds
-      const currentHolds = await this.loadManualHolds(locationId, imageUrl);
+      const currentHolds = await this.loadManualHolds(locationId, imageId);
 
       // Add new hold
       const updatedHolds = [...currentHolds, enhancedHold];
 
       // Save back to Firestore
-      await this.saveManualHolds(locationId, imageUrl, updatedHolds);
+      await this.saveManualHolds(locationId, imageId, updatedHolds, imageUrl);
 
       console.log('✅ Added manual hold to Firestore:', enhancedHold.id);
       return updatedHolds;
@@ -138,11 +128,12 @@ export const manualHoldsService = {
   /**
    * Remove a manual hold
    * @param {string} locationId - The location ID
-   * @param {string} imageUrl - The image URL
+   * @param {string} imageId - The image ID (used as document ID)
    * @param {string} holdId - The hold ID to remove
+   * @param {string} imageUrl - The image URL (for metadata)
    * @returns {Promise<Array>} Updated holds array
    */
-  async removeManualHold(locationId, imageUrl, holdId) {
+  async removeManualHold(locationId, imageId, holdId, imageUrl) {
     try {
       const user = getCurrentUser();
       if (!user) {
@@ -150,13 +141,13 @@ export const manualHoldsService = {
       }
 
       // Load current holds
-      const currentHolds = await this.loadManualHolds(locationId, imageUrl);
+      const currentHolds = await this.loadManualHolds(locationId, imageId);
 
       // Remove the hold
       const updatedHolds = currentHolds.filter((hold) => hold.id !== holdId);
 
       // Save back to Firestore
-      await this.saveManualHolds(locationId, imageUrl, updatedHolds);
+      await this.saveManualHolds(locationId, imageId, updatedHolds, imageUrl);
 
       console.log('🗑️ Removed manual hold from Firestore:', holdId);
       return updatedHolds;
@@ -169,12 +160,13 @@ export const manualHoldsService = {
   /**
    * Clear all manual holds for an image
    * @param {string} locationId - The location ID
-   * @param {string} imageUrl - The image URL
+   * @param {string} imageId - The image ID (used as document ID)
+   * @param {string} imageUrl - The image URL (for metadata)
    * @returns {Promise<void>}
    */
-  async clearManualHolds(locationId, imageUrl) {
+  async clearManualHolds(locationId, imageId, imageUrl) {
     try {
-      await this.saveManualHolds(locationId, imageUrl, []);
+      await this.saveManualHolds(locationId, imageId, [], imageUrl);
       console.log('🧹 Cleared all manual holds from Firestore');
     } catch (error) {
       console.error('❌ Error clearing manual holds:', error);

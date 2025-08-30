@@ -128,6 +128,7 @@
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   @tool-selection-change="handleToolSelectionChange"
+                  @delete-hold="handleDeleteHold"
                   ref="interactiveOverlay"
                 />
 
@@ -236,6 +237,33 @@
                   <span>Clear Results</span>
                 </button>
 
+                <!-- Save Detection Results to Firestore -->
+                <button
+                  v-if="serverStore.hasResults && !isSavingDetection"
+                  @click="saveDetectionToFirestore"
+                  class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  <span>Save Detection</span>
+                </button>
+
+                <!-- Saving Detection Loading State -->
+                <button
+                  v-if="isSavingDetection"
+                  disabled
+                  class="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg opacity-75 cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                  <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </button>
+
                 <!-- Manual Hold Drawing Toggle -->
                 <button
                   @click="toggleDrawingMode"
@@ -257,9 +285,9 @@
                   <span>{{ serverStore.isDrawingMode ? "Exit Drawing" : "Draw Holds" }}</span>
                 </button>
 
-                <!-- Manual Hold Delete Toggle -->
+                <!-- Hold Delete Toggle - Available when there are any holds (AI or manual) -->
                 <button
-                  v-if="serverStore.manualHolds.length > 0"
+                  v-if="serverStore.manualHolds.length > 0 || serverStore.hasResults"
                   @click="toggleDeleteMode"
                   :class="[
                     'px-6 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
@@ -632,7 +660,7 @@
                       >{{ serverStore.results.svg_generation_time.toFixed(3) }}s</span
                     >
                   </div>
-                  <div class="flex justify-between border-t pt-1 font-medium">
+                  <div v-if="serverStore.results.processing_time" class="flex justify-between border-t pt-1 font-medium">
                     <span class="text-gray-700">🏁 Total:</span>
                     <span class="font-mono"
                       >{{ serverStore.results.processing_time.toFixed(3) }}s</span
@@ -679,6 +707,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore.js';
+import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore.js';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore.js';
 import { locationService } from '@/services/locationService';
 import InteractiveHoldOverlay from '@/components/InteractiveHoldOverlay.vue';
@@ -691,6 +720,7 @@ import { getResizedImageUrl } from '@/utils/imageResize.js';
 const route = useRoute();
 const router = useRouter();
 const serverStore = useHoldDetectionServerStore();
+const persistenceStore = useHoldDetectionPersistenceStore();
 const boulderProblemsStore = useBoulderProblemsStore();
 
 // Reactive state
@@ -735,6 +765,9 @@ const floatingCard = ref({
   problem: null,
   position: { x: 0, y: 0 },
 });
+
+// Detection saving state
+const isSavingDetection = ref(false);
 
 // Timeout for tooltip hiding
 let tooltipHideTimeout = null;
@@ -898,11 +931,11 @@ const toggleDrawingMode = () => {
       toggleMagicWand();
     }
     // Load existing manual holds for this image
-    serverStore.loadManualHolds(route.params.locationId, imageUrl.value);
+    serverStore.loadManualHolds(route.params.locationId, route.query.imageId);
   } else {
     console.log('✏️ Drawing mode deactivated');
     // Save manual holds when exiting drawing mode
-    serverStore.saveManualHolds(route.params.locationId, imageUrl.value);
+    serverStore.saveManualHolds(route.params.locationId, route.query.imageId, imageUrl.value);
   }
 };
 
@@ -918,11 +951,11 @@ const toggleDeleteMode = () => {
       toggleMagicWand();
     }
     // Load existing manual holds for this image
-    serverStore.loadManualHolds(route.params.locationId, imageUrl.value);
+    serverStore.loadManualHolds(route.params.locationId, route.query.imageId);
   } else {
     console.log('🗑️ Delete mode deactivated');
     // Save manual holds when exiting delete mode
-    serverStore.saveManualHolds(route.params.locationId, imageUrl.value);
+    serverStore.saveManualHolds(route.params.locationId, route.query.imageId, imageUrl.value);
   }
 };
 
@@ -934,7 +967,11 @@ const processImage = async () => {
 
   console.log('🚀 Starting server-side hold detection for:', imageUrl.value);
 
-  const result = await serverStore.processImage(imageUrl.value);
+  const result = await serverStore.processImage(
+    imageUrl.value, 
+    route.params.locationId, 
+    route.query.imageId
+  );
 
   if (result.success) {
     console.log('✅ Processing completed successfully:', result.result);
@@ -960,6 +997,65 @@ const clearResults = () => {
   }
 };
 
+const saveDetectionToFirestore = async () => {
+  if (!serverStore.hasResults || !currentImage.value || !route.params.locationId) {
+    console.error('❌ Cannot save: missing results, image, or locationId');
+    return;
+  }
+
+  isSavingDetection.value = true;
+
+  try {
+    // Initialize persistence store for location
+    persistenceStore.initializeForLocation(route.params.locationId);
+
+    // Convert AI detection results to unified format
+    const aiHolds = (serverStore.results?.holds || []).map((hold, index) => ({
+      id: `ai_hold_${index}`,
+      source: 'ai-detected',
+      svgMarkup: serverStore.results?.svg_markups?.[index] || '',
+      bbox: hold.bbox || [0, 0, 0, 0],
+      confidence: hold.confidence || 0,
+      holdType: hold.type || 'unknown',
+      detectionConfidence: hold.confidence || 0,
+      aiModel: 'server-detection',
+      addedAt: new Date()
+    }));
+
+    // Calculate viewBox from image dimensions
+    const imageElement = climbingImage.value;
+    const viewBox = imageElement ? 
+      `0 0 ${imageElement.naturalWidth} ${imageElement.naturalHeight}` : 
+      '0 0 1920 1080'; // fallback
+
+    const detectionData = {
+      aiHolds,
+      manualHolds: [], // Manual holds are saved separately
+      viewBox,
+      imageUrl: currentImage.value.url,
+      imageDimensions: {
+        width: imageElement?.naturalWidth || 1920,
+        height: imageElement?.naturalHeight || 1080
+      },
+      modelVersion: 'server-detection-v1'
+    };
+
+    // Save to Firestore using unified system
+    await persistenceStore.saveDetectionResults(currentImage.value.id, detectionData);
+
+    console.log('✅ Detection results saved to Firestore successfully');
+    
+    // Show success feedback (you could add a toast notification here)
+    alert('Detection results saved successfully!');
+
+  } catch (error) {
+    console.error('❌ Error saving detection to Firestore:', error);
+    alert('Failed to save detection results. Please try again.');
+  } finally {
+    isSavingDetection.value = false;
+  }
+};
+
 const goBackToLocation = () => {
   const locationId = route.params.locationId;
   if (locationId) {
@@ -978,8 +1074,10 @@ const handleHoldClick = (hold, holdIndex) => {
   if (isBoulderMode && boulderHoldSelectionTool.value === 'magic-wand') {
     console.log('🪄 Boulder Magic Wand is active - performing route selection for boulder problem');
 
-    // Get all holds from combined holds (AI + manual)
-    const allHolds = serverStore.combinedHolds || [];
+    // Get all holds from AI + manual holds
+    const aiHolds = serverStore.results?.holds || []
+    const manualHolds = serverStore.manualHolds || []
+    const allHolds = [...aiHolds, ...manualHolds]
 
     if (allHolds.length === 0) {
       console.warn('No holds available for magic wand selection');
@@ -1008,29 +1106,28 @@ const handleHoldClick = (hold, holdIndex) => {
       );
 
       // Add all selected holds to the target problem
-      result.selectedIndices.forEach((selectedHoldIndex) => {
-        const selectedHold = allHolds[selectedHoldIndex];
-        if (selectedHold) {
-          // Ensure hold has svgMarkup (converts from pathPoints if needed for manual holds)
-          let enhancedHold = ensureHoldHasSvgMarkup(selectedHold);
+        result.selectedIndices.forEach((selectedHoldIndex) => {
+          const selectedHold = allHolds[selectedHoldIndex];
+          if (selectedHold) {
+            // Ensure hold has svgMarkup (converts from pathPoints if needed for manual holds)
+            let enhancedHold = ensureHoldHasSvgMarkup(selectedHold);
 
-          // Use combined markups if available (for AI holds)
-          if (serverStore.combinedSvgMarkups?.[selectedHoldIndex]) {
-            enhancedHold = {
-              ...enhancedHold,
-              svgMarkup: serverStore.combinedSvgMarkups[selectedHoldIndex],
-            };
+            // Use server SVG markup if available (for AI holds)
+            const aiHoldsCount = serverStore.results?.holds?.length || 0
+            if (selectedHoldIndex < aiHoldsCount && serverStore.results?.svg_markups?.[selectedHoldIndex]) {
+              enhancedHold = {
+                ...enhancedHold,
+                svgMarkup: serverStore.results.svg_markups[selectedHoldIndex],
+              };
+            }
+
+            // Set detection source
+            enhancedHold.detectionSource = selectedHold.pathPoints ? 'manual' : 'server';
+
+            // Add hold to the target problem (this will toggle - add if not present, remove if present)
+            boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, selectedHoldIndex);
           }
-
-          // Set detection source
-          enhancedHold.detectionSource = selectedHold.pathPoints ? 'manual' : 'server';
-
-          // Add hold to the target problem (this will toggle - add if not present, remove if present)
-          boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, selectedHoldIndex);
-        }
-      });
-
-      console.log(
+        });      console.log(
         `✅ Added ${result.selectedIndices.length} holds to boulder problem via Magic Wand`
       );
     }
@@ -1042,8 +1139,10 @@ const handleHoldClick = (hold, holdIndex) => {
   if (!isBoulderMode && magicWandActive.value) {
     console.log('🪄 Standalone Magic Wand is active - performing proximity selection');
 
-    // Get all holds from combined holds (AI + manual)
-    const allHolds = serverStore.combinedHolds || [];
+    // Get all holds from AI + manual holds
+    const aiHolds = serverStore.results?.holds || []
+    const manualHolds = serverStore.manualHolds || []
+    const allHolds = [...aiHolds, ...manualHolds]
 
     if (allHolds.length === 0) {
       console.warn('No holds available for magic wand selection');
@@ -1204,6 +1303,22 @@ const handleToolSelectionChange = (selectedTool) => {
   console.log('🔧 Boulder tool selection changed:', selectedTool);
 };
 
+const handleDeleteHold = async ({ hold, index, type }) => {
+  console.log('🗑️ Deleting hold:', { hold, index, type });
+  
+  if (type === 'ai') {
+    // For AI holds, use the store method to remove them
+    await serverStore.removeAIHold(index, route.params.locationId, route.query.imageId);
+    console.log('✅ AI hold deleted successfully');
+  } else if (type === 'manual') {
+    // Manual holds are already handled by the serverStore.removeManualHold call
+    console.log('✅ Manual hold deleted successfully');
+  }
+  
+  // TODO: Also remove the hold from any boulder problems that might reference it
+  // This would require updating problem holds arrays and adjusting hold indices
+};
+
 const handleProblemCardHover = (problem, isEntering) => {
   // Set hovered problem ID when entering, clear when leaving
   hoveredProblemId.value = isEntering ? problem.id : null;
@@ -1257,7 +1372,7 @@ const loadImageFromQuery = async () => {
       if (imageRecord) {
         currentImage.value = {
           id: imageRecord.id,
-          url: getResizedImageUrl(imageRecord.downloadUrl, '1920x1440', 'jpeg'),
+          url: getResizedImageUrl(imageRecord.downloadUrl, '1920x1440', 'jpg'),
           name: imageRecord.fileName,
         };
         console.log('✅ Loaded image for hold detection:', currentImage.value);
@@ -1266,7 +1381,7 @@ const loadImageFromQuery = async () => {
         await checkAndLoadCachedResults();
 
         // Load existing manual holds for this image
-        await serverStore.loadManualHolds(locationId, currentImage.value.url);
+        await serverStore.loadManualHolds(locationId, imageId);
       } else {
         console.warn(`⚠️ Image with ID ${imageId} not found in location ${locationId}`);
         currentImage.value = null;
@@ -1298,7 +1413,11 @@ const checkAndLoadCachedResults = async () => {
     console.log('📦 Found cached results, automatically loading...');
 
     try {
-      const result = await serverStore.processImage(imageUrl.value);
+      const result = await serverStore.processImage(
+        imageUrl.value, 
+        route.params.locationId, 
+        route.query.imageId
+      );
       if (result.success && result.fromCache) {
         console.log('✅ Automatically loaded cached hold detection results');
       }
@@ -1388,6 +1507,35 @@ watch(
   { immediate: true }
 );
 
+// Load existing detection results from Firestore
+const loadExistingDetectionResults = async () => {
+  const locationId = route.params.locationId;
+  const imageId = route.query.imageId;
+  
+  if (!locationId || !imageId) {
+    console.log('ℹ️ No location ID or image ID available, skipping detection result loading');
+    return;
+  }
+
+  try {
+    console.log('🔍 Checking for existing detection results...', { locationId, imageId });
+    
+    // Use the server store method to load detection results
+    console.log('📂 Loading detection results from Firestore for image:', imageId);
+    const resultsLoaded = await serverStore.loadDetectionResults(locationId, imageId);
+    
+    if (resultsLoaded) {
+      console.log('✅ Detection results loaded from Firestore');
+    } else {
+      console.log('ℹ️ No existing detection results found for this image');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error loading existing detection results:', error);
+    // Don't throw - this is not a critical error, we can proceed without cached results
+  }
+};
+
 // Lifecycle
 onMounted(async () => {
   console.log('🚀 Server Hold Detection View mounted');
@@ -1414,6 +1562,9 @@ onMounted(async () => {
 
   // Load image based on query parameters
   await loadImageFromQuery();
+
+  // Load existing detection results from Firestore if available
+  await loadExistingDetectionResults();
 
   // Test API health on mount (but don't block if we have cached results)
   if (!serverStore.hasResults) {

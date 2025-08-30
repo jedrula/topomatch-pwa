@@ -148,6 +148,41 @@ const handleHover = (isEntering, event) => {
   fill: transparent;
 }
 
+/* Delete mode interactions */
+.interaction-delete-target {
+  opacity: 1;
+  cursor: crosshair;
+  pointer-events: auto;
+}
+
+.interaction-delete-target :deep(path) {
+  stroke: #ff4444;
+  stroke-width: 6;
+  fill: rgba(255, 68, 68, 0.2);
+  stroke-dasharray: 8, 4;
+  animation: pulse-delete 1.5s infinite;
+}
+
+.interaction-delete-hover {
+  opacity: 1;
+  cursor: crosshair;
+  pointer-events: auto;
+}
+
+.interaction-delete-hover :deep(path) {
+  stroke: #ff0000;
+  stroke-width: 8;
+  fill: rgba(255, 0, 0, 0.3);
+  filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.8));
+}
+
+/* Disabled state */
+.interaction-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* Interaction allowed states */
 .allowed-selectable {
   cursor: pointer;
