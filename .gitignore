@@ -52,3 +52,5 @@ server/*.js.map
 public/inferenceWorker.combined.js
 public/holdDetectionWorker.combined.js
 public/poseDetectionWorker.combined.js
+*storybook.log
+storybook-static
