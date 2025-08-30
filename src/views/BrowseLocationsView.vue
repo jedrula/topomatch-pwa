@@ -70,12 +70,12 @@
           @click="goToLocation(location.id)"
         >
           <!-- Hero Image -->
-          <div class="relative h-48 bg-gray-200">
+          <div class="relative h-48">
             <img
               v-if="location.heroImageUrl"
               :src="fixLocalhostUrl(location.heroImageUrl)"
               :alt="location.name"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-contain"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-gray-400">
               <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">

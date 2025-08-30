@@ -85,7 +85,7 @@
         !serverStore.isDrawingMode &&
         !serverStore.isDeleteMode
       "
-      class="absolute top-4 left-4 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-40 pointer-events-auto"
+      class="absolute top-4 left-4 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-40 pointer-events-auto hidden md:block"
     >
       <div class="mb-2">
         <span class="text-sm font-medium text-gray-700">Hold Selection Mode</span>

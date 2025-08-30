@@ -1,5 +1,18 @@
 <template>
   <div class="min-h-screen bg-gray-50">
+    <!-- Success Notification -->
+    <div
+      v-if="showSuccess"
+      class="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transition-all duration-300 ease-in-out"
+    >
+      <div class="flex items-center space-x-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span>{{ successMessage }}</span>
+      </div>
+    </div>
+    
     <main class="max-w-6xl mx-auto px-4 py-6 pb-24">
       <!-- Header -->
       <div class="mb-8">
@@ -769,6 +782,10 @@ const floatingCard = ref({
 // Detection saving state
 const isSavingDetection = ref(false);
 
+// Success notification state
+const showSuccess = ref(false);
+const successMessage = ref('');
+
 // Timeout for tooltip hiding
 let tooltipHideTimeout = null;
 
@@ -1045,8 +1062,8 @@ const saveDetectionToFirestore = async () => {
 
     console.log('✅ Detection results saved to Firestore successfully');
     
-    // Show success feedback (you could add a toast notification here)
-    alert('Detection results saved successfully!');
+    // Show success notification
+    showSuccessNotification('Detection results saved successfully!');
 
   } catch (error) {
     console.error('❌ Error saving detection to Firestore:', error);
@@ -1061,6 +1078,14 @@ const goBackToLocation = () => {
   if (locationId) {
     router.push(`/location/${locationId}`);
   }
+};
+
+const showSuccessNotification = (message) => {
+  successMessage.value = message;
+  showSuccess.value = true;
+  setTimeout(() => {
+    showSuccess.value = false;
+  }, 3000);
 };
 
 // Hold interaction handlers
