@@ -50,7 +50,7 @@
                   v-for="(holdData, holdIndex) in problem.holds || []"
                   :key="`${problem.id}-hold-${holdIndex}`"
                   :svg-markup="holdData.hold.svgMarkup"
-                  :interaction="problem.hidden ? 'hidden' : 'normal'"
+                  :interaction="getHoldInteraction(problem)"
                   :interaction-allowed="'selectable'"
                   :color="problem.color || '#3b82f6'"
                   @click="() => handleProblemClick(problem)"
@@ -206,6 +206,25 @@ const visibleProblems = computed(() => {
   
   return currentImageProblems.value.filter(problem => !problem.hidden);
 });
+
+// Get interaction state for a hold based on problem hover state
+const getHoldInteraction = (problem) => {
+  if (problem.hidden) {
+    return 'hidden';
+  }
+  
+  // If this problem is being hovered, highlight it
+  if (hoveredProblemId.value === problem.id) {
+    return 'hover';
+  }
+  
+  // If another problem is being hovered, dim this one slightly
+  if (hoveredProblemId.value && hoveredProblemId.value !== problem.id) {
+    return 'normal';
+  }
+  
+  return 'normal';
+};
 
 // Load metadata for current image
 const loadImageMetadata = async (imageId) => {

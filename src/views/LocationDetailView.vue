@@ -1675,7 +1675,7 @@ const calculateProblemScoreSimple = (problem, transformedFrames) => {
   }
 
   let totalScore = 0;
-  const proximityThreshold = 150; // Same threshold as table
+  const proximityThreshold = 300; // Doubled threshold for wider matching range
   const problemMatches = []; // Track individual matches for debugging
 
   // For each transformed frame, check proximity to holds  

@@ -471,7 +471,7 @@ const findClosestHolds = (keypointX, keypointY) => {
 
   // Get all boulder problems for the matched image
   const matchedImageId = bestMatch.value.id;
-  const proximityThreshold = 150; // Use same threshold as main algorithm
+  const proximityThreshold = 300; // Doubled threshold for wider matching range
 
   const problemsForImage = boulderProblemsStore.boulderProblems.filter(
     (problem) => problem.imageId === matchedImageId
