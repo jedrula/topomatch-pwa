@@ -2,6 +2,7 @@
   <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
     <!-- Dead simple full-screen image display -->
     <div class="relative w-full h-full max-w-full max-h-full">
+      <!-- {{ currentImageProblems }} -->
       <!-- Close button -->
       <button
         @click="closeGallery"
@@ -42,10 +43,28 @@
             />
           </template>
           <template #overlay>
+            <!-- Render actual boulder problems -->
+            <template v-if="imageLoaded && currentImageProblems.length > 0">
+              <template v-for="problem in visibleProblems" :key="problem.id">
+                <HoldSvg
+                  v-for="(holdData, holdIndex) in problem.holds || []"
+                  :key="`${problem.id}-hold-${holdIndex}`"
+                  :svg-markup="holdData.hold.svgMarkup"
+                  :interaction="problem.hidden ? 'hidden' : 'normal'"
+                  :interaction-allowed="'selectable'"
+                  :color="problem.color || '#3b82f6'"
+                  @hold-clicked="() => handleProblemClick(problem)"
+                  @hold-hovered="(event) => handleProblemHover(problem, event)"
+                  @hold-unhovered="() => handleProblemUnhover()"
+                />
+              </template>
+            </template>
+            
+            <!-- Fallback: Show sample hold if no problems available -->
             <HoldSvg
-              v-if="imageLoaded"
+              v-else-if="imageLoaded"
               svg-markup="<circle cx='200' cy='300' r='30' fill='rgba(59, 130, 246, 0.3)' stroke='#3b82f6' stroke-width='2'/>"
-              interaction="selected"
+              interaction="normal"
               interaction-allowed="selectable"
               color="#3b82f6"
             />
@@ -112,6 +131,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  boulderProblems: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const emit = defineEmits(['close', 'navigate']);
@@ -165,6 +188,24 @@ const imageViewBox = computed(() => {
   }
 
   return viewBox;
+});
+
+// Get boulder problems for current image
+const currentImageProblems = computed(() => {
+  if (!currentImage.value || !props.boulderProblems) return [];
+  
+  return props.boulderProblems.filter(problem => problem.imageId === currentImage.value.id);
+});
+
+// Get visible boulder problems (respecting store filters)
+const visibleProblems = computed(() => {
+  if (boulderProblemsStore.isShowingOnlyOneProblem) {
+    return currentImageProblems.value.filter(problem => 
+      problem.id === boulderProblemsStore.onlyProblemId && !problem.hidden
+    );
+  }
+  
+  return currentImageProblems.value.filter(problem => !problem.hidden);
 });
 
 // Load metadata for current image
@@ -238,6 +279,43 @@ const handleFloatingCardMouseEnter = () => {
 };
 
 const handleFloatingCardMouseLeave = () => {
+  tooltipHideTimeout = setTimeout(() => {
+    floatingCard.value.visible = false;
+    hoveredProblemId.value = null;
+  }, 200);
+};
+
+// Boulder problem interaction handlers
+const handleProblemClick = (problem) => {
+  console.log('Problem clicked:', problem.name);
+  // For now, just log the click - could add navigation or edit functionality
+};
+
+const handleProblemHover = (problem, event) => {
+  console.log('Problem hovered:', problem.name);
+  
+  // Clear any existing timeout
+  if (tooltipHideTimeout) {
+    clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = null;
+  }
+  
+  // Show floating card
+  hoveredProblemId.value = problem.id;
+  floatingCard.value = {
+    visible: true,
+    problem: problem,
+    position: {
+      x: event.clientX || 100,
+      y: event.clientY || 100,
+    },
+  };
+};
+
+const handleProblemUnhover = () => {
+  console.log('Problem unhovered');
+  
+  // Set timeout to hide the card (allows mouse to move to card)
   tooltipHideTimeout = setTimeout(() => {
     floatingCard.value.visible = false;
     hoveredProblemId.value = null;

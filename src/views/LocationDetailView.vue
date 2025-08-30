@@ -834,6 +834,7 @@
       :initial-index="initialImageIndex"
       :is-open="isGalleryOpen"
       :location-id="locationId"
+      :boulder-problems="boulderProblemsStore.boulderProblems || []"
       @close="closeGallery"
       @navigate="onGalleryNavigate"
     />
