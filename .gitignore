@@ -54,3 +54,6 @@ public/holdDetectionWorker.combined.js
 public/poseDetectionWorker.combined.js
 *storybook.log
 storybook-static
+
+# Firebase config file copied during deployment
+firebase.json

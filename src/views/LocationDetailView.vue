@@ -29,12 +29,12 @@
         </div>
 
         <!-- Hero image or placeholder -->
-        <div class="relative h-64 rounded-lg overflow-hidden bg-gray-200">
+        <div class="relative h-64 rounded-lg overflow-hidden">
           <img
             v-if="location.heroImageUrl"
             :src="fixLocalhostUrl(location.heroImageUrl)"
             :alt="location.name"
-            class="w-full h-full object-cover"
+            class="w-full h-full object-contain"
           />
           <div v-else class="flex items-center justify-center h-full text-gray-500">
             <div class="text-center">
