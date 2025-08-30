@@ -9,16 +9,11 @@ const meta = {
   argTypes: {
     viewBox: {
       control: 'text',
-      description: 'SVG viewBox attribute for the overlay',
-    },
-    autoDetectViewBox: {
-      control: 'boolean',
-      description: 'Automatically detect viewBox from image dimensions',
+      description: 'SVG viewBox attribute for the overlay (required)',
     },
   },
   args: {
     viewBox: '0 0 800 600',
-    autoDetectViewBox: false,
   },
 }
 
@@ -28,7 +23,6 @@ export default meta
 export const Basic = {
   args: {
     viewBox: '0 0 800 600',
-    autoDetectViewBox: false,
   },
   render: (args) => ({
     components: { ImageWithHolds },
@@ -57,46 +51,10 @@ export const Basic = {
   }),
 }
 
-// Auto-detect viewBox example
-export const AutoDetectViewBox = {
-  args: {
-    autoDetectViewBox: true,
-  },
-  render: (args) => ({
-    components: { ImageWithHolds },
-    setup() {
-      return { args }
-    },
-    template: `
-      <div style="padding: 20px; background: #f5f5f5;">
-        <h2 style="margin-bottom: 16px;">Auto-detect ViewBox</h2>
-        <p style="margin-bottom: 16px; color: #666;">
-          ViewBox is automatically detected from image dimensions
-        </p>
-        <ImageWithHolds v-bind="args">
-          <template #image>
-            <img 
-              src="/otwarcie_fabryczna_testowy.jpg" 
-              alt="Test climbing image"
-              style="width: 400px; height: auto; border-radius: 8px;"
-            />
-          </template>
-          <template #overlay>
-            <circle cx="400" cy="300" r="30" fill="rgba(255, 165, 0, 0.6)" stroke="orange" stroke-width="3" />
-            <circle cx="600" cy="400" r="25" fill="rgba(255, 0, 255, 0.6)" stroke="magenta" stroke-width="3" />
-            <circle cx="500" cy="500" r="35" fill="rgba(0, 255, 255, 0.6)" stroke="cyan" stroke-width="3" />
-          </template>
-        </ImageWithHolds>
-      </div>
-    `,
-  }),
-}
-
 // Complex shapes example
 export const ComplexShapes = {
   args: {
     viewBox: '0 0 800 600',
-    autoDetectViewBox: false,
   },
   render: (args) => ({
     components: { ImageWithHolds },
@@ -154,7 +112,7 @@ export const ComplexShapes = {
 // Responsive example
 export const Responsive = {
   args: {
-    autoDetectViewBox: true,
+    viewBox: '0 0 800 600',
   },
   render: (args) => ({
     components: { ImageWithHolds },
