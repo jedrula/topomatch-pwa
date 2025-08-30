@@ -452,7 +452,7 @@
           <div>
             <h3 class="text-lg font-semibold">Upload Images</h3>
             <p v-if="uploadsInProgress" class="text-sm text-blue-600 mt-1">
-              Processing {{ pendingMetadataSaves }} of {{ totalUploadsExpected }} uploads...
+              {{ pendingMetadataSaves === 0 ? 'Uploads complete!' : `Processing ${pendingMetadataSaves} of ${totalUploadsExpected} uploads...` }}
             </p>
           </div>
           <button @click="handleUploadModalClose" class="text-gray-400 hover:text-gray-600">
@@ -472,6 +472,7 @@
             :location-id="route.params.locationId"
             @uploaded="handleImageUploadComplete"
             @error="handleImageUploadError"
+            @uploads-started="handleUploadsStarted"
             @all-complete="handleAllUploadsComplete"
           />
         </div>
@@ -1158,9 +1159,6 @@ const handleUploadModalClose = () => {
 const handleImageUploadComplete = async (uploadResult) => {
   console.log('Image uploaded successfully:', uploadResult);
 
-  // Increment pending metadata saves counter
-  pendingMetadataSaves.value++;
-
   try {
     // Save image metadata to Firestore via backend function
     const imageRecord = await locationService.addLocationImage(
@@ -1183,14 +1181,19 @@ const handleImageUploadComplete = async (uploadResult) => {
 
   // Decrement pending counter
   pendingMetadataSaves.value--;
+  console.log(`Metadata save complete. Remaining: ${pendingMetadataSaves.value}/${totalUploadsExpected.value}`);
 
   // Check if all uploads and metadata saves are complete
   if (pendingMetadataSaves.value <= 0 && totalUploadsExpected.value > 0) {
-    console.log('All uploads and metadata saves complete');
-    showUploadModal.value = false;
-    // Reset counters
-    pendingMetadataSaves.value = 0;
-    totalUploadsExpected.value = 0;
+    console.log('All uploads and metadata saves complete - closing modal');
+    
+    // Close modal after a short delay to show completion
+    setTimeout(() => {
+      showUploadModal.value = false;
+      // Reset counters
+      pendingMetadataSaves.value = 0;
+      totalUploadsExpected.value = 0;
+    }, 1000);
   }
 };
 
@@ -1203,14 +1206,25 @@ const handleImageUploadError = (error) => {
   // based on successful uploads only, so we don't need to decrement anything here
 };
 
+const handleUploadsStarted = (uploadInfo) => {
+  console.log('Uploads started:', uploadInfo);
+  // Initialize counters when uploads begin
+  totalUploadsExpected.value = uploadInfo.totalUploads;
+  pendingMetadataSaves.value = uploadInfo.totalUploads;
+  console.log(`Initialized counters: expecting ${uploadInfo.totalUploads} uploads`);
+};
+
 const handleAllUploadsComplete = (uploadStats) => {
   console.log('All storage uploads complete:', uploadStats);
 
-  // Set the expected number of metadata saves based on successful uploads
-  totalUploadsExpected.value = uploadStats.completedUploads;
-
-  // The pendingMetadataSaves will be incremented in handleImageUploadComplete
-  // and decremented as each metadata save completes
+  // Update counters to reflect actual successful uploads
+  if (uploadStats.completedUploads !== uploadStats.totalUploads) {
+    console.log(`Adjusting counters: ${uploadStats.totalUploads} total → ${uploadStats.completedUploads} successful`);
+    totalUploadsExpected.value = uploadStats.completedUploads;
+    // Adjust pending counter based on how many failed
+    const failedUploads = uploadStats.totalUploads - uploadStats.completedUploads;
+    pendingMetadataSaves.value = Math.max(0, pendingMetadataSaves.value - failedUploads);
+  }
 
   // If no successful uploads, close modal immediately
   if (uploadStats.completedUploads === 0) {
@@ -1219,9 +1233,9 @@ const handleAllUploadsComplete = (uploadStats) => {
     pendingMetadataSaves.value = 0;
     totalUploadsExpected.value = 0;
   }
-
-  // Note: Modal will be closed when all metadata saves complete
-  // This is handled in handleImageUploadComplete
+  
+  console.log(`Upload stats: total=${uploadStats.totalUploads}, completed=${uploadStats.completedUploads}, failed=${uploadStats.failedUploads}`);
+  console.log(`Final counters: expected=${totalUploadsExpected.value}, pending=${pendingMetadataSaves.value}`);
 };
 
 const handleBetaVideoSelected = (videoFile) => {

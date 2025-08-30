@@ -84,18 +84,19 @@
           <!-- Upload info -->
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-900 truncate">{{ upload.file.name }}</p>
-            <p class="text-sm text-gray-500">{{ formatFileSize(upload.file.size) }}</p>
+            <div class="text-sm text-gray-500">
+              <span v-if="upload.compressedSize && upload.compressedSize !== upload.originalSize">
+                {{ formatFileSize(upload.originalSize) }} → {{ formatFileSize(upload.compressedSize) }}
+              </span>
+              <span v-else>
+                {{ formatFileSize(upload.originalSize) }}
+              </span>
+            </div>
 
-            <!-- Progress bar -->
+            <!-- Status -->
             <div class="mt-2">
-              <div class="bg-gray-200 rounded-full h-2">
-                <div
-                  class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  :style="`width: ${upload.progress}%`"
-                ></div>
-              </div>
-              <p class="text-xs text-gray-600 mt-1">
-                {{ upload.status === "uploading" ? `${upload.progress}%` : upload.status }}
+              <p class="text-xs text-gray-600 capitalize">
+                {{ upload.status }}
               </p>
             </div>
           </div>
@@ -187,7 +188,8 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { storage } from '../services/firebase.js';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { compressImage } from '../utils/imageCompression.js';
 
 const props = defineProps({
   locationId: {
@@ -196,7 +198,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['uploaded', 'error', 'all-complete']);
+const emit = defineEmits(['uploaded', 'error', 'all-complete', 'uploads-started']);
 
 const fileInput = ref(null);
 const uploadQueue = ref([]);
@@ -251,10 +253,11 @@ const createUploadItem = (file) => {
     file,
     preview,
     isHeic,
-    progress: 0,
     status: 'pending', // pending, uploading, complete, error
     error: null,
     downloadUrl: null,
+    originalSize: file.size,
+    compressedSize: null,
   };
 };
 
@@ -320,52 +323,70 @@ const handleDrop = (event) => {
 const uploadSingleFile = async (uploadItem) => {
   try {
     uploadItem.status = 'uploading';
-    uploadItem.progress = 0;
     uploadItem.error = null;
-
-    console.log('props.locationId:', props.locationId); // Debug log
 
     if (!props.locationId) {
       throw new Error('Location ID is required for upload');
     }
 
+    console.log(`🔄 Starting upload for ${uploadItem.file.name}...`);
+    
+    // Compress image before upload to reduce emulator issues
+    let fileToUpload = uploadItem.file;
+    const originalSize = (fileToUpload.size / 1024 / 1024).toFixed(2);
+    
+    if (fileToUpload.size > 2 * 1024 * 1024) { // If larger than 2MB
+      console.log(`📦 Compressing ${uploadItem.file.name} (${originalSize}MB)...`);
+      fileToUpload = await compressImage(uploadItem.file, { maxSizeMB: 2, quality: 0.85 });
+      const compressedSize = (fileToUpload.size / 1024 / 1024).toFixed(2);
+      uploadItem.compressedSize = fileToUpload.size;
+      console.log(`✅ Compressed ${uploadItem.file.name}: ${originalSize}MB → ${compressedSize}MB`);
+    } else {
+      uploadItem.compressedSize = fileToUpload.size;
+      console.log(`✅ ${uploadItem.file.name} already under 2MB (${originalSize}MB), no compression needed`);
+    }
+
     const timestamp = Date.now();
     const fileName = `location-images/${props.locationId}/${timestamp}-${uploadItem.file.name}`;
-
-    console.log('Upload fileName:', fileName); // Debug log
-
     const imageRef = storageRef(storage, fileName);
-
-    const uploadTask = uploadBytesResumable(imageRef, uploadItem.file);
-
-    return new Promise((resolve, reject) => {
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          uploadItem.progress = Math.round(progress);
-        },
-        (error) => {
-          uploadItem.status = 'error';
-          uploadItem.error = `Upload failed: ${error.message}`;
-          reject(error);
-        },
-        async () => {
-          try {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            uploadItem.downloadUrl = downloadURL;
-            uploadItem.status = 'complete';
-            uploadItem.progress = 100;
-            resolve(downloadURL);
-          } catch (error) {
-            uploadItem.status = 'error';
-            uploadItem.error = `Failed to get download URL: ${error.message}`;
-            reject(error);
-          }
-        }
-      );
+    
+    // Upload with timeout protection for emulator issues
+    const uploadPromise = uploadBytes(imageRef, fileToUpload);
+    const uploadTimeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Upload timeout after 30 seconds')), 30000);
     });
+    
+    const snapshot = await Promise.race([uploadPromise, uploadTimeoutPromise]);
+    
+    console.log(`✅ Upload completed for ${uploadItem.file.name}, getting download URL...`);
+    
+    // In development (emulator), construct URL manually to avoid hanging
+    // In production, use proper Firebase getDownloadURL
+    let downloadURL;
+    const isDev = import.meta.env.DEV;
+    
+    if (isDev) {
+      // Construct download URL manually for emulator
+      const encodedPath = encodeURIComponent(snapshot.ref.fullPath);
+      downloadURL = `http://127.0.0.1:9199/v0/b/topomatch-pwa.appspot.com/o/${encodedPath}?alt=media`;
+      console.log(`🔗 Download URL constructed for ${uploadItem.file.name}:`, downloadURL);
+    } else {
+      // Use proper Firebase getDownloadURL for production
+      const downloadURLPromise = getDownloadURL(snapshot.ref);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('getDownloadURL timeout after 15 seconds')), 15000);
+      });
+      
+      downloadURL = await Promise.race([downloadURLPromise, timeoutPromise]);
+      console.log(`🔗 Download URL obtained for ${uploadItem.file.name}:`, downloadURL);
+    }
+    
+    uploadItem.downloadUrl = downloadURL;
+    uploadItem.status = 'complete';
+    
+    return downloadURL;
   } catch (error) {
+    console.error(`❌ Upload failed for ${uploadItem.file.name}:`, error);
     uploadItem.status = 'error';
     uploadItem.error = error.message;
     throw error;
@@ -385,30 +406,57 @@ const startUploads = async () => {
     return;
   }
 
-  console.log(`Starting ${pendingItems.length} uploads in parallel`);
+  const isDev = import.meta.env.DEV;
+  let results = [];
 
-  // Upload all files in parallel for better performance
-  const uploadPromises = pendingItems.map(async (item) => {
-    try {
-      await uploadSingleFile(item);
+  // Emit uploads started event so parent can set up counters
+  emit('uploads-started', { totalUploads: pendingItems.length });
 
-      // Emit uploaded event with image info immediately after each upload completes
-      emit('uploaded', {
-        fileName: item.file.name,
-        downloadUrl: item.downloadUrl,
-        locationId: props.locationId,
-      });
+  if (isDev) {
+    // Sequential uploads for emulator (development)
+    console.log('🔄 Starting sequential uploads for emulator...');
+    for (const item of pendingItems) {
+      try {
+        await uploadSingleFile(item);
+        
+        // Emit uploaded event immediately after each upload completes
+        emit('uploaded', {
+          fileName: item.file.name,
+          downloadUrl: item.downloadUrl,
+          locationId: props.locationId,
+        });
 
-      return { success: true, item };
-    } catch (error) {
-      console.error('Upload failed:', error);
-      emit('error', error.message);
-      return { success: false, error, item };
+        results.push({ success: true, item });
+      } catch (error) {
+        console.error(`Upload failed for ${item.file.name}:`, error);
+        emit('error', error.message);
+        results.push({ success: false, error, item });
+      }
     }
-  });
+  } else {
+    // Parallel uploads for production
+    console.log('🚀 Starting parallel uploads for production...');
+    const uploadPromises = pendingItems.map(async (item) => {
+      try {
+        await uploadSingleFile(item);
+        
+        // Emit uploaded event with image info immediately after each upload completes
+        emit('uploaded', {
+          fileName: item.file.name,
+          downloadUrl: item.downloadUrl,
+          locationId: props.locationId,
+        });
 
-  // Wait for all uploads to complete
-  const results = await Promise.all(uploadPromises);
+        return { success: true, item };
+      } catch (error) {
+        console.error(`Upload failed for ${item.file.name}:`, error);
+        emit('error', error.message);
+        return { success: false, error, item };
+      }
+    });
+
+    results = await Promise.all(uploadPromises);
+  }
 
   const completedCount = results.filter((r) => r.success).length;
   const errorCount = results.filter((r) => !r.success).length;
@@ -421,8 +469,6 @@ const startUploads = async () => {
     completedUploads: completedCount,
     failedUploads: errorCount,
   });
-
-  console.log(`Upload batch complete: ${completedCount} succeeded, ${errorCount} failed`);
 };
 
 // Queue management
