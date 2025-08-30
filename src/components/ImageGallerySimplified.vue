@@ -27,21 +27,30 @@
           </div>
         </div>
 
-        <!-- Image -->
-        <img
+        <!-- Image with Holds Overlay -->
+        <ImageWithHolds
           v-else
-          ref="climbingImage"
-          :src="getOptimalImageUrl(currentImage.url)"
-          :alt="currentImage.name || 'Climbing route'"
-          class="w-full h-auto object-contain block max-h-full"
-          @load="onImageLoad"
-        />
-
-        <!-- Hold Overlay -->
-        <HoldOverlaySimplified
-          v-if="imageLoaded && climbingImage"
-          :image-element="climbingImage"
-        />
+          viewBox="0 0 1000 1000"
+        >
+          <template #image>
+            <img
+              ref="climbingImage"
+              :src="getOptimalImageUrl(currentImage.url)"
+              :alt="currentImage.name || 'Climbing route'"
+              class="w-full h-auto object-contain block max-h-full"
+              @load="onImageLoad"
+            />
+          </template>
+          <template #overlay>
+            <HoldSvg
+              v-if="imageLoaded"
+              svg-markup="<circle cx='200' cy='300' r='30' fill='rgba(59, 130, 246, 0.3)' stroke='#3b82f6' stroke-width='2'/>"
+              interaction="selected"
+              interaction-allowed="selectable"
+              color="#3b82f6"
+            />
+          </template>
+        </ImageWithHolds>
       </div>
     </div>
 
@@ -61,7 +70,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import HoldOverlaySimplified from './HoldOverlaySimplified.vue';
+import ImageWithHolds from './ImageWithHolds.vue';
+import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { getOptimalImageUrl } from '@/utils/imageResize.js';
