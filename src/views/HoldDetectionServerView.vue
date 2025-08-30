@@ -1490,18 +1490,17 @@ watch(
     isCreating: boulderProblemsStore.isCreatingProblem,
     isEditing: editingState.value.isEditing,
     deleteMode: serverStore.isDeleteMode,
-    drawingMode: serverStore.isDrawingMode,
   }),
   (state) => {
     const shouldEnableQuickDraw =
-      (state.isCreating || state.isEditing) && !state.deleteMode && !state.drawingMode;
+      (state.isCreating || state.isEditing) && !state.deleteMode;
 
-    if (shouldEnableQuickDraw && !serverStore.isQuickDrawMode) {
+    if (shouldEnableQuickDraw && !serverStore.isDrawingMode) {
       console.log('⚡ Auto-enabling Quick Draw mode for boulder problem creation/editing');
-      serverStore.setQuickDrawMode(true);
-    } else if (!shouldEnableQuickDraw && serverStore.isQuickDrawMode) {
+      serverStore.setDrawingMode(true);
+    } else if (!shouldEnableQuickDraw && serverStore.isDrawingMode) {
       console.log('⚡ Auto-disabling Quick Draw mode');
-      serverStore.setQuickDrawMode(false);
+      serverStore.setDrawingMode(false);
     }
   },
   { immediate: true }
