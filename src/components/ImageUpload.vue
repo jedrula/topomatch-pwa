@@ -360,26 +360,14 @@ const uploadSingleFile = async (uploadItem) => {
     
     console.log(`✅ Upload completed for ${uploadItem.file.name}, getting download URL...`);
     
-    // In development (emulator), construct URL manually to avoid hanging
-    // In production, use proper Firebase getDownloadURL
-    let downloadURL;
-    const isDev = import.meta.env.DEV;
+    // Always use proper Firebase getDownloadURL, with timeout protection
+    const downloadURLPromise = getDownloadURL(snapshot.ref);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('getDownloadURL timeout after 30 seconds')), 30000);
+    });
     
-    if (isDev) {
-      // Construct download URL manually for emulator
-      const encodedPath = encodeURIComponent(snapshot.ref.fullPath);
-      downloadURL = `http://127.0.0.1:9199/v0/b/topomatch-pwa.appspot.com/o/${encodedPath}?alt=media`;
-      console.log(`🔗 Download URL constructed for ${uploadItem.file.name}:`, downloadURL);
-    } else {
-      // Use proper Firebase getDownloadURL for production
-      const downloadURLPromise = getDownloadURL(snapshot.ref);
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('getDownloadURL timeout after 15 seconds')), 15000);
-      });
-      
-      downloadURL = await Promise.race([downloadURLPromise, timeoutPromise]);
-      console.log(`🔗 Download URL obtained for ${uploadItem.file.name}:`, downloadURL);
-    }
+    const downloadURL = await Promise.race([downloadURLPromise, timeoutPromise]);
+    console.log(`🔗 Download URL obtained for ${uploadItem.file.name}:`, downloadURL);
     
     uploadItem.downloadUrl = downloadURL;
     uploadItem.status = 'complete';
