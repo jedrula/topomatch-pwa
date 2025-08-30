@@ -53,9 +53,8 @@
                   :interaction="problem.hidden ? 'hidden' : 'normal'"
                   :interaction-allowed="'selectable'"
                   :color="problem.color || '#3b82f6'"
-                  @hold-clicked="() => handleProblemClick(problem)"
-                  @hold-hovered="(event) => handleProblemHover(problem, event)"
-                  @hold-unhovered="() => handleProblemUnhover()"
+                  @click="() => handleProblemClick(problem)"
+                  @hover="(isEntering, event) => handleProblemHover(problem, isEntering, event)"
                 />
               </template>
             </template>
@@ -92,7 +91,7 @@
 
     <!-- Floating boulder problem card -->
     <FloatingBoulderProblemCard
-      v-if="floatingCard.visible"
+      :visible="floatingCard.visible"
       :problem="floatingCard.problem"
       :position="floatingCard.position"
       @edit="handleFloatingCardEdit"
@@ -291,35 +290,33 @@ const handleProblemClick = (problem) => {
   // For now, just log the click - could add navigation or edit functionality
 };
 
-const handleProblemHover = (problem, event) => {
-  console.log('Problem hovered:', problem.name);
+const handleProblemHover = (problem, isEntering, event) => {
+  console.log('Problem hover:', problem.name, 'entering:', isEntering);
   
-  // Clear any existing timeout
-  if (tooltipHideTimeout) {
-    clearTimeout(tooltipHideTimeout);
-    tooltipHideTimeout = null;
+  if (isEntering) {
+    // Clear any existing timeout
+    if (tooltipHideTimeout) {
+      clearTimeout(tooltipHideTimeout);
+      tooltipHideTimeout = null;
+    }
+    
+    // Show floating card
+    hoveredProblemId.value = problem.id;
+    floatingCard.value = {
+      visible: true,
+      problem: problem,
+      position: {
+        x: event?.clientX || 100,
+        y: event?.clientY || 100,
+      },
+    };
+  } else {
+    // Mouse leaving - set timeout to hide the card
+    tooltipHideTimeout = setTimeout(() => {
+      floatingCard.value.visible = false;
+      hoveredProblemId.value = null;
+    }, 200);
   }
-  
-  // Show floating card
-  hoveredProblemId.value = problem.id;
-  floatingCard.value = {
-    visible: true,
-    problem: problem,
-    position: {
-      x: event.clientX || 100,
-      y: event.clientY || 100,
-    },
-  };
-};
-
-const handleProblemUnhover = () => {
-  console.log('Problem unhovered');
-  
-  // Set timeout to hide the card (allows mouse to move to card)
-  tooltipHideTimeout = setTimeout(() => {
-    floatingCard.value.visible = false;
-    hoveredProblemId.value = null;
-  }, 200);
 };
 
 // Watch for current image changes

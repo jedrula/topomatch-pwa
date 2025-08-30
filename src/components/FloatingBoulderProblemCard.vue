@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="visible && problem"
-      class="fixed z-50 pointer-events-auto"
+      class="fixed z-[9999] pointer-events-auto"
       :style="{ left: `${position.x + 12}px`, top: `${position.y - 8}px` }"
       @mouseenter="handleMouseEnter"
       @mouseleave="handleMouseLeave"
