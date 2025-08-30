@@ -543,12 +543,33 @@ export const getBoulderProblems = onCall(async (request) => {
       });
     });
 
+    // If imageId is provided, try to get the holdDetection metadata
+    let metadata = null;
+    if (imageId) {
+      try {
+        const holdDetectionRef = db
+          .collection("locations")
+          .doc(locationId)
+          .collection("holdDetections")
+          .doc(imageId);
+        const holdDetectionSnap = await holdDetectionRef.get();
+        
+        if (holdDetectionSnap.exists) {
+          const detectionData = holdDetectionSnap.data();
+          metadata = detectionData?.detectionResults?.metadata || null;
+        }
+      } catch (error) {
+        logger.warn(`Failed to fetch holdDetection metadata for image ${imageId}:`, error);
+      }
+    }
+
     logger.info(
       `Retrieved ${problems.length} boulder problems for location ${locationId}${
         imageId ? ` and image ${imageId}` : ""
-      }`
+      }${metadata ? " with metadata" : ""}`
     );
-    return { problems };
+    
+    return { problems, metadata };
   } catch (error) {
     logger.error("Error fetching boulder problems:", error);
     throw new Error("Failed to fetch boulder problems");

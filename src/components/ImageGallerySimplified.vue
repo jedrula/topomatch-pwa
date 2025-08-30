@@ -29,8 +29,8 @@
 
         <!-- Image with Holds Overlay -->
         <ImageWithHolds
-          v-else
-          viewBox="0 0 1000 1000"
+          v-else-if="imageViewBox"
+          :viewBox="imageViewBox"
         >
           <template #image>
             <img
@@ -51,6 +51,23 @@
             />
           </template>
         </ImageWithHolds>
+
+        <!-- Fallback: Show image without holds if no viewBox available -->
+        <div v-else class="text-center text-white p-8">
+          <img
+            ref="climbingImage"
+            :src="getOptimalImageUrl(currentImage.url)"
+            :alt="currentImage.name || 'Climbing route'"
+            class="w-full h-auto object-contain block max-h-full mb-4"
+            @load="onImageLoad"
+          />
+          <p class="text-yellow-300">
+            ⚠️ Hold detection not performed for this image.
+          </p>
+          <p class="text-gray-300 text-sm">
+            Run hold detection to enable boulder problem creation.
+          </p>
+        </div>
       </div>
     </div>
 
@@ -74,7 +91,9 @@ import ImageWithHolds from './ImageWithHolds.vue';
 import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
 import { getOptimalImageUrl } from '@/utils/imageResize.js';
+import { boulderProblemsServiceV2 } from '@/services/boulderProblemsServiceV2.js';
 
 const props = defineProps({
   images: {
@@ -100,11 +119,13 @@ const emit = defineEmits(['close', 'navigate']);
 const route = useRoute();
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
+const holdDetectionPersistenceStore = useHoldDetectionPersistenceStore();
 
 // Refs
 const imageContainer = ref(null);
 const climbingImage = ref(null);
 const imageLoaded = ref(false);
+const imageMetadata = ref(null);
 
 // Boulder problems functionality
 const hoveredProblemId = ref(null);
@@ -129,6 +150,46 @@ const currentImage = computed(() => {
 
   return props.images[props.initialIndex] || props.images[0];
 });
+
+// Get viewBox from metadata - NO DEFAULTS!
+const imageViewBox = computed(() => {
+  if (!imageMetadata.value) {
+    return null; // No default - must be explicit
+  }
+
+  const viewBox = imageMetadata.value.viewBox;
+  
+  if (!viewBox) {
+    console.warn(`⚠️ No viewBox found in metadata for image ${currentImage.value?.id}. Hold detection may not have been performed.`);
+    return null; // No default - must be explicit
+  }
+
+  return viewBox;
+});
+
+// Load metadata for current image
+const loadImageMetadata = async (imageId) => {
+  if (!imageId || !props.locationId) {
+    imageMetadata.value = null;
+    return;
+  }
+
+  try {
+    console.log('Loading metadata for image:', imageId);
+    const metadata = await boulderProblemsServiceV2.getHoldDetectionMetadata(props.locationId, imageId);
+    console.log('Metadata response:', metadata);
+    imageMetadata.value = metadata;
+    
+    if (metadata) {
+      console.log('Metadata loaded:', metadata);
+    } else {
+      console.warn('No metadata returned for image:', imageId);
+    }
+  } catch (error) {
+    console.error('Failed to load image metadata:', error);
+    imageMetadata.value = null;
+  }
+};
 
 // Close function
 const closeGallery = () => {
@@ -186,9 +247,23 @@ const handleFloatingCardMouseLeave = () => {
 // Watch for current image changes
 watch(
   currentImage,
-  (newImage) => {
+  async (newImage) => {
     imageLoaded.value = false;
+    imageMetadata.value = null; // Reset metadata
     console.log('Current image changed:', newImage?.name || 'No image');
+    
+    // Load metadata for the new image
+    if (newImage && props.locationId) {
+      console.log('Loading metadata for image:', newImage.name);
+      await loadImageMetadata(newImage.id);
+      
+      // Also load hold detection data if needed
+      try {
+        await holdDetectionPersistenceStore.loadStoredDetection(newImage.id);
+      } catch (error) {
+        console.error('Failed to load hold detection:', error);
+      }
+    }
   },
   { immediate: true }
 );
@@ -202,6 +277,9 @@ watch(
         console.log('Loading boulder problems for location:', newLocationId);
         await boulderProblemsStore.loadProblemsForLocation(newLocationId);
         console.log('Boulder problems loaded');
+        
+        // Initialize hold detection persistence store
+        holdDetectionPersistenceStore.initializeForLocation(newLocationId);
       } catch (error) {
         console.error('Error loading boulder problems:', error);
       }

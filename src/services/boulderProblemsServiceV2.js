@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
-import { functions } from './firebase.js';
+import { doc, getDoc } from 'firebase/firestore';
+import { functions, db } from './firebase.js';
 
 // Initialize callable functions
 const createBoulderProblemFn = httpsCallable(functions, 'createBoulderProblem');
@@ -94,7 +95,7 @@ export const boulderProblemsServiceV2 = {
    * Get boulder problems for a specific image via Firebase Function
    * @param {string} locationId - The location ID
    * @param {string} imageId - The image ID
-   * @returns {Promise<Array>} Array of boulder problems for the image
+   * @returns {Promise<Object>} Object with problems array and metadata
    */
   async getBoulderProblemsByImage(locationId, imageId) {
     try {
@@ -113,7 +114,11 @@ export const boulderProblemsServiceV2 = {
       console.log(
         `Retrieved ${problems.length} boulder problems for location ${locationId} and image ${imageId}`
       );
-      return problems;
+      
+      return {
+        problems,
+        metadata: result.data.metadata || null
+      };
     } catch (error) {
       console.error('Error fetching boulder problems by image:', error);
       throw error;
@@ -214,6 +219,33 @@ export const boulderProblemsServiceV2 = {
       console.log(result.data.message);
     } catch (error) {
       console.error('Error updating problem holds:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get hold detection metadata for a specific image directly from Firestore
+   * @param {string} locationId - The location ID
+   * @param {string} imageId - The image ID
+   * @returns {Promise<Object|null>} The metadata object or null if not found
+   */
+  async getHoldDetectionMetadata(locationId, imageId) {
+    try {
+      const holdDetectionRef = doc(db, 'locations', locationId, 'holdDetections', imageId);
+      const holdDetectionDoc = await getDoc(holdDetectionRef);
+      
+      if (!holdDetectionDoc.exists()) {
+        console.log(`No hold detection found for image ${imageId} in location ${locationId}`);
+        return null;
+      }
+      
+      const data = holdDetectionDoc.data();
+      const metadata = data.detectionResults?.metadata || null;
+      
+      console.log(`Retrieved metadata for image ${imageId} in location ${locationId}:`, metadata);
+      return metadata;
+    } catch (error) {
+      console.error('Error fetching hold detection metadata:', error);
       throw error;
     }
   },

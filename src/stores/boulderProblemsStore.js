@@ -133,23 +133,37 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     error.value = null;
 
     try {
-      let problems;
+      let result;
       if (imageId) {
-        problems = await boulderProblemsService.getBoulderProblemsByImage(locationId, imageId);
+        result = await boulderProblemsService.getBoulderProblemsByImage(locationId, imageId);
+        console.log('Metadata responsesaidj:', result);
+        // result is now { problems: [], metadata: {} }
+        const problems = result.problems || result; // fallback for old format
+        
+        // Add color property based on index if not present
+        boulderProblems.value = problems.map((problem, index) => ({
+          ...problem,
+          color: problem.color || problemColors[index % problemColors.length],
+        }));
+
+        console.log(`Loaded ${problems.length} boulder problems`);
+        return result; // Return the full result including metadata
       } else {
-        problems = await boulderProblemsService.getBoulderProblems(locationId);
+        const problems = await boulderProblemsService.getBoulderProblems(locationId);
+        
+        // Add color property based on index if not present
+        boulderProblems.value = problems.map((problem, index) => ({
+          ...problem,
+          color: problem.color || problemColors[index % problemColors.length],
+        }));
+
+        console.log(`Loaded ${problems.length} boulder problems`);
+        return { problems, metadata: null };
       }
-
-      // Add color property based on index if not present
-      boulderProblems.value = problems.map((problem, index) => ({
-        ...problem,
-        color: problem.color || problemColors[index % problemColors.length],
-      }));
-
-      console.log(`Loaded ${problems.length} boulder problems`);
     } catch (err) {
       error.value = err.message;
       console.error('Error loading boulder problems:', err);
+      throw err;
     } finally {
       isLoading.value = false;
     }
@@ -614,6 +628,8 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     initializeForLocation,
     setLocationGradingSystem,
     loadBoulderProblems,
+    loadProblemsForLocation: (locationId) => loadBoulderProblems(locationId),
+    loadProblemsForImage: (locationId, imageId) => loadBoulderProblems(locationId, imageId),
     createNewProblem,
     finishCreatingProblem,
     cancelCreatingProblem,
