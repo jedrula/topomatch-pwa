@@ -906,7 +906,7 @@ const pendingRedirectData = ref(null); // Store analysis data for manual redirec
 // Grade expansion state
 const expandedGrades = ref(new Set());
 
-const locationId = route.params.locationId;
+const locationId = computed(() => route.params.locationId);
 
 // Computed property to check if uploads are in progress
 const uploadsInProgress = computed(() => {
@@ -962,13 +962,13 @@ const loadLocation = async () => {
     isLoading.value = true;
     error.value = '';
 
-    location.value = await locationService.getLocation(locationId);
+    location.value = await locationService.getLocation(locationId.value);
 
     // Initialize boulder problems store for this location
-    await boulderProblemsStore.initializeForLocation(locationId);
+    await boulderProblemsStore.initializeForLocation(locationId.value);
 
     // Load boulder problems
-    await boulderProblemsStore.loadBoulderProblems(locationId);
+    await boulderProblemsStore.loadBoulderProblems(locationId.value);
 
     // Load images for this location from the backend
     await loadLocationImages();
@@ -982,7 +982,7 @@ const loadLocation = async () => {
 
 const loadLocationImages = async () => {
   try {
-    const imageRecords = await locationService.getLocationImages(locationId);
+    const imageRecords = await locationService.getLocationImages(locationId.value);
 
     // Transform the records to the format expected by the template
     images.value = imageRecords.map((record) => ({
@@ -1003,7 +1003,7 @@ const loadLocationImages = async () => {
 const loadLocationVideos = async () => {
   videosLoading.value = true;
   try {
-    const locationVideos = await videoService.getLocationVideos(locationId);
+    const locationVideos = await videoService.getLocationVideos(locationId.value);
     videos.value = locationVideos;
     console.log('Loaded location videos:', videos.value);
 
@@ -1025,7 +1025,7 @@ const loadProblemVideoCounts = async () => {
     // Get video counts for each boulder problem
     for (const problem of boulderProblemsStore.boulderProblems) {
       try {
-        const count = await videoService.getProblemVideoCount(locationId, problem.id);
+        const count = await videoService.getProblemVideoCount(locationId.value, problem.id);
         counts[problem.id] = count;
       } catch (err) {
         console.warn(`Failed to load video count for problem ${problem.id}:`, err);
@@ -1060,7 +1060,7 @@ const getProblemVideoCount = (problemId) => {
 const openProblemVideos = async (problem) => {
   try {
     // Get videos for this specific problem
-    const problemVideos = await videoService.getProblemVideos(locationId, problem.id);
+    const problemVideos = await videoService.getProblemVideos(locationId.value, problem.id);
 
     if (problemVideos.length === 0) {
       // No videos for this problem
@@ -1108,7 +1108,7 @@ const handleBetaUploadClick = () => {
 
 const editLocation = () => {
   // Navigate to edit form (could be same AddLocationView in edit mode)
-  router.push(`/location/${locationId}/edit`);
+  router.push(`/location/${locationId.value}/edit`);
 };
 
 const openImageModal = (image) => {
@@ -1121,7 +1121,7 @@ const openImageModal = (image) => {
 const openHoldDetection = (image) => {
   // Navigate to hold detection page with image and location information
   router.push({
-    path: `/location/${locationId}/holds-server`,
+    path: `/location/${locationId.value}/holds-server`,
     query: {
       imageId: image.id,
       imageName: image.name,

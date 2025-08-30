@@ -94,6 +94,7 @@
       :visible="floatingCard.visible"
       :problem="floatingCard.problem"
       :position="floatingCard.position"
+      :location-id="locationId"
       @edit="handleFloatingCardEdit"
       @toggle-visibility="handleFloatingCardToggleVisibility"
       @mouse-enter="handleFloatingCardMouseEnter"

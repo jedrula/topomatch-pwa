@@ -13,9 +13,13 @@
             class="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
             :style="{ backgroundColor: problem.color }"
           ></div>
-          <div class="font-medium text-gray-900 truncate text-sm">
+          <router-link
+            :to="`/location/${locationId}/problem/${problem.id}`"
+            class="font-medium text-gray-900 truncate text-sm hover:text-blue-600 transition-colors cursor-pointer"
+            @click.stop
+          >
             {{ problem.name }}
-          </div>
+          </router-link>
         </div>
 
         <div class="text-xs text-gray-500 mb-2">
@@ -135,6 +139,10 @@ const props = defineProps({
   position: {
     type: Object,
     default: () => ({ x: 0, y: 0 }),
+  },
+  locationId: {
+    type: String,
+    required: true,
   },
 });
 
