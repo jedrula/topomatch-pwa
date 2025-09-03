@@ -561,11 +561,11 @@
                 <p class="text-xs text-blue-700 mt-1">
                   {{
                     analysisPhase === "matching"
-                      ? "AI is comparing your video frame with boulder images"
+                      ? "Comparing your video frame with boulder images"
                       : analysisPhase === "extracting-frames"
                       ? "Getting multiple frames from your video"
                       : analysisPhase === "detecting-poses"
-                      ? "Using AI to detect your body position"
+                      ? "Detecting your body position"
                       : analysisPhase === "analyzing-holds"
                       ? "Determining which holds you're using"
                       : "Enhanced AI analysis in progress"

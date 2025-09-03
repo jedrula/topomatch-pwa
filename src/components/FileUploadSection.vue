@@ -30,7 +30,7 @@
         <div
           class="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin"
         ></div>
-        <span class="text-sm font-medium">Initializing AI model...</span>
+        <span class="text-sm font-medium">Loading detection system...</span>
       </div>
 
       <!-- Photo Upload -->
