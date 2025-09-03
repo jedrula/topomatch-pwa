@@ -479,7 +479,6 @@ const findClosestHolds = (keypointX, keypointY) => {
 
   const allHoldsWithDistances = [];
 
-  console.log(`problemsForImage`, problemsForImage, boulderProblemsStore.boulderProblems);
   // Check all holds across all problems for this image
   problemsForImage.forEach((problem) => {
     if (problem.holds && Array.isArray(problem.holds)) {
@@ -689,7 +688,6 @@ const extractPoseKeypoints = async (imageData) => {
   try {
     // Wait for pose detection session to be ready
     if (!sessionReady.value) {
-      console.log('Waiting for pose detection session...');
       // Wait a bit for session to initialize
       await new Promise((resolve) => {
         const checkReady = () => {
@@ -773,8 +771,6 @@ const handleMatchFound = async (matchedImage) => {
     const inferenceResult = inferenceStore.inferenceResults[matchUrl];
 
     if (inferenceResult && inferenceResult.rawData) {
-      console.log('Calculating homography for matched image...');
-
       // Extract matching points from inference results
       const matches = [];
       const rawData = inferenceResult.rawData;
@@ -798,13 +794,12 @@ const handleMatchFound = async (matchedImage) => {
 
       if (matches.length >= 4) {
         const homographyResult = await calculateHomographyMatrix(matches);
-        console.log('Homography calculated for match:', homographyResult);
 
         // Add homography matrix to the matched image
         matchedImage.homographyMatrix = homographyResult.matrix;
         matchedImage.homographyInliers = homographyResult.inliers;
       } else {
-        console.warn('⚠️ Not enough matches for homography calculation:', matches.length);
+        console.warn('Not enough matches for homography calculation:', matches.length);
       }
     } else {
       console.warn('⚠️ No inference results found for matched image:', matchUrl);
@@ -821,7 +816,6 @@ const handleMatchFound = async (matchedImage) => {
 };
 
 const handleAnalysisComplete = async (bestMatchResult) => {
-  console.log('bestMatchResult', bestMatchResult);
   bestMatch.value = bestMatchResult;
 
   // Step 3: Get inference results and calculate homography matrix
@@ -844,8 +838,6 @@ const handleAnalysisComplete = async (bestMatchResult) => {
     const inferenceResult = inferenceStore.inferenceResults[matchUrl];
 
     if (inferenceResult && inferenceResult.rawData) {
-      console.log('Calculating homography from inference results...');
-
       // Extract matching points from inference results
       const matches = [];
       const rawData = inferenceResult.rawData;
@@ -869,14 +861,6 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       const userScaleY = userImageDims.height / inferenceSize;
       const topoScaleX = topoImageDims.width / inferenceSize;
       const topoScaleY = topoImageDims.height / inferenceSize;
-
-      console.log('🔍 Coordinate space scaling:', {
-        inferenceSize,
-        userImageDims,
-        topoImageDims,
-        userScale: { x: userScaleX, y: userScaleY },
-        topoScale: { x: topoScaleX, y: topoScaleY },
-      });
 
       for (let i = 0; i < maxMatches; i++) {
         const matchBaseIndex = i * rawData.matches.dims[1];
@@ -905,19 +889,18 @@ const handleAnalysisComplete = async (bestMatchResult) => {
 
       if (matches.length >= 4) {
         const homographyResult = await calculateHomographyMatrix(matches);
-        console.log('Homography calculated:', homographyResult);
 
         // Add homography matrix to the match result
         bestMatchResult.homographyMatrix = homographyResult.matrix;
         bestMatchResult.homographyInliers = homographyResult.inliers;
       } else {
-        console.warn('⚠️ Not enough matches for homography calculation:', matches.length);
+        console.warn('Not enough matches for homography calculation:', matches.length);
       }
     } else {
-      console.warn('⚠️ No inference results found for matched image:', matchUrl);
+      console.warn('No inference results found for matched image:', matchUrl);
     }
   } catch (error) {
-    console.error('❌ Error calculating homography:', error);
+    console.error('Error calculating homography:', error);
   }
 
   emit('analysis-complete', {
@@ -985,24 +968,13 @@ const transformPosesToMatchedImage = async (matchResult) => {
 const drawPoseVisualization = () => {
   // Prevent concurrent drawing calls
   if (isDrawing.value) {
-    console.log('🚫 Pose visualization already in progress, skipping');
     return;
   }
   
   isDrawing.value = true;
   
-  const callStack = new Error().stack;
-  console.log('🎨 Drawing pose visualization called from:', callStack?.split('\n')[1]?.trim());
-  
-  console.log('🎨 Drawing pose visualization...', {
-    hasVisualizationImage: !!visualizationImage.value,
-    hasPoseCanvas: !!poseCanvas.value,
-    transformedPosesLength: transformedPoses.value.length,
-    transformedPoses: transformedPoses.value
-  });
-
   if (!visualizationImage.value || !poseCanvas.value || transformedPoses.value.length === 0) {
-    console.warn('⚠️ Pose visualization skipped:', {
+    console.warn('Pose visualization skipped:', {
       hasVisualizationImage: !!visualizationImage.value,
       hasPoseCanvas: !!poseCanvas.value,
       transformedPosesLength: transformedPoses.value.length
@@ -1015,24 +987,14 @@ const drawPoseVisualization = () => {
   const canvas = poseCanvas.value;
   const ctx = canvas.getContext('2d');
 
-  console.log('🖼️ Canvas setup:', {
-    imgClientWidth: img.clientWidth,
-    imgClientHeight: img.clientHeight,
-    imgNaturalWidth: img.naturalWidth,
-    imgNaturalHeight: img.naturalHeight,
-    imageComplete: img.complete,
-    imageLoaded: img.naturalWidth > 0
-  });
-
   // Check if image is properly loaded
   if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
-    console.warn('⚠️ Image not fully loaded yet, skipping pose visualization');
+    console.warn('Image not fully loaded yet, skipping pose visualization');
     isDrawing.value = false;
     return;
   }
 
   // Set canvas size to match image EXACTLY
-  const rect = img.getBoundingClientRect();
   canvas.width = img.clientWidth;
   canvas.height = img.clientHeight;
   
@@ -1045,60 +1007,26 @@ const drawPoseVisualization = () => {
     height: img.clientHeight,
   };
 
-  console.log('🎯 Canvas dimensions set:', {
-    canvasWidth: canvas.width,
-    canvasHeight: canvas.height,
-    canvasStyleWidth: canvas.style.width,
-    canvasStyleHeight: canvas.style.height,
-    imgBoundingRect: rect
-  });
-
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  console.log('🧹 Canvas cleared, testing basic drawing...');
-  
-  // Test if basic drawing works with visible shapes
-  ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-  ctx.fillRect(10, 10, 50, 50);
-  ctx.fillStyle = 'rgba(0, 0, 255, 0.8)';
-  ctx.beginPath();
-  ctx.arc(100, 100, 25, 0, 2 * Math.PI);
-  ctx.fill();
-  
-  console.log('✅ Test shapes drawn');
-
   // Calculate scale factors
   const scaleX = img.clientWidth / img.naturalWidth;
   const scaleY = img.clientHeight / img.naturalHeight;
 
-  console.log('📐 Scale factors:', { 
-    scaleX, 
-    scaleY,
-    isValidScaleX: !isNaN(scaleX) && isFinite(scaleX) && scaleX > 0,
-    isValidScaleY: !isNaN(scaleY) && isFinite(scaleY) && scaleY > 0
-  });
-
   // Validate scale factors
   if (isNaN(scaleX) || isNaN(scaleY) || !isFinite(scaleX) || !isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) {
-    console.error('❌ Invalid scale factors, aborting pose visualization');
+    console.error('Invalid scale factors, aborting pose visualization');
     isDrawing.value = false;
     return;
   }
 
   // Draw poses for each frame
   transformedPoses.value.forEach((frame, index) => {
-    const { transformedPoints, color, frameIndex } = frame;
-
-    console.log(`🎯 Drawing frame ${index}:`, {
-      frameIndex,
-      color,
-      transformedPointsLength: transformedPoints.length,
-      transformedPoints
-    });
+    const { transformedPoints, color } = frame;
 
     if (transformedPoints.length !== 4) {
-      console.warn(`⚠️ Frame ${index} has ${transformedPoints.length} points, expected 4`);
+      console.warn(`Frame ${index} has ${transformedPoints.length} points, expected 4`);
       return;
     }
 
@@ -1108,15 +1036,13 @@ const drawPoseVisualization = () => {
       y: point.y * scaleY,
     }));
 
-    console.log(`📍 Scaled points for frame ${index}:`, scaledPoints);
-
     // Validate scaled points
     const validPoints = scaledPoints.filter(p => 
       !isNaN(p.x) && !isNaN(p.y) && isFinite(p.x) && isFinite(p.y)
     );
 
     if (validPoints.length !== scaledPoints.length) {
-      console.warn(`⚠️ Frame ${index} has invalid points, skipping`);
+      console.warn(`Frame ${index} has invalid points, skipping`);
       return;
     }
 
@@ -1125,7 +1051,6 @@ const drawPoseVisualization = () => {
 
     // Draw wrists (first two points)
     scaledPoints.slice(0, 2).forEach((point, pointIndex) => {
-      console.log(`✋ Drawing wrist ${pointIndex + 1} at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
       
       // Draw large, visible circles for wrists
       ctx.fillStyle = color;
@@ -1150,7 +1075,6 @@ const drawPoseVisualization = () => {
 
     // Draw ankles (last two points)
     scaledPoints.slice(2, 4).forEach((point, pointIndex) => {
-      console.log(`🦶 Drawing ankle ${pointIndex + 1} at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
       
       // Draw large, visible squares for ankles
       ctx.fillStyle = color;
@@ -1185,20 +1109,16 @@ const drawPoseVisualization = () => {
       ctx.moveTo(scaledPoints[2].x, scaledPoints[2].y);
       ctx.lineTo(scaledPoints[3].x, scaledPoints[3].y);
       ctx.stroke();
-      
-      console.log(`🔗 Drew connecting lines for frame ${index}`);
     }
 
     ctx.restore();
   });
 
-  console.log('🎨 Pose visualization complete! Canvas should now show the poses.');
   isDrawing.value = false;
 };
 
 // New function to handle image load and ensure proper timing
 const onImageLoad = async () => {
-  console.log('Image loaded, waiting for next tick then drawing poses');
   await nextTick();
   setTimeout(() => {
     drawPoseVisualization();
