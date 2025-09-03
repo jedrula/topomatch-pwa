@@ -28,7 +28,6 @@ export function usePoseDetection() {
   onUnmounted(() => {
     console.log('Cleaning up pose detection worker...');
     if (poseWorker) {
-      poseWorker.postMessage({ type: 'cleanup' });
       poseWorker.terminate();
     }
   });
