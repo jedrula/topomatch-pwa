@@ -174,13 +174,12 @@
                 :src="bestMatch.url"
                 alt="Pose visualization"
                 class="max-w-full h-auto border rounded"
-                @load="drawPoseVisualization"
+                @load="onImageLoad"
               />
               <canvas
                 ref="poseCanvas"
-                class="absolute top-0 left-0 pointer-events-none"
-                :width="visualizationDimensions.width"
-                :height="visualizationDimensions.height"
+                class="absolute top-0 left-0 pointer-events-none border-2 border-red-500 bg-transparent"
+                style="z-index: 10;"
               ></canvas>
             </div>
             <div class="mt-2 text-xs text-gray-600">
@@ -437,6 +436,7 @@ const transformedPoses = ref([]);
 const visualizationImage = ref(null);
 const poseCanvas = ref(null);
 const visualizationDimensions = ref({ width: 0, height: 0 });
+const isDrawing = ref(false); // Add flag to prevent concurrent drawing
 
 // Store instances
 const boulderProblemsStore = useBoulderProblemsStore();
@@ -970,7 +970,10 @@ const transformPosesToMatchedImage = async (matchResult) => {
 
     // Trigger visualization redraw
     await nextTick();
-    drawPoseVisualization();
+    // Use setTimeout to ensure image is fully rendered before drawing
+    setTimeout(() => {
+      drawPoseVisualization();
+    }, 200);
   } catch (err) {
     console.error('Pose transformation error:', err);
     error.value = 'Failed to transform poses: ' + err.message;
@@ -980,7 +983,31 @@ const transformPosesToMatchedImage = async (matchResult) => {
 };
 
 const drawPoseVisualization = () => {
+  // Prevent concurrent drawing calls
+  if (isDrawing.value) {
+    console.log('🚫 Pose visualization already in progress, skipping');
+    return;
+  }
+  
+  isDrawing.value = true;
+  
+  const callStack = new Error().stack;
+  console.log('🎨 Drawing pose visualization called from:', callStack?.split('\n')[1]?.trim());
+  
+  console.log('🎨 Drawing pose visualization...', {
+    hasVisualizationImage: !!visualizationImage.value,
+    hasPoseCanvas: !!poseCanvas.value,
+    transformedPosesLength: transformedPoses.value.length,
+    transformedPoses: transformedPoses.value
+  });
+
   if (!visualizationImage.value || !poseCanvas.value || transformedPoses.value.length === 0) {
+    console.warn('⚠️ Pose visualization skipped:', {
+      hasVisualizationImage: !!visualizationImage.value,
+      hasPoseCanvas: !!poseCanvas.value,
+      transformedPosesLength: transformedPoses.value.length
+    });
+    isDrawing.value = false;
     return;
   }
 
@@ -988,31 +1015,92 @@ const drawPoseVisualization = () => {
   const canvas = poseCanvas.value;
   const ctx = canvas.getContext('2d');
 
-  // Set canvas size to match image
+  console.log('🖼️ Canvas setup:', {
+    imgClientWidth: img.clientWidth,
+    imgClientHeight: img.clientHeight,
+    imgNaturalWidth: img.naturalWidth,
+    imgNaturalHeight: img.naturalHeight,
+    imageComplete: img.complete,
+    imageLoaded: img.naturalWidth > 0
+  });
+
+  // Check if image is properly loaded
+  if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
+    console.warn('⚠️ Image not fully loaded yet, skipping pose visualization');
+    isDrawing.value = false;
+    return;
+  }
+
+  // Set canvas size to match image EXACTLY
+  const rect = img.getBoundingClientRect();
   canvas.width = img.clientWidth;
   canvas.height = img.clientHeight;
+  
+  // Also set the CSS dimensions to match
+  canvas.style.width = img.clientWidth + 'px';
+  canvas.style.height = img.clientHeight + 'px';
 
   visualizationDimensions.value = {
     width: img.clientWidth,
     height: img.clientHeight,
   };
 
+  console.log('🎯 Canvas dimensions set:', {
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    canvasStyleWidth: canvas.style.width,
+    canvasStyleHeight: canvas.style.height,
+    imgBoundingRect: rect
+  });
+
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  console.log('🧹 Canvas cleared, testing basic drawing...');
+  
+  // Test if basic drawing works with visible shapes
+  ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+  ctx.fillRect(10, 10, 50, 50);
+  ctx.fillStyle = 'rgba(0, 0, 255, 0.8)';
+  ctx.beginPath();
+  ctx.arc(100, 100, 25, 0, 2 * Math.PI);
+  ctx.fill();
+  
+  console.log('✅ Test shapes drawn');
 
   // Calculate scale factors
   const scaleX = img.clientWidth / img.naturalWidth;
   const scaleY = img.clientHeight / img.naturalHeight;
 
+  console.log('📐 Scale factors:', { 
+    scaleX, 
+    scaleY,
+    isValidScaleX: !isNaN(scaleX) && isFinite(scaleX) && scaleX > 0,
+    isValidScaleY: !isNaN(scaleY) && isFinite(scaleY) && scaleY > 0
+  });
+
+  // Validate scale factors
+  if (isNaN(scaleX) || isNaN(scaleY) || !isFinite(scaleX) || !isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) {
+    console.error('❌ Invalid scale factors, aborting pose visualization');
+    isDrawing.value = false;
+    return;
+  }
+
   // Draw poses for each frame
-  transformedPoses.value.forEach((frame) => {
+  transformedPoses.value.forEach((frame, index) => {
     const { transformedPoints, color, frameIndex } = frame;
 
-    if (transformedPoints.length !== 4) return;
+    console.log(`🎯 Drawing frame ${index}:`, {
+      frameIndex,
+      color,
+      transformedPointsLength: transformedPoints.length,
+      transformedPoints
+    });
 
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = 2;
+    if (transformedPoints.length !== 4) {
+      console.warn(`⚠️ Frame ${index} has ${transformedPoints.length} points, expected 4`);
+      return;
+    }
 
     // Scale points to display size
     const scaledPoints = transformedPoints.map((point) => ({
@@ -1020,28 +1108,72 @@ const drawPoseVisualization = () => {
       y: point.y * scaleY,
     }));
 
+    console.log(`📍 Scaled points for frame ${index}:`, scaledPoints);
+
+    // Validate scaled points
+    const validPoints = scaledPoints.filter(p => 
+      !isNaN(p.x) && !isNaN(p.y) && isFinite(p.x) && isFinite(p.y)
+    );
+
+    if (validPoints.length !== scaledPoints.length) {
+      console.warn(`⚠️ Frame ${index} has invalid points, skipping`);
+      return;
+    }
+
+    // Draw with high visibility
+    ctx.save();
+
     // Draw wrists (first two points)
-    scaledPoints.slice(0, 2).forEach((point, index) => {
+    scaledPoints.slice(0, 2).forEach((point, pointIndex) => {
+      console.log(`✋ Drawing wrist ${pointIndex + 1} at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
+      
+      // Draw large, visible circles for wrists
+      ctx.fillStyle = color;
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 4;
+      
+      // White outline
       ctx.beginPath();
-      ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
+      ctx.arc(point.x, point.y, 12, 0, 2 * Math.PI);
+      ctx.stroke();
+      
+      // Colored fill
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 8, 0, 2 * Math.PI);
       ctx.fill();
 
       // Label
-      ctx.fillText(`H${index + 1}F${frameIndex + 1}`, point.x + 8, point.y - 8);
+      ctx.fillStyle = 'black';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText(`H${pointIndex + 1}`, point.x + 15, point.y);
     });
 
     // Draw ankles (last two points)
-    scaledPoints.slice(2, 4).forEach((point, index) => {
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
-      ctx.fill();
+    scaledPoints.slice(2, 4).forEach((point, pointIndex) => {
+      console.log(`🦶 Drawing ankle ${pointIndex + 1} at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
+      
+      // Draw large, visible squares for ankles
+      ctx.fillStyle = color;
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 4;
+      
+      // White outline
+      ctx.strokeRect(point.x - 10, point.y - 10, 20, 20);
+      
+      // Colored fill
+      ctx.fillRect(point.x - 8, point.y - 8, 16, 16);
 
       // Label
-      ctx.fillText(`F${index + 1}F${frameIndex + 1}`, point.x + 8, point.y + 15);
+      ctx.fillStyle = 'black';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText(`F${pointIndex + 1}`, point.x + 15, point.y);
     });
 
-    // Draw connecting lines (arms and legs)
+    // Draw connecting lines
     if (scaledPoints.length === 4) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 6;
+      
       // Connect wrists
       ctx.beginPath();
       ctx.moveTo(scaledPoints[0].x, scaledPoints[0].y);
@@ -1053,8 +1185,24 @@ const drawPoseVisualization = () => {
       ctx.moveTo(scaledPoints[2].x, scaledPoints[2].y);
       ctx.lineTo(scaledPoints[3].x, scaledPoints[3].y);
       ctx.stroke();
+      
+      console.log(`🔗 Drew connecting lines for frame ${index}`);
     }
+
+    ctx.restore();
   });
+
+  console.log('🎨 Pose visualization complete! Canvas should now show the poses.');
+  isDrawing.value = false;
+};
+
+// New function to handle image load and ensure proper timing
+const onImageLoad = async () => {
+  console.log('Image loaded, waiting for next tick then drawing poses');
+  await nextTick();
+  setTimeout(() => {
+    drawPoseVisualization();
+  }, 100); // Small delay to ensure everything is rendered
 };
 
 const handleAnalysisError = (analysisError) => {
