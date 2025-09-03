@@ -3,24 +3,14 @@
 
 console.log('YOLOv8 Pose detection worker initializing...');
 
-// Mobile memory management
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-const isLowMemoryDevice = navigator.deviceMemory && navigator.deviceMemory <= 4;
-
-console.log('Device info:', { 
-  isMobile, 
-  isLowMemoryDevice,
-  deviceMemory: navigator.deviceMemory || 'unknown',
-  hardwareConcurrency: navigator.hardwareConcurrency || 'unknown'
-});
-
 // The ort object is available from the concatenated ONNX code
 if (typeof ort !== 'undefined' && ort.env) {
   // Conservative settings for mobile devices
-  if (isMobile || isLowMemoryDevice) {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (isMobile) {
     ort.env.wasm.numThreads = 1; // Single thread on mobile
-    ort.env.wasm.simd = false; // Disable SIMD on mobile to save memory
-    console.log('Mobile optimizations applied: single thread, SIMD disabled');
+    console.log('Mobile optimizations applied: single thread');
   } else {
     ort.env.wasm.numThreads = 4;
     console.log('Desktop optimizations applied: multi-thread enabled');
@@ -33,24 +23,6 @@ if (typeof ort !== 'undefined' && ort.env) {
 // Worker state
 let yolov8Session = null;
 let nmsSession = null;
-
-// Memory cleanup utilities
-const cleanupTensors = (tensors) => {
-  if (tensors && typeof tensors === 'object') {
-    Object.values(tensors).forEach(tensor => {
-      if (tensor && typeof tensor.dispose === 'function') {
-        tensor.dispose();
-      }
-    });
-  }
-};
-
-const forceGarbageCollection = () => {
-  // Force garbage collection if available
-  if (typeof self !== 'undefined' && self.gc) {
-    self.gc();
-  }
-};
 
 // YOLOv8n-pose configuration
 const MODEL_PATH = '/yolov8n-pose.onnx';
@@ -78,40 +50,39 @@ self.onmessage = async (event) => {
     try {
       const startTime = performance.now();
 
-      // Memory-aware session options
-      const sessionOptions = {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: isMobile || isLowMemoryDevice ? 'basic' : 'all',
-        wasm: {
-          numThreads: isMobile || isLowMemoryDevice ? 1 : Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2)),
-          simd: !(isMobile || isLowMemoryDevice), // Disable SIMD on mobile
-          threads: !(isMobile || isLowMemoryDevice), // Disable threading on mobile
-        },
-      };
-
-      console.log('Creating sessions with options:', sessionOptions);
-
       // Create main YOLOv8 session
-      yolov8Session = await ort.InferenceSession.create(MODEL_PATH, sessionOptions);
+      yolov8Session = await ort.InferenceSession.create(MODEL_PATH, {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'all',
+        wasm: {
+          numThreads: navigator.hardwareConcurrency
+            ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
+            : 2,
+          simd: true,
+          threads: true,
+        },
+      });
 
-      // Create NMS session  
-      nmsSession = await ort.InferenceSession.create(NMS_PATH, sessionOptions);
+      // Create NMS session
+      nmsSession = await ort.InferenceSession.create(NMS_PATH, {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'all',
+        wasm: {
+          numThreads: navigator.hardwareConcurrency
+            ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
+            : 2,
+          simd: true,
+          threads: true,
+        },
+      });
 
-      // Skip warmup on mobile to save memory
-      if (!isMobile && !isLowMemoryDevice) {
-        console.log('Warming up model...');
-        const tensor = new ort.Tensor(
-          'float32',
-          new Float32Array(MODEL_INPUT_SHAPE.reduce((a, b) => a * b)),
-          MODEL_INPUT_SHAPE
-        );
-        const warmupResult = await yolov8Session.run({ images: tensor });
-        cleanupTensors(warmupResult);
-        tensor.dispose();
-        console.log('Model warmup complete');
-      } else {
-        console.log('Skipping warmup on mobile device');
-      }
+      // Warmup the model
+      const tensor = new ort.Tensor(
+        'float32',
+        new Float32Array(MODEL_INPUT_SHAPE.reduce((a, b) => a * b)),
+        MODEL_INPUT_SHAPE
+      );
+      await yolov8Session.run({ images: tensor });
 
       const endTime = performance.now();
 
@@ -165,9 +136,6 @@ self.onmessage = async (event) => {
       // Run main YOLOv8 inference
       const { output0 } = await yolov8Session.run({ images: tensor });
 
-      // Clean up input tensor immediately
-      tensor.dispose();
-
       // Create NMS config tensor
       const config = new ort.Tensor(
         'float32',
@@ -184,10 +152,6 @@ self.onmessage = async (event) => {
         config: config,
       });
 
-      // Clean up intermediate tensors
-      output0.dispose();
-      config.dispose();
-
       // Process results into our format
       const poses = processYOLOv8Results(
         selected,
@@ -199,13 +163,8 @@ self.onmessage = async (event) => {
         imageBitmap.height
       );
 
-      // Clean up NMS output
-      selected.dispose();
-
       // Force memory cleanup on mobile
-      if (isMobile || isLowMemoryDevice) {
-        forceGarbageCollection();
-      }
+      // (removed aggressive memory management)
 
       const endTime = performance.now();
       
@@ -256,29 +215,6 @@ self.onmessage = async (event) => {
       }
       imageBitmap = null;
       imageBlob = null;
-    }
-  }
-
-  // Handle cleanup message
-  if (type === 'cleanup') {
-    console.log('Cleaning up pose detection worker...');
-    try {
-      // Dispose of sessions
-      if (yolov8Session) {
-        yolov8Session.close && yolov8Session.close();
-        yolov8Session = null;
-      }
-      if (nmsSession) {
-        nmsSession.close && nmsSession.close();
-        nmsSession = null;
-      }
-      
-      // Force cleanup
-      forceGarbageCollection();
-      
-      console.log('Pose detection worker cleanup complete');
-    } catch (error) {
-      console.error('Error during cleanup:', error);
     }
   }
 };

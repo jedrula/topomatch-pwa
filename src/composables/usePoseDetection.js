@@ -65,25 +65,6 @@ export function usePoseDetection() {
         timestamp: new Date().toISOString()
       });
       
-      // If it's a memory error and we haven't tried recreating the session yet
-      if (data.originalError && (
-        data.originalError.includes('out of memory') || 
-        data.originalError.includes('OOM') ||
-        data.originalError.includes('no available backend')
-      )) {
-        console.log('Memory error detected, attempting session recreation...');
-        sessionReady.value = false;
-        
-        // Wait a bit before recreating
-        setTimeout(() => {
-          console.log('Recreating pose detection session...');
-          poseWorker.postMessage({ type: 'cleanup' });
-          setTimeout(() => {
-            initializeSession();
-          }, 1000);
-        }, 2000);
-      }
-      
       error.value = data.message;
       isAnalyzing.value = false;
       analysisStatus.value = '';
