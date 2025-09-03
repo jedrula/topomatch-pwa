@@ -4,9 +4,13 @@ import { RouterView } from 'vue-router';
 import { useUserStore } from './stores/userStore.js';
 import AppHeader from './components/AppHeader.vue';
 import AuthModal from './components/AuthModal.vue';
+import MobileDebugConsole from './components/MobileDebugConsole.vue';
 
 const userStore = useUserStore();
 const showAuthModal = ref(false);
+
+// Show debug console only on mobile devices
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 // Initialize authentication when app starts
 onMounted(() => {
@@ -49,6 +53,9 @@ provide('authModal', {
       @close="closeAuthModal" 
       @success="onAuthSuccess"
     />
+
+    <!-- Debug Console for mobile devices -->
+    <MobileDebugConsole v-if="isMobile" />
   </div>
 </template>
 

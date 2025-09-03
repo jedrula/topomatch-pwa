@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, onUnmounted } from 'vue';
 
 /**
  * Composable for YOLO11n-pose detection
@@ -14,7 +14,24 @@ export function usePoseDetection() {
   const sessionReady = ref(false);
 
   // Create dedicated pose detection worker
-  const poseWorker = new Worker(new URL('/poseDetectionWorker.combined.js', import.meta.url));
+  console.log('Loading pose detection worker...');
+   const poseWorker = new Worker(new URL('/poseDetectionWorker.combined.js', import.meta.url));
+
+  // Handle worker loading errors
+  poseWorker.onerror = (event) => {
+    console.error('Pose detection worker loading error:', event);
+    error.value = 'Failed to load pose detection worker. Please refresh the page.';
+    sessionReady.value = false;
+  };
+
+  // Cleanup worker on component unmount
+  onUnmounted(() => {
+    console.log('Cleaning up pose detection worker...');
+    if (poseWorker) {
+      poseWorker.postMessage({ type: 'cleanup' });
+      poseWorker.terminate();
+    }
+  });
 
   // Handle worker messages
   poseWorker.onmessage = (event) => {
@@ -41,10 +58,35 @@ export function usePoseDetection() {
           : null,
       });
     } else if (type === 'error') {
+      console.error('Pose detection worker error details:', {
+        message: data.message,
+        originalError: data.originalError,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      });
+      
+      // If it's a memory error and we haven't tried recreating the session yet
+      if (data.originalError && (
+        data.originalError.includes('out of memory') || 
+        data.originalError.includes('OOM') ||
+        data.originalError.includes('no available backend')
+      )) {
+        console.log('Memory error detected, attempting session recreation...');
+        sessionReady.value = false;
+        
+        // Wait a bit before recreating
+        setTimeout(() => {
+          console.log('Recreating pose detection session...');
+          poseWorker.postMessage({ type: 'cleanup' });
+          setTimeout(() => {
+            initializeSession();
+          }, 1000);
+        }, 2000);
+      }
+      
       error.value = data.message;
       isAnalyzing.value = false;
       analysisStatus.value = '';
-      console.error('Pose detection worker error:', data.message);
     }
   };
 

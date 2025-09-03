@@ -117,6 +117,20 @@
         </div>
       </div>
 
+      <!-- Pose Detection Summary -->
+      <div v-if="extractedFrames.length > 0 && !isProcessing" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <h4 class="text-sm font-medium text-gray-900 mb-2">Pose Detection Summary</h4>
+        <div class="text-sm text-gray-600">
+          <p>Successful detections: {{ extractedFrames.filter(f => f.poseData).length }} / {{ extractedFrames.length }} frames</p>
+          <div v-if="extractedFrames.some(f => f.poseError)" class="mt-2">
+            <p class="text-red-600 font-medium">Common issues found:</p>
+            <ul class="list-disc list-inside mt-1 space-y-1">
+              <li v-for="error in uniquePoseErrors" :key="error" class="text-red-600">{{ error }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <!-- Extracted Frames -->
       <div v-if="extractedFrames.length > 0" class="space-y-4">
         <h3 class="text-lg font-medium text-gray-900">Extracted Frames with Pose Data</h3>
@@ -140,7 +154,10 @@
                 <p class="text-xs text-gray-500" v-if="frame.poseData">
                   Pose detected ({{ frame.poseData.confidence.toFixed(2) }} confidence)
                 </p>
-                <p class="text-xs text-red-500" v-else>No pose detected</p>
+                <p class="text-xs text-red-500" v-else-if="frame.poseError">
+                  {{ frame.poseError }}
+                </p>
+                <p class="text-xs text-red-500" v-else>No pose detected!</p>
               </div>
             </div>
           </div>
@@ -377,7 +394,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, watch } from 'vue';
 import ImageMatcher from './ImageMatcher.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
@@ -450,8 +467,24 @@ const matchedImageBoulderProblems = computed(() => {
   );
 });
 
+// Computed property for unique pose errors
+const uniquePoseErrors = computed(() => {
+  const errors = extractedFrames.value
+    .filter(f => f.poseError)
+    .map(f => f.poseError);
+  return [...new Set(errors)]; // Remove duplicates
+});
+
 // Use the working pose detection composable
-const { runPoseDetection, poseResults, sessionReady, isAnalyzing } = usePoseDetection();
+const { runPoseDetection, poseResults, sessionReady, isAnalyzing, error: poseDetectionError } = usePoseDetection();
+
+// Watch for pose detection errors and display them
+watch(poseDetectionError, (newError) => {
+  if (newError) {
+    console.error('Pose detection initialization error:', newError);
+    error.value = newError;
+  }
+});
 
 // Frame timestamps for extraction (25%, 50%, 75%)
 const FRAME_TIMESTAMPS = [0.25, 0.5, 0.75];
@@ -662,10 +695,46 @@ const processVideo = async () => {
         extractedFrames.value.length
       }`;
 
-      // TODO: Replace with actual pose detection
-      const poseData = await extractPoseKeypoints(frames[i].imageData);
-      extractedFrames.value[i].poseData = poseData;
+      try {
+        const poseResult = await extractPoseKeypoints(frames[i].imageData);
+        
+        if (poseResult && poseResult.error) {
+          // Pose detection failed with specific error
+          extractedFrames.value[i].poseData = null;
+          extractedFrames.value[i].poseError = poseResult.message;
+          console.warn(`Frame ${i + 1} pose detection failed:`, poseResult.message);
+        } else if (poseResult) {
+          // Pose detection succeeded
+          extractedFrames.value[i].poseData = poseResult;
+          extractedFrames.value[i].poseError = null;
+        } else {
+          // No poses found (not an error)
+          extractedFrames.value[i].poseData = null;
+          extractedFrames.value[i].poseError = 'No person visible in frame';
+        }
+      } catch (err) {
+        // Unexpected error in pose detection
+        console.error(`Unexpected error in frame ${i + 1}:`, err);
+        extractedFrames.value[i].poseData = null;
+        extractedFrames.value[i].poseError = `Detection failed: ${err.message}`;
+      }
+
+      // Add small delay and memory cleanup hint for mobile devices
+      if (i < extractedFrames.value.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between frames
+        
+        // Suggest garbage collection on mobile (helps with memory pressure)
+        if (typeof window !== 'undefined' && window.gc) {
+          window.gc();
+        }
+      }
     }
+
+    // Check if we got any successful pose detections
+    const successfulDetections = extractedFrames.value.filter(f => f.poseData).length;
+    const totalFrames = extractedFrames.value.length;
+    
+    console.log(`Pose detection summary: ${successfulDetections}/${totalFrames} frames successful`);
 
     emit(
       'pose-detected',
@@ -673,7 +742,13 @@ const processVideo = async () => {
     );
 
     processingStatus.value = 'Ready for image matching';
-    processingDetails.value = 'Frames extracted and poses detected successfully';
+    if (successfulDetections === 0) {
+      processingDetails.value = 'No poses detected in any frame - try better lighting or positioning';
+    } else if (successfulDetections < totalFrames) {
+      processingDetails.value = `Poses detected in ${successfulDetections}/${totalFrames} frames`;
+    } else {
+      processingDetails.value = 'Frames extracted and poses detected successfully';
+    }
   } catch (err) {
     console.error('Video processing error:', err);
     error.value = 'Failed to process video: ' + err.message;
@@ -686,13 +761,26 @@ const processVideo = async () => {
 // Pose detection function using the working composable
 const extractPoseKeypoints = async (imageData) => {
   try {
+    // Check if there's a pose detection error first
+    if (poseDetectionError.value) {
+      throw new Error(`Pose detection system error: ${poseDetectionError.value}`);
+    }
+
     // Wait for pose detection session to be ready
     if (!sessionReady.value) {
+      console.log('Waiting for pose detection session to be ready...');
+      const maxWait = 30000; // 30 seconds
+      const startTime = Date.now();
+      
       // Wait a bit for session to initialize
-      await new Promise((resolve) => {
+      await new Promise((resolve, reject) => {
         const checkReady = () => {
           if (sessionReady.value) {
             resolve();
+          } else if (poseDetectionError.value) {
+            reject(new Error(`Pose detection initialization failed: ${poseDetectionError.value}`));
+          } else if (Date.now() - startTime > maxWait) {
+            reject(new Error('Pose detection session initialization timed out'));
           } else {
             setTimeout(checkReady, 100);
           }
@@ -744,11 +832,17 @@ const extractPoseKeypoints = async (imageData) => {
         confidence: firstPose.confidence || 0,
       };
     } else {
-      throw new Error('No poses detected in image');
+      // Return null instead of throwing - let the caller handle this gracefully
+      return null;
     }
   } catch (error) {
     console.error('Pose detection failed:', error);
-    throw new Error(`Pose detection failed: ${error.message}`);
+    // Return error information instead of throwing
+    return {
+      error: true,
+      message: error.message || 'Unknown pose detection error',
+      details: error.stack ? error.stack.split('\n')[0] : 'No additional details'
+    };
   }
 };
 

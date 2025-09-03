@@ -3,9 +3,28 @@
 
 console.log('YOLOv8 Pose detection worker initializing...');
 
+// Mobile memory management
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isLowMemoryDevice = navigator.deviceMemory && navigator.deviceMemory <= 4;
+
+console.log('Device info:', { 
+  isMobile, 
+  isLowMemoryDevice,
+  deviceMemory: navigator.deviceMemory || 'unknown',
+  hardwareConcurrency: navigator.hardwareConcurrency || 'unknown'
+});
+
 // The ort object is available from the concatenated ONNX code
 if (typeof ort !== 'undefined' && ort.env) {
-  ort.env.wasm.numThreads = 4;
+  // Conservative settings for mobile devices
+  if (isMobile || isLowMemoryDevice) {
+    ort.env.wasm.numThreads = 1; // Single thread on mobile
+    ort.env.wasm.simd = false; // Disable SIMD on mobile to save memory
+    console.log('Mobile optimizations applied: single thread, SIMD disabled');
+  } else {
+    ort.env.wasm.numThreads = 4;
+    console.log('Desktop optimizations applied: multi-thread enabled');
+  }
   console.log('ONNX Runtime configured successfully');
 } else {
   console.error('ONNX Runtime not available in worker');
@@ -14,6 +33,24 @@ if (typeof ort !== 'undefined' && ort.env) {
 // Worker state
 let yolov8Session = null;
 let nmsSession = null;
+
+// Memory cleanup utilities
+const cleanupTensors = (tensors) => {
+  if (tensors && typeof tensors === 'object') {
+    Object.values(tensors).forEach(tensor => {
+      if (tensor && typeof tensor.dispose === 'function') {
+        tensor.dispose();
+      }
+    });
+  }
+};
+
+const forceGarbageCollection = () => {
+  // Force garbage collection if available
+  if (typeof self !== 'undefined' && self.gc) {
+    self.gc();
+  }
+};
 
 // YOLOv8n-pose configuration
 const MODEL_PATH = '/yolov8n-pose.onnx';
@@ -32,42 +69,49 @@ self.onmessage = async (event) => {
 
   if (type === 'createSession') {
     console.log('Creating YOLOv8 pose detection sessions...');
+    console.log('ONNX Runtime environment:', {
+      ortAvailable: typeof ort !== 'undefined',
+      ortEnv: typeof ort !== 'undefined' ? ort.env : 'N/A',
+      wasmBackends: typeof ort !== 'undefined' ? ort.env.wasm : 'N/A'
+    });
+    
     try {
       const startTime = performance.now();
 
+      // Memory-aware session options
+      const sessionOptions = {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: isMobile || isLowMemoryDevice ? 'basic' : 'all',
+        wasm: {
+          numThreads: isMobile || isLowMemoryDevice ? 1 : Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2)),
+          simd: !(isMobile || isLowMemoryDevice), // Disable SIMD on mobile
+          threads: !(isMobile || isLowMemoryDevice), // Disable threading on mobile
+        },
+      };
+
+      console.log('Creating sessions with options:', sessionOptions);
+
       // Create main YOLOv8 session
-      yolov8Session = await ort.InferenceSession.create(MODEL_PATH, {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: 'all',
-        wasm: {
-          numThreads: navigator.hardwareConcurrency
-            ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
-            : 2,
-          simd: true,
-          threads: true,
-        },
-      });
+      yolov8Session = await ort.InferenceSession.create(MODEL_PATH, sessionOptions);
 
-      // Create NMS session
-      nmsSession = await ort.InferenceSession.create(NMS_PATH, {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: 'all',
-        wasm: {
-          numThreads: navigator.hardwareConcurrency
-            ? Math.max(1, Math.min(4, navigator.hardwareConcurrency))
-            : 2,
-          simd: true,
-          threads: true,
-        },
-      });
+      // Create NMS session  
+      nmsSession = await ort.InferenceSession.create(NMS_PATH, sessionOptions);
 
-      // Warmup the model
-      const tensor = new ort.Tensor(
-        'float32',
-        new Float32Array(MODEL_INPUT_SHAPE.reduce((a, b) => a * b)),
-        MODEL_INPUT_SHAPE
-      );
-      await yolov8Session.run({ images: tensor });
+      // Skip warmup on mobile to save memory
+      if (!isMobile && !isLowMemoryDevice) {
+        console.log('Warming up model...');
+        const tensor = new ort.Tensor(
+          'float32',
+          new Float32Array(MODEL_INPUT_SHAPE.reduce((a, b) => a * b)),
+          MODEL_INPUT_SHAPE
+        );
+        const warmupResult = await yolov8Session.run({ images: tensor });
+        cleanupTensors(warmupResult);
+        tensor.dispose();
+        console.log('Model warmup complete');
+      } else {
+        console.log('Skipping warmup on mobile device');
+      }
 
       const endTime = performance.now();
 
@@ -121,6 +165,9 @@ self.onmessage = async (event) => {
       // Run main YOLOv8 inference
       const { output0 } = await yolov8Session.run({ images: tensor });
 
+      // Clean up input tensor immediately
+      tensor.dispose();
+
       // Create NMS config tensor
       const config = new ort.Tensor(
         'float32',
@@ -137,6 +184,10 @@ self.onmessage = async (event) => {
         config: config,
       });
 
+      // Clean up intermediate tensors
+      output0.dispose();
+      config.dispose();
+
       // Process results into our format
       const poses = processYOLOv8Results(
         selected,
@@ -148,7 +199,21 @@ self.onmessage = async (event) => {
         imageBitmap.height
       );
 
+      // Clean up NMS output
+      selected.dispose();
+
+      // Force memory cleanup on mobile
+      if (isMobile || isLowMemoryDevice) {
+        forceGarbageCollection();
+      }
+
       const endTime = performance.now();
+      
+      console.log(`Pose detection completed:`, {
+        poses: poses.length,
+        inferenceTime: `${(endTime - startTime).toFixed(2)}ms`,
+        imageSize: `${imageBitmap.width}x${imageBitmap.height}`
+      });
 
       self.postMessage({
         type: 'poseDetectionComplete',
@@ -166,9 +231,23 @@ self.onmessage = async (event) => {
       });
     } catch (error) {
       console.error('Pose detection inference error:', error);
+      
+      // Provide more specific error messages for common mobile issues
+      let errorMessage = 'Pose detection failed: ' + error.message;
+      
+      if (error.message.includes('out of memory') || error.message.includes('OOM')) {
+        errorMessage = 'Not enough memory available - try closing other apps or using a smaller video';
+      } else if (error.message.includes('session') || error.message.includes('model')) {
+        errorMessage = 'Detection model error - try refreshing the page';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Detection timed out - your device may be overloaded';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = 'Failed to load detection model - check your internet connection';
+      }
+      
       self.postMessage({
         type: 'error',
-        data: { message: 'Pose detection failed: ' + error.message },
+        data: { message: errorMessage, originalError: error.message },
       });
     } finally {
       // Clean up resources
@@ -177,6 +256,29 @@ self.onmessage = async (event) => {
       }
       imageBitmap = null;
       imageBlob = null;
+    }
+  }
+
+  // Handle cleanup message
+  if (type === 'cleanup') {
+    console.log('Cleaning up pose detection worker...');
+    try {
+      // Dispose of sessions
+      if (yolov8Session) {
+        yolov8Session.close && yolov8Session.close();
+        yolov8Session = null;
+      }
+      if (nmsSession) {
+        nmsSession.close && nmsSession.close();
+        nmsSession = null;
+      }
+      
+      // Force cleanup
+      forceGarbageCollection();
+      
+      console.log('Pose detection worker cleanup complete');
+    } catch (error) {
+      console.error('Error during cleanup:', error);
     }
   }
 };
@@ -348,6 +450,11 @@ function processYOLOv8Results(
   }
 
   console.log(`Processed ${poses.length} poses`);
+  
+  if (poses.length === 0) {
+    console.warn('No poses detected in this frame - this is normal if no person is visible');
+  }
+  
   return poses;
 }
 
