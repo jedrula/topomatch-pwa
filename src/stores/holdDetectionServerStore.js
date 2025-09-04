@@ -453,10 +453,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     }
   }
   
-  // Stub methods for compatibility
-  const hasCachedResults = () => false
-  const clearCacheForImage = (imageUrl, compressionSettings) => false
-  
   return {
     // State
     isProcessing,
@@ -496,8 +492,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     setAdminHighlightMode,
     loadManualHolds,
     saveManualHolds,
-    loadDetectionResults,
-    hasCachedResults,
-    clearCacheForImage
+    loadDetectionResults
   }
 })

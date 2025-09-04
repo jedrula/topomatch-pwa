@@ -228,8 +228,6 @@
                       ? "Processing..."
                       : serverStore.hasResults
                       ? "Re-detect Holds"
-                      : serverStore.hasCachedResults(imageUrl)
-                      ? "Load Cached Results"
                       : "Detect Holds (Server)"
                   }}</span>
                 </button>
@@ -248,33 +246,6 @@
                     />
                   </svg>
                   <span>Clear Results</span>
-                </button>
-
-                <!-- Save Detection Results to Firestore -->
-                <button
-                  v-if="serverStore.hasResults && !isSavingDetection"
-                  @click="saveDetectionToFirestore"
-                  class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"
-                    />
-                  </svg>
-                  <span>Save Detection</span>
-                </button>
-
-                <!-- Saving Detection Loading State -->
-                <button
-                  v-if="isSavingDetection"
-                  disabled
-                  class="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg opacity-75 cursor-not-allowed flex items-center justify-center space-x-2"
-                >
-                  <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Saving...</span>
                 </button>
 
                 <!-- Manual Hold Drawing Toggle -->
@@ -1006,18 +977,7 @@ const processImage = async () => {
 const clearResults = () => {
   // Clear current results
   serverStore.clearResults();
-  
-  // Also clear cached results for this specific image
-  if (imageUrl.value) {
-    const cleared = serverStore.clearCacheForImage(imageUrl.value, serverStore.compressionSettings);
-    if (cleared) {
-      console.log('🧹 Results and cache cleared for current image:', imageUrl.value);
-    } else {
-      console.log('🧹 Results cleared (no cache found for current image)');
-    }
-  } else {
-    console.log('🧹 Results cleared');
-  }
+  console.log('🧹 Results cleared');
 };
 
 const saveDetectionToFirestore = async () => {
@@ -1408,9 +1368,6 @@ const loadImageFromQuery = async () => {
         };
         console.log('✅ Loaded image for hold detection:', currentImage.value);
 
-        // Check if we have cached results and auto-load them
-        await checkAndLoadCachedResults();
-
         // Load existing manual holds for this image
         await serverStore.loadManualHolds(locationId, imageId);
       } else {
@@ -1428,35 +1385,6 @@ const loadImageFromQuery = async () => {
     currentImage.value = null;
     // Use default grading system when no location specified
     boulderProblemsStore.setLocationGradingSystem(null);
-
-    // Still check for cached results for the default image
-    await checkAndLoadCachedResults();
-  }
-};
-
-// Check for cached results and automatically load them
-const checkAndLoadCachedResults = async () => {
-  if (!imageUrl.value) return;
-
-  console.log('🔍 Checking for cached results for:', imageUrl.value);
-
-  if (serverStore.hasCachedResults(imageUrl.value)) {
-    console.log('📦 Found cached results, automatically loading...');
-
-    try {
-      const result = await serverStore.processImage(
-        imageUrl.value, 
-        route.params.locationId, 
-        route.query.imageId
-      );
-      if (result.success && result.fromCache) {
-        console.log('✅ Automatically loaded cached hold detection results');
-      }
-    } catch (error) {
-      console.error('❌ Error loading cached results:', error);
-    }
-  } else {
-    console.log('ℹ️ No cached results found for this image');
   }
 };
 
@@ -1476,20 +1404,6 @@ watch(
       } catch (error) {
         console.error('❌ Failed to reload boulder problems:', error);
       }
-    }
-  },
-  { immediate: false }
-);
-
-// Watch for image URL changes to auto-load cached results
-watch(
-  () => imageUrl.value,
-  async (newImageUrl) => {
-    if (newImageUrl) {
-      // Small delay to ensure image is loaded
-      setTimeout(async () => {
-        await checkAndLoadCachedResults();
-      }, 100);
     }
   },
   { immediate: false }
@@ -1574,12 +1488,8 @@ onMounted(async () => {
   // Load existing detection results from Firestore if available
   await loadExistingDetectionResults();
 
-  // Test API health on mount (but don't block if we have cached results)
-  if (!serverStore.hasResults) {
-    await testApiHealth();
-  } else {
-    console.log('ℹ️ Skipping API health check - cached results already loaded');
-  }
+  // Test API health on mount
+  await testApiHealth();
 
   // Add fullscreen event listeners
   const handleFullscreenChange = () => {
