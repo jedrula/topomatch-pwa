@@ -232,22 +232,6 @@
                   }}</span>
                 </button>
 
-                <button
-                  v-if="serverStore.hasResults"
-                  @click="clearResults"
-                  class="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center space-x-2"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                  <span>Clear Results</span>
-                </button>
-
                 <!-- Manual Hold Drawing Toggle -->
                 <button
                   @click="toggleDrawingMode"
@@ -972,12 +956,6 @@ const processImage = async () => {
   } else {
     console.error('❌ Processing failed:', result.error);
   }
-};
-
-const clearResults = () => {
-  // Clear current results
-  serverStore.clearResults();
-  console.log('🧹 Results cleared');
 };
 
 const saveDetectionToFirestore = async () => {
