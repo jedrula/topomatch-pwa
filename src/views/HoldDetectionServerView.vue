@@ -1509,28 +1509,6 @@ watch(
   { immediate: true }
 );
 
-// Watch for boulder problem creation/editing state to auto-enable quick draw mode
-watch(
-  () => ({
-    isCreating: boulderProblemsStore.isCreatingProblem,
-    isEditing: editingState.value.isEditing,
-    deleteMode: serverStore.isDeleteMode,
-  }),
-  (state) => {
-    const shouldEnableQuickDraw =
-      (state.isCreating || state.isEditing) && !state.deleteMode;
-
-    if (shouldEnableQuickDraw && !serverStore.isDrawingMode) {
-      console.log('⚡ Auto-enabling Quick Draw mode for boulder problem creation/editing');
-      serverStore.setDrawingMode(true);
-    } else if (!shouldEnableQuickDraw && serverStore.isDrawingMode) {
-      console.log('⚡ Auto-disabling Quick Draw mode');
-      serverStore.setDrawingMode(false);
-    }
-  },
-  { immediate: true }
-);
-
 // Load existing detection results from Firestore
 const loadExistingDetectionResults = async () => {
   const locationId = route.params.locationId;
