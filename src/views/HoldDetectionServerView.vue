@@ -207,6 +207,7 @@
               <!-- Action Buttons -->
               <div class="mt-6 flex flex-col sm:flex-row gap-3">
                 <button
+                  v-if="!serverStore.hasResults"
                   @click="processImage"
                   :disabled="serverStore.isProcessing || !serverStore.canProcessImage(imageUrl)"
                   class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
@@ -226,8 +227,6 @@
                   <span>{{
                     serverStore.isProcessing
                       ? "Processing..."
-                      : serverStore.hasResults
-                      ? "Re-detect Holds"
                       : "Detect Holds (Server)"
                   }}</span>
                 </button>
