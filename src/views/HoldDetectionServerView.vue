@@ -992,6 +992,12 @@ const processImage = async () => {
 
   if (result.success) {
     console.log('✅ Processing completed successfully:', result.result);
+    
+    // Automatically save detection results to Firestore
+    if (currentImage.value && route.params.locationId) {
+      console.log('💾 Auto-saving detection results to Firestore...');
+      await saveDetectionToFirestore();
+    }
   } else {
     console.error('❌ Processing failed:', result.error);
   }

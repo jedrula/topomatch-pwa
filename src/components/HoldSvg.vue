@@ -100,7 +100,7 @@ const handleHover = (isEntering, event) => {
 
 .interaction-selected :deep(path) {
   stroke: var(--hold-color, #3b82f6);
-  stroke-width: 12;
+  stroke-width: 2;
   fill: transparent;
   filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6));
 }
@@ -133,7 +133,7 @@ const handleHover = (isEntering, event) => {
 
 .interaction-hover :deep(path) {
   stroke: var(--hold-color, #3b82f6);
-  stroke-width: 16;
+  stroke-width: 2;
   filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8));
 }
 
@@ -144,7 +144,7 @@ const handleHover = (isEntering, event) => {
 
 .interaction-drawing-background :deep(path) {
   stroke: var(--hold-color, #3b82f6);
-  stroke-width: 8;
+  stroke-width: 2;
   fill: transparent;
 }
 
@@ -157,9 +157,7 @@ const handleHover = (isEntering, event) => {
 
 .interaction-delete-target :deep(path) {
   stroke: #ff4444;
-  stroke-width: 6;
   fill: rgba(255, 68, 68, 0.2);
-  stroke-dasharray: 8, 4;
   animation: pulse-delete 1.5s infinite;
 }
 
@@ -171,7 +169,6 @@ const handleHover = (isEntering, event) => {
 
 .interaction-delete-hover :deep(path) {
   stroke: #ff0000;
-  stroke-width: 8;
   fill: rgba(255, 0, 0, 0.3);
   filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.8));
 }
