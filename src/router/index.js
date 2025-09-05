@@ -1,15 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import HomeView from '../views/HomeView.vue';
-import RegionView from '../views/RegionView.vue';
-import HoldDetectionView from '../views/HoldDetectionView.vue';
+import BrowseLocationsView from '../views/BrowseLocationsView.vue';
 import HoldDetectionServerView from '../views/HoldDetectionServerView.vue';
-import PoseDetectionView from '../views/PoseDetectionView.vue';
-import PlaygroundView from '../views/PlaygroundView.vue';
-import VideoPoseTestView from '../views/VideoPoseTestView.vue';
 import AddLocationView from '../views/AddLocationView.vue';
 import LocationDetailView from '../views/LocationDetailView.vue';
 import EditLocationView from '../views/EditLocationView.vue';
-import BrowseLocationsView from '../views/BrowseLocationsView.vue';
 import BoulderProblemDetailView from '../views/BoulderProblemDetailView.vue';
 import AdminView from '../views/AdminView.vue';
 import { useUserStore } from '../stores/userStore.js';
@@ -20,45 +14,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView,
-    },
-    {
-      path: '/:regionId',
-      name: 'region',
-      component: RegionView,
-      props: true,
-    },
-    {
-      path: '/hold-detection',
-      name: 'hold-detection',
-      component: HoldDetectionView,
-    },
-    {
-      path: '/hold-detection-server',
-      name: 'hold-detection-server',
-      component: HoldDetectionServerView,
-    },
-    {
-      path: '/pose-detection',
-      name: 'pose-detection',
-      component: PoseDetectionView,
-    },
-    {
-      path: '/playground',
-      name: 'playground',
-      component: PlaygroundView,
-    },
-    {
-      path: '/sam-playground',
-      name: 'sam-playground',
-      beforeEnter() {
-        window.location.href = '/sam-playground.html';
-      },
-    },
-    {
-      path: '/video-pose-test',
-      name: 'video-pose-test',
-      component: VideoPoseTestView,
+      component: BrowseLocationsView,
     },
     {
       path: '/add-location',
@@ -74,8 +30,7 @@ const router = createRouter({
     },
     {
       path: '/browse-locations',
-      name: 'browse-locations',
-      component: BrowseLocationsView,
+      redirect: '/', // Redirect old browse-locations route to root
     },
     {
       path: '/location/:locationId',
@@ -89,12 +44,6 @@ const router = createRouter({
       component: EditLocationView,
       props: true,
       meta: { requiresAdmin: true },
-    },
-    {
-      path: '/location/:locationId/holds',
-      name: 'location-hold-detection',
-      component: HoldDetectionView,
-      props: true,
     },
     {
       path: '/location/:locationId/holds-server',
@@ -117,9 +66,9 @@ router.beforeEach((to, from, next) => {
 
   // Check if route requires admin access
   if (to.meta.requiresAdmin && !userStore.canEditLocations) {
-    // Redirect to browse locations or show error
+    // Redirect to home (locations) or show error
     console.warn('Access denied: Admin permissions required');
-    next('/browse-locations');
+    next('/');
     return;
   }
 
