@@ -57,3 +57,5 @@ storybook-static
 
 # Firebase config file copied during deployment
 firebase.json
+.DS_Store
+.firebase/
