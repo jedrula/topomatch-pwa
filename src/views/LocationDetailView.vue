@@ -71,7 +71,7 @@
               <div>
                 <h3 class="text-lg font-semibold text-gray-900">Share Your Beta</h3>
                 <p class="text-sm text-gray-600">
-                  Upload a climbing video and let AI identify the problem automatically
+                  Upload a climbing video and we'll identify the problem automatically
                 </p>
               </div>
               <button
@@ -504,7 +504,7 @@
           <div>
             <h3 class="text-lg font-semibold">Upload Beta Video</h3>
             <p class="text-sm text-gray-600 mt-1">
-              Upload a climbing video and let AI identify the problem automatically
+              Upload a climbing video and we'll identify the problem automatically
             </p>
           </div>
           <button
@@ -528,7 +528,7 @@
             :comparison-images="images"
             :location-id="route.params.locationId"
             title="Upload Beta Video"
-            subtitle="Upload a climbing video and let AI identify the boulder problem automatically"
+            subtitle="Upload a climbing video and we'll identify the boulder problem automatically"
             :frame-extraction-time="5"
             :auto-start-matching="true"
             @video-selected="handleBetaVideoSelected"
@@ -568,7 +568,7 @@
                       ? "Detecting your body position"
                       : analysisPhase === "analyzing-holds"
                       ? "Determining which holds you're using"
-                      : "Enhanced AI analysis in progress"
+                      : "Enhanced analysis in progress"
                   }}
                 </p>
               </div>
@@ -667,7 +667,7 @@
                 <div class="flex-1">
                   <h4 class="text-lg font-medium text-green-900">Analysis Complete!</h4>
                   <p class="text-sm text-green-700 mt-1">
-                    AI successfully identified the boulder problem from your video.
+                    We successfully identified the boulder problem from your video.
                   </p>
                 </div>
               </div>
@@ -748,7 +748,7 @@
                   v-if="videoAnalysisResult.holdAnalysis?.bestMatch"
                   class="bg-white border border-green-200 rounded-lg p-4"
                 >
-                  <h5 class="text-md font-medium text-gray-900 mb-2">AI Analysis Details</h5>
+                  <h5 class="text-md font-medium text-gray-900 mb-2">Analysis Details</h5>
 
                   <!-- Show pose detection summary -->
                   <div class="text-sm text-gray-600 space-y-1">

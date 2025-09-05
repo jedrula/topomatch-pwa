@@ -38,7 +38,7 @@
               </button>
             </div>
             <p class="text-gray-600">
-              Server-powered climbing hold detection with AI-generated SVG overlays
+              Server-powered climbing hold detection with precise SVG overlays
             </p>
           </div>
         </div>

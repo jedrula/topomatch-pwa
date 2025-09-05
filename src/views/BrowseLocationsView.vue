@@ -58,7 +58,7 @@
     <div v-else class="max-w-7xl mx-auto px-4 py-8">
       <div class="mb-6">
         <p class="text-gray-600">
-          {{ locations.length }} location{{ locations.length !== 1 ? "s" : "" }} found
+          Pick a location
         </p>
       </div>
 
