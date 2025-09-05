@@ -94,113 +94,16 @@
         </div>
 
         <!-- Images section -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold text-gray-900">Images</h2>
-            <button
-              v-if="userStore.canUploadImages"
-              @click="showUploadModal = true"
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Upload Images
-            </button>
-          </div>
-
-          <!-- No images placeholder -->
-          <div v-if="images.length === 0" class="text-center py-12">
-            <svg
-              class="w-16 h-16 mx-auto mb-4 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"
-              />
-            </svg>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No images yet</h3>
-            <p class="text-gray-500 mb-4">
-              Upload photos of boulder problems, routes, or the location itself
-            </p>
-            <button
-              @click="showUploadModal = true"
-              class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Upload Your First Images
-            </button>
-          </div>
-
-          <!-- Images grid -->
-          <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <div
-              v-for="image in images"
-              :key="image.id"
-              class="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group"
-            >
-              <!-- Check if it's a HEIC file -->
-              <div
-                v-if="isHeicFile(image.name)"
-                class="w-full h-full flex items-center justify-center text-gray-500 bg-gray-200 cursor-pointer hover:bg-gray-300 transition-colors"
-                @click="openImageModal(image)"
-              >
-                <div class="text-center">
-                  <svg
-                    class="w-8 h-8 mx-auto mb-2 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <p class="text-xs font-medium">HEIC</p>
-                  <p class="text-xs text-gray-500">{{ image.name.split("-").pop() }}</p>
-                </div>
-              </div>
-              <picture
-                v-else
-              >
-                <!-- WebP format for modern browsers -->
-                <source 
-                  :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
-                  type="image/webp"
-                />
-                <!-- JPEG fallback -->
-                <img
-                  :src="getResizedImageUrl(image.url, '300x300', 'jpeg')"
-                  :alt="image.name"
-                  class="w-full h-full object-cover hover:opacity-75 transition-opacity cursor-pointer"
-                  @click="openImageModal(image)"
-                  loading="lazy"
-                />
-              </picture>
-
-              <!-- Admin Edit Icon (only for admins, only for non-HEIC images) -->
-              <button
-                v-if="userStore.canEditLocations && !isHeicFile(image.name)"
-                @click.stop="openHoldDetection(image)"
-                class="absolute top-2 right-2 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-700 hover:text-green-600 rounded-full shadow-sm transition-all duration-200 z-10"
-                title="Analyze holds and create boulder problems"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
+        <LocationImages
+          :images="images"
+          :location-name="location?.name"
+          :can-upload="userStore.canUploadImages"
+          :can-edit-holds="userStore.canEditLocations"
+          :get-resized-image-url="getResizedImageUrl"
+          @upload="showUploadModal = true"
+          @image-click="openImageModal"
+          @analyze-holds="openHoldDetection"
+        />
 
         <!-- Videos/Betas section -->
         <div class="bg-white rounded-lg shadow p-6">
@@ -857,6 +760,7 @@ import ImageUpload from '../components/ImageUpload.vue';
 import ImageGallerySimplified from '../components/ImageGallerySimplified.vue';
 import VideoGallery from '../components/VideoGallery.vue';
 import VideoFrameMatcher from '../components/VideoFrameMatcherEnhanced.vue';
+import LocationImages from '../components/LocationImages.vue';
 import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
@@ -1138,12 +1042,6 @@ const closeGallery = () => {
 const onGalleryNavigate = () => {
   // This is called when the gallery navigates to a different image
   // The ImageGallery component handles the URL update
-};
-
-const isHeicFile = (fileName) => {
-  if (!fileName) return false;
-  const lowerName = fileName.toLowerCase();
-  return lowerName.endsWith('.heic') || lowerName.endsWith('.heif');
 };
 
 const handleUploadModalClose = () => {

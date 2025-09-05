@@ -1,0 +1,163 @@
+<template>
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <!-- Header -->
+    <div class="flex items-center justify-between p-6 pb-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900">Photos</h2>
+        <p v-if="images.length > 0" class="text-sm text-gray-600 mt-1">
+          {{ images.length }} {{ images.length === 1 ? 'photo' : 'photos' }}
+        </p>
+      </div>
+      <button
+        v-if="canUpload"
+        @click="$emit('upload')"
+        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        :aria-label="images.length === 0 ? 'Upload your first photos' : 'Upload more photos'"
+      >
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        </svg>
+        Add Photos
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 pt-4">
+      <!-- Empty state -->
+      <div v-if="images.length === 0" class="text-center py-8">
+        <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"
+            />
+          </svg>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No photos yet</h3>
+        <p class="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
+          Share photos of boulder problems, climbing routes, or the area to help other climbers visualize this location.
+        </p>
+        <button
+          v-if="canUpload"
+          @click="$emit('upload')"
+          class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        >
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Upload Photos
+        </button>
+      </div>
+
+      <!-- Images grid -->
+      <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div
+          v-for="image in images"
+          :key="image.id"
+          class="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group hover:shadow-md transition-shadow"
+        >
+          <!-- HEIC file display -->
+          <div
+            v-if="isHeicFile(image.name)"
+            class="w-full h-full flex items-center justify-center text-gray-500 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+            @click="$emit('image-click', image)"
+            :aria-label="`View ${image.name}`"
+            role="button"
+            tabindex="0"
+            @keydown.enter="$emit('image-click', image)"
+            @keydown.space.prevent="$emit('image-click', image)"
+          >
+            <div class="text-center">
+              <svg
+                class="w-8 h-8 mx-auto mb-2 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"
+                />
+              </svg>
+              <p class="text-xs font-medium text-gray-600">HEIC</p>
+              <p class="text-xs text-gray-500">{{ image.name.split("-").pop() }}</p>
+            </div>
+          </div>
+
+          <!-- Regular image display -->
+          <template v-else>
+            <picture>
+              <!-- WebP format for modern browsers -->
+              <source 
+                :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
+                type="image/webp"
+              />
+              <!-- JPEG fallback -->
+              <img
+                :src="getResizedImageUrl(image.url, '300x300', 'jpeg')"
+                :alt="`Photo of ${locationName || 'climbing location'}`"
+                class="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                @click="$emit('image-click', image)"
+                loading="lazy"
+              />
+            </picture>
+
+            <!-- Hold detection button for admins -->
+            <button
+              v-if="canEditHolds"
+              @click.stop="$emit('analyze-holds', image)"
+              class="absolute top-2 right-2 p-2 bg-white bg-opacity-90 hover:bg-white text-gray-700 hover:text-green-600 rounded-full shadow-sm transition-all duration-200 opacity-0 group-hover:opacity-100"
+              title="Analyze holds and create boulder problems"
+              :aria-label="`Analyze holds in ${image.name}`"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+defineProps({
+  images: {
+    type: Array,
+    required: true,
+    default: () => []
+  },
+  locationName: {
+    type: String,
+    default: ''
+  },
+  canUpload: {
+    type: Boolean,
+    default: false
+  },
+  canEditHolds: {
+    type: Boolean,
+    default: false
+  },
+  getResizedImageUrl: {
+    type: Function,
+    required: true
+  }
+});
+
+defineEmits(['upload', 'image-click', 'analyze-holds']);
+
+const isHeicFile = (filename) => {
+  return filename?.toLowerCase().endsWith('.heic') || filename?.toLowerCase().endsWith('.heif');
+};
+</script>
