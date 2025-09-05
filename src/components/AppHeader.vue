@@ -5,7 +5,12 @@
     <nav class="flex items-center justify-between max-w-6xl mx-auto">
       <!-- Left side: App Title -->
       <div class="flex items-center">
-        <h1 class="text-xl font-bold text-gray-900">TopoMatch</h1>
+        <router-link 
+          to="/" 
+          class="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
+        >
+          TopoMatch
+        </router-link>
       </div>
 
       <!-- Right side: Navigation and App title -->
