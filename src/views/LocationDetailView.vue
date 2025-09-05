@@ -93,6 +93,193 @@
           </div>
         </div>
 
+        <!-- Images section -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900">Images</h2>
+            <button
+              v-if="userStore.canUploadImages"
+              @click="showUploadModal = true"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Upload Images
+            </button>
+          </div>
+
+          <!-- No images placeholder -->
+          <div v-if="images.length === 0" class="text-center py-12">
+            <svg
+              class="w-16 h-16 mx-auto mb-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"
+              />
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No images yet</h3>
+            <p class="text-gray-500 mb-4">
+              Upload photos of boulder problems, routes, or the location itself
+            </p>
+            <button
+              @click="showUploadModal = true"
+              class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Upload Your First Images
+            </button>
+          </div>
+
+          <!-- Images grid -->
+          <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div
+              v-for="image in images"
+              :key="image.id"
+              class="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group"
+            >
+              <!-- Check if it's a HEIC file -->
+              <div
+                v-if="isHeicFile(image.name)"
+                class="w-full h-full flex items-center justify-center text-gray-500 bg-gray-200 cursor-pointer hover:bg-gray-300 transition-colors"
+                @click="openImageModal(image)"
+              >
+                <div class="text-center">
+                  <svg
+                    class="w-8 h-8 mx-auto mb-2 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <p class="text-xs font-medium">HEIC</p>
+                  <p class="text-xs text-gray-500">{{ image.name.split("-").pop() }}</p>
+                </div>
+              </div>
+              <picture
+                v-else
+              >
+                <!-- WebP format for modern browsers -->
+                <source 
+                  :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
+                  type="image/webp"
+                />
+                <!-- JPEG fallback -->
+                <img
+                  :src="getResizedImageUrl(image.url, '300x300', 'jpeg')"
+                  :alt="image.name"
+                  class="w-full h-full object-cover hover:opacity-75 transition-opacity cursor-pointer"
+                  @click="openImageModal(image)"
+                  loading="lazy"
+                />
+              </picture>
+
+              <!-- Admin Edit Icon (only for admins, only for non-HEIC images) -->
+              <button
+                v-if="userStore.canEditLocations && !isHeicFile(image.name)"
+                @click.stop="openHoldDetection(image)"
+                class="absolute top-2 right-2 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-700 hover:text-green-600 rounded-full shadow-sm transition-all duration-200 z-10"
+                title="Analyze holds and create boulder problems"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Videos/Betas section -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900">Beta Videos</h2>
+          </div>
+
+          <!-- Loading state -->
+          <div v-if="videosLoading" class="text-center py-12">
+            <div
+              class="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"
+            ></div>
+            <p class="text-gray-600">Loading videos...</p>
+          </div>
+
+          <!-- No videos placeholder -->
+          <div v-else-if="videos.length === 0" class="text-center py-12">
+            <svg
+              class="w-16 h-16 mx-auto mb-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z"
+              />
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No beta videos yet</h3>
+            <p class="text-gray-500 mb-4">
+              Beta videos help climbers understand the sequence and technique for problems
+            </p>
+          </div>
+
+          <!-- Videos grid -->
+          <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div
+              v-for="(video, index) in videos"
+              :key="video.id"
+              class="aspect-video bg-gray-100 rounded-lg overflow-hidden relative group cursor-pointer hover:bg-gray-200 transition-colors"
+              @click="openVideoGallery(index)"
+            >
+              <!-- Video thumbnail/preview -->
+              <div class="w-full h-full relative">
+                <video
+                  :src="video.downloadUrl"
+                  class="w-full h-full object-cover"
+                  muted
+                  preload="metadata"
+                  @loadedmetadata="
+                    (e) => {
+                      e.target.currentTime = 1;
+                    }
+                  "
+                  @seeked="
+                    (e) => {
+                      e.target.style.opacity = '1';
+                      e.target.parentElement.querySelector('.loading-placeholder').style.display =
+                        'none';
+                    }
+                  "
+                  style="opacity: 0; transition: opacity 0.3s ease"
+                />
+
+                <!-- Loading placeholder -->
+                <div
+                  class="loading-placeholder absolute inset-0 bg-gray-800 flex items-center justify-center"
+                >
+                  <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Boulder Problems Summary -->
         <div class="bg-white rounded-lg shadow p-6">
           <div class="flex items-center justify-between mb-6">
@@ -103,7 +290,6 @@
               </p>
             </div>
           </div>
-
           <!-- Expandable Grade Groups -->
           <div v-if="totalProblems > 0" class="space-y-3">
             <div
@@ -238,193 +424,6 @@
             <p class="text-gray-500 mb-4">
               Upload images and use the hold detection tool to create boulder problems
             </p>
-          </div>
-        </div>
-
-        <!-- Images section -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold text-gray-900">Images</h2>
-            <button
-              v-if="userStore.canUploadImages"
-              @click="showUploadModal = true"
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Upload Images
-            </button>
-          </div>
-
-          <!-- No images placeholder -->
-          <div v-if="images.length === 0" class="text-center py-12">
-            <svg
-              class="w-16 h-16 mx-auto mb-4 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No images yet</h3>
-            <p class="text-gray-500 mb-4">
-              Upload photos of boulder problems, routes, or the location itself
-            </p>
-            <button
-              @click="showUploadModal = true"
-              class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Upload Your First Images
-            </button>
-          </div>
-
-          <!-- Images grid -->
-          <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <div
-              v-for="image in images"
-              :key="image.id"
-              class="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group"
-            >
-              <!-- Check if it's a HEIC file -->
-              <div
-                v-if="isHeicFile(image.name)"
-                class="w-full h-full flex items-center justify-center text-gray-500 bg-gray-200 cursor-pointer hover:bg-gray-300 transition-colors"
-                @click="openImageModal(image)"
-              >
-                <div class="text-center">
-                  <svg
-                    class="w-8 h-8 mx-auto mb-2 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <p class="text-xs font-medium">HEIC</p>
-                  <p class="text-xs text-gray-500">{{ image.name.split("-").pop() }}</p>
-                </div>
-              </div>
-              <picture
-                v-else
-              >
-                <!-- WebP format for modern browsers -->
-                <source 
-                  :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
-                  type="image/webp"
-                />
-                <!-- JPEG fallback -->
-                <img
-                  :src="getResizedImageUrl(image.url, '300x300', 'jpeg')"
-                  :alt="image.name"
-                  class="w-full h-full object-cover hover:opacity-75 transition-opacity cursor-pointer"
-                  @click="openImageModal(image)"
-                  loading="lazy"
-                />
-              </picture>
-
-              <!-- Admin Edit Icon (only for admins, only for non-HEIC images) -->
-              <button
-                v-if="userStore.canEditLocations && !isHeicFile(image.name)"
-                @click.stop="openHoldDetection(image)"
-                class="absolute top-2 right-2 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-700 hover:text-green-600 rounded-full shadow-sm transition-all duration-200 z-10"
-                title="Analyze holds and create boulder problems"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Videos/Betas section -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold text-gray-900">Beta Videos</h2>
-          </div>
-
-          <!-- Loading state -->
-          <div v-if="videosLoading" class="text-center py-12">
-            <div
-              class="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"
-            ></div>
-            <p class="text-gray-600">Loading videos...</p>
-          </div>
-
-          <!-- No videos placeholder -->
-          <div v-else-if="videos.length === 0" class="text-center py-12">
-            <svg
-              class="w-16 h-16 mx-auto mb-4 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-              />
-            </svg>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No beta videos yet</h3>
-            <p class="text-gray-500 mb-4">
-              Beta videos help climbers understand the sequence and technique for problems
-            </p>
-          </div>
-
-          <!-- Videos grid -->
-          <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <div
-              v-for="(video, index) in videos"
-              :key="video.id"
-              class="aspect-video bg-gray-100 rounded-lg overflow-hidden relative group cursor-pointer hover:bg-gray-200 transition-colors"
-              @click="openVideoGallery(index)"
-            >
-              <!-- Video thumbnail/preview -->
-              <div class="w-full h-full relative">
-                <video
-                  :src="video.downloadUrl"
-                  class="w-full h-full object-cover"
-                  muted
-                  preload="metadata"
-                  @loadedmetadata="
-                    (e) => {
-                      e.target.currentTime = 1;
-                    }
-                  "
-                  @seeked="
-                    (e) => {
-                      e.target.style.opacity = '1';
-                      e.target.parentElement.querySelector('.loading-placeholder').style.display =
-                        'none';
-                    }
-                  "
-                  style="opacity: 0; transition: opacity 0.3s ease"
-                />
-
-                <!-- Loading placeholder -->
-                <div
-                  class="loading-placeholder absolute inset-0 bg-gray-800 flex items-center justify-center"
-                >
-                  <svg class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
