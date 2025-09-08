@@ -61,8 +61,17 @@ const router = createRouter({
 });
 
 // Route guard to protect admin-only routes
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore();
+
+  // Wait for auth initialization to complete
+  if (userStore.isLoading) {
+    try {
+      await userStore.initAuth();
+    } catch (error) {
+      console.error('Auth initialization failed:', error);
+    }
+  }
 
   // Check if route requires admin access
   if (to.meta.requiresAdmin && !userStore.canEditLocations) {

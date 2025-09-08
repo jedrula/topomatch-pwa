@@ -80,98 +80,11 @@
       </div>
 
       <!-- Record Mode -->
-      <div v-else-if="recordingMode === 'record'" class="text-center">
-        <svg
-          class="w-12 h-12 text-red-400 mx-auto mb-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-          />
-          <circle cx="12" cy="12" r="3" fill="currentColor" />
-        </svg>
-        <div class="mb-4">
-          <h4 class="text-lg font-medium text-gray-900 mb-2">Record Your Beta</h4>
-          <p class="text-sm text-gray-500">Record a climbing video directly from your camera</p>
-        </div>
-
-        <!-- Camera Preview -->
-        <div v-if="isRecording || recordedBlob || isPreparingToRecord" class="mb-4">
-          <video
-            ref="cameraPreview"
-            :class="[
-              'w-full max-w-md mx-auto rounded-lg',
-              isRecording ? 'border-2 border-red-500' : 'border border-gray-300'
-            ]"
-            :autoplay="isRecording"
-            :muted="isRecording"
-            playsinline
-            style="min-height: 240px; background: #f3f4f6;"
-          ></video>
-          
-          <!-- Recording indicator -->
-          <div v-if="isRecording" class="flex items-center justify-center mt-2 text-red-600">
-            <div class="animate-pulse w-3 h-3 bg-red-600 rounded-full mr-2"></div>
-            <span class="text-sm font-medium">Recording... {{ recordingDuration }}s</span>
-          </div>
-        </div>
-
-        <!-- Recording Controls -->
-        <div class="space-y-3">
-          <button
-            v-if="!isRecording && !recordedBlob"
-            @click="startRecording"
-            :disabled="isProcessing"
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 transition-colors"
-          >
-            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="8" />
-            </svg>
-            Start Recording
-          </button>
-
-          <button
-            v-if="isRecording"
-            @click="stopRecording"
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-900 transition-colors"
-          >
-            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <rect x="6" y="6" width="12" height="12" />
-            </svg>
-            Stop Recording
-          </button>
-
-          <div v-if="recordedBlob" class="space-x-2">
-            <button
-              @click="useRecordedVideo"
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
-            >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              Use This Recording
-            </button>
-            <button
-              @click="discardRecording"
-              class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-            >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Record Again
-            </button>
-          </div>
-        </div>
-
-        <p class="text-xs text-gray-500 mt-2">
-          {{ isRecording ? 'Recording in progress...' : 'Record a video up to 3 minutes' }}
-        </p>
-      </div>
+      <VideoRecorder 
+        v-else-if="recordingMode === 'record'"
+        @video-recorded="handleRecordedVideo"
+        @recording-cancelled="recordingMode = 'upload'"
+      />
     </div>
 
     <!-- Video Selected and Processing -->
@@ -519,6 +432,7 @@
 <script setup>
 import { ref, computed, nextTick, watch, onUnmounted } from 'vue';
 import ImageMatcher from './ImageMatcher.vue';
+import VideoRecorder from './VideoRecorder.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
   extractVideoFrames,
@@ -578,17 +492,8 @@ const poseCanvas = ref(null);
 const visualizationDimensions = ref({ width: 0, height: 0 });
 const isDrawing = ref(false); // Add flag to prevent concurrent drawing
 
-// MediaRecorder state
+// Recording mode state
 const recordingMode = ref('upload'); // 'upload' or 'record'
-const isRecording = ref(false);
-const isPreparingToRecord = ref(false);
-const recordedBlob = ref(null);
-const mediaRecorder = ref(null);
-const mediaStream = ref(null);
-const cameraPreview = ref(null);
-const recordingDuration = ref(0);
-const recordingTimer = ref(null);
-const recordingMimeType = ref('video/webm'); // Store the MIME type used for recording
 
 // Store instances
 const boulderProblemsStore = useBoulderProblemsStore();
@@ -800,6 +705,19 @@ const handleVideoSelect = async (event) => {
 
   // Clear the input so the same file can be selected again
   event.target.value = '';
+};
+
+// Handle video from recorder component
+const handleRecordedVideo = async (file) => {
+  // Clear previous state
+  clearState();
+  
+  // Set selected video
+  selectedVideo.value = file;
+  emit('video-selected', file);
+  
+  // Start processing pipeline
+  await processVideo();
 };
 
 const processVideo = async () => {
@@ -1367,7 +1285,8 @@ const handleAnalysisError = (analysisError) => {
   emit('processing-error', analysisError);
 };
 
-// MediaRecorder Methods
+// MediaRecorder Methods (Now handled by VideoRecorder component)
+/*
 const startRecording = async () => {
   try {
     error.value = null;
@@ -1582,6 +1501,7 @@ const cleanupRecording = () => {
     cameraPreview.value.controls = false;
   }
 };
+*/
 
 const clearVideo = () => {
   clearState();
@@ -1604,9 +1524,6 @@ const clearState = () => {
       URL.revokeObjectURL(frame.url);
     }
   });
-  
-  // Clean up recording state
-  cleanupRecording();
 };
 
 // Utility functions

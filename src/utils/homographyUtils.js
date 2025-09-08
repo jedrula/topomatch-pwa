@@ -167,22 +167,19 @@ export async function extractVideoFrames(videoFile, timestamps) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
-      // Validate video duration
-      if (!isFinite(video.duration) || video.duration <= 0 || video.duration === Infinity) {
-        console.error('Invalid video duration:', video.duration);
-        
-        // Try waiting a bit more for duration to become available
-        setTimeout(() => {
-          if (isFinite(video.duration) && video.duration > 0) {
-            processFrames();
-          } else {
-            reject(new Error('Video duration is invalid or zero. This may be due to video format issues.'));
-          }
-        }, 1000);
-        return;
-      }
+      console.log('Video loaded - Duration:', video.duration, 'seconds');
       
-      processFrames();
+      // Simple validation for MP4 videos
+      if (isFinite(video.duration) && video.duration > 0) {
+        processFrames();
+      } else {
+        reject(new Error('Video duration is invalid. Please try recording again or use a different video format.'));
+      }
+    });
+
+    video.addEventListener('error', (e) => {
+      console.error('Video loading error:', e);
+      reject(new Error('Failed to load video for processing.'));
     });
     
     function processFrames() {
@@ -247,14 +244,14 @@ export async function extractVideoFrames(videoFile, timestamps) {
     });
 
     video.addEventListener('error', (e) => {
-      console.error('Video error:', e);
-      reject(new Error('Failed to load video: ' + (e.message || 'Unknown error')));
+      console.error('Video loading error:', e);
+      reject(new Error('Failed to load video for processing. Please try recording again.'));
     });
 
-    // Add timeout to prevent hanging
+    // Simple timeout - MP4 videos should load quickly
     const timeout = setTimeout(() => {
-      reject(new Error('Video loading timeout'));
-    }, 30000); // 30 second timeout
+      reject(new Error('Video loading timeout. Please try recording again.'));
+    }, 10000); // 10 second timeout
 
     // Clear timeout when done
     const originalResolve = resolve;
@@ -268,6 +265,8 @@ export async function extractVideoFrames(videoFile, timestamps) {
       originalReject(...args);
     };
 
+    // Configure video element for reliable playback
+    video.preload = 'metadata';
     video.src = URL.createObjectURL(videoFile);
     video.load();
   });
