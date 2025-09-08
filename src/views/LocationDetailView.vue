@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 px-4 py-8">
+  <div class="min-h-screen bg-gray-50 px-3 sm:px-4 py-4 sm:py-8">
     <div class="max-w-4xl mx-auto">
       <!-- Loading state -->
       <div v-if="isLoading" class="flex items-center justify-center py-12">
@@ -15,61 +15,52 @@
       </div>
 
       <!-- Location content -->
-      <div v-else-if="location" class="space-y-6">
-        <!-- Header with edit button -->
-        <div class="flex items-center justify-end">
-          <!-- Edit button - only show for admins -->
-          <button
-            v-if="userStore.canEditLocations"
-            @click="editLocation"
-            class="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors"
-          >
-            Edit Location
-          </button>
-        </div>
-
-        <!-- Hero image or placeholder -->
-        <div class="relative h-64 rounded-lg overflow-hidden">
-          <img
-            v-if="location.heroImageUrl"
-            :src="fixLocalhostUrl(location.heroImageUrl)"
-            :alt="location.name"
-            class="w-full h-full object-contain"
-          />
-          <div v-else class="flex items-center justify-center h-full text-gray-500">
-            <div class="text-center">
-              <svg
-                class="w-16 h-16 mx-auto mb-4 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <p class="text-lg font-medium">No hero image</p>
-              <p class="text-sm">Upload an image to showcase this location</p>
-            </div>
-          </div>
-        </div>
+      <div v-else-if="location" class="space-y-4 sm:space-y-6">
 
         <!-- Location info -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ location.name }}</h1>
-          <p v-if="location.description" class="text-gray-700 text-lg leading-relaxed mb-6">
+        <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div class="flex items-start justify-between mb-3 sm:mb-4">
+            <h1 class="text-2xl sm:text-3xl font-bold leading-tight text-gray-900">
+              {{ location.name }}
+            </h1>
+            <div v-if="location.heroImageUrl" class="relative h-32 sm:h-48 rounded-lg overflow-hidden">
+              <img
+                :src="fixLocalhostUrl(location.heroImageUrl)"
+                :alt="location.name"
+                class="w-full h-full object-cover"
+              />
+            </div>
+            <!-- Edit button - only show for admins -->
+            <button
+              v-if="userStore.canEditLocations"
+              @click="editLocation"
+              class="ml-3 px-3 py-1.5 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors flex-shrink-0"
+            >
+              Edit
+            </button>
+          </div>
+          
+          <p 
+            v-if="location.description" 
+            class="text-gray-700 text-base sm:text-lg leading-relaxed mb-4 sm:mb-6"
+          >
             {{ location.description }}
           </p>
-          <p v-else class="text-gray-500 italic mb-6">No description provided</p>
+          <p 
+            v-else 
+            class="text-gray-500 italic mb-4 sm:mb-6"
+          >
+            No description provided
+          </p>
 
           <!-- Upload Beta Video CTA -->
-          <div class="border-t pt-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900">Share Your Beta</h3>
+          <div class="border-t border-gray-200 pt-4 sm:pt-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+              <div class="flex-1">
+                <h3 class="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <span class="text-green-600">🎬</span>
+                  Share Your Beta
+                </h3>
                 <p class="text-sm text-gray-600">
                   Upload a climbing video and we'll identify the problem automatically
                 </p>
@@ -77,9 +68,9 @@
               <button
                 type="button"
                 @click="handleBetaUploadClick"
-                class="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                class="px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all font-medium flex items-center justify-center gap-2 flex-shrink-0 shadow-md hover:shadow-lg"
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -87,7 +78,7 @@
                     d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
                   />
                 </svg>
-                Upload Beta Video
+                <span class="text-sm sm:text-base">Upload Beta</span>
               </button>
             </div>
           </div>
@@ -123,13 +114,13 @@
         />
 
         <!-- Subtle metadata at bottom -->
-        <div class="mt-8 pt-4 border-t border-gray-100">
-          <div class="text-xs text-gray-400 space-y-1">
-            <div>Created on {{ formatDate(location.createdAt) }}</div>
+        <div class="mt-6 sm:mt-8 pt-3 sm:pt-4 border-t border-gray-100">
+          <div class="text-xs text-gray-400 space-y-1 text-center sm:text-left">
+            <div>Created {{ formatDate(location.createdAt) }}</div>
             <div
               v-if="location.updatedAt && !isSameDateTime(location.createdAt, location.updatedAt)"
             >
-              Last updated on {{ formatDate(location.updatedAt) }}
+              Updated {{ formatDate(location.updatedAt) }}
             </div>
           </div>
         </div>

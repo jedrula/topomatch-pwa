@@ -1,9 +1,9 @@
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200">
     <!-- Header -->
-    <div class="flex items-center justify-between p-6 pb-4 border-b border-gray-100">
+    <div class="flex items-center justify-between p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">Photos</h2>
+        <h2 class="text-base sm:text-lg font-semibold text-gray-900">Photos</h2>
         <p v-if="images.length > 0" class="text-sm text-gray-600 mt-1">
           {{ images.length }} {{ images.length === 1 ? 'photo' : 'photos' }}
         </p>
@@ -11,18 +11,19 @@
       <button
         v-if="canUpload"
         @click="$emit('upload')"
-        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
         :aria-label="images.length === 0 ? 'Upload your first photos' : 'Upload more photos'"
       >
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
-        Add Photos
+        <span class="hidden sm:inline">Add Photos</span>
+        <span class="sm:hidden">Add</span>
       </button>
     </div>
 
     <!-- Content -->
-    <div class="p-6 pt-4">
+    <div class="p-4 sm:p-6 pt-3 sm:pt-4">
       <!-- Empty state -->
       <div v-if="images.length === 0" class="text-center py-8">
         <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">

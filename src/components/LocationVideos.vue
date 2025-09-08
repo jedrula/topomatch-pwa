@@ -1,9 +1,9 @@
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200">
     <!-- Header -->
-    <div class="flex items-center justify-between p-6 pb-4 border-b border-gray-100">
+    <div class="flex items-center justify-between p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">Beta Videos</h2>
+        <h2 class="text-base sm:text-lg font-semibold text-gray-900">Beta Videos</h2>
         <p v-if="!loading && videos.length > 0" class="text-sm text-gray-600 mt-1">
           {{ videos.length }} {{ videos.length === 1 ? 'video' : 'videos' }}
         </p>
@@ -11,7 +11,7 @@
     </div>
 
     <!-- Content -->
-    <div class="p-6 pt-4">
+    <div class="p-4 sm:p-6 pt-3 sm:pt-4">
       <!-- Loading state -->
       <div v-if="loading" class="text-center py-8">
         <div class="mx-auto w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mb-4"></div>
@@ -37,7 +37,7 @@
       </div>
 
       <!-- Videos grid -->
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
         <div
           v-for="(video, index) in videos"
           :key="video.id"
