@@ -448,7 +448,7 @@ const handleProblemHover = (problem, isEntering, event) => {
       tooltipHideTimeout = null;
     }
     
-    // Show floating card
+    // Show floating card immediately
     hoveredProblemId.value = problem.id;
     floatingCard.value = {
       visible: true,

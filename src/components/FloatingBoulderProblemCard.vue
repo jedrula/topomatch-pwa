@@ -1,9 +1,10 @@
 <template>
   <Teleport to="body">
     <div
-      v-if="visible && problem"
+      v-if="visible && problem && isValidPosition"
+      ref="cardElement"
       class="fixed z-[9999] pointer-events-auto"
-      :style="{ left: `${position.x + 12}px`, top: `${position.y - 8}px` }"
+      :style="smartPosition"
       @mouseenter="handleMouseEnter"
       @mouseleave="handleMouseLeave"
     >
@@ -11,9 +12,10 @@
         <div class="flex items-center space-x-2 mb-2">
           <div
             class="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
-            :style="{ backgroundColor: problem.color }"
+            :style="{ backgroundColor: problem?.color }"
           ></div>
           <router-link
+            v-if="problem"
             :to="`/location/${locationId}/problem/${problem.id}`"
             class="font-medium text-gray-900 truncate text-sm hover:text-blue-600 transition-colors cursor-pointer"
             @click.stop
@@ -22,11 +24,11 @@
           </router-link>
         </div>
 
-        <div class="text-xs text-gray-500 mb-2">
+        <div v-if="problem" class="text-xs text-gray-500 mb-2">
           Grade {{ getGradeLabel(problem.grade) }} • {{ problem.holds.length }} holds
         </div>
 
-        <div class="flex items-center space-x-1 text-xs">
+        <div v-if="problem" class="flex items-center space-x-1 text-xs">
           <span class="text-gray-400">#{{ problem.id }}</span>
 
           <!-- Quick action buttons -->
@@ -52,7 +54,7 @@
                 'p-1 rounded transition-colors duration-200 pointer-events-auto',
                 visibilityState.isHighlighted
                   ? 'text-blue-500 hover:text-blue-700 hover:bg-blue-100'
-                  : problem.hidden
+                  : problem?.hidden
                   ? 'text-orange-500 hover:text-orange-700 hover:bg-orange-100'
                   : 'text-gray-400 hover:text-blue-600 hover:bg-blue-100',
               ]"
@@ -121,7 +123,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore.js';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
 
@@ -147,6 +149,78 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['edit', 'toggle-visibility', 'mouse-enter', 'mouse-leave']);
+
+// Template ref for the card element
+const cardElement = ref(null);
+
+// Check if position is valid
+const isValidPosition = computed(() => {
+  return props.position && 
+         typeof props.position.x === 'number' && 
+         typeof props.position.y === 'number' &&
+         props.position.x >= 0 && 
+         props.position.y >= 0;
+});
+
+// Smart positioning that avoids screen edges
+const smartPosition = computed(() => {
+  if (!isValidPosition.value) return {};
+  
+  // Try to get actual dimensions from the DOM element
+  let cardWidth = 320; // Default fallback
+  let cardHeight = 120; // Default fallback
+  
+  if (cardElement.value) {
+    const rect = cardElement.value.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      cardWidth = rect.width;
+      cardHeight = rect.height;
+    }
+  }
+  
+  const margin = 12; // Margin from screen edges
+  const offset = 12; // Distance from cursor
+  
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  
+  // Default position: top-left corner of card is offset pixels right and above cursor
+  let x = props.position.x + offset;
+  let y = props.position.y - offset;
+  
+  // Check horizontal positioning
+  const wouldOverflowRight = (x + cardWidth) > (viewportWidth - margin);
+  if (wouldOverflowRight) {
+    // Position on left: right edge of card is offset pixels left of cursor
+    x = props.position.x - cardWidth - offset;
+  }
+  
+  // Check vertical positioning
+  const wouldOverflowBottom = (y + cardHeight) > (viewportHeight - margin);
+  if (wouldOverflowBottom) {
+    // Position above: bottom edge of card is offset pixels above cursor
+    y = props.position.y - cardHeight - offset;
+  }
+  
+  // Final safety checks to ensure card stays within viewport
+  if (x < margin) {
+    x = margin;
+  }
+  if (y < margin) {
+    y = margin;
+  }
+  if (x + cardWidth > viewportWidth - margin) {
+    x = viewportWidth - cardWidth - margin;
+  }
+  if (y + cardHeight > viewportHeight - margin) {
+    y = viewportHeight - cardHeight - margin;
+  }
+  
+  return {
+    left: `${x}px`,
+    top: `${y}px`,
+  };
+});
 
 // Compute the visibility state and appropriate UI text
 const visibilityState = computed(() => {
