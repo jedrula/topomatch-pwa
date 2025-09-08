@@ -67,7 +67,7 @@
                 <button
                   v-if="imageLoaded && !serverStore.isProcessing"
                   @click="toggleFullscreen"
-                  class="absolute top-4 right-4 z-50 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-lg p-2 transition-all duration-200 pointer-events-auto"
+                  class="absolute top-4 right-4 z-10 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-lg p-2 transition-all duration-200 pointer-events-auto"
                   :title="isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'"
                 >
                   <!-- Fullscreen Icon -->

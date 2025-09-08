@@ -19,42 +19,50 @@
 
         <!-- Location info -->
         <div class="bg-white rounded-lg shadow p-4 sm:p-6">
-          <div class="flex items-start justify-between mb-3 sm:mb-4">
-            <h1 class="text-2xl sm:text-3xl font-bold leading-tight text-gray-900">
-              {{ location.name }}
-            </h1>
-            <div v-if="location.heroImageUrl" class="relative h-32 sm:h-48 rounded-lg overflow-hidden">
+          <!-- Grid layout with template areas -->
+          <div class="grid gap-4 sm:gap-6 location-grid">
+            <!-- Hero Image -->
+            <div v-if="location.heroImageUrl" class="hero-image relative h-32 sm:h-48 rounded-lg overflow-hidden">
               <img
                 :src="fixLocalhostUrl(location.heroImageUrl)"
                 :alt="location.name"
-                class="w-full h-full object-cover"
+                class="w-full h-full object-contain"
               />
             </div>
+            
+            <!-- Location Name -->
+            <h1 class="location-name text-2xl sm:text-3xl font-bold leading-tight text-gray-900">
+              {{ location.name }}
+            </h1>
+            
             <!-- Edit button - only show for admins -->
             <button
               v-if="userStore.canEditLocations"
               @click="editLocation"
-              class="ml-3 px-3 py-1.5 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors flex-shrink-0"
+              class="edit-button px-3 py-1.5 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors self-start"
             >
               Edit
             </button>
+            
+            <!-- Description -->
+            <div class="description">
+              <p 
+                v-if="location.description" 
+                class="text-gray-700 text-base sm:text-lg leading-relaxed"
+              >
+                {{ location.description }}
+              </p>
+              <p 
+                v-else 
+                class="text-gray-500 italic"
+              >
+                No description provided
+              </p>
+            </div>
           </div>
-          
-          <p 
-            v-if="location.description" 
-            class="text-gray-700 text-base sm:text-lg leading-relaxed mb-4 sm:mb-6"
-          >
-            {{ location.description }}
-          </p>
-          <p 
-            v-else 
-            class="text-gray-500 italic mb-4 sm:mb-6"
-          >
-            No description provided
-          </p>
 
           <!-- Upload Beta Video CTA -->
-          <div class="border-t border-gray-200 pt-4 sm:pt-6">
+          <div class="border-t border-gray-200 pt-4 sm:pt-6 mt-4 sm:mt-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <div class="flex-1">
                 <h3 class="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -170,6 +178,8 @@
       :boulder-problems="boulderProblemsStore.boulderProblems || []"
       @close="closeGallery"
       @navigate="onGalleryNavigate"
+      @navigate-next="navigateNext"
+      @navigate-previous="navigatePrevious"
     />
 
     <!-- Video Gallery Modal -->
@@ -467,6 +477,27 @@ const closeGallery = () => {
   router.push({ query });
 };
 
+const navigateToImage = (direction) => {
+  if (!images.value.length) return;
+  
+  const currentIndex = initialImageIndex.value;
+  let newIndex;
+  
+  if (direction === 'next') {
+    newIndex = currentIndex >= images.value.length - 1 ? 0 : currentIndex + 1;
+  } else {
+    newIndex = currentIndex <= 0 ? images.value.length - 1 : currentIndex - 1;
+  }
+  
+  const newImageId = images.value[newIndex].id;
+  router.push({
+    query: { ...route.query, imageId: newImageId }
+  });
+};
+
+const navigateNext = () => navigateToImage('next');
+const navigatePrevious = () => navigateToImage('previous');
+
 const onGalleryNavigate = () => {
   // This is called when the gallery navigates to a different image
   // The ImageGallery component handles the URL update
@@ -580,3 +611,44 @@ onMounted(async () => {
   loadLocationVideos();
 });
 </script>
+
+<style scoped>
+/* Mobile layout - Stack vertically */
+.location-grid {
+  grid-template-areas:
+    "heroimage heroimage"
+    "locationname editbutton"
+    "description description";
+  grid-template-columns: 1fr auto;
+}
+
+/* Desktop layout - Name left, edit right, hero center, description full width */
+@media (min-width: 640px) {
+  .location-grid {
+    grid-template-areas:
+      "locationname . editbutton"
+      "heroimage heroimage heroimage"
+      "description description description";
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* Assign grid areas to elements */
+.hero-image {
+  grid-area: heroimage;
+}
+
+.location-name {
+  grid-area: locationname;
+}
+
+.edit-button {
+  grid-area: editbutton;
+  justify-self: end;
+}
+
+.description {
+  grid-area: description;
+}
+</style>

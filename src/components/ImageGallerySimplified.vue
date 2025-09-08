@@ -13,8 +13,59 @@
         </svg>
       </button>
 
-      <!-- Image container -->
-      <div ref="imageContainer" class="relative w-full h-full flex items-center justify-center">
+      <!-- Image info - Bottom right corner -->
+      <div
+        v-if="currentImage"
+        class="absolute bottom-6 right-6 text-white text-right bg-black bg-opacity-50 p-3 rounded-lg text-sm z-40"
+      >
+        <div class="text-xs text-gray-300">
+          <p v-if="currentImageProblems.length > 0" class="text-blue-300">
+            {{ currentImageProblems.length }} boulder problem{{ currentImageProblems.length === 1 ? '' : 's' }}
+          </p>
+          <p v-else class="text-gray-400">
+            No boulder problems
+          </p>
+        </div>
+      </div>
+
+      <!-- Navigation arrows - only show on desktop and when there are multiple images -->
+      <template v-if="images.length > 1">
+        <!-- Previous arrow -->
+        <button
+          @click="navigatePrevious"
+          class="absolute left-4 top-1/2 transform -translate-y-1/2 z-40 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-3 transition-all duration-200 hidden sm:block"
+          title="Previous image (Arrow Left)"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        <!-- Next arrow -->
+        <button
+          @click="navigateNext"
+          class="absolute right-4 top-1/2 transform -translate-y-1/2 z-40 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-3 transition-all duration-200 hidden sm:block"
+          title="Next image (Arrow Right)"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <!-- Mobile swipe indicator -->
+        <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black bg-opacity-50 px-3 py-1 rounded-full sm:hidden">
+          ← Swipe →
+        </div>
+      </template>
+
+      <!-- Image container with swipe support -->
+      <div 
+        ref="imageContainer" 
+        class="relative w-full h-full flex items-center justify-center"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove" 
+        @touchend="handleTouchEnd"
+      >
         <!-- Loading state -->
         <div
           v-if="!currentImage"
@@ -104,7 +155,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ImageWithHolds from './ImageWithHolds.vue';
 import HoldSvg from './HoldSvg.vue';
@@ -137,11 +188,77 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['close', 'navigate']);
+const emit = defineEmits(['close', 'navigate', 'navigate-next', 'navigate-previous']);
 
 const route = useRoute();
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
+
+// Touch/swipe handling
+const touchStartX = ref(0);
+const touchStartY = ref(0);
+const touchEndX = ref(0);
+const touchEndY = ref(0);
+const minSwipeDistance = 50; // Minimum distance for swipe detection
+
+// Keyboard navigation
+const handleKeyDown = (event) => {
+  if (!props.isOpen) return;
+  
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    navigatePrevious();
+  } else if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    navigateNext();
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    closeGallery();
+  }
+};
+
+// Touch handlers
+const handleTouchStart = (event) => {
+  touchStartX.value = event.touches[0].clientX;
+  touchStartY.value = event.touches[0].clientY;
+};
+
+const handleTouchMove = (event) => {
+  // Prevent default to avoid scrolling
+  event.preventDefault();
+};
+
+const handleTouchEnd = (event) => {
+  touchEndX.value = event.changedTouches[0].clientX;
+  touchEndY.value = event.changedTouches[0].clientY;
+  
+  const deltaX = touchEndX.value - touchStartX.value;
+  const deltaY = touchEndY.value - touchStartY.value;
+  
+  // Check if horizontal swipe is more significant than vertical
+  if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+    if (deltaX > 0) {
+      // Swipe right - go to previous image
+      navigatePrevious();
+    } else {
+      // Swipe left - go to next image  
+      navigateNext();
+    }
+  }
+};
+
+// Navigation methods
+const navigateNext = () => {
+  if (props.images.length > 1) {
+    emit('navigate-next');
+  }
+};
+
+const navigatePrevious = () => {
+  if (props.images.length > 1) {
+    emit('navigate-previous');
+  }
+};
 const holdDetectionPersistenceStore = useHoldDetectionPersistenceStore();
 
 // Refs
@@ -382,6 +499,15 @@ watch(
   },
   { immediate: true }
 );
+
+// Setup keyboard event listeners
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown);
+});
 </script>
 
 <style scoped>
