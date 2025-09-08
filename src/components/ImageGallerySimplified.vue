@@ -258,6 +258,16 @@ const handleTouchEnd = (event) => {
   }
 };
 
+// Helper function to hide floating card
+const hideFloatingCard = () => {
+  if (tooltipHideTimeout) {
+    clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = null;
+  }
+  floatingCard.value.visible = false;
+  hoveredProblemId.value = null;
+};
+
 // Navigation methods
 const navigateNext = () => {
   if (props.images.length > 1) {
@@ -381,6 +391,7 @@ const loadImageMetadata = async (imageId) => {
 
 // Close function
 const closeGallery = () => {
+  hideFloatingCard(); // Hide floating card when closing gallery
   const query = { ...route.query };
   delete query.imageId;
   router.push({ query });
@@ -509,6 +520,14 @@ watch(
     }
   },
   { immediate: true }
+);
+
+// Hide floating card when image changes
+watch(
+  currentImage,
+  () => {
+    hideFloatingCard(); // Hide floating card when switching images
+  }
 );
 
 // Setup keyboard event listeners
