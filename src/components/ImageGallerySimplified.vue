@@ -451,6 +451,9 @@ const handleFloatingCardToggleVisibility = (problem) => {
 const handleFloatingCardShowVideos = ({ problem, videos }) => {
   console.log('Showing videos for problem:', problem.name, videos.length, 'videos');
   if (videos.length > 0) {
+    // Hide the floating card when opening video player
+    hideFloatingCard();
+    
     videoPlayer.value = {
       isOpen: true,
       videos: videos,
