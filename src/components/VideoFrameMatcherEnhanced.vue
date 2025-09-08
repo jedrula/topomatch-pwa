@@ -908,61 +908,7 @@ const extractPoseKeypoints = async (imageData) => {
 };
 
 const handleMatchFound = async (matchedImage) => {
-  // Calculate homography matrix for the matched image
-  try {
-    // Check if OpenCV is loaded
-    if (!window.cv) {
-      console.warn('⚠️ OpenCV.js not loaded yet, skipping homography calculation');
-      emit('match-found', {
-        video: selectedVideo.value,
-        frames: extractedFrames.value,
-        match: matchedImage,
-      });
-      return;
-    }
-
-    const inferenceStore = useInferenceStore();
-    const matchUrl = matchedImage.url;
-    const inferenceResult = inferenceStore.inferenceResults[matchUrl];
-
-    if (inferenceResult && inferenceResult.rawData) {
-      // Extract matching points from inference results
-      const matches = [];
-      const rawData = inferenceResult.rawData;
-      const maxMatches = Math.min(rawData.matches.dims[0], 100);
-
-      for (let i = 0; i < maxMatches; i++) {
-        const matchBaseIndex = i * rawData.matches.dims[1];
-        const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
-        const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
-
-        const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]);
-        const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
-        const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]);
-        const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]);
-
-        matches.push({
-          point1: { x: x0, y: y0 },
-          point2: { x: x1, y: y1 },
-        });
-      }
-
-      if (matches.length >= 4) {
-        const homographyResult = await calculateHomographyMatrix(matches);
-
-        // Add homography matrix to the matched image
-        matchedImage.homographyMatrix = homographyResult.matrix;
-        matchedImage.homographyInliers = homographyResult.inliers;
-      } else {
-        console.warn('Not enough matches for homography calculation:', matches.length);
-      }
-    } else {
-      console.warn('⚠️ No inference results found for matched image:', matchUrl);
-    }
-  } catch (error) {
-    console.error('❌ Error calculating homography for match:', error);
-  }
-
+  // Just emit the match found event - homography will be calculated in handleAnalysisComplete
   emit('match-found', {
     video: selectedVideo.value,
     frames: extractedFrames.value,
@@ -973,13 +919,11 @@ const handleMatchFound = async (matchedImage) => {
 const handleAnalysisComplete = async (bestMatchResult) => {
   bestMatch.value = bestMatchResult;
 
-  // Step 3: Get inference results and calculate homography matrix
+  // Calculate homography matrix for the best match (only once here)
   try {
     // Check if OpenCV is loaded
     if (!window.cv) {
-      console.warn(
-        '⚠️ OpenCV.js not loaded yet, skipping homography calculation for analysis complete'
-      );
+      console.warn('⚠️ OpenCV.js not loaded yet, skipping homography calculation');
       emit('analysis-complete', {
         video: selectedVideo.value,
         frames: extractedFrames.value,
@@ -996,20 +940,12 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       // Extract matching points from inference results
       const matches = [];
       const rawData = inferenceResult.rawData;
-      const maxMatches = Math.min(rawData.matches.dims[0], 100); // Limit for performance
+      const maxMatches = Math.min(rawData.matches.dims[0], 100);
 
       // SuperPoint/LightGlue uses 256x256 inference size - need to scale keypoints back to original image coordinates
-      const inferenceSize = 256; // From inferenceWorker.js: imgWidth = imgHeight = 256
-
-      // Get original image dimensions from inference result
-      const userImageDims = inferenceResult.userImageDims || {
-        width: inferenceSize,
-        height: inferenceSize,
-      };
-      const topoImageDims = inferenceResult.topoImageDims || {
-        width: inferenceSize,
-        height: inferenceSize,
-      };
+      const inferenceSize = 256;
+      const userImageDims = inferenceResult.userImageDims || { width: inferenceSize, height: inferenceSize };
+      const topoImageDims = inferenceResult.topoImageDims || { width: inferenceSize, height: inferenceSize };
 
       // Calculate scaling factors
       const userScaleX = userImageDims.width / inferenceSize;
@@ -1022,19 +958,11 @@ const handleAnalysisComplete = async (bestMatchResult) => {
         const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
         const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
 
-        // Raw keypoints in 256x256 inference coordinate space
-        const x0_raw = Number(rawData.keypoints.cpuData[img0Idx * 2]);
-        const y0_raw = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]);
-        const x1_raw = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]);
-        const y1_raw = Number(
-          rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]
-        );
-
-        // Scale keypoints back to original image coordinate space
-        const x0 = x0_raw * userScaleX;
-        const y0 = y0_raw * userScaleY;
-        const x1 = x1_raw * topoScaleX;
-        const y1 = y1_raw * topoScaleY;
+        // Scale keypoints back to original image coordinates
+        const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]) * userScaleX;
+        const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]) * userScaleY;
+        const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) * topoScaleX;
+        const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]) * topoScaleY;
 
         matches.push({
           point1: { x: x0, y: y0 },
@@ -1044,10 +972,9 @@ const handleAnalysisComplete = async (bestMatchResult) => {
 
       if (matches.length >= 4) {
         const homographyResult = await calculateHomographyMatrix(matches);
-
-        // Add homography matrix to the match result
         bestMatchResult.homographyMatrix = homographyResult.matrix;
         bestMatchResult.homographyInliers = homographyResult.inliers;
+        bestMatchResult.totalMatches = matches.length;
       } else {
         console.warn('Not enough matches for homography calculation:', matches.length);
       }
@@ -1055,7 +982,7 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       console.warn('No inference results found for matched image:', matchUrl);
     }
   } catch (error) {
-    console.error('Error calculating homography:', error);
+    console.error('❌ Error calculating homography:', error);
   }
 
   emit('analysis-complete', {
@@ -1064,8 +991,8 @@ const handleAnalysisComplete = async (bestMatchResult) => {
     match: bestMatchResult,
   });
 
-  // Step 4: Transform poses if homography is available
-  if (bestMatchResult && bestMatchResult.homographyMatrix) {
+  // Transform poses to matched image coordinates
+  if (bestMatchResult.homographyMatrix) {
     await transformPosesToMatchedImage(bestMatchResult);
   }
 };
