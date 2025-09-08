@@ -1,8 +1,37 @@
 <template>
   <div class="video-frame-matcher-component">
-    <!-- Video File Selection -->
+    <!-- Recording/Upload Mode Selection -->
+    <div v-if="!selectedVideo" class="mb-4">
+      <div class="flex items-center justify-center space-x-1 bg-gray-100 rounded-lg p-1">
+        <button
+          @click="recordingMode = 'upload'"
+          :class="[
+            'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
+            recordingMode === 'upload'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          ]"
+        >
+          📁 Upload File
+        </button>
+        <button
+          @click="recordingMode = 'record'"
+          :class="[
+            'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
+            recordingMode === 'record'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          ]"
+        >
+          🎥 Record Video
+        </button>
+      </div>
+    </div>
+
+    <!-- Video File Selection or Recording -->
     <div v-if="!selectedVideo" class="border-2 border-dashed border-gray-300 rounded-lg p-6">
-      <div class="text-center">
+      <!-- Upload Mode -->
+      <div v-if="recordingMode === 'upload'" class="text-center">
         <svg
           class="w-12 h-12 text-gray-400 mx-auto mb-4"
           fill="none"
@@ -48,6 +77,100 @@
         </button>
 
         <p class="text-xs text-gray-500 mt-2">MP4, WebM, MOV up to 100MB</p>
+      </div>
+
+      <!-- Record Mode -->
+      <div v-else-if="recordingMode === 'record'" class="text-center">
+        <svg
+          class="w-12 h-12 text-red-400 mx-auto mb-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+          />
+          <circle cx="12" cy="12" r="3" fill="currentColor" />
+        </svg>
+        <div class="mb-4">
+          <h4 class="text-lg font-medium text-gray-900 mb-2">Record Your Beta</h4>
+          <p class="text-sm text-gray-500">Record a climbing video directly from your camera</p>
+        </div>
+
+        <!-- Camera Preview -->
+        <div v-if="isRecording || recordedBlob || isPreparingToRecord" class="mb-4">
+          <video
+            ref="cameraPreview"
+            :class="[
+              'w-full max-w-md mx-auto rounded-lg',
+              isRecording ? 'border-2 border-red-500' : 'border border-gray-300'
+            ]"
+            :autoplay="isRecording"
+            :muted="isRecording"
+            playsinline
+            style="min-height: 240px; background: #f3f4f6;"
+          ></video>
+          
+          <!-- Recording indicator -->
+          <div v-if="isRecording" class="flex items-center justify-center mt-2 text-red-600">
+            <div class="animate-pulse w-3 h-3 bg-red-600 rounded-full mr-2"></div>
+            <span class="text-sm font-medium">Recording... {{ recordingDuration }}s</span>
+          </div>
+        </div>
+
+        <!-- Recording Controls -->
+        <div class="space-y-3">
+          <button
+            v-if="!isRecording && !recordedBlob"
+            @click="startRecording"
+            :disabled="isProcessing"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="8" />
+            </svg>
+            Start Recording
+          </button>
+
+          <button
+            v-if="isRecording"
+            @click="stopRecording"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-900 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+              <rect x="6" y="6" width="12" height="12" />
+            </svg>
+            Stop Recording
+          </button>
+
+          <div v-if="recordedBlob" class="space-x-2">
+            <button
+              @click="useRecordedVideo"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Use This Recording
+            </button>
+            <button
+              @click="discardRecording"
+              class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Record Again
+            </button>
+          </div>
+        </div>
+
+        <p class="text-xs text-gray-500 mt-2">
+          {{ isRecording ? 'Recording in progress...' : 'Record a video up to 3 minutes' }}
+        </p>
       </div>
     </div>
 
@@ -134,30 +257,30 @@
       <!-- Extracted Frames -->
       <div v-if="extractedFrames.length > 0" class="space-y-4">
         <h3 class="text-lg font-medium text-gray-900">Extracted Frames with Pose Data</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
           <div
             v-for="(frame, index) in extractedFrames"
             :key="index"
             class="bg-white border rounded-lg p-3"
           >
-            <div class="flex items-center space-x-3">
+            <div class="space-y-2">
               <img
                 :src="frame.url"
                 alt="Extracted frame"
-                class="w-20 h-20 object-cover rounded border"
+                class="w-full h-16 object-cover rounded border"
               />
-              <div class="flex-1">
-                <h4 class="text-sm font-medium text-gray-900">Frame {{ index + 1 }}</h4>
+              <div>
+                <h4 class="text-xs font-medium text-gray-900">Frame {{ index + 1 }}</h4>
                 <p class="text-xs text-gray-500">
-                  {{ Math.round(frame.percentage * 100) }}% through video
+                  {{ Math.round(frame.percentage * 100) }}%
                 </p>
                 <p class="text-xs text-gray-500" v-if="frame.poseData">
-                  Pose detected ({{ frame.poseData.confidence.toFixed(2) }} confidence)
+                  ✓ Pose detected
                 </p>
                 <p class="text-xs text-red-500" v-else-if="frame.poseError">
                   {{ frame.poseError }}
                 </p>
-                <p class="text-xs text-red-500" v-else>No pose detected!</p>
+                <p class="text-xs text-red-500" v-else>✗ No pose</p>
               </div>
             </div>
           </div>
@@ -394,7 +517,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue';
+import { ref, computed, nextTick, watch, onUnmounted } from 'vue';
 import ImageMatcher from './ImageMatcher.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
@@ -455,6 +578,18 @@ const poseCanvas = ref(null);
 const visualizationDimensions = ref({ width: 0, height: 0 });
 const isDrawing = ref(false); // Add flag to prevent concurrent drawing
 
+// MediaRecorder state
+const recordingMode = ref('upload'); // 'upload' or 'record'
+const isRecording = ref(false);
+const isPreparingToRecord = ref(false);
+const recordedBlob = ref(null);
+const mediaRecorder = ref(null);
+const mediaStream = ref(null);
+const cameraPreview = ref(null);
+const recordingDuration = ref(0);
+const recordingTimer = ref(null);
+const recordingMimeType = ref('video/webm'); // Store the MIME type used for recording
+
 // Store instances
 const boulderProblemsStore = useBoulderProblemsStore();
 
@@ -486,11 +621,22 @@ watch(poseDetectionError, (newError) => {
   }
 });
 
-// Frame timestamps for extraction (25%, 50%, 75%)
-const FRAME_TIMESTAMPS = [0.25, 0.5, 0.75];
+// Frame timestamps for extraction - 10 samples evenly distributed (10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 95%)
+const FRAME_TIMESTAMPS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95];
 
-// Colors for different frames
-const FRAME_COLORS = ['#ef4444', '#3b82f6', '#22c55e']; // red, blue, green
+// Colors for different frames - 10 distinct colors for better visualization
+const FRAME_COLORS = [
+  '#ef4444', // red
+  '#3b82f6', // blue  
+  '#22c55e', // green
+  '#f59e0b', // amber
+  '#8b5cf6', // violet
+  '#ef4444', // red (repeated)
+  '#06b6d4', // cyan
+  '#f97316', // orange
+  '#84cc16', // lime
+  '#ec4899'  // pink
+];
 
 // Methods
 const findClosestHolds = (keypointX, keypointY) => {
@@ -733,8 +879,6 @@ const processVideo = async () => {
     // Check if we got any successful pose detections
     const successfulDetections = extractedFrames.value.filter(f => f.poseData).length;
     const totalFrames = extractedFrames.value.length;
-    
-    console.log(`Pose detection summary: ${successfulDetections}/${totalFrames} frames successful`);
 
     emit(
       'pose-detected',
@@ -768,7 +912,6 @@ const extractPoseKeypoints = async (imageData) => {
 
     // Wait for pose detection session to be ready
     if (!sessionReady.value) {
-      console.log('Waiting for pose detection session to be ready...');
       const maxWait = 30000; // 30 seconds
       const startTime = Date.now();
       
@@ -1224,6 +1367,222 @@ const handleAnalysisError = (analysisError) => {
   emit('processing-error', analysisError);
 };
 
+// MediaRecorder Methods
+const startRecording = async () => {
+  try {
+    error.value = null;
+    isPreparingToRecord.value = true;
+    
+    // Wait for next tick to ensure DOM is updated
+    await nextTick();
+    
+    // Request camera access with optimized settings for web upload
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 854, max: 1280 },  // Reduced to 854x480 (480p) for smaller files
+        height: { ideal: 480, max: 720 },
+        frameRate: { ideal: 24, max: 30 }, // Lower frame rate for smaller files
+        facingMode: 'environment' // Prefer back camera on mobile
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 22050 // Lower sample rate to reduce audio file size
+      }
+    });
+
+    console.log('Camera access granted:', stream);
+    
+    mediaStream.value = stream;
+    
+    // Set up camera preview
+    if (cameraPreview.value) {
+      cameraPreview.value.srcObject = stream;
+      
+      // Force video to load and play
+      try {
+        await cameraPreview.value.play();
+      } catch (playError) {
+        console.warn('Could not auto-play camera preview:', playError);
+      }
+    } else {
+      console.error('Camera preview element not found');
+    }
+
+    // Set up MediaRecorder with optimized settings for web upload
+    let options = {
+      videoBitsPerSecond: 1000000, // 1 Mbps - good quality but manageable size
+      audioBitsPerSecond: 64000    // 64 kbps - standard audio quality
+    };
+    
+    // Try MP4 first (better duration metadata)
+    if (MediaRecorder.isTypeSupported('video/mp4')) {
+      options.mimeType = 'video/mp4';
+      recordingMimeType.value = 'video/mp4';
+    }
+    // Fallback to WebM with VP9
+    else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+      options.mimeType = 'video/webm;codecs=vp9,opus';
+      recordingMimeType.value = 'video/webm';
+    }
+    // Fallback to WebM with VP8
+    else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+      options.mimeType = 'video/webm;codecs=vp8,opus';
+      recordingMimeType.value = 'video/webm';
+    }
+    // Final fallback
+    else if (MediaRecorder.isTypeSupported('video/webm')) {
+      options.mimeType = 'video/webm';
+      recordingMimeType.value = 'video/webm';
+    }
+    
+    console.log('Using MediaRecorder format:', options.mimeType);
+
+    mediaRecorder.value = new MediaRecorder(stream, options);
+    
+    const chunks = [];
+    
+    mediaRecorder.value.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        chunks.push(event.data);
+      }
+    };
+
+    mediaRecorder.value.onstop = () => {
+      // Create the blob first with the correct MIME type
+      recordedBlob.value = new Blob(chunks, { type: recordingMimeType.value });
+      
+      // Set isRecording to false now that we have the blob
+      isRecording.value = false;
+      
+      // Wait for next tick to ensure DOM updates
+      nextTick(() => {
+        // Display recorded video in preview
+        if (cameraPreview.value) {
+          cameraPreview.value.srcObject = null;
+          const videoUrl = URL.createObjectURL(recordedBlob.value);
+          cameraPreview.value.src = videoUrl;
+          cameraPreview.value.controls = true;
+          cameraPreview.value.muted = false;
+        } else {
+          console.error('Camera preview element not available for playback');
+        }
+      });
+      
+      // Stop the recording timer
+      if (recordingTimer.value) {
+        clearInterval(recordingTimer.value);
+        recordingTimer.value = null;
+      }
+    };
+
+    // Start recording
+    mediaRecorder.value.start();
+    isRecording.value = true;
+    isPreparingToRecord.value = false;
+    recordingDuration.value = 0;
+    
+    // Start duration timer
+    recordingTimer.value = setInterval(() => {
+      recordingDuration.value += 1;
+      
+      // Auto-stop after 180 seconds (3 minutes)
+      if (recordingDuration.value >= 180) {
+        stopRecording();
+      }
+    }, 1000);
+
+  } catch (err) {
+    console.error('Error starting recording:', err);
+    error.value = 'Failed to access camera. Please check your permissions.';
+    isPreparingToRecord.value = false;
+  }
+};
+
+const stopRecording = () => {
+  if (mediaRecorder.value && isRecording.value) {
+    mediaRecorder.value.stop();
+    // Don't set isRecording to false here - let onstop handle it
+    
+    // Stop camera stream
+    if (mediaStream.value) {
+      mediaStream.value.getTracks().forEach(track => track.stop());
+      mediaStream.value = null;
+    }
+  }
+};
+
+const useRecordedVideo = async () => {
+  if (!recordedBlob.value) return;
+  
+  // Determine file extension based on MIME type
+  const extension = recordingMimeType.value.includes('mp4') ? 'mp4' : 'webm';
+  
+  // Create a File object from the blob with correct MIME type and extension
+  const file = new File([recordedBlob.value], `recorded_video_${Date.now()}.${extension}`, {
+    type: recordingMimeType.value
+  });
+  
+  // Clear previous state
+  clearState();
+  
+  // Set as selected video
+  selectedVideo.value = file;
+  emit('video-selected', file);
+  
+  // Start processing
+  await processVideo();
+  
+  // Clean up recording state
+  recordedBlob.value = null;
+  recordingDuration.value = 0;
+};
+
+const discardRecording = () => {
+  if (recordedBlob.value) {
+    URL.revokeObjectURL(recordedBlob.value);
+    recordedBlob.value = null;
+  }
+  recordingDuration.value = 0;
+  
+  // Reset camera preview
+  if (cameraPreview.value) {
+    cameraPreview.value.src = '';
+    cameraPreview.value.controls = false;
+  }
+};
+
+const cleanupRecording = () => {
+  if (recordedBlob.value) {
+    URL.revokeObjectURL(recordedBlob.value);
+    recordedBlob.value = null;
+  }
+  
+  if (isRecording.value) {
+    stopRecording();
+  }
+  
+  if (mediaStream.value) {
+    mediaStream.value.getTracks().forEach(track => track.stop());
+    mediaStream.value = null;
+  }
+  
+  if (recordingTimer.value) {
+    clearInterval(recordingTimer.value);
+    recordingTimer.value = null;
+  }
+  
+  recordingDuration.value = 0;
+  recordingMode.value = 'upload';
+  
+  // Reset camera preview
+  if (cameraPreview.value) {
+    cameraPreview.value.src = '';
+    cameraPreview.value.srcObject = null;
+    cameraPreview.value.controls = false;
+  }
+};
+
 const clearVideo = () => {
   clearState();
   emit('video-cleared');
@@ -1245,6 +1604,9 @@ const clearState = () => {
       URL.revokeObjectURL(frame.url);
     }
   });
+  
+  // Clean up recording state
+  cleanupRecording();
 };
 
 // Utility functions
@@ -1281,6 +1643,11 @@ const formatFileSize = (bytes) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
+
+// Cleanup on component unmount
+onUnmounted(() => {
+  clearState();
+});
 
 // Expose methods for parent component
 defineExpose({

@@ -167,8 +167,34 @@ export async function extractVideoFrames(videoFile, timestamps) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
+      // Validate video duration
+      if (!isFinite(video.duration) || video.duration <= 0 || video.duration === Infinity) {
+        console.error('Invalid video duration:', video.duration);
+        
+        // Try waiting a bit more for duration to become available
+        setTimeout(() => {
+          if (isFinite(video.duration) && video.duration > 0) {
+            processFrames();
+          } else {
+            reject(new Error('Video duration is invalid or zero. This may be due to video format issues.'));
+          }
+        }, 1000);
+        return;
+      }
+      
+      processFrames();
+    });
+    
+    function processFrames() {
       // Convert percentage timestamps to actual time
-      const actualTimestamps = timestamps.map(t => t * video.duration);
+      const actualTimestamps = timestamps.map(t => {
+        const time = t * video.duration;
+        if (!isFinite(time)) {
+          console.error('Invalid timestamp calculated:', t, '*', video.duration, '=', time);
+          return 0; // Fallback to beginning
+        }
+        return Math.min(time, video.duration - 0.1); // Ensure we don't exceed duration
+      });
       
       const seekToNextFrame = () => {
         if (currentTimestampIndex >= actualTimestamps.length) {
@@ -176,11 +202,20 @@ export async function extractVideoFrames(videoFile, timestamps) {
           return;
         }
         
-        video.currentTime = actualTimestamps[currentTimestampIndex];
+        const targetTime = actualTimestamps[currentTimestampIndex];
+        
+        if (!isFinite(targetTime)) {
+          console.error('Attempting to seek to non-finite time:', targetTime);
+          currentTimestampIndex++;
+          seekToNextFrame();
+          return;
+        }
+        
+        video.currentTime = targetTime;
       };
       
       seekToNextFrame();
-    });
+    }
 
     video.addEventListener('seeked', () => {
       // Draw current frame to canvas
@@ -199,16 +234,39 @@ export async function extractVideoFrames(videoFile, timestamps) {
       
       // Seek to next frame
       if (currentTimestampIndex < timestamps.length) {
-        const actualTimestamps = timestamps.map(t => t * video.duration);
-        video.currentTime = actualTimestamps[currentTimestampIndex];
+        const nextTime = timestamps[currentTimestampIndex] * video.duration;
+        if (isFinite(nextTime)) {
+          video.currentTime = Math.min(nextTime, video.duration - 0.1);
+        } else {
+          console.error('Invalid next timestamp:', nextTime);
+          resolve(frames);
+        }
       } else {
         resolve(frames);
       }
     });
 
     video.addEventListener('error', (e) => {
-      reject(new Error('Failed to load video: ' + e.message));
+      console.error('Video error:', e);
+      reject(new Error('Failed to load video: ' + (e.message || 'Unknown error')));
     });
+
+    // Add timeout to prevent hanging
+    const timeout = setTimeout(() => {
+      reject(new Error('Video loading timeout'));
+    }, 30000); // 30 second timeout
+
+    // Clear timeout when done
+    const originalResolve = resolve;
+    const originalReject = reject;
+    resolve = (...args) => {
+      clearTimeout(timeout);
+      originalResolve(...args);
+    };
+    reject = (...args) => {
+      clearTimeout(timeout);
+      originalReject(...args);
+    };
 
     video.src = URL.createObjectURL(videoFile);
     video.load();
