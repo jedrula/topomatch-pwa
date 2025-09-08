@@ -85,11 +85,6 @@
             />
           </svg>
         </button>
-
-        <!-- App Title -->
-        <div class="flex items-center space-x-2">
-          <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-        </div>
       </div>
     </nav>
 

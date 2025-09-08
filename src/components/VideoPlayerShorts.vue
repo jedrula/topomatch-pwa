@@ -1,25 +1,53 @@
 <template>
   <div v-if="isOpen" class="fixed inset-0 bg-black z-[10000] flex flex-col">
     <!-- Header with close button and info -->
-    <div class="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 to-transparent p-4">
+    <div class="absolute top-0 left-0 right-0 z-[100] bg-gradient-to-b from-black/80 to-transparent p-4">
       <div class="flex items-center justify-between text-white">
         <div class="flex-1">
           <h3 class="font-semibold text-lg">{{ problem?.name || 'Boulder Videos' }}</h3>
           <p class="text-sm text-gray-300">{{ currentVideoIndex + 1 }} of {{ videos.length }}</p>
         </div>
-        <button
-          @click="closePlayer"
-          class="text-white hover:text-gray-300 transition-colors p-2"
-        >
-          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div class="flex items-center space-x-2">
+          <!-- Speaker/Mute button -->
+          <button 
+            @click.stop="toggleMute"
+            class="text-white hover:text-gray-300 transition-colors p-2"
+          >
+            <svg 
+              v-if="isMuted" 
+              class="w-6 h-6" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+            </svg>
+            <svg 
+              v-else 
+              class="w-6 h-6" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+            </svg>
+          </button>
+          <!-- Close button -->
+          <button
+            @click.stop="closePlayer"
+            class="text-white hover:text-gray-300 transition-colors p-2"
+          >
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Desktop navigation arrows (hidden on mobile) -->
-    <div class="hidden md:flex absolute right-4 top-1/2 transform -translate-y-1/2 z-50 flex-col space-y-4">
+    <div class="hidden md:flex absolute right-4 top-1/2 transform -translate-y-1/2 z-[90] flex-col space-y-4">
       <button
         @click="previousVideo"
         :disabled="currentVideoIndex === 0"
@@ -105,34 +133,6 @@
                     <path d="M8 5v14l11-7z"/>
                   </svg>
                 </div>
-              </div>
-              
-              <!-- Top controls (volume, etc.) - positioned relative to actual video -->
-              <div class="absolute top-4 right-4 flex items-center space-x-2">
-                <button 
-                  @click.stop="toggleMute"
-                  class="bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-all duration-200"
-                >
-                  <svg 
-                    v-if="isMuted" 
-                    class="w-5 h-5" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
-                  </svg>
-                  <svg 
-                    v-else 
-                    class="w-5 h-5" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
-                  </svg>
-                </button>
               </div>
               
               <!-- Bottom progress bar (at the very bottom edge of video content) -->
@@ -406,10 +406,9 @@ const handleVideoLoaded = (index) => {
 };
 
 const onVideoEnded = () => {
-  // Auto-advance to next video when current one ends
-  if (currentVideoIndex.value < props.videos.length - 1) {
-    nextVideo();
-  }
+  // Don't auto-advance to next video - let user manually navigate
+  // Video will stay on the current one when it ends
+  console.log(`Video ${currentVideoIndex.value + 1} ended`);
 };
 
 // Keyboard navigation
