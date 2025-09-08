@@ -76,11 +76,10 @@
             :src="video.downloadUrl"
             :controls="false"
             :muted="false"
-            class="w-full h-full object-contain cursor-pointer"
+            class="w-full h-full object-contain"
             :class="{ 'pointer-events-none': index !== currentVideoIndex }"
             @loadedmetadata="handleVideoLoaded(index)"
             @ended="onVideoEnded"
-            @click="togglePlayPause"
             playsinline
             preload="metadata"
           />
@@ -88,12 +87,13 @@
           <!-- Custom video controls overlay -->
           <div 
             v-if="index === currentVideoIndex" 
-            class="absolute inset-0 flex items-center justify-center z-[60]"
+            class="absolute inset-0 flex items-center justify-center z-[60] pointer-events-none"
           >
             <!-- Controls container that matches the actual video content size -->
             <div 
-              class="relative"
+              class="relative pointer-events-auto"
               :style="getVideoContentDimensions(index)"
+              @click="togglePlayPause"
             >
               <!-- Play/Pause overlay (center of actual video) -->
               <div 
@@ -110,7 +110,7 @@
               <!-- Top controls (volume, etc.) - positioned relative to actual video -->
               <div class="absolute top-4 right-4 flex items-center space-x-2">
                 <button 
-                  @click="toggleMute"
+                  @click.stop="toggleMute"
                   class="bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-all duration-200"
                 >
                   <svg 
