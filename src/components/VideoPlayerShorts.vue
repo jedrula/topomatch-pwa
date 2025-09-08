@@ -135,9 +135,14 @@
                 </button>
               </div>
               
-              <!-- Bottom progress bar (full width of actual video) -->
-              <div class="absolute bottom-0 left-0 right-0 pointer-events-none">
-                <div class="bg-white/20 h-1">
+              <!-- Bottom progress bar (at the very bottom edge of video content) -->
+              <div 
+                class="absolute bottom-0 left-0 right-0 cursor-pointer"
+                @click.stop="handleProgressBarClick"
+              >
+                <div class="bg-white/20 h-1 relative">
+                  <!-- Clickable overlay for better UX -->
+                  <div class="absolute -top-2 -bottom-2 left-0 right-0"></div>
                   <div 
                     class="bg-white h-full transition-all duration-100 ease-linear"
                     :style="{ width: `${getVideoProgress(index)}%` }"
@@ -461,7 +466,9 @@ const getVideoProgress = (index) => {
 
 const getVideoContentDimensions = (index) => {
   const video = videoElements.value[index];
-  if (!video) {
+  const container = videoContainer.value;
+  
+  if (!video || !container) {
     return { width: '100%', height: '100%' };
   }
   
@@ -473,9 +480,10 @@ const getVideoContentDimensions = (index) => {
     return { width: '100%', height: '100%' };
   }
   
-  // Get the container dimensions (viewport)
-  const containerWidth = window.innerWidth;
-  const containerHeight = window.innerHeight;
+  // Get the actual container dimensions (not window dimensions)
+  const containerRect = container.getBoundingClientRect();
+  const containerWidth = containerRect.width;
+  const containerHeight = containerRect.height;
   
   // Calculate the aspect ratios
   const videoAspectRatio = videoWidth / videoHeight;
@@ -503,6 +511,25 @@ const closePlayer = () => {
   pauseCurrentVideo();
   stopProgressTracking();
   emit('close');
+};
+
+const handleProgressBarClick = (event) => {
+  const currentVideo = videoElements.value[currentVideoIndex.value];
+  if (!currentVideo || !currentVideo.duration) return;
+  
+  const progressBar = event.currentTarget;
+  const rect = progressBar.getBoundingClientRect();
+  const clickX = event.clientX - rect.left;
+  const progressBarWidth = rect.width;
+  
+  // Calculate the percentage clicked
+  const clickPercentage = clickX / progressBarWidth;
+  
+  // Set the video time based on the click position
+  const newTime = clickPercentage * currentVideo.duration;
+  currentVideo.currentTime = Math.max(0, Math.min(newTime, currentVideo.duration));
+  
+  console.log(`Seeking to ${Math.round(newTime)}s (${Math.round(clickPercentage * 100)}%)`);
 };
 
 // Watchers
