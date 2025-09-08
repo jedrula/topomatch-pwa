@@ -159,8 +159,18 @@
       :location-id="locationId"
       @edit="handleFloatingCardEdit"
       @toggle-visibility="handleFloatingCardToggleVisibility"
+      @show-videos="handleFloatingCardShowVideos"
       @mouse-enter="handleFloatingCardMouseEnter"
       @mouse-leave="handleFloatingCardMouseLeave"
+    />
+
+    <!-- Video Player Shorts -->
+    <VideoPlayerShorts
+      :is-open="videoPlayer.isOpen"
+      :videos="videoPlayer.videos"
+      :problem="videoPlayer.problem"
+      :initial-video-index="videoPlayer.initialIndex"
+      @close="handleVideoPlayerClose"
     />
   </div>
 </template>
@@ -171,6 +181,7 @@ import { useRoute, useRouter } from 'vue-router';
 import ImageWithHolds from './ImageWithHolds.vue';
 import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
+import VideoPlayerShorts from './VideoPlayerShorts.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
 import { getOptimalImageUrl } from '@/utils/imageResize.js';
@@ -294,6 +305,14 @@ const floatingCard = ref({
   visible: false,
   problem: null,
   position: { x: 0, y: 0 },
+});
+
+// Video player state
+const videoPlayer = ref({
+  isOpen: false,
+  videos: [],
+  problem: null,
+  initialIndex: 0,
 });
 
 // Timeout for tooltip hiding
@@ -427,6 +446,26 @@ const handleFloatingCardToggleVisibility = (problem) => {
   } else {
     boulderProblemsStore.showOnlyProblem(problem.id);
   }
+};
+
+const handleFloatingCardShowVideos = ({ problem, videos }) => {
+  console.log('Showing videos for problem:', problem.name, videos.length, 'videos');
+  if (videos.length > 0) {
+    videoPlayer.value = {
+      isOpen: true,
+      videos: videos,
+      problem: problem,
+      initialIndex: 0,
+    };
+  }
+};
+
+// Video player event handlers
+const handleVideoPlayerClose = () => {
+  videoPlayer.value.isOpen = false;
+  videoPlayer.value.videos = [];
+  videoPlayer.value.problem = null;
+  videoPlayer.value.initialIndex = 0;
 };
 
 const handleFloatingCardMouseEnter = () => {

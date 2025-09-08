@@ -49,6 +49,27 @@
             </button>
 
             <button
+              @click.stop="handleShowVideos"
+              :class="[
+                'p-1 rounded transition-colors duration-200 pointer-events-auto',
+                problemVideos.length > 0
+                  ? 'text-purple-500 hover:text-purple-700 hover:bg-purple-100'
+                  : 'text-gray-400 cursor-default',
+              ]"
+              :title="problemVideos.length > 0 ? 'Show beta videos' : 'No videos'"
+              :disabled="problemVideos.length === 0"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+            </button>
+
+            <button
               @click.stop="handleToggleVisibility"
               :class="[
                 'p-1 rounded transition-colors duration-200 pointer-events-auto',
@@ -123,9 +144,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore.js';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
+import { videoService } from '@/services/videoService.js';
 
 const boulderProblemsStore = useBoulderProblemsStore();
 
@@ -148,10 +170,14 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['edit', 'toggle-visibility', 'mouse-enter', 'mouse-leave']);
+const emit = defineEmits(['edit', 'toggle-visibility', 'mouse-enter', 'mouse-leave', 'show-videos']);
 
 // Template ref for the card element
 const cardElement = ref(null);
+
+// Videos for this problem
+const problemVideos = ref([]);
+const videosLoading = ref(false);
 
 // Check if position is valid
 const isValidPosition = computed(() => {
@@ -257,6 +283,12 @@ const handleEdit = () => {
   }
 };
 
+const handleShowVideos = () => {
+  if (props.problem && problemVideos.value.length > 0) {
+    emit('show-videos', { problem: props.problem, videos: problemVideos.value });
+  }
+};
+
 const handleToggleVisibility = () => {
   if (props.problem) {
     emit('toggle-visibility', props.problem);
@@ -270,6 +302,29 @@ const handleMouseEnter = () => {
 const handleMouseLeave = () => {
   emit('mouse-leave');
 };
+
+// Load videos when problem changes
+watch(
+  () => props.problem,
+  async (newProblem) => {
+    if (newProblem && props.locationId) {
+      console.log('Loading videos for problem:', newProblem.name);
+      videosLoading.value = true;
+      try {
+        problemVideos.value = await videoService.getProblemVideos(props.locationId, newProblem.id);
+        console.log('Loaded', problemVideos.value.length, 'videos for problem:', newProblem.name);
+      } catch (error) {
+        console.error('Failed to load problem videos:', error);
+        problemVideos.value = [];
+      } finally {
+        videosLoading.value = false;
+      }
+    } else {
+      problemVideos.value = [];
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>
