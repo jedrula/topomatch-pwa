@@ -1,21 +1,24 @@
 <template>
-  <div class="space-y-4">
+  <div :class="compact ? 'space-y-2' : 'space-y-4'">
     <!-- Ascent Statistics -->
     <div
       v-if="ascentStore.ascentStats"
-      class="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+      :class="[
+        'bg-white rounded-lg shadow-sm border border-gray-200',
+        compact ? 'p-3' : 'p-6'
+      ]"
     >
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Ascent Statistics</h3>
+      <h3 :class="compact ? 'text-base font-semibold text-gray-900 mb-2' : 'text-lg font-semibold text-gray-900 mb-4'">Ascent Statistics</h3>
 
-      <div class="grid grid-cols-2 gap-4 text-sm">
-        <div class="text-center p-3 bg-gray-50 rounded-lg">
-          <div class="text-2xl font-bold text-blue-600">
+      <div :class="compact ? 'grid grid-cols-2 gap-2 text-xs' : 'grid grid-cols-2 gap-4 text-sm'">
+        <div :class="compact ? 'text-center p-2 bg-gray-50 rounded-lg' : 'text-center p-3 bg-gray-50 rounded-lg'">
+          <div :class="compact ? 'text-lg font-bold text-blue-600' : 'text-2xl font-bold text-blue-600'">
             {{ ascentStore.ascentStats.totalAscents }}
           </div>
           <div class="text-gray-600">Total Sends</div>
         </div>
-        <div class="text-center p-3 bg-gray-50 rounded-lg">
-          <div class="text-2xl font-bold text-green-600">
+        <div :class="compact ? 'text-center p-2 bg-gray-50 rounded-lg' : 'text-center p-3 bg-gray-50 rounded-lg'">
+          <div :class="compact ? 'text-lg font-bold text-green-600' : 'text-2xl font-bold text-green-600'">
             {{ ascentStore.ascentStats.uniqueClimbers }}
           </div>
           <div class="text-gray-600">Climbers</div>
@@ -107,54 +110,71 @@
     <!-- Recent Ascents -->
     <div
       v-if="ascentStore.ascents.length > 0"
-      class="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+      :class="[
+        'bg-white rounded-lg shadow-sm border border-gray-200',
+        compact ? 'p-3' : 'p-6'
+      ]"
     >
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Ascents</h3>
+      <h3 :class="compact ? 'text-base font-semibold text-gray-900 mb-2' : 'text-lg font-semibold text-gray-900 mb-4'">Recent Ascents</h3>
 
-      <div class="space-y-3 max-h-64 overflow-y-auto">
+      <div :class="compact ? 'space-y-2' : 'space-y-3'">
         <div
           v-for="ascent in ascentStore.ascents.slice(0, 10)"
           :key="ascent.id"
-          class="flex items-start justify-between p-3 bg-gray-50 rounded-lg"
+          :class="compact ? 'flex items-start justify-between p-2 bg-gray-50 rounded-lg' : 'flex items-start justify-between p-3 bg-gray-50 rounded-lg'"
         >
           <div class="flex-1">
-            <div class="flex items-center space-x-2 mb-1">
-              <span class="font-medium text-gray-900">{{ ascent.userName }}</span>
+            <div :class="compact ? 'flex items-center space-x-1 mb-1' : 'flex items-center space-x-2 mb-1'">
+              <span :class="compact ? 'font-medium text-gray-900 text-sm' : 'font-medium text-gray-900'">{{ ascent.userName }}</span>
               <span
-                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                :class="{
-                  'bg-yellow-100 text-yellow-800': ascent.attemptType === 'flash',
-                  'bg-orange-100 text-orange-800': ascent.attemptType === 'second',
-                  'bg-red-100 text-red-800': ascent.attemptType === 'multiple',
-                }"
+                :class="[
+                  'inline-flex items-center px-2 py-1 rounded-full font-medium',
+                  compact ? 'text-xs' : 'text-xs',
+                  {
+                    'bg-yellow-100 text-yellow-800': ascent.attemptType === 'flash',
+                    'bg-orange-100 text-orange-800': ascent.attemptType === 'second',
+                    'bg-red-100 text-red-800': ascent.attemptType === 'multiple',
+                  }
+                ]"
               >
                 {{ ascentStore.getAttemptTypeLabel(ascent.attemptType) }}
               </span>
             </div>
 
-            <div class="text-sm text-gray-600">
+            <div :class="compact ? 'text-xs text-gray-600' : 'text-sm text-gray-600'">
               {{ ascentStore.formatDate(ascent.createdAt) }}
             </div>
 
-            <div v-if="ascent.userGrade" class="text-sm text-gray-600">
+            <div v-if="ascent.userGrade" :class="compact ? 'text-xs text-gray-600' : 'text-sm text-gray-600'">
               Grade opinion: {{ ascent.userGrade }}
             </div>
 
-            <div v-if="ascent.notes" class="text-sm text-gray-700 mt-1">"{{ ascent.notes }}"</div>
+            <div v-if="ascent.notes" :class="compact ? 'text-xs text-gray-700 mt-1' : 'text-sm text-gray-700 mt-1'">"{{ ascent.notes }}"</div>
 
             <!-- Beta Video Display -->
             <div v-if="ascent.betaVideo" class="mt-2">
-              <div class="bg-black rounded-lg overflow-hidden max-w-xs">
+              <div :class="compact ? 'bg-black rounded-lg overflow-hidden max-w-xs relative group' : 'bg-black rounded-lg overflow-hidden max-w-xs'">
                 <video
                   :src="ascent.betaVideo.downloadUrl"
                   controls
                   preload="metadata"
-                  class="w-full h-auto max-h-32 object-contain"
+                  :class="compact ? 'w-full h-auto max-h-20 object-contain' : 'w-full h-auto max-h-32 object-contain'"
                 >
                   Your browser does not support the video tag.
                 </video>
+                <!-- Fullscreen button overlay for compact mode -->
+                <button
+                  v-if="compact"
+                  @click="handleVideoFullscreen(ascent.betaVideo.downloadUrl)"
+                  class="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Open in fullscreen"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                  </svg>
+                </button>
               </div>
-              <p class="text-xs text-gray-500 mt-1">Beta video</p>
+              <p :class="compact ? 'text-xs text-gray-500 mt-1' : 'text-xs text-gray-500 mt-1'">Beta video</p>
             </div>
           </div>
 
@@ -255,10 +275,21 @@ import { useAscentStore } from '@/stores/ascentStore';
 import { useUserStore } from '@/stores/userStore';
 import { watch } from 'vue';
 
+const props = defineProps({
+  compact: {
+    type: Boolean,
+    default: false
+  }
+});
+
 const ascentStore = useAscentStore();
 const userStore = useUserStore();
 
-const emit = defineEmits(['edit-ascent']);
+const emit = defineEmits(['edit-ascent', 'video-fullscreen']);
+
+const handleVideoFullscreen = (videoUrl) => {
+  emit('video-fullscreen', videoUrl);
+};
 
 // Debug: Watch for changes in ascents
 watch(

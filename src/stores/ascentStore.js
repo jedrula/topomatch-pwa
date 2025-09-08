@@ -71,23 +71,28 @@ export const useAscentStore = defineStore('ascent', () => {
   const loadAscents = async (locationId, problemId) => {
     if (!locationId || !problemId) return;
 
+    console.log('🚀 Loading ascents for:', { locationId, problemId });
     isLoading.value = true;
     error.value = null;
 
     try {
       // Load all ascents for the problem
       const allAscents = await ascentService.getBoulderAscents(locationId, problemId);
+      console.log('📊 All ascents loaded:', allAscents);
+      console.log('📊 Number of ascents:', allAscents.length);
       ascents.value = allAscents;
 
       // Load current user's ascents for this problem
       const userStore = useUserStore();
       if (userStore.isLoggedIn) {
         const currentUserAscents = await ascentService.getUserBoulderAscents(locationId, problemId);
+        console.log('👤 User ascents loaded:', currentUserAscents);
         userAscents.value = currentUserAscents;
       }
 
       // Load statistics
       const stats = await ascentService.getBoulderAscentStats(locationId, problemId);
+      console.log('📈 Ascent stats loaded:', stats);
       ascentStats.value = stats;
     } catch (err) {
       console.error('Error loading ascents:', err);

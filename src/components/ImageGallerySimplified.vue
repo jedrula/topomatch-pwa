@@ -67,6 +67,20 @@
         @touchend="handleTouchEnd"
       >
         <!-- Loading state -->
+        <!-- Loading spinner while image loads -->
+        <div
+          v-if="currentImage && !imageLoaded"
+          class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-30"
+        >
+          <div class="text-center text-white">
+            <div
+              class="w-12 h-12 border-4 border-gray-300 border-t-white rounded-full animate-spin mx-auto mb-4"
+            ></div>
+            <p class="text-lg">Loading image...</p>
+          </div>
+        </div>
+
+        <!-- No current image fallback -->
         <div
           v-if="!currentImage"
           class="w-full h-64 flex items-center justify-center"
@@ -94,10 +108,12 @@
             />
           </template>
           <template #overlay>
-            <!-- Render actual boulder problems -->
-            <template v-if="imageLoaded && currentImageProblems.length > 0">
-              <template v-for="problem in visibleProblems" :key="problem.id">
-                <HoldSvg
+            <!-- Only show overlay content when image is loaded -->
+            <template v-if="imageLoaded">
+              <!-- Render actual boulder problems -->
+              <template v-if="currentImageProblems.length > 0">
+                <template v-for="problem in visibleProblems" :key="problem.id">
+                  <HoldSvg
                   v-for="(holdData, holdIndex) in problem.holds || []"
                   :key="`${problem.id}-hold-${holdIndex}`"
                   :svg-markup="holdData.hold.svgMarkup"
@@ -112,30 +128,25 @@
             
             <!-- Fallback: Show sample hold if no problems available -->
             <HoldSvg
-              v-else-if="imageLoaded"
+              v-else
               svg-markup="<circle cx='200' cy='300' r='30' fill='rgba(59, 130, 246, 0.3)' stroke='#3b82f6' stroke-width='2'/>"
               interaction="normal"
               interaction-allowed="selectable"
               color="#3b82f6"
             />
+            </template>
           </template>
         </ImageWithHolds>
 
         <!-- Fallback: Show image without holds if no viewBox available -->
-        <div v-else class="text-center text-white p-8">
+        <div v-else class="flex items-center justify-center">
           <img
             ref="climbingImage"
             :src="getOptimalImageUrl(currentImage.url)"
             :alt="currentImage.name || 'Climbing route'"
-            class="w-full h-auto object-contain block max-h-full mb-4"
+            class="w-full h-auto object-contain block max-h-full"
             @load="onImageLoad"
           />
-          <p class="text-yellow-300">
-            ⚠️ Hold detection not performed for this image.
-          </p>
-          <p class="text-gray-300 text-sm">
-            Run hold detection to enable boulder problem creation.
-          </p>
         </div>
       </div>
     </div>

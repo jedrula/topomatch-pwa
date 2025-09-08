@@ -10,7 +10,7 @@
     <!-- Content Overlay -->
     <div class="relative z-10 min-h-screen flex flex-col">
       <!-- Main Content -->
-      <div class="flex-1 flex items-center justify-center p-4">
+      <div class="flex-1 p-4">
         <div v-if="loading" class="text-center">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p class="mt-4 text-gray-600">Loading boulder problem...</p>
@@ -25,7 +25,7 @@
 
         <div
           v-else-if="problem"
-          class="bg-white bg-opacity-90 rounded-lg shadow-lg p-8 max-w-md w-full"
+          class="bg-white bg-opacity-90 rounded-lg shadow-lg p-6 sm:p-8 w-full"
         >
           <!-- Boulder Problem Info -->
           <div class="text-center mb-6">
@@ -33,8 +33,8 @@
               class="w-4 h-4 rounded-full mx-auto mb-3"
               :style="{ backgroundColor: problem.color }"
             ></div>
-            <h2 class="text-3xl font-bold text-gray-900 mb-2">{{ problem.name }}</h2>
-            <div class="text-2xl font-semibold text-gray-700 mb-1">
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{{ problem.name }}</h2>
+            <div class="text-xl sm:text-2xl font-semibold text-gray-700 mb-1">
               Grade {{ getGradeLabel(problem.grade) }}
             </div>
             <div class="text-gray-500">{{ problem.holds.length }} holds</div>
@@ -133,50 +133,20 @@
                   Total sends: {{ ascentStore.userSentCount }}
                 </div>
               </div>
-
-              <!-- View Ascent History Button - Only show for logged in users -->
-              <div v-if="userStore.isLoggedIn" class="mt-3">
-                <button
-                  @click="showAscentHistory = !showAscentHistory"
-                  class="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    ></path>
-                  </svg>
-                  <span>{{ showAscentHistory ? "Hide" : "View" }} Ascent History</span>
-                </button>
-              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Ascent History Panel -->
-        <div
-          v-if="showAscentHistory"
-          class="mt-6 bg-white bg-opacity-90 rounded-lg shadow-lg p-6 max-w-2xl w-full"
-        >
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-semibold text-gray-900">Ascent History</h3>
-            <button
-              @click="showAscentHistory = false"
-              class="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                ></path>
-              </svg>
-            </button>
-          </div>
-          <AscentHistory @edit-ascent="editAscent" />
+      <!-- Ascent History Panel - Full width underneath main content -->
+      <div v-if="userStore.isLoggedIn && problem" class="w-full px-4 pb-8">
+        <div class="bg-white bg-opacity-90 rounded-lg shadow-lg p-4 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Ascent History</h3>
+          <AscentHistory 
+            @edit-ascent="editAscent" 
+            :compact="true"
+            @video-fullscreen="openVideoFullscreen"
+          />
         </div>
       </div>
     </div>
@@ -208,7 +178,6 @@ const error = ref(null);
 const problem = ref(null);
 const image = ref(null);
 const showAscentLogger = ref(false);
-const showAscentHistory = ref(false);
 
 // Calculate cropped image style based on hold bounding boxes
 const croppedImageStyle = computed(() => {
@@ -334,8 +303,11 @@ const loadProblemData = async () => {
     }
 
     // Initialize and load ascent data
+    console.log('Initializing ascent store for problem:', locationId, problemId);
     ascentStore.initializeForProblem(locationId, problemId);
     await ascentStore.loadAscents(locationId, problemId);
+    console.log('Ascents loaded:', ascentStore.ascents.length, 'ascents');
+    console.log('Ascent stats:', ascentStore.ascentStats);
 
     // Load the associated image
     const imageId = problem.value.imageId;
@@ -378,8 +350,6 @@ const loadProblemData = async () => {
 
 const onAscentLogged = () => {
   showAscentLogger.value = false;
-  // Show the ascent history so the user can see their logged ascent with video
-  showAscentHistory.value = true;
   // The ascent store will automatically update with the new data
 };
 
@@ -388,6 +358,12 @@ const editAscent = (ascent) => {
   // In a more complex implementation, you could pre-populate the form
   showAscentLogger.value = true;
   console.log('Edit ascent:', ascent);
+};
+
+const openVideoFullscreen = (videoUrl) => {
+  // Create a modal or redirect to fullscreen video
+  // For now, let's open in a new window/tab
+  window.open(videoUrl, '_blank');
 };
 
 onMounted(() => {

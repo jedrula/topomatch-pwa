@@ -77,6 +77,7 @@ export const ascentService = {
    */
   async getBoulderAscents(locationId, problemId) {
     try {
+      console.log('🔍 Fetching ascents from Firestore for:', { locationId, problemId });
       const ascentsRef = collection(
         db,
         'locations',
@@ -91,12 +92,15 @@ export const ascentService = {
       const ascents = [];
 
       querySnapshot.forEach((doc) => {
-        ascents.push({
+        const ascentData = {
           id: doc.id,
           ...doc.data(),
-        });
+        };
+        console.log('📝 Individual ascent data:', ascentData);
+        ascents.push(ascentData);
       });
 
+      console.log('✅ Total ascents fetched:', ascents.length);
       return ascents;
     } catch (error) {
       console.error('Error fetching boulder ascents:', error);
