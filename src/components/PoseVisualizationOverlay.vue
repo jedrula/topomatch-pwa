@@ -44,6 +44,16 @@
         
         <!-- Draw closest hold if available -->
         <g v-if="pose.closestHolds && pose.closestHolds[pointIndex] && pose.closestHolds[pointIndex].coordinates" :key="`hold-${pointIndex}`">
+          <!-- DEBUG: Log hold coordinates -->
+          {{
+            console.log(`🔴 Rendering red circle for keypoint ${pointIndex}:`, {
+              keypointCoords: { x: point.x, y: point.y },
+              holdCoords: pose.closestHolds[pointIndex].coordinates,
+              distance: pose.closestHolds[pointIndex].distance,
+              viewBox: viewBox
+            })
+          }}
+          
           <!-- Draw line to closest hold -->
           <line
             :x1="point.x"
@@ -55,23 +65,25 @@
             stroke-dasharray="4,2"
           />
           
-          <!-- Draw red circle for closest hold (winner) -->
+          <!-- Draw red circle for closest hold (winner) - made bigger and more visible -->
           <circle
             :cx="pose.closestHolds[pointIndex].coordinates.x"
             :cy="pose.closestHolds[pointIndex].coordinates.y"
-            r="8"
+            r="15"
             fill="rgba(239, 68, 68, 0.9)"
             stroke="white"
-            stroke-width="2"
+            stroke-width="3"
           />
           
           <!-- Optional: Add distance text -->
           <text
             :x="pose.closestHolds[pointIndex].coordinates.x + 12"
             :y="pose.closestHolds[pointIndex].coordinates.y - 8"
-            font-size="10"
+            font-size="12"
             fill="black"
             font-weight="bold"
+            stroke="white"
+            stroke-width="1"
           >
             {{ pose.closestHolds[pointIndex].distance }}px
           </text>
@@ -83,51 +95,51 @@
 
 <script setup>
 import { computed } from 'vue';
+import { getDetectionImageViewBox } from '@/utils/imageMetadata';
 
 const props = defineProps({
-  imageUrl: {
-    type: String,
-    required: true,
-  },
-  imageRef: {
-    type: Object,
-    default: null,
-  },
-  transformedPoses: {
-    type: Array,
-    default: () => [],
-  },
-  poseVisibility: {
-    type: Array,
-    default: () => [],
-  },
-  holdDetectionResults: {
-    type: Object,
-    default: null,
-  },
-  imageNaturalWidth: {
-    type: Number,
-    default: 0,
-  },
-  imageNaturalHeight: {
-    type: Number,
-    default: 0,
-  },
+  imageUrl: String,
+  imageRef: Object,
+  transformedPoses: Array,
+  poseVisibility: Object,
+  holdDetectionResults: Array,
+  storedViewBox: Object,
+  imageNaturalWidth: Number,
+  imageNaturalHeight: Number
 });
 
-// Create viewBox based on image natural dimensions
+// Create viewBox using the same method as BoulderImageWithHolds
 const viewBox = computed(() => {
-  if (props.imageNaturalWidth && props.imageNaturalHeight) {
-    return `0 0 ${props.imageNaturalWidth} ${props.imageNaturalHeight}`;
+  console.log('🖼️ PoseVisualizationOverlay viewBox calculation:', {
+    holdDetectionResults: !!props.holdDetectionResults,
+    storedViewBox: props.storedViewBox,
+    imageUrl: props.imageUrl,
+    imageNaturalWidth: props.imageNaturalWidth,
+    imageNaturalHeight: props.imageNaturalHeight
+  });
+  
+  // Use stored viewBox from Firestore if available
+  if (props.storedViewBox) {
+    // The stored viewBox is already a string like "0 0 1080 1440"
+    console.log('✅ Using stored viewBox from Firestore:', props.storedViewBox);
+    return props.storedViewBox;
   }
-  return '0 0 100 100'; // fallback
+  
+  // Fallback to detection-based viewBox calculation
+  const calculatedViewBox = getDetectionImageViewBox(
+    props.holdDetectionResults, 
+    props.imageUrl, 
+    null, 
+    props.imageRef
+  );
+  
+  console.log('✅ Using detection-based viewBox (fallback):', calculatedViewBox);
+  return calculatedViewBox;
 });
 
 // Check if we should show the overlay
 const shouldShowOverlay = computed(() => {
-  return props.transformedPoses.length > 0 && 
-         props.imageNaturalWidth > 0 && 
-         props.imageNaturalHeight > 0;
+  return props.transformedPoses.length > 0;
 });
 
 // Get visible poses based on visibility array

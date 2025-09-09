@@ -286,6 +286,7 @@
                     :transformed-poses="getVisiblePoses()"
                     :pose-visibility="poseVisibility"
                     :hold-detection-results="bestMatch.detectionResults"
+                    :stored-view-box="storedViewBox"
                     :image-natural-width="imageNaturalDimensions.width"
                     :image-natural-height="imageNaturalDimensions.height"
                   />
@@ -379,20 +380,20 @@
                           <div class="flex items-center">
                             <div
                               :class="`w-2 h-2 rounded-full mr-1 ${
-                                frame.color === 'red'
+                                frame.color === '#ef4444'
                                   ? 'bg-red-500'
-                                  : frame.color === 'blue'
+                                  : frame.color === '#3b82f6'
                                   ? 'bg-blue-500'
-                                  : 'bg-green-500'
+                                  : frame.color === '#22c55e'
+                                  ? 'bg-green-500'
+                                  : frame.color === '#f59e0b'
+                                  ? 'bg-amber-500'
+                                  : frame.color === '#8b5cf6'
+                                  ? 'bg-violet-500'
+                                  : 'bg-gray-500'
                               }`"
                             ></div>
-                            {{
-                              frameIndex === 0
-                                ? "Frame 1 (25%)"
-                                : frameIndex === 1
-                                ? "Frame 2 (50%)"
-                                : "Frame 3 (75%)"
-                            }}
+                            Frame {{ frameIndex + 1 }} ({{ Math.round(extractedFrames[frame.frameIndex]?.percentage * 100) || 50 }}%)
                           </div>
                         </td>
                         <td class="px-2 py-1 font-medium">{{ keypoint.name }}</td>
@@ -485,7 +486,7 @@
       <!-- Image Matcher Component -->
       <ImageMatcher
         v-if="extractedFrames.length > 0 && comparisonImages.length > 0 && isPoseDetectionComplete"
-        :source-image="extractedFrames[1]?.file"
+        :source-image="extractedFrames[0]?.file"
         :comparison-images="comparisonImages"
         :auto-start="autoStartMatching"
         @match-found="handleMatchFound"
@@ -539,9 +540,10 @@ import {
 import { usePoseDetection } from '@/composables/usePoseDetection';
 import { useInferenceStore } from '@/stores/inferenceStore';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+import { holdDetectionService } from '@/services/holdDetectionService';
 
 // Props
-defineProps({
+const props = defineProps({
   comparisonImages: {
     type: Array,
     default: () => [],
@@ -588,6 +590,7 @@ const visualizationImage = ref(null);
 const poseCanvas = ref(null);
 const visualizationDimensions = ref({ width: 0, height: 0 });
 const imageNaturalDimensions = ref({ width: 0, height: 0 }); // Track natural image dimensions for SVG
+const storedViewBox = ref(null); // Store the viewBox from Firestore
 const isDrawing = ref(false); // Add flag to prevent concurrent drawing
 
 // Pose visibility controls
@@ -673,8 +676,11 @@ watch(poseVisibility, (newVisibility, oldVisibility) => {
   }
 }, { deep: true });
 
-// Frame timestamps for extraction - 10 samples evenly distributed (10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 95%)
-const FRAME_TIMESTAMPS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95];
+// Frame timestamps for extraction - configurable for debugging
+const FRAMES_FOR_ANALYSIS = 1; // Set to 1 for debugging, change back to 10 later
+const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
+  ? [0.5] // Just extract middle frame for debugging
+  : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]; // 10 samples evenly distributed
 
 // Colors for different frames - 10 distinct colors for better visualization
 const FRAME_COLORS = [
@@ -724,62 +730,99 @@ const findClosestHolds = (keypointX, keypointY) => {
     };
   }
 
-  // Get all boulder problems for the matched image
-  const matchedImageId = bestMatch.value.id;
-  const proximityThreshold = 300; // Doubled threshold for wider matching range
-
-  const problemsForImage = boulderProblemsStore.boulderProblems.filter(
-    (problem) => problem.imageId === matchedImageId
-  );
-
+  const proximityThreshold = 300;
   const allHoldsWithDistances = [];
 
-  // Check all holds across all problems for this image
-  problemsForImage.forEach((problem) => {
-    if (problem.holds && Array.isArray(problem.holds)) {
-      problem.holds.forEach((holdData, index) => {
-        const hold = holdData.hold;
-
-        // Extract hold coordinates - handle different possible formats (same logic as runHoldAnalysis)
-        let holdX, holdY;
-
-        if (hold.coordinates) {
-          holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
-          holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
-        } else if (hold.bbox && Array.isArray(hold.bbox)) {
-          holdX = hold.bbox[0] + hold.bbox[2] / 2;
-          holdY = hold.bbox[1] + hold.bbox[3] / 2;
-        } else if (hold.x !== undefined && hold.y !== undefined) {
-          holdX = hold.x + (hold.width || 0) / 2;
-          holdY = hold.y + (hold.height || 0) / 2;
-        } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
-          holdX = hold.center_x;
-          holdY = hold.center_y;
-        } else {
-          console.warn('Unknown hold coordinate format:', hold);
-          return; // Skip this hold
-        }
-
-        // Calculate Euclidean distance
-        const distance = Math.sqrt(Math.pow(keypointX - holdX, 2) + Math.pow(keypointY - holdY, 2));
-        
-        // Calculate potential score (without keypoint weighting and confidence for now)
-        const score = distance <= proximityThreshold ? 
-          Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
-
-        allHoldsWithDistances.push({
-          hold: {
-            ...hold,
-            holdIndex: holdData.holdIndex || index,
-            id: hold.id || `hold_${index}`,
-          },
-          problem: problem,
-          distance: Math.round(distance),
-          score: score
-        });
-      });
-    }
+  // DEBUG: Log what's available in bestMatch
+  console.log('🔍 bestMatch.value structure:', {
+    name: bestMatch.value.name,
+    id: bestMatch.value.id,
+    hasDetectionResults: !!bestMatch.value.detectionResults,
+    detectionResultsKeys: bestMatch.value.detectionResults ? Object.keys(bestMatch.value.detectionResults) : null,
+    detectionResultsResults: bestMatch.value.detectionResults?.results?.length || 0
   });
+
+  // PRIORITY 1: Use detection results if available (these are the actual detected holds shown on the image)
+  if (bestMatch.value.detectionResults && bestMatch.value.detectionResults.results) {
+    console.log('🔍 Using detectionResults for hold coordinates');
+    console.log('📊 Detection results sample:', bestMatch.value.detectionResults.results.slice(0, 3));
+    
+    bestMatch.value.detectionResults.results.forEach((detectedHold, index) => {
+      const coords = extractHoldCoordinates(detectedHold);
+      if (!coords) return;
+
+      const distance = Math.sqrt(Math.pow(keypointX - coords.x, 2) + Math.pow(keypointY - coords.y, 2));
+      const score = distance <= proximityThreshold ? 
+        Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
+
+      allHoldsWithDistances.push({
+        hold: {
+          ...detectedHold,
+          id: detectedHold.id || `detected_hold_${index}`,
+          source: 'detection'
+        },
+        problem: null, // No problem association for detected holds
+        distance: Math.round(distance),
+        score: score
+      });
+    });
+  }
+
+  // PRIORITY 2: Fallback to boulder problems store if no detection results
+  if (allHoldsWithDistances.length === 0) {
+    console.log('🔍 Falling back to boulderProblemsStore for hold coordinates');
+    console.log('❓ Reason for fallback:', {
+      hasDetectionResults: !!bestMatch.value.detectionResults,
+      hasResults: !!bestMatch.value.detectionResults?.results,
+      resultsLength: bestMatch.value.detectionResults?.results?.length || 0
+    });
+    
+    const matchedImageId = bestMatch.value.id;
+    const problemsForImage = boulderProblemsStore.boulderProblems.filter(
+      (problem) => problem.imageId === matchedImageId
+    );
+
+    console.log('📊 Boulder problems store sample:', {
+      totalProblems: problemsForImage.length,
+      firstProblemHolds: problemsForImage[0]?.holds?.slice(0, 2)
+    });
+
+    // Check all holds across all problems for this image
+    problemsForImage.forEach((problem) => {
+      if (problem.holds && Array.isArray(problem.holds)) {
+        problem.holds.forEach((holdData, index) => {
+          const hold = holdData.hold;
+          const coords = extractHoldCoordinates(hold);
+          if (!coords) return;
+
+          // DEBUG: Log coordinate extraction for first few holds
+          if (index < 3) {
+            console.log(`📍 Hold ${index} coordinates:`, {
+              originalHold: hold,
+              extractedCoords: coords,
+              holdFormat: hold.coordinates ? 'coordinates' : hold.bbox ? 'bbox' : hold.x !== undefined ? 'x,y' : 'center_x,center_y'
+            });
+          }
+
+          const distance = Math.sqrt(Math.pow(keypointX - coords.x, 2) + Math.pow(keypointY - coords.y, 2));
+          const score = distance <= proximityThreshold ? 
+            Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
+
+          allHoldsWithDistances.push({
+            hold: {
+              ...hold,
+              holdIndex: holdData.holdIndex || index,
+              id: hold.id || `hold_${index}`,
+              source: 'problems'
+            },
+            problem: problem,
+            distance: Math.round(distance),
+            score: score
+          });
+        });
+      }
+    });
+  }
 
   // Sort by distance and get top 3
   allHoldsWithDistances.sort((a, b) => a.distance - b.distance);
@@ -788,7 +831,27 @@ const findClosestHolds = (keypointX, keypointY) => {
   const secondClosest = allHoldsWithDistances[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
   const thirdClosest = allHoldsWithDistances[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
 
-  return { closest, secondClosest, thirdClosest };
+  console.log(`🎯 findClosestHolds result for (${keypointX}, ${keypointY}):`, {
+    closest: closest.hold ? { id: closest.hold.id, source: closest.hold.source, distance: closest.distance } : null,
+    totalHolds: allHoldsWithDistances.length,
+    imageInfo: {
+      naturalDimensions: imageNaturalDimensions.value,
+      visualizationDimensions: visualizationDimensions.value,
+      imageName: bestMatch.value.name
+    },
+    detectionResultsInfo: {
+      hasDetectionResults: !!bestMatch.value.detectionResults,
+      detectionResultsKeys: bestMatch.value.detectionResults ? Object.keys(bestMatch.value.detectionResults) : null,
+      detectionResultsStructure: bestMatch.value.detectionResults
+    }
+  });
+
+  return { 
+    closest, 
+    secondClosest, 
+    thirdClosest,
+    allHoldsCount: allHoldsWithDistances.length // Add this for debugging
+  };
 };
 
 const getKeypointRows = (frame) => {
@@ -1096,6 +1159,27 @@ const handleMatchFound = async (matchedImage) => {
 const handleAnalysisComplete = async (bestMatchResult) => {
   bestMatch.value = bestMatchResult;
 
+  // Fetch the stored viewBox from Firestore for this image
+  try {
+    if (bestMatchResult.id && props.locationId) {
+      // Try to get viewBox from hold detection service using the correct locationId
+      const imageViewBox = await holdDetectionService.getViewBox(props.locationId, bestMatchResult.id);
+      if (imageViewBox) {
+        storedViewBox.value = imageViewBox;
+        console.log('✅ Retrieved stored viewBox from Firestore:', imageViewBox);
+      } else {
+        console.log('⚠️ No stored viewBox found in Firestore for image:', bestMatchResult.id);
+      }
+    } else {
+      console.log('⚠️ Missing parameters for viewBox lookup:', { 
+        imageId: bestMatchResult.id, 
+        locationId: props.locationId 
+      });
+    }
+  } catch (error) {
+    console.warn('❌ Failed to fetch stored viewBox:', error);
+  }
+
   // Calculate homography matrix for the best match (only once here)
   try {
     // Check if OpenCV is loaded
@@ -1182,6 +1266,9 @@ const transformPosesToMatchedImage = async (matchResult) => {
     const { homographyMatrix } = matchResult;
     const transformedFrames = [];
 
+    // FOCUS ON FRAME 0 FOR DEBUGGING
+    const debugFrameIndex = 0;
+
     for (let i = 0; i < extractedFrames.value.length; i++) {
       const frame = extractedFrames.value[i];
       if (!frame.poseData) {
@@ -1202,16 +1289,47 @@ const transformPosesToMatchedImage = async (matchResult) => {
       // Transform points using homography
       const transformedPoints = transformPoints(sourcePoints, homographyMatrix);
 
+      // DEBUGGING: Focus on frame 0 only
+      if (i === debugFrameIndex) {
+        console.log(`🎯 FRAME ${i} DEBUG - COORDINATE ANALYSIS:`);
+        console.log('📹 Original video keypoints:', sourcePoints);
+        console.log('🗺️ Transformed image keypoints:', transformedPoints);
+        console.log('🖼️ Image info:', {
+          naturalDimensions: imageNaturalDimensions.value,
+          visualizationDimensions: visualizationDimensions.value,
+          imageName: bestMatch.value.name
+        });
+        console.log('🔍 Sample hold coordinates from debug:', {
+          holdY_values: [1273.62, 1250.20, 1246.34],
+          imageHeight: imageNaturalDimensions.value.height,
+          suggestedIssue: imageNaturalDimensions.value.height ? 
+            (1273 > imageNaturalDimensions.value.height ? 'HOLDS_OUTSIDE_IMAGE_BOUNDS' : 'COORDINATES_LOOK_VALID') : 
+            'IMAGE_DIMENSIONS_NOT_SET'
+        });
+      }
+
       // Find closest holds for each transformed keypoint
       const closestHolds = transformedPoints.map((point, pointIndex) => {
         const holdInfo = findClosestHolds(point.x, point.y);
+        const coords = holdInfo.closest.hold ? extractHoldCoordinates(holdInfo.closest.hold) : null;
+        
+        // DEBUGGING: Focus on frame 0 only
+        if (i === debugFrameIndex) {
+          console.log(`🎯 Frame ${i}, Keypoint ${pointIndex} (${['leftWrist', 'rightWrist', 'leftAnkle', 'rightAnkle'][pointIndex]}):`);
+          console.log('  📍 Transformed keypoint:', { x: point.x, y: point.y });
+          console.log('  🎯 Closest hold:', holdInfo.closest.hold);
+          console.log('  📐 Extracted coords:', coords);
+          console.log('  📏 Distance:', holdInfo.closest.distance);
+          console.log('  📊 All holds analyzed:', holdInfo.allHoldsCount || 'unknown');
+        }
+        
         return {
           keypoint: ['leftWrist', 'rightWrist', 'leftAnkle', 'rightAnkle'][pointIndex],
           hold: holdInfo.closest.hold,
           problem: holdInfo.closest.problem,
           distance: holdInfo.closest.distance,
           score: holdInfo.closest.score,
-          coordinates: holdInfo.closest.hold ? extractHoldCoordinates(holdInfo.closest.hold) : null
+          coordinates: coords
         };
       });
 
@@ -1419,6 +1537,15 @@ const onImageLoad = async () => {
       width: visualizationImage.value.naturalWidth,
       height: visualizationImage.value.naturalHeight,
     };
+    
+    console.log('🖼️ Image loaded - Natural dimensions captured:', {
+      naturalWidth: visualizationImage.value.naturalWidth,
+      naturalHeight: visualizationImage.value.naturalHeight,
+      clientWidth: visualizationImage.value.clientWidth,
+      clientHeight: visualizationImage.value.clientHeight,
+      holdYrange: [1200, 1300],
+      coordinateSystemCheck: visualizationImage.value.naturalHeight > 1300 ? 'VALID' : 'PROBLEM_DETECTED'
+    });
   }
   
   await nextTick();
