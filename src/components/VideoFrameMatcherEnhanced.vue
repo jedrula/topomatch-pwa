@@ -677,7 +677,7 @@ watch(poseVisibility, (newVisibility, oldVisibility) => {
 }, { deep: true });
 
 // Frame timestamps for extraction - configurable for debugging
-const FRAMES_FOR_ANALYSIS = 1; // Set to 1 for debugging, change back to 10 later
+const FRAMES_FOR_ANALYSIS = 10; // Back to 10 frames for comprehensive analysis
 const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
   ? [0.5] // Just extract middle frame for debugging
   : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]; // 10 samples evenly distributed
