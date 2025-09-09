@@ -690,6 +690,30 @@ const FRAME_COLORS = [
   '#ec4899'  // pink
 ];
 
+// Helper function to extract hold coordinates in a consistent way
+const extractHoldCoordinates = (hold) => {
+  let holdX, holdY;
+
+  if (hold.coordinates) {
+    holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
+    holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
+  } else if (hold.bbox && Array.isArray(hold.bbox)) {
+    holdX = hold.bbox[0] + hold.bbox[2] / 2;
+    holdY = hold.bbox[1] + hold.bbox[3] / 2;
+  } else if (hold.x !== undefined && hold.y !== undefined) {
+    holdX = hold.x + (hold.width || 0) / 2;
+    holdY = hold.y + (hold.height || 0) / 2;
+  } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
+    holdX = hold.center_x;
+    holdY = hold.center_y;
+  } else {
+    console.warn('Unknown hold coordinate format:', hold);
+    return null;
+  }
+
+  return { x: holdX, y: holdY };
+};
+
 // Methods
 const findClosestHolds = (keypointX, keypointY) => {
   if (!bestMatch.value || !bestMatch.value.name) {
@@ -1178,10 +1202,24 @@ const transformPosesToMatchedImage = async (matchResult) => {
       // Transform points using homography
       const transformedPoints = transformPoints(sourcePoints, homographyMatrix);
 
+      // Find closest holds for each transformed keypoint
+      const closestHolds = transformedPoints.map((point, pointIndex) => {
+        const holdInfo = findClosestHolds(point.x, point.y);
+        return {
+          keypoint: ['leftWrist', 'rightWrist', 'leftAnkle', 'rightAnkle'][pointIndex],
+          hold: holdInfo.closest.hold,
+          problem: holdInfo.closest.problem,
+          distance: holdInfo.closest.distance,
+          score: holdInfo.closest.score,
+          coordinates: holdInfo.closest.hold ? extractHoldCoordinates(holdInfo.closest.hold) : null
+        };
+      });
+
       const transformedFrame = {
         frameIndex: i,
         originalPoints: sourcePoints,
         transformedPoints,
+        closestHolds, // Add the closest holds data
         color: FRAME_COLORS[i],
         confidence: frame.poseData.confidence,
       };

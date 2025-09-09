@@ -42,42 +42,38 @@
           stroke-width="3"
         />
         
-        <!-- Find and draw closest hold -->
-        <g v-if="getClosestHold(point.x, point.y)" :key="`hold-${pointIndex}`">
+        <!-- Draw closest hold if available -->
+        <g v-if="pose.closestHolds && pose.closestHolds[pointIndex] && pose.closestHolds[pointIndex].coordinates" :key="`hold-${pointIndex}`">
           <!-- Draw line to closest hold -->
           <line
             :x1="point.x"
             :y1="point.y"
-            :x2="getClosestHold(point.x, point.y).x"
-            :y2="getClosestHold(point.x, point.y).y"
+            :x2="pose.closestHolds[pointIndex].coordinates.x"
+            :y2="pose.closestHolds[pointIndex].coordinates.y"
             stroke="rgba(0, 0, 0, 0.6)"
             stroke-width="1"
             stroke-dasharray="4,2"
           />
           
-          <!-- Draw small red circle for closest hold -->
+          <!-- Draw red circle for closest hold (winner) -->
           <circle
-            :cx="getClosestHold(point.x, point.y).x"
-            :cy="getClosestHold(point.x, point.y).y"
-            r="2"
-            fill="rgba(255, 0, 0, 0.8)"
+            :cx="pose.closestHolds[pointIndex].coordinates.x"
+            :cy="pose.closestHolds[pointIndex].coordinates.y"
+            r="8"
+            fill="rgba(239, 68, 68, 0.9)"
             stroke="white"
-            stroke-width="1"
+            stroke-width="2"
           />
           
-          <!-- Draw distance text -->
+          <!-- Optional: Add distance text -->
           <text
-            :x="(point.x + getClosestHold(point.x, point.y).x) / 2"
-            :y="(point.y + getClosestHold(point.x, point.y).y) / 2 - 2"
-            font-family="Arial"
+            :x="pose.closestHolds[pointIndex].coordinates.x + 12"
+            :y="pose.closestHolds[pointIndex].coordinates.y - 8"
             font-size="10"
+            fill="black"
             font-weight="bold"
-            fill="rgba(0, 0, 0, 0.9)"
-            stroke="rgba(255, 255, 255, 0.9)"
-            stroke-width="2"
-            text-anchor="middle"
           >
-            {{ Math.round(getClosestHold(point.x, point.y).distance) }}px
+            {{ pose.closestHolds[pointIndex].distance }}px
           </text>
         </g>
       </g>
@@ -140,61 +136,4 @@ const visiblePoses = computed(() => {
   console.log('🖼️ PoseVisualizationOverlay received poses:', props.transformedPoses.map(p => ({ frameIndex: p.frameIndex, color: p.color })));
   return props.transformedPoses;
 });
-
-// Helper function to extract hold coordinates in a consistent way
-const extractHoldCoordinates = (hold) => {
-  let holdX, holdY;
-
-  if (hold.coordinates) {
-    holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
-    holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
-  } else if (hold.bbox && Array.isArray(hold.bbox)) {
-    holdX = hold.bbox[0] + hold.bbox[2] / 2;
-    holdY = hold.bbox[1] + hold.bbox[3] / 2;
-  } else if (hold.x !== undefined && hold.y !== undefined) {
-    holdX = hold.x + (hold.width || 0) / 2;
-    holdY = hold.y + (hold.height || 0) / 2;
-  } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
-    holdX = hold.center_x;
-    holdY = hold.center_y;
-  } else {
-    return null;
-  }
-
-  return { x: holdX, y: holdY };
-};
-
-// Find closest hold to a given point
-const findClosestHold = (x, y) => {
-  if (!props.holdDetectionResults?.results) return null;
-
-  let closest = null;
-  let minDistance = Infinity;
-
-  props.holdDetectionResults.results.forEach((hold) => {
-    const holdCoords = extractHoldCoordinates(hold);
-    if (!holdCoords) return;
-
-    const distance = Math.sqrt(
-      Math.pow(holdCoords.x - x, 2) + Math.pow(holdCoords.y - y, 2)
-    );
-
-    if (distance < minDistance) {
-      minDistance = distance;
-      closest = {
-        x: holdCoords.x,
-        y: holdCoords.y,
-        distance: distance,
-        hold: hold,
-      };
-    }
-  });
-
-  return closest;
-};
-
-// Get closest hold for a given point (used in template)
-const getClosestHold = (x, y) => {
-  return findClosestHold(x, y);
-};
 </script>
