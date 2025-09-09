@@ -277,7 +277,7 @@
                     ref="visualizationImage"
                     :src="bestMatch.url"
                     alt="Pose visualization"
-                    class="max-w-full max-h-96 object-contain border rounded"
+                    class="max-w-full max-h-[500px] object-contain border rounded"
                     @load="onImageLoad"
                   />
                   <PoseVisualizationOverlay
@@ -324,7 +324,7 @@
                       <img
                         :src="extractedFrames[visiblePose.frameIndex]?.url"
                         alt="Original video frame"
-                        class="w-full max-h-96 object-contain rounded border"
+                        class="w-full max-h-[500px] object-contain rounded border"
                       />
                     </div>
                   </div>
@@ -1151,7 +1151,11 @@ const transformPosesToMatchedImage = async (matchResult) => {
     transformedPoses.value = transformedFrames;
     
     // Initialize pose visibility for all frames as visible
-    poseVisibility.value = Array(transformedFrames.length).fill(true);
+    const newVisibility = {};
+    transformedFrames.forEach((_, index) => {
+      newVisibility[index] = true;
+    });
+    poseVisibility.value = newVisibility;
 
     // Trigger visualization redraw
     await nextTick();

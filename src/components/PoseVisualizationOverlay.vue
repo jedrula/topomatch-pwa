@@ -29,17 +29,17 @@
 
     <!-- Draw poses -->
     <g v-for="(pose, poseIndex) in visiblePoses" :key="`pose-${poseIndex}-${pose.frameIndex}`">
-      <!-- Draw keypoints as small blue squares -->
+      <!-- Draw keypoints as larger blue squares -->
       <g v-for="(point, pointIndex) in pose.transformedPoints" :key="`point-${pointIndex}`">
-        <!-- Blue square for keypoint -->
+        <!-- Blue square for keypoint - made much bigger for better visibility -->
         <rect
-          :x="point.x - 4"
-          :y="point.y - 4"
-          width="8"
-          height="8"
+          :x="point.x - 12"
+          :y="point.y - 12"
+          width="24"
+          height="24"
           fill="rgba(59, 130, 246, 0.9)"
           stroke="white"
-          stroke-width="1"
+          stroke-width="3"
         />
         
         <!-- Find and draw closest hold -->
