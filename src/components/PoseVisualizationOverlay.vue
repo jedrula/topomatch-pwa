@@ -136,9 +136,9 @@ const shouldShowOverlay = computed(() => {
 
 // Get visible poses based on visibility array
 const visiblePoses = computed(() => {
-  return props.transformedPoses.filter((pose, index) => {
-    return props.poseVisibility[index] !== false; // Show by default if not explicitly hidden
-  });
+  // The parent component already filters poses, so just return them as-is
+  console.log('🖼️ PoseVisualizationOverlay received poses:', props.transformedPoses.map(p => ({ frameIndex: p.frameIndex, color: p.color })));
+  return props.transformedPoses;
 });
 
 // Helper function to extract hold coordinates in a consistent way

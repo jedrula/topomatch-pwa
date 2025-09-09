@@ -241,7 +241,7 @@
                 >
                   <input
                     type="checkbox" 
-                    v-model="poseVisibility[index]"
+                    v-model="poseVisibility[frame.frameIndex]"
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
                   />
                   <div class="flex items-center space-x-1">
@@ -484,7 +484,7 @@
 
       <!-- Image Matcher Component -->
       <ImageMatcher
-        v-if="extractedFrames.length > 0 && comparisonImages.length > 0"
+        v-if="extractedFrames.length > 0 && comparisonImages.length > 0 && isPoseDetectionComplete"
         :source-image="extractedFrames[1]?.file"
         :comparison-images="comparisonImages"
         :auto-start="autoStartMatching"
@@ -608,6 +608,11 @@ const matchedImageBoulderProblems = computed(() => {
   );
 });
 
+// Check if pose detection is complete and ready for image matching
+const isPoseDetectionComplete = computed(() => {
+  return processingStatus.value === 'Ready for image matching';
+});
+
 // Computed property for unique pose errors
 const uniquePoseErrors = computed(() => {
   const errors = extractedFrames.value
@@ -618,16 +623,25 @@ const uniquePoseErrors = computed(() => {
 
 // Helper function to get visible poses
 const getVisiblePoses = () => {
-  return transformedPoses.value.filter((pose, index) => {
-    return poseVisibility.value[index] !== false; // Show by default if not explicitly hidden
+  console.log('🔍 getVisiblePoses called');
+  console.log('📊 transformedPoses.value:', transformedPoses.value.map(p => ({ frameIndex: p.frameIndex, color: p.color })));
+  console.log('👁️ poseVisibility.value:', poseVisibility.value);
+  
+  const visible = transformedPoses.value.filter((pose) => {
+    const isVisible = poseVisibility.value[pose.frameIndex] === true;
+    console.log(`📋 Frame ${pose.frameIndex}: visibility=${poseVisibility.value[pose.frameIndex]} → ${isVisible ? 'SHOW' : 'HIDE'}`);
+    return isVisible;
   });
+  
+  console.log('✅ Returning visible poses to PoseVisualizationOverlay:', visible.map(p => ({ frameIndex: p.frameIndex, color: p.color })));
+  return visible;
 };
 
 // Helper function to toggle all poses visibility
 const toggleAllPoses = (visible) => {
   const newVisibility = {};
-  transformedPoses.value.forEach((_, index) => {
-    newVisibility[index] = visible;
+  transformedPoses.value.forEach((frame) => {
+    newVisibility[frame.frameIndex] = visible;
   });
   poseVisibility.value = newVisibility;
 };
@@ -642,6 +656,22 @@ watch(poseDetectionError, (newError) => {
     error.value = newError;
   }
 });
+
+// Watch for pose visibility changes to debug checkbox behavior
+watch(poseVisibility, (newVisibility, oldVisibility) => {
+  console.log('🔄 poseVisibility changed!');
+  console.log('📋 Old:', oldVisibility);
+  console.log('📋 New:', newVisibility);
+  
+  // Log which specific frame visibility changed
+  if (oldVisibility) {
+    Object.keys(newVisibility).forEach(frameIndex => {
+      if (oldVisibility[frameIndex] !== newVisibility[frameIndex]) {
+        console.log(`🔀 Frame ${frameIndex}: ${oldVisibility[frameIndex]} → ${newVisibility[frameIndex]}`);
+      }
+    });
+  }
+}, { deep: true });
 
 // Frame timestamps for extraction - 10 samples evenly distributed (10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 95%)
 const FRAME_TIMESTAMPS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95];
@@ -815,6 +845,12 @@ const handleVideoSelect = async (event) => {
 
   // Set selected video
   selectedVideo.value = file;
+  
+  // Reset processing status to prevent early image matching
+  processingStatus.value = '';
+  bestMatch.value = null;
+  transformedPoses.value = [];
+  
   emit('video-selected', file);
 
   // Start processing pipeline
@@ -1124,7 +1160,10 @@ const transformPosesToMatchedImage = async (matchResult) => {
 
     for (let i = 0; i < extractedFrames.value.length; i++) {
       const frame = extractedFrames.value[i];
-      if (!frame.poseData) continue;
+      if (!frame.poseData) {
+        console.log(`⏭️ Skipping frame ${i} - no pose data`);
+        continue;
+      }
 
       const pose = frame.poseData.keypoints;
 
@@ -1139,23 +1178,34 @@ const transformPosesToMatchedImage = async (matchResult) => {
       // Transform points using homography
       const transformedPoints = transformPoints(sourcePoints, homographyMatrix);
 
-      transformedFrames.push({
+      const transformedFrame = {
         frameIndex: i,
         originalPoints: sourcePoints,
         transformedPoints,
         color: FRAME_COLORS[i],
         confidence: frame.poseData.confidence,
+      };
+      
+      console.log(`➕ Adding transformed frame ${i}:`, {
+        frameIndex: transformedFrame.frameIndex,
+        color: transformedFrame.color,
+        pointsCount: transformedFrame.transformedPoints.length
       });
+      
+      transformedFrames.push(transformedFrame);
     }
 
     transformedPoses.value = transformedFrames;
     
-    // Initialize pose visibility for all frames as visible
+    // Initialize pose visibility for all frames as visible using original frame indices
+    console.log('🏗️ Initializing pose visibility for frames:', transformedFrames.map(f => f.frameIndex));
     const newVisibility = {};
-    transformedFrames.forEach((_, index) => {
-      newVisibility[index] = true;
+    transformedFrames.forEach((frame) => {
+      newVisibility[frame.frameIndex] = true;
+      console.log(`✅ Setting poseVisibility[${frame.frameIndex}] = true`);
     });
     poseVisibility.value = newVisibility;
+    console.log('📊 Final poseVisibility:', poseVisibility.value);
 
     // Trigger visualization redraw
     await nextTick();
