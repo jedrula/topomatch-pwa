@@ -105,7 +105,7 @@
             <img
               :src="frame.url"
               :alt="`Frame ${index + 1}`"
-              class="w-full h-20 object-cover rounded border"
+              class="w-full h-20 object-contain rounded border"
               :class="{ 'ring-2 ring-blue-500': index === 1 }"
             />
             <p class="text-xs text-gray-500 mt-1">

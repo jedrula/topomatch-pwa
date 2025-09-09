@@ -229,11 +229,15 @@
                 class="max-w-full h-auto border rounded"
                 @load="onImageLoad"
               />
-              <canvas
-                ref="poseCanvas"
-                class="absolute top-0 left-0 pointer-events-none border-2 border-red-500 bg-transparent"
-                style="z-index: 10;"
-              ></canvas>
+              <PoseVisualizationOverlay
+                :image-url="bestMatch.url"
+                :image-ref="visualizationImage"
+                :transformed-poses="transformedPoses"
+                :pose-visibility="{}"
+                :hold-detection-results="bestMatch.detectionResults"
+                :image-natural-width="imageNaturalDimensions.width"
+                :image-natural-height="imageNaturalDimensions.height"
+              />
             </div>
             <div class="mt-2 text-xs text-gray-600">
               <p>Showing projected hand and foot positions from 3 video frames</p>
@@ -433,6 +437,7 @@
 import { ref, computed, nextTick, watch, onUnmounted } from 'vue';
 import ImageMatcher from './ImageMatcher.vue';
 import VideoRecorder from './VideoRecorder.vue';
+import PoseVisualizationOverlay from './PoseVisualizationOverlay.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
   extractVideoFrames,
@@ -490,6 +495,7 @@ const transformedPoses = ref([]);
 const visualizationImage = ref(null);
 const poseCanvas = ref(null);
 const visualizationDimensions = ref({ width: 0, height: 0 });
+const imageNaturalDimensions = ref({ width: 0, height: 0 }); // Track natural image dimensions for SVG
 const isDrawing = ref(false); // Add flag to prevent concurrent drawing
 
 // Recording mode state
@@ -1201,10 +1207,16 @@ const drawPoseVisualization = () => {
 
 // New function to handle image load and ensure proper timing
 const onImageLoad = async () => {
+  // Capture natural dimensions for SVG overlay
+  if (visualizationImage.value) {
+    imageNaturalDimensions.value = {
+      width: visualizationImage.value.naturalWidth,
+      height: visualizationImage.value.naturalHeight,
+    };
+  }
+  
   await nextTick();
-  setTimeout(() => {
-    drawPoseVisualization();
-  }, 100); // Small delay to ensure everything is rendered
+  // SVG overlay will update automatically, no need to call drawPoseVisualization
 };
 
 const handleAnalysisError = (analysisError) => {

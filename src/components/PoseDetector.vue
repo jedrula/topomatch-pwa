@@ -66,7 +66,7 @@
             <img
               :src="frame.dataUrl"
               :alt="`Frame at ${frame.timePercent}%`"
-              class="w-full object-cover rounded border"
+              class="w-full object-contain rounded border"
             />
             <p class="text-xs text-gray-500 mt-1">
               {{ frame.timePercent }}% ({{ frame.width }}x{{ frame.height }})

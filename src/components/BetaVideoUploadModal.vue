@@ -3,7 +3,7 @@
     v-if="isOpen"
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
   >
-    <div class="bg-white rounded-lg max-w-lg w-full max-h-[90vh] flex flex-col py-4">
+    <div class="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] flex flex-col py-4">
       <div class="flex items-center justify-between px-6 pb-4 flex-shrink-0">
         <div>
           <h3 class="text-lg font-semibold">Upload Beta Video</h3>
@@ -116,7 +116,7 @@
               <img
                 :src="extractedFrame.url"
                 alt="Extracted video frame"
-                class="w-full max-w-xs h-32 object-cover rounded-lg border mx-auto"
+                class="w-full max-w-xs h-32 object-contain rounded-lg border mx-auto"
               />
             </div>
 
@@ -271,7 +271,7 @@
                   <img
                     :src="videoAnalysisResult.frame.url"
                     alt="Analyzed video frame"
-                    class="w-full max-w-xs h-32 object-cover rounded-lg border mx-auto"
+                    class="w-full max-w-xs h-32 object-contain rounded-lg border mx-auto"
                   />
                 </div>
               </div>
@@ -285,7 +285,7 @@
                 <img
                   :src="videoAnalysisResult.match.url"
                   alt="Matched boulder image"
-                  class="w-full max-w-md h-48 object-cover rounded-lg border mx-auto"
+                  class="w-full max-w-md h-48 object-contain rounded-lg border mx-auto"
                 />
                 <p class="text-xs text-gray-500 mt-2 text-center">
                   {{ videoAnalysisResult.match.name }}

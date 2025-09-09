@@ -26,7 +26,7 @@
         <img
           :src="region.thumbnail"
           :alt="region.name"
-          class="w-full object-cover rounded-md"
+          class="w-full object-contain rounded-md"
           style="aspect-ratio: 1 / 1"
         />
         <p class="text-sm text-gray-700 mt-2">{{ region.name }}</p>
