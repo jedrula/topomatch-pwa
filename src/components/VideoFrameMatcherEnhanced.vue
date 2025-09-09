@@ -332,6 +332,58 @@
                 </div>
               </div>
             </div>
+
+            <!-- Homography Quality Visualization -->
+            <div v-if="bestMatch.homographyMatrix" class="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h5 class="text-sm font-medium text-gray-900 mb-3">Homography Quality Analysis</h5>
+              
+              <!-- Quality Metrics -->
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-blue-600">{{ bestMatch.homographyInliers || 0 }}</div>
+                  <div class="text-xs text-gray-600">Inlier Matches</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-gray-600">{{ bestMatch.totalMatches || 0 }}</div>
+                  <div class="text-xs text-gray-600">Total Matches</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold" :class="getHomographyQualityColor()">
+                    {{ getHomographySuccessRate() }}%
+                  </div>
+                  <div class="text-xs text-gray-600">Success Rate</div>
+                </div>
+              </div>
+
+              <!-- Quality Assessment -->
+              <div class="mb-3">
+                <div class="flex items-center space-x-2">
+                  <div :class="`w-3 h-3 rounded-full ${getHomographyQualityColor().replace('text-', 'bg-')}`"></div>
+                  <span class="text-sm font-medium">{{ getHomographyQualityMessage() }}</span>
+                </div>
+                <p class="text-xs text-gray-600 mt-1">
+                  Higher success rates (>70%) indicate better homography quality and more reliable keypoint transformations.
+                  If success rate is low, keypoint projections may be inaccurate.
+                </p>
+              </div>
+
+              <!-- Feature Match Distribution Hint -->
+              <div class="text-xs text-gray-500 bg-white p-2 rounded border mb-4">
+                💡 <strong>Tip:</strong> Poor keypoint alignment often indicates that feature matches are concentrated 
+                in areas away from where the climber's hands and feet are located, or that the camera perspective 
+                differs significantly between the video and reference image.
+              </div>
+
+              <!-- Feature Match Visualization -->
+              <div v-if="featureMatches.length > 0" class="mt-4">
+                <FeatureMatchVisualization
+                  :source-image-url="extractedFrames[0]?.url"
+                  :target-image-url="bestMatch.url"
+                  :feature-matches="featureMatches"
+                  :homography-inliers="bestMatch.homographyInliers || 0"
+                />
+              </div>
+            </div>
             
             <div class="mt-2 text-xs text-gray-600">
               <p>Projected hand and foot positions from video frames</p>
@@ -531,6 +583,7 @@ import { ref, computed, nextTick, watch, onUnmounted } from 'vue';
 import ImageMatcher from './ImageMatcher.vue';
 import VideoRecorder from './VideoRecorder.vue';
 import PoseVisualizationOverlay from './PoseVisualizationOverlay.vue';
+import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
   extractVideoFrames,
@@ -591,6 +644,7 @@ const poseCanvas = ref(null);
 const visualizationDimensions = ref({ width: 0, height: 0 });
 const imageNaturalDimensions = ref({ width: 0, height: 0 }); // Track natural image dimensions for SVG
 const storedViewBox = ref(null); // Store the viewBox from Firestore
+const featureMatches = ref([]); // Store feature match data for visualization
 const isDrawing = ref(false); // Add flag to prevent concurrent drawing
 
 // Pose visibility controls
@@ -647,6 +701,28 @@ const toggleAllPoses = (visible) => {
     newVisibility[frame.frameIndex] = visible;
   });
   poseVisibility.value = newVisibility;
+};
+
+// Homography quality helper methods
+const getHomographySuccessRate = () => {
+  if (!bestMatch.value?.homographyInliers || !bestMatch.value?.totalMatches) return 0;
+  return Math.round((bestMatch.value.homographyInliers / bestMatch.value.totalMatches) * 100);
+};
+
+const getHomographyQualityColor = () => {
+  const rate = getHomographySuccessRate();
+  if (rate >= 70) return 'text-green-600';
+  if (rate >= 50) return 'text-yellow-600';
+  if (rate >= 30) return 'text-orange-600';
+  return 'text-red-600';
+};
+
+const getHomographyQualityMessage = () => {
+  const rate = getHomographySuccessRate();
+  if (rate >= 70) return 'Excellent homography quality - keypoint projections should be very accurate';
+  if (rate >= 50) return 'Good homography quality - keypoint projections should be fairly accurate';
+  if (rate >= 30) return 'Fair homography quality - keypoint projections may have some inaccuracy';
+  return 'Poor homography quality - keypoint projections may be significantly inaccurate';
 };
 
 // Use the working pose detection composable
@@ -937,6 +1013,7 @@ const handleVideoSelect = async (event) => {
   processingStatus.value = '';
   bestMatch.value = null;
   transformedPoses.value = [];
+  featureMatches.value = [];
   
   emit('video-selected', file);
 
@@ -1236,6 +1313,10 @@ const handleAnalysisComplete = async (bestMatchResult) => {
         bestMatchResult.homographyMatrix = homographyResult.matrix;
         bestMatchResult.homographyInliers = homographyResult.inliers;
         bestMatchResult.totalMatches = matches.length;
+        
+        // Store feature matches for visualization (limit to first 100 for performance)
+        featureMatches.value = matches.slice(0, 100);
+        console.log('🔍 Stored feature matches for visualization:', featureMatches.value.length);
       } else {
         console.warn('Not enough matches for homography calculation:', matches.length);
       }
@@ -1789,6 +1870,7 @@ const clearState = () => {
   error.value = null;
   bestMatch.value = null;
   transformedPoses.value = [];
+  featureMatches.value = [];
   poseVisibility.value = [];
 
   // Clean up any object URLs
