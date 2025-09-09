@@ -170,30 +170,23 @@
       <!-- Extracted Frames -->
       <div v-if="extractedFrames.length > 0" class="space-y-4">
         <h3 class="text-lg font-medium text-gray-900">Extracted Frames with Pose Data</h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <div
             v-for="(frame, index) in extractedFrames"
             :key="index"
-            class="bg-white border rounded-lg p-3"
+            class="bg-white border-gray-200 border rounded-lg p-1"
           >
-            <div class="space-y-2">
+            <div class="space-y-1">
               <img
                 :src="frame.url"
                 alt="Extracted frame"
-                class="w-full h-16 object-cover rounded border"
+                class="w-full h-32 object-contain rounded border-gray-100 border"
               />
-              <div>
-                <h4 class="text-xs font-medium text-gray-900">Frame {{ index + 1 }}</h4>
-                <p class="text-xs text-gray-500">
-                  {{ Math.round(frame.percentage * 100) }}%
-                </p>
-                <p class="text-xs text-gray-500" v-if="frame.poseData">
-                  ✓ Pose detected
-                </p>
-                <p class="text-xs text-red-500" v-else-if="frame.poseError">
-                  {{ frame.poseError }}
-                </p>
-                <p class="text-xs text-red-500" v-else>✗ No pose</p>
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-medium text-gray-900">{{ index + 1 }}</span>
+                <span class="text-gray-500">{{ Math.round(frame.percentage * 100) }}%</span>
+                <span v-if="frame.poseData" class="text-green-600">✓</span>
+                <span v-else class="text-red-500">✗</span>
               </div>
             </div>
           </div>
@@ -218,41 +211,140 @@
             </div>
           </div>
 
-          <!-- Pose Visualization -->
-          <div v-if="transformedPoses.length > 0" class="relative">
-            <h4 class="text-sm font-medium text-gray-900 mb-2">Climber Pose Projection</h4>
-            <div class="relative inline-block">
-              <img
-                ref="visualizationImage"
-                :src="bestMatch.url"
-                alt="Pose visualization"
-                class="max-w-full h-auto border rounded"
-                @load="onImageLoad"
-              />
-              <PoseVisualizationOverlay
-                :image-url="bestMatch.url"
-                :image-ref="visualizationImage"
-                :transformed-poses="transformedPoses"
-                :pose-visibility="{}"
-                :hold-detection-results="bestMatch.detectionResults"
-                :image-natural-width="imageNaturalDimensions.width"
-                :image-natural-height="imageNaturalDimensions.height"
-              />
+          <!-- Enhanced Pose Visualization -->
+          <div v-if="transformedPoses.length > 0" class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-medium text-gray-900">Climber Pose Projection</h4>
+              <div class="flex items-center space-x-2">
+                <button
+                  @click="toggleAllPoses(true)"
+                  class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                >
+                  Show All
+                </button>
+                <button
+                  @click="toggleAllPoses(false)"
+                  class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                >
+                  Hide All
+                </button>
+              </div>
             </div>
+
+            <!-- Pose Selection Controls -->
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="grid grid-cols-5 gap-2">
+                <div
+                  v-for="(frame, index) in transformedPoses"
+                  :key="index"
+                  class="flex items-center space-x-2"
+                >
+                  <input
+                    type="checkbox" 
+                    v-model="poseVisibility[index]"
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                  />
+                  <div class="flex items-center space-x-1">
+                    <div
+                      :class="`w-2 h-2 rounded-full ${
+                        frame.color === '#ef4444' ? 'bg-red-500' :
+                        frame.color === '#3b82f6' ? 'bg-blue-500' :
+                        frame.color === '#22c55e' ? 'bg-green-500' :
+                        frame.color === '#f59e0b' ? 'bg-amber-500' :
+                        frame.color === '#8b5cf6' ? 'bg-violet-500' :
+                        frame.color === '#06b6d4' ? 'bg-cyan-500' :
+                        frame.color === '#f97316' ? 'bg-orange-500' :
+                        frame.color === '#84cc16' ? 'bg-lime-500' :
+                        frame.color === '#ec4899' ? 'bg-pink-500' :
+                        frame.color === '#64748b' ? 'bg-slate-500' : 'bg-gray-500'
+                      }`"
+                    ></div>
+                    <span class="text-xs font-medium">
+                      Frame {{ frame.frameIndex + 1 }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Side-by-side comparison view -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Transformed Pose Visualization (left side) -->
+              <div class="space-y-4">
+                <h5 class="text-sm font-medium text-gray-900">Transformed Pose Projection</h5>
+                <div class="relative inline-block">
+                  <img
+                    ref="visualizationImage"
+                    :src="bestMatch.url"
+                    alt="Pose visualization"
+                    class="max-w-full max-h-96 object-contain border rounded"
+                    @load="onImageLoad"
+                  />
+                  <PoseVisualizationOverlay
+                    :image-url="bestMatch.url"
+                    :image-ref="visualizationImage"
+                    :transformed-poses="getVisiblePoses()"
+                    :pose-visibility="poseVisibility"
+                    :hold-detection-results="bestMatch.detectionResults"
+                    :image-natural-width="imageNaturalDimensions.width"
+                    :image-natural-height="imageNaturalDimensions.height"
+                  />
+                </div>
+              </div>
+
+              <!-- Original Video Frames (right side) -->
+              <div v-if="getVisiblePoses().length > 0" class="space-y-4">
+                <h5 class="text-sm font-medium text-gray-900">Original Video Frames</h5>
+                <div class="space-y-3">
+                  <div 
+                    v-for="(visiblePose, visibleIndex) in getVisiblePoses()" 
+                    :key="visiblePose.frameIndex"
+                    class="border rounded-lg p-3 bg-white"
+                  >
+                    <div class="flex items-center space-x-3 mb-3">
+                      <div
+                        :class="`w-3 h-3 rounded-full ${
+                          visiblePose.color === '#ef4444' ? 'bg-red-500' :
+                          visiblePose.color === '#3b82f6' ? 'bg-blue-500' :
+                          visiblePose.color === '#22c55e' ? 'bg-green-500' :
+                          visiblePose.color === '#f59e0b' ? 'bg-amber-500' :
+                          visiblePose.color === '#8b5cf6' ? 'bg-violet-500' :
+                          visiblePose.color === '#06b6d4' ? 'bg-cyan-500' :
+                          visiblePose.color === '#f97316' ? 'bg-orange-500' :
+                          visiblePose.color === '#84cc16' ? 'bg-lime-500' :
+                          visiblePose.color === '#ec4899' ? 'bg-pink-500' :
+                          visiblePose.color === '#64748b' ? 'bg-slate-500' : 'bg-gray-500'
+                        }`"
+                      ></div>
+                      <span class="text-sm font-medium">
+                        Frame {{ visibleIndex + 1 }} ({{ Math.round(extractedFrames[visiblePose.frameIndex]?.percentage * 100) }}%)
+                      </span>
+                    </div>
+                    <div class="relative">
+                      <img
+                        :src="extractedFrames[visiblePose.frameIndex]?.url"
+                        alt="Original video frame"
+                        class="w-full max-h-96 object-contain rounded border"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <div class="mt-2 text-xs text-gray-600">
-              <p>Showing projected hand and foot positions from 3 video frames</p>
-              <div class="flex space-x-4 mt-1">
+              <p>Projected hand and foot positions from video frames</p>
+              <div class="flex flex-wrap gap-3 mt-1">
                 <span class="flex items-center">
-                  <div class="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
-                  Frame 1 (25%)
+                  <div class="w-2 h-2 bg-blue-500 mr-1"></div>
+                  Keypoints (blue squares)
                 </span>
                 <span class="flex items-center">
-                  <div class="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
-                  Frame 2 (50%)
+                  <div class="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+                  Closest holds (red dots)
                 </span>
-                <span class="flex items-center">
-                  <div class="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
-                  Frame 3 (75%)
+                <span class="text-gray-500">
+                  • Dashed lines show distance to nearest holds • Check/uncheck frames above to toggle visibility
                 </span>
               </div>
             </div>
@@ -498,6 +590,9 @@ const visualizationDimensions = ref({ width: 0, height: 0 });
 const imageNaturalDimensions = ref({ width: 0, height: 0 }); // Track natural image dimensions for SVG
 const isDrawing = ref(false); // Add flag to prevent concurrent drawing
 
+// Pose visibility controls
+const poseVisibility = ref({}); // Track which poses are visible
+
 // Recording mode state
 const recordingMode = ref('upload'); // 'upload' or 'record'
 
@@ -520,6 +615,22 @@ const uniquePoseErrors = computed(() => {
     .map(f => f.poseError);
   return [...new Set(errors)]; // Remove duplicates
 });
+
+// Helper function to get visible poses
+const getVisiblePoses = () => {
+  return transformedPoses.value.filter((pose, index) => {
+    return poseVisibility.value[index] !== false; // Show by default if not explicitly hidden
+  });
+};
+
+// Helper function to toggle all poses visibility
+const toggleAllPoses = (visible) => {
+  const newVisibility = {};
+  transformedPoses.value.forEach((_, index) => {
+    newVisibility[index] = visible;
+  });
+  poseVisibility.value = newVisibility;
+};
 
 // Use the working pose detection composable
 const { runPoseDetection, poseResults, sessionReady, isAnalyzing, error: poseDetectionError } = usePoseDetection();
@@ -1038,6 +1149,9 @@ const transformPosesToMatchedImage = async (matchResult) => {
     }
 
     transformedPoses.value = transformedFrames;
+    
+    // Initialize pose visibility for all frames as visible
+    poseVisibility.value = Array(transformedFrames.length).fill(true);
 
     // Trigger visualization redraw
     await nextTick();
@@ -1456,6 +1570,7 @@ const clearState = () => {
   error.value = null;
   bestMatch.value = null;
   transformedPoses.value = [];
+  poseVisibility.value = [];
 
   // Clean up any object URLs
   extractedFrames.value.forEach((frame) => {

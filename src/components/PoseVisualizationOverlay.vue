@@ -33,10 +33,10 @@
       <g v-for="(point, pointIndex) in pose.transformedPoints" :key="`point-${pointIndex}`">
         <!-- Blue square for keypoint -->
         <rect
-          :x="point.x - 3"
-          :y="point.y - 3"
-          width="6"
-          height="6"
+          :x="point.x - 4"
+          :y="point.y - 4"
+          width="8"
+          height="8"
           fill="rgba(59, 130, 246, 0.9)"
           stroke="white"
           stroke-width="1"
