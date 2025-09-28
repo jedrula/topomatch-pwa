@@ -381,6 +381,8 @@
                   :target-image-url="bestMatch.url"
                   :feature-matches="featureMatches"
                   :homography-inliers="bestMatch.homographyInliers || 0"
+                  :pose-keypoints="extractedFrames[0]?.poseData?.keypoints || []"
+                  :homography-matrix="bestMatch.homographyMatrix"
                 />
               </div>
             </div>

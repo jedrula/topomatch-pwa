@@ -22,7 +22,7 @@
             preserveAspectRatio="xMidYMid meet"
           >
             <circle
-              v-for="(match, index) in featureMatches"
+              v-for="(match, index) in processedMatches"
               :key="`source-${index}`"
               :cx="match.point1.x"
               :cy="match.point1.y"
@@ -57,7 +57,7 @@
             preserveAspectRatio="xMidYMid meet"
           >
             <circle
-              v-for="(match, index) in featureMatches"
+              v-for="(match, index) in processedMatches"
               :key="`target-${index}`"
               :cx="match.point2.x"
               :cy="match.point2.y"
@@ -77,7 +77,7 @@
       <h6 class="text-xs font-medium text-gray-700 mb-2">Feature Matches with Connections</h6>
       <div class="relative border rounded bg-gray-50 p-2">
         <svg
-          v-if="combinedDimensions.width > 0"
+          v-if="canRenderCombinedView"
           :width="combinedDimensions.width"
           :height="combinedDimensions.height"
           class="w-full"
@@ -104,12 +104,12 @@
           />
 
           <!-- Connecting lines -->
-          <g v-for="(match, index) in visibleMatches" :key="`line-${index}`">
+          <g v-for="(match, index) in validMatches" :key="`line-${index}`">
             <line
-              :x1="(match.point1.x / sourceImageDimensions.naturalWidth) * sourceImageScale.width"
-              :y1="(match.point1.y / sourceImageDimensions.naturalHeight) * sourceImageScale.height"
-              :x2="sourceImageScale.width + 20 + (match.point2.x / targetImageDimensions.naturalWidth) * targetImageScale.width"
-              :y2="(match.point2.y / targetImageDimensions.naturalHeight) * targetImageScale.height"
+              :x1="match.sourcePoint.x"
+              :y1="match.sourcePoint.y"
+              :x2="match.targetPoint.x"
+              :y2="match.targetPoint.y"
               :stroke="match.isInlier ? '#22c55e' : '#ef4444'"
               :stroke-width="match.isInlier ? '1.5' : '1'"
               :opacity="match.isInlier ? '0.8' : '0.4'"
@@ -117,11 +117,11 @@
           </g>
 
           <!-- Feature points on combined view -->
-          <g v-for="(match, index) in visibleMatches" :key="`points-${index}`">
+          <g v-for="(match, index) in validMatches" :key="`points-${index}`">
             <!-- Source point -->
             <circle
-              :cx="(match.point1.x / sourceImageDimensions.naturalWidth) * sourceImageScale.width"
-              :cy="(match.point1.y / sourceImageDimensions.naturalHeight) * sourceImageScale.height"
+              :cx="match.sourcePoint.x"
+              :cy="match.sourcePoint.y"
               r="2"
               :fill="match.isInlier ? '#22c55e' : '#ef4444'"
               stroke="white"
@@ -129,8 +129,8 @@
             />
             <!-- Target point -->
             <circle
-              :cx="sourceImageScale.width + 20 + (match.point2.x / targetImageDimensions.naturalWidth) * targetImageScale.width"
-              :cy="(match.point2.y / targetImageDimensions.naturalHeight) * targetImageScale.height"
+              :cx="match.targetPoint.x"
+              :cy="match.targetPoint.y"
               r="2"
               :fill="match.isInlier ? '#22c55e' : '#ef4444'"
               stroke="white"
@@ -138,6 +138,117 @@
             />
           </g>
         </svg>
+      </div>
+    </div>
+
+    <!-- Pose Keypoint Transformation Visualization -->
+    <div v-if="poseKeypoints.length > 0 && homographyMatrix" class="mt-4">
+      <h6 class="text-xs font-medium text-gray-700 mb-2">Pose Keypoint Transformation via Homography</h6>
+      <div class="relative border rounded bg-gray-50 p-2">
+        <svg
+          v-if="canRenderPoseTransformation"
+          :width="combinedDimensions.width"
+          :height="combinedDimensions.height"
+          class="w-full"
+          :viewBox="`0 0 ${combinedDimensions.width} ${combinedDimensions.height}`"
+        >
+          <!-- Source image -->
+          <image
+            :href="sourceImageUrl"
+            x="0"
+            y="0"
+            :width="sourceImageScale.width"
+            :height="sourceImageScale.height"
+            preserveAspectRatio="xMidYMid meet"
+          />
+          
+          <!-- Target image -->
+          <image
+            :href="targetImageUrl"
+            :x="sourceImageScale.width + 20"
+            y="0"
+            :width="targetImageScale.width"
+            :height="targetImageScale.height"
+            preserveAspectRatio="xMidYMid meet"
+          />
+
+          <!-- Pose keypoint transformation lines -->
+          <g v-for="(transform, index) in poseTransformations" :key="`pose-line-${index}`">
+            <line
+              :x1="transform.sourcePoint.x"
+              :y1="transform.sourcePoint.y"
+              :x2="transform.targetPoint.x"
+              :y2="transform.targetPoint.y"
+              stroke="#ff6b35"
+              stroke-width="3"
+              opacity="0.8"
+              stroke-dasharray="5,3"
+            />
+          </g>
+
+          <!-- Source pose keypoints -->
+          <g v-for="(transform, index) in poseTransformations" :key="`pose-source-${index}`">
+            <circle
+              :cx="transform.sourcePoint.x"
+              :cy="transform.sourcePoint.y"
+              r="6"
+              fill="#ef4444"
+              stroke="white"
+              stroke-width="2"
+            />
+            <text
+              :x="transform.sourcePoint.x + 8"
+              :y="transform.sourcePoint.y - 8"
+              font-size="12"
+              fill="#dc2626"
+              font-weight="bold"
+            >{{ index }}</text>
+          </g>
+
+          <!-- Transformed pose keypoints -->
+          <g v-for="(transform, index) in poseTransformations" :key="`pose-target-${index}`">
+            <circle
+              :cx="transform.targetPoint.x"
+              :cy="transform.targetPoint.y"
+              r="6"
+              fill="#22c55e"
+              stroke="white"
+              stroke-width="2"
+            />
+            <text
+              :x="transform.targetPoint.x + 8"
+              :y="transform.targetPoint.y - 8"
+              font-size="12"
+              fill="#16a34a"
+              font-weight="bold"
+            >{{ index }}</text>
+          </g>
+        </svg>
+        
+        <div v-if="!canRenderPoseTransformation" class="text-center py-8 text-gray-500 text-sm">
+          Waiting for images to load...
+        </div>
+      </div>
+      
+      <!-- Pose transformation legend -->
+      <div v-if="poseKeypoints.length > 0 && homographyMatrix" class="mt-2 flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-1">
+            <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+            <span>Source pose keypoints ({{ poseKeypoints.length }})</span>
+          </div>
+          <div class="flex items-center space-x-1">
+            <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+            <span>Transformed keypoints</span>
+          </div>
+          <div class="flex items-center space-x-1">
+            <div class="w-6 h-0.5 bg-orange-500" style="border-top: 3px dashed #ff6b35;"></div>
+            <span>Transformation paths</span>
+          </div>
+        </div>
+        <div class="text-gray-600">
+          Numbers = keypoint index
+        </div>
       </div>
     </div>
 
@@ -190,6 +301,14 @@ const props = defineProps({
   homographyInliers: {
     type: Number,
     default: 0
+  },
+  poseKeypoints: {
+    type: Array,
+    default: () => []
+  },
+  homographyMatrix: {
+    type: Array,
+    default: () => null
   }
 })
 
@@ -239,8 +358,115 @@ const processedMatches = computed(() => {
   }))
 })
 
-// Filter matches for display
-const visibleMatches = computed(() => {
+// Check if we can render the combined view
+const canRenderCombinedView = computed(() => {
+  return (
+    sourceImageDimensions.value.width > 0 &&
+    targetImageDimensions.value.width > 0 &&
+    sourceImageDimensions.value.naturalWidth > 0 &&
+    targetImageDimensions.value.naturalWidth > 0 &&
+    combinedDimensions.value.width > 0
+  )
+})
+
+// Check if we can render pose transformation
+const canRenderPoseTransformation = computed(() => {
+  const result = canRenderCombinedView.value && props.poseKeypoints.length > 0 && props.homographyMatrix
+  console.log('🎯 canRenderPoseTransformation:', {
+    canRenderCombinedView: canRenderCombinedView.value,
+    poseKeypointsLength: props.poseKeypoints.length,
+    hasHomographyMatrix: !!props.homographyMatrix,
+    result
+  })
+  return result
+})
+
+// Transform pose keypoints using homography matrix
+const poseTransformations = computed(() => {
+  console.log('🎯 Pose transformation check:', {
+    canRender: canRenderPoseTransformation.value,
+    poseKeypoints: props.poseKeypoints?.length || 0,
+    homographyMatrix: props.homographyMatrix ? 'present' : 'missing',
+    keypointsSample: props.poseKeypoints?.slice(0, 2)
+  })
+  
+  if (!canRenderPoseTransformation.value) return []
+  
+  const transforms = props.poseKeypoints.map((keypoint, index) => {
+    // Transform keypoint using homography matrix
+    const transformedPoint = transformPointWithHomography(
+      keypoint.x, 
+      keypoint.y, 
+      props.homographyMatrix
+    )
+    
+    console.log(`🎯 Keypoint ${index}:`, {
+      original: { x: keypoint.x, y: keypoint.y },
+      transformed: transformedPoint
+    })
+    
+    // Scale for display
+    const sourceScaleX = sourceImageDimensions.value.naturalWidth > 0 ? 
+      sourceImageScale.value.width / sourceImageDimensions.value.naturalWidth : 0
+    const sourceScaleY = sourceImageDimensions.value.naturalHeight > 0 ? 
+      sourceImageScale.value.height / sourceImageDimensions.value.naturalHeight : 0
+    const targetScaleX = targetImageDimensions.value.naturalWidth > 0 ? 
+      targetImageScale.value.width / targetImageDimensions.value.naturalWidth : 0
+    const targetScaleY = targetImageDimensions.value.naturalHeight > 0 ? 
+      targetImageScale.value.height / targetImageDimensions.value.naturalHeight : 0
+    
+    return {
+      index,
+      sourcePoint: {
+        x: keypoint.x * sourceScaleX,
+        y: keypoint.y * sourceScaleY
+      },
+      targetPoint: {
+        x: sourceImageScale.value.width + 20 + (transformedPoint.x * targetScaleX),
+        y: transformedPoint.y * targetScaleY
+      }
+    }
+  }).filter(transform => {
+    // Filter out invalid transformations
+    return (
+      !isNaN(transform.sourcePoint.x) && !isNaN(transform.sourcePoint.y) &&
+      !isNaN(transform.targetPoint.x) && !isNaN(transform.targetPoint.y) &&
+      isFinite(transform.sourcePoint.x) && isFinite(transform.sourcePoint.y) &&
+      isFinite(transform.targetPoint.x) && isFinite(transform.targetPoint.y)
+    )
+  })
+  
+  console.log('🎯 Final transformations:', transforms.length, transforms.slice(0, 2))
+  return transforms
+})
+
+// Helper function to transform a point using homography matrix
+const transformPointWithHomography = (x, y, homography) => {
+  if (!homography || homography.length !== 9) {
+    return { x: 0, y: 0 }
+  }
+  
+  // Homography transformation: [x', y', w'] = H * [x, y, 1]
+  const h = homography
+  const denominator = h[6] * x + h[7] * y + h[8]
+  
+  if (Math.abs(denominator) < 1e-10) {
+    return { x: 0, y: 0 } // Avoid division by zero
+  }
+  
+  const transformedX = (h[0] * x + h[1] * y + h[2]) / denominator
+  const transformedY = (h[3] * x + h[4] * y + h[5]) / denominator
+  
+  return {
+    x: transformedX,
+    y: transformedY
+  }
+}
+
+// Calculate valid matches with proper coordinate transformation
+const validMatches = computed(() => {
+  if (!canRenderCombinedView.value) return []
+  
   let matches = processedMatches.value
   
   if (!showOutliers.value) {
@@ -251,7 +477,37 @@ const visibleMatches = computed(() => {
     matches = matches.slice(0, maxDisplayMatches.value)
   }
   
-  return matches
+  // Transform coordinates for display
+  return matches.map(match => {
+    const sourceScaleX = sourceImageDimensions.value.naturalWidth > 0 ? 
+      sourceImageScale.value.width / sourceImageDimensions.value.naturalWidth : 0
+    const sourceScaleY = sourceImageDimensions.value.naturalHeight > 0 ? 
+      sourceImageScale.value.height / sourceImageDimensions.value.naturalHeight : 0
+    const targetScaleX = targetImageDimensions.value.naturalWidth > 0 ? 
+      targetImageScale.value.width / targetImageDimensions.value.naturalWidth : 0
+    const targetScaleY = targetImageDimensions.value.naturalHeight > 0 ? 
+      targetImageScale.value.height / targetImageDimensions.value.naturalHeight : 0
+    
+    return {
+      ...match,
+      sourcePoint: {
+        x: match.point1.x * sourceScaleX,
+        y: match.point1.y * sourceScaleY
+      },
+      targetPoint: {
+        x: sourceImageScale.value.width + 20 + (match.point2.x * targetScaleX),
+        y: match.point2.y * targetScaleY
+      }
+    }
+  }).filter(match => {
+    // Filter out any matches with invalid coordinates
+    return (
+      !isNaN(match.sourcePoint.x) && !isNaN(match.sourcePoint.y) &&
+      !isNaN(match.targetPoint.x) && !isNaN(match.targetPoint.y) &&
+      isFinite(match.sourcePoint.x) && isFinite(match.sourcePoint.y) &&
+      isFinite(match.targetPoint.x) && isFinite(match.targetPoint.y)
+    )
+  })
 })
 
 // Count inliers and outliers
