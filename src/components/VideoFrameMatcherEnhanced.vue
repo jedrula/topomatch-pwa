@@ -774,6 +774,21 @@ const FRAME_COLORS = [
   '#ec4899'  // pink
 ];
 
+// Helper function to initialize agent logging
+const initializeAgentLogs = () => {
+  if (!window.agentLogs) {
+    window.agentLogs = {
+      session: Date.now(),
+      coordinateIssues: {
+        imageInfo: null,
+        aiHoldsAnalysis: [], // Focus only on AI holds coordinate issues
+        manualHoldsAnalysis: [] // Sample of working manual holds for comparison
+      }
+    };
+  }
+  return window.agentLogs;
+};
+
 // Helper function to extract hold coordinates in a consistent way
 const extractHoldCoordinates = (hold) => {
   let holdX, holdY;
@@ -798,8 +813,10 @@ const extractHoldCoordinates = (hold) => {
   return { x: holdX, y: holdY };
 };
 
-// Methods
+// Methods - Find closest holds with focused coordinate debugging
 const findClosestHolds = (keypointX, keypointY) => {
+  initializeAgentLogs(); // Ensure logs are initialized
+  
   if (!bestMatch.value || !bestMatch.value.name) {
     return { 
       closest: { hold: null, problem: null, distance: Infinity, score: 0 },
@@ -810,21 +827,18 @@ const findClosestHolds = (keypointX, keypointY) => {
 
   const proximityThreshold = 300;
   const allHoldsWithDistances = [];
+  
+  // Log basic image info once
+  if (!window.agentLogs.coordinateIssues.imageInfo) {
+    window.agentLogs.coordinateIssues.imageInfo = {
+      name: bestMatch.value.name,
+      id: bestMatch.value.id,
+      naturalDimensions: imageNaturalDimensions.value
+    };
+  }
 
-  // DEBUG: Log what's available in bestMatch
-  console.log('🔍 bestMatch.value structure:', {
-    name: bestMatch.value.name,
-    id: bestMatch.value.id,
-    hasDetectionResults: !!bestMatch.value.detectionResults,
-    detectionResultsKeys: bestMatch.value.detectionResults ? Object.keys(bestMatch.value.detectionResults) : null,
-    detectionResultsResults: bestMatch.value.detectionResults?.results?.length || 0
-  });
-
-  // PRIORITY 1: Use detection results if available (these are the actual detected holds shown on the image)
+  // SINGLE SOURCE: Only use AI detection results from Firestore hold detection service
   if (bestMatch.value.detectionResults && bestMatch.value.detectionResults.results) {
-    console.log('🔍 Using detectionResults for hold coordinates');
-    console.log('📊 Detection results sample:', bestMatch.value.detectionResults.results.slice(0, 3));
-    
     bestMatch.value.detectionResults.results.forEach((detectedHold, index) => {
       const coords = extractHoldCoordinates(detectedHold);
       if (!coords) return;
@@ -844,62 +858,9 @@ const findClosestHolds = (keypointX, keypointY) => {
         score: score
       });
     });
-  }
-
-  // PRIORITY 2: Fallback to boulder problems store if no detection results
-  if (allHoldsWithDistances.length === 0) {
-    console.log('🔍 Falling back to boulderProblemsStore for hold coordinates');
-    console.log('❓ Reason for fallback:', {
-      hasDetectionResults: !!bestMatch.value.detectionResults,
-      hasResults: !!bestMatch.value.detectionResults?.results,
-      resultsLength: bestMatch.value.detectionResults?.results?.length || 0
-    });
-    
-    const matchedImageId = bestMatch.value.id;
-    const problemsForImage = boulderProblemsStore.boulderProblems.filter(
-      (problem) => problem.imageId === matchedImageId
-    );
-
-    console.log('📊 Boulder problems store sample:', {
-      totalProblems: problemsForImage.length,
-      firstProblemHolds: problemsForImage[0]?.holds?.slice(0, 2)
-    });
-
-    // Check all holds across all problems for this image
-    problemsForImage.forEach((problem) => {
-      if (problem.holds && Array.isArray(problem.holds)) {
-        problem.holds.forEach((holdData, index) => {
-          const hold = holdData.hold;
-          const coords = extractHoldCoordinates(hold);
-          if (!coords) return;
-
-          // DEBUG: Log coordinate extraction for first few holds
-          if (index < 3) {
-            console.log(`📍 Hold ${index} coordinates:`, {
-              originalHold: hold,
-              extractedCoords: coords,
-              holdFormat: hold.coordinates ? 'coordinates' : hold.bbox ? 'bbox' : hold.x !== undefined ? 'x,y' : 'center_x,center_y'
-            });
-          }
-
-          const distance = Math.sqrt(Math.pow(keypointX - coords.x, 2) + Math.pow(keypointY - coords.y, 2));
-          const score = distance <= proximityThreshold ? 
-            Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
-
-          allHoldsWithDistances.push({
-            hold: {
-              ...hold,
-              holdIndex: holdData.holdIndex || index,
-              id: hold.id || `hold_${index}`,
-              source: 'problems'
-            },
-            problem: problem,
-            distance: Math.round(distance),
-            score: score
-          });
-        });
-      }
-    });
+  } else {
+    // No AI detection results available - this is expected for some images
+    console.log('ℹ️ No AI detection results available for image:', bestMatch.value.id);
   }
 
   // Sort by distance and get top 3
@@ -909,32 +870,33 @@ const findClosestHolds = (keypointX, keypointY) => {
   const secondClosest = allHoldsWithDistances[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
   const thirdClosest = allHoldsWithDistances[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
 
-  console.log(`🎯 findClosestHolds result for (${keypointX}, ${keypointY}):`, {
-    closest: closest.hold ? { id: closest.hold.id, source: closest.hold.source, distance: closest.distance } : null,
-    totalHolds: allHoldsWithDistances.length,
-    imageInfo: {
-      naturalDimensions: imageNaturalDimensions.value,
-      visualizationDimensions: visualizationDimensions.value,
-      imageName: bestMatch.value.name
-    },
-    detectionResultsInfo: {
-      hasDetectionResults: !!bestMatch.value.detectionResults,
-      detectionResultsKeys: bestMatch.value.detectionResults ? Object.keys(bestMatch.value.detectionResults) : null,
-      detectionResultsStructure: bestMatch.value.detectionResults
-    }
-  });
-
   return { 
     closest, 
     secondClosest, 
     thirdClosest,
-    allHoldsCount: allHoldsWithDistances.length // Add this for debugging
+    allHoldsCount: allHoldsWithDistances.length
   };
 };
 
 const getKeypointRows = (frame) => {
   const keypointNames = ['Left Wrist', 'Right Wrist', 'Left Ankle', 'Right Ankle'];
   const keypointData = [];
+
+  // Prevent duplicate processing - check if we've already processed this frame
+  const existingFrameLog = window.agentLogs?.frameProcessing?.find(f => f.frameIndex === frame.frameIndex);
+  
+  if (!existingFrameLog) {
+    // Initialize frame processing logs if needed
+    if (!window.agentLogs.frameProcessing) {
+      window.agentLogs.frameProcessing = [];
+    }
+    
+    const frameLog = {
+      frameIndex: frame.frameIndex,
+      keypointResults: []
+    };
+    window.agentLogs.frameProcessing.push(frameLog);
+  }
 
   // Get confidence values from the original pose data
   const originalFrame = extractedFrames.value[frame.frameIndex];
@@ -962,11 +924,22 @@ const getKeypointRows = (frame) => {
           }
         }
 
-        // Find the closest, second closest, and third closest holds for this keypoint
+        // Find the closest holds - no contextual filtering, just pure distance
         const holdsInfo = findClosestHolds(
           frame.transformedPoints[index].x,
           frame.transformedPoints[index].y
         );
+
+        // Only log to frame processing if this is a new entry
+        if (!existingFrameLog) {
+          const currentFrameLog = window.agentLogs.frameProcessing[window.agentLogs.frameProcessing.length - 1];
+          currentFrameLog.keypointResults.push({
+            name: keypointNames[index],
+            transformedPos: `(${frame.transformedPoints[index].x.toFixed(1)}, ${frame.transformedPoints[index].y.toFixed(1)})`,
+            closestHoldId: holdsInfo.closest.hold?.id || 'none',
+            closestDistance: holdsInfo.closest.distance
+          });
+        }
 
         keypointData.push({
           name: keypointNames[index],
@@ -1041,6 +1014,16 @@ const handleRecordedVideo = async (file) => {
 
 const processVideo = async () => {
   try {
+    // Initialize fresh agent logs for this session
+    window.agentLogs = {
+      session: Date.now(),
+      coordinateIssues: {
+        imageInfo: null,
+        aiHoldsAnalysis: [],
+        manualHoldsAnalysis: []
+      }
+    };
+
     isProcessing.value = true;
     error.value = null;
 
@@ -1238,7 +1221,7 @@ const handleMatchFound = async (matchedImage) => {
 const handleAnalysisComplete = async (bestMatchResult) => {
   bestMatch.value = bestMatchResult;
 
-  // Fetch the stored viewBox from Firestore for this image
+  // Fetch both the stored viewBox AND detection results from Firestore
   try {
     if (bestMatchResult.id && props.locationId) {
       // Try to get viewBox from hold detection service using the correct locationId
@@ -1249,14 +1232,29 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       } else {
         console.log('⚠️ No stored viewBox found in Firestore for image:', bestMatchResult.id);
       }
+
+      // CRITICAL FIX: Also load AI detection results for this image
+      const holdDetectionData = await holdDetectionService.getHoldDetection(props.locationId, bestMatchResult.id);
+      if (holdDetectionData && holdDetectionData.detectionResults) {
+        // Attach detection results to bestMatch so findClosestHolds can use them
+        bestMatch.value.detectionResults = {
+          results: holdDetectionData.detectionResults.aiHolds || []
+        };
+        console.log('✅ Retrieved AI detection results from Firestore:', {
+          imageId: bestMatchResult.id,
+          aiHoldsCount: holdDetectionData.detectionResults.aiHolds?.length || 0
+        });
+      } else {
+        console.log('⚠️ No AI detection results found in Firestore for image:', bestMatchResult.id);
+      }
     } else {
-      console.log('⚠️ Missing parameters for viewBox lookup:', { 
+      console.log('⚠️ Missing parameters for detection results lookup:', { 
         imageId: bestMatchResult.id, 
         locationId: props.locationId 
       });
     }
   } catch (error) {
-    console.warn('❌ Failed to fetch stored viewBox:', error);
+    console.warn('❌ Failed to fetch stored data:', error);
   }
 
   // Calculate homography matrix for the best match (only once here)
@@ -1620,6 +1618,14 @@ const onImageLoad = async () => {
       width: visualizationImage.value.naturalWidth,
       height: visualizationImage.value.naturalHeight,
     };
+    
+    // Update agent logs with correct dimensions
+    if (window.agentLogs?.coordinateIssues?.imageInfo) {
+      window.agentLogs.coordinateIssues.imageInfo.naturalDimensions = {
+        width: visualizationImage.value.naturalWidth,
+        height: visualizationImage.value.naturalHeight
+      };
+    }
     
     console.log('🖼️ Image loaded - Natural dimensions captured:', {
       naturalWidth: visualizationImage.value.naturalWidth,

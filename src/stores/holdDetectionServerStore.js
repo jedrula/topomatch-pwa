@@ -3,9 +3,11 @@ import { ref, computed } from 'vue'
 import { useHoldDetectionPersistenceStore } from './holdDetectionPersistenceStore'
 import { configService } from '../services/configService.js'
 import { holdDetectionService } from '../services/holdDetectionService.js'
+import { holdDetectionApiService } from '@/services/holdDetectionApiService'
 
 /**
  * Simplified Hold Detection Server Store
+ * Now uses TypeScript API service for type-safe hold detection
  * Only handles AI detection and integrates with unified persistence system
  */
 export const useHoldDetectionServerStore = defineStore('holdDetectionServer', () => {
@@ -64,21 +66,17 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
   const testApiHealth = async () => {
     try {
       statusMessage.value = 'Testing API connection...'
-      const response = await fetch(`${apiUrl.value}/health`, {
-        method: 'GET',
-        headers: {
-          'ngrok-skip-browser-warning': 'true' // Required for ngrok tunnels
-        }
-      })
       
-      if (response.ok) {
-        const data = await response.json()
+      // Use TypeScript service for health check
+      const isHealthy = await holdDetectionApiService.checkApiHealth()
+      
+      if (isHealthy) {
         apiHealthy.value = true
         statusMessage.value = 'API is ready'
-        console.log('✅ API Health check successful:', data)
-        return { success: true, data }
+        console.log('✅ API Health check successful')
+        return { success: true, data: { healthy: true } }
       } else {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`)
+        throw new Error('API health check returned false')
       }
     } catch (err) {
       apiHealthy.value = false
@@ -130,45 +128,38 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       const imageBlob = await imageResponse.blob()
       console.log('📦 Image blob size:', imageBlob.size, 'bytes')
       
-      // Step 3: Upload to API for processing (original endpoint)
+      // Convert blob to File object for TypeScript service
+      const imageFile = new File([imageBlob], 'climbing_wall.jpg', { type: imageBlob.type })
+      
+      // Step 3: Upload using TypeScript service
       currentStep.value = 2
       statusMessage.value = 'Uploading to server...'
       progressPercent.value = 50
       
-      const formData = new FormData()
-      formData.append('file', imageBlob, 'climbing_wall.jpg') // Original field name was 'file'
-      
-      console.log('🚀 Uploading to:', `${apiUrl.value}/api/v1/process`)
-      const uploadResponse = await fetch(`${apiUrl.value}/api/v1/process`, {
-        method: 'POST',
-        headers: {
-          'ngrok-skip-browser-warning': 'true' // Required for ngrok tunnels
-          // Note: Don't set Content-Type, let browser set it with boundary for FormData
-        },
-        body: formData
-      })
-      
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text()
-        throw new Error(`Upload failed: ${uploadResponse.status}: ${errorText}`)
-      }
-      
-      const uploadResult = await uploadResponse.json()
-      const jobId = uploadResult.job_id
+      console.log('🚀 Using TypeScript service for upload...')
+      const jobId = await holdDetectionApiService.uploadImageForProcessing(imageFile)
       console.log('✅ Upload successful, job ID:', jobId)
       
-      // Step 4: Poll for results
+      // Step 4: Poll for results using TypeScript service
       currentStep.value = 3
       statusMessage.value = 'Processing on server...'
       progressPercent.value = 75
       
-      const result = await pollForResults(jobId)
+      const result = await holdDetectionApiService.pollForJobResults(
+        jobId,
+        (status) => {
+          statusMessage.value = `Processing on server... (${status})`
+          // Update detailed progress if available from status
+          console.log(`🔄 Processing status: ${status}`)
+        }
+      )
+      
       console.log('✅ Detection results received:', result)
-      console.log('🔍 DEBUG: Full server response structure:', {
+      console.log('🔍 DEBUG: TypeScript result structure:', {
         holds: result.holds?.length || 0,
-        svg_markups: result.svg_markups?.length || 0,
-        svg_markups_sample: result.svg_markups?.[0]?.substring?.(0, 100) || 'No SVG data',
-        other_keys: Object.keys(result)
+        metadata: result.metadata,
+        // TypeScript ensures proper typing here
+        processingTime: result.metadata?.processing_time_ms
       })
       
       // Step 5: Complete
@@ -176,10 +167,11 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       progressPercent.value = 100
       statusMessage.value = 'Processing completed successfully!'
       
+      // Store the typed result
       results.value = result
       
       // Auto-enable admin highlight mode when results are loaded
-      if (result && (result.holds?.length > 0 || result.svg_markups?.length > 0)) {
+      if (result && result.holds?.length > 0) {
         setAdminHighlightMode(true)
       }
       
@@ -192,55 +184,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     } finally {
       isProcessing.value = false
     }
-  }
-  
-  // Poll for job status and results (original polling pattern)
-  const pollForResults = async (jobId, maxAttempts = 60, intervalMs = 2000) => {
-    let attempts = 0
-    
-    const poll = async () => {
-      attempts++
-      
-      if (attempts > maxAttempts) {
-        throw new Error('Polling timeout: Maximum attempts exceeded')
-      }
-      
-      console.log(`🔄 Polling job ${jobId}, attempt ${attempts}/${maxAttempts}`)
-      
-      const response = await fetch(`${apiUrl.value}/api/v1/status/${jobId}`, {
-        headers: {
-          'ngrok-skip-browser-warning': 'true'
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Status check failed: ${response.status}`)
-      }
-      
-      const statusResult = await response.json()
-      const { status, result } = statusResult
-      
-      // Update detailed progress if available
-      if (statusResult.detailed_progress) {
-        detailedProgress.value = statusResult.detailed_progress
-      }
-      
-      if (status === 'completed') {
-        return result
-      }
-      
-      if (status === 'failed') {
-        const errorMsg = result?.error_message || 'Unknown error'
-        throw new Error(`Processing failed: ${errorMsg}`)
-      }
-      
-      // Still processing, wait and retry
-      statusMessage.value = `Processing on server... (${status})`
-      await new Promise((resolve) => setTimeout(resolve, intervalMs))
-      return poll()
-    }
-    
-    return await poll()
   }
   
   const clearResults = () => {

@@ -974,7 +974,11 @@ const saveDetectionToFirestore = async () => {
       id: `ai_hold_${index}`,
       source: 'ai-detected',
       svgMarkup: serverStore.results?.svg_markups?.[index] || '',
-      bbox: hold.bbox || [0, 0, 0, 0],
+      // Store individual coordinates (primary)
+      x: hold.center_x || 0,
+      y: hold.center_y || 0,
+      width: hold.bbox.width || 0,
+      height: hold.bbox.height || 0,
       confidence: hold.confidence || 0,
       holdType: hold.type || 'unknown',
       detectionConfidence: hold.confidence || 0,
@@ -1170,6 +1174,16 @@ const handleHoldClick = (hold, holdIndex) => {
       enhancedHold = {
         ...enhancedHold,
         svgMarkup: serverStore.results.svg_markups[holdIndex],
+      };
+    }
+    // Use server hold width, height, x and y if available (for AI holds)
+    if (serverStore.results?.holds?.[holdIndex]) {
+      enhancedHold = {
+        ...enhancedHold,
+        x: serverStore.results.holds[holdIndex].x,
+        y: serverStore.results.holds[holdIndex].y,
+        width: serverStore.results.holds[holdIndex].width,
+        height: serverStore.results.holds[holdIndex].height,
       };
     }
 
