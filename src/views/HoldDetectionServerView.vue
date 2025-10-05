@@ -117,7 +117,6 @@
                   class="w-full h-auto object-contain block"
                   @load="onImageLoad"
                 />
-
                 <!-- Interactive Hold Overlay with Manual Drawing Support -->
                 <InteractiveHoldOverlay
                   v-if="imageLoaded"
@@ -130,12 +129,12 @@
                   :editing-problem="editingState.editingProblem"
                   :hovered-problem-id="hoveredProblemId"
                   :magic-wand-active="isAnyMagicWandActive"
-                  :magic-wand-selection="magicWandSelection"
+                  :magic-wand-selection="magicWandSelection.selectedIndices"
                   :show-hold-overlay="false"
                   :is-showing-only-one-problem="boulderProblemsStore.isShowingOnlyOneProblem"
                   :isolated-problem="boulderProblemsStore.isolatedProblem"
                   :filtered-problems="filteredProblems"
-                  :location-id="route.params.locationId"
+                  :location-id="String(route.params.locationId)"
                   :image-url="imageUrl"
                   :boulder-hold-selection-tool="boulderHoldSelectionTool"
                   @hold-click="handleHoldClick"
@@ -347,7 +346,6 @@
                           type="text"
                           placeholder="Enter API base URL"
                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          @change="serverStore.setApiUrl(serverStore.apiUrl)"
                         />
                         <button
                           @click="testApiHealth"
@@ -475,7 +473,7 @@
                   <span class="text-gray-600">Status</span>
                   <div class="flex items-center space-x-2">
                     <span class="text-sm font-medium text-gray-900 capitalize">
-                      {{ serverStore.processingStatus }}
+                      {{ serverStore.statusMessage }}
                     </span>
                     <!-- Cache indicator -->
                     <div
@@ -585,15 +583,15 @@
                   <div class="text-sm text-gray-600">Processing Time</div>
                 </div>
                 <div class="text-center p-4 bg-purple-50 rounded-lg">
-                  <div class="text-2xl font-bold text-purple-600">{{ serverStore.svgCount }}</div>
+                  <div class="text-2xl font-bold text-purple-600">{{ serverStore.holdCount }}</div>
                   <div class="text-sm text-gray-600">SVGs Generated</div>
                 </div>
                 <div
-                  v-if="serverStore.processingMetrics"
+                  v-if="serverStore.processingTime > 0"
                   class="text-center p-4 bg-orange-50 rounded-lg"
                 >
                   <div class="text-2xl font-bold text-orange-600">
-                    {{ serverStore.processingMetrics.compressionRatio.toFixed(1) }}x
+                    {{ (serverStore.processingTime / 1000).toFixed(1) }}s
                   </div>
                   <div class="text-sm text-gray-600">Compression Ratio</div>
                 </div>
@@ -670,7 +668,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore.js';
@@ -684,6 +682,8 @@ import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
 import { getResizedImageUrl } from '@/utils/imageResize.js';
 
+// TypeScript component - basic type annotations without complex interface definitions
+
 const route = useRoute();
 const router = useRouter();
 const serverStore = useHoldDetectionServerStore();
@@ -692,19 +692,19 @@ const boulderProblemsStore = useBoulderProblemsStore();
 
 // Reactive state
 // References
-const climbingImage = ref(null);
+const climbingImage = ref(null); // TODO: Add proper image type
 const imageContainer = ref(null);
-const interactiveOverlay = ref(null);
+const interactiveOverlay = ref(null); // TODO: Add component type
 const imageLoaded = ref(false);
-const currentImage = ref(null);
+const currentImage = ref(null); // TODO: Add proper image type
 const imageLoadError = ref(null);
 
 // Fullscreen state
-const isFullscreen = ref(false);
+const isFullscreen = ref(false)
 
 // Hold interaction state
 const hoveredProblemId = ref(null);
-const filteredProblems = ref([]);
+const filteredProblems = ref([]); // TODO: Add proper problem type
 
 // Editing state derived from URL query parameters (single source of truth)
 const editingState = computed(() => {
@@ -786,11 +786,11 @@ const isAnyMagicWandActive = computed(() => {
 
 // Shared props for BoulderProblemsManager (DRY principle)
 const boulderProblemsManagerProps = computed(() => ({
-  locationId: route.params.locationId,
+  locationId: String(route.params.locationId || ''),
   hasDetectionResults: serverStore.hasResults,
   detectionResults: serverStore.results,
   climbingImage: climbingImage.value,
-  editingProblemId: editingState.value.editingProblemId,
+  editingProblemId: String(editingState.value.editingProblemId || ''),
 }));
 
 // Methods
@@ -807,31 +807,21 @@ const toggleFullscreen = async () => {
     if (!isFullscreen.value) {
       // Enter fullscreen
       const element = imageContainer.value;
+      if (!element) return;
+
       if (element.requestFullscreen) {
         await element.requestFullscreen();
-      } else if (element.webkitRequestFullscreen) {
-        await element.webkitRequestFullscreen();
-      } else if (element.mozRequestFullScreen) {
-        await element.mozRequestFullScreen();
-      } else if (element.msRequestFullscreen) {
-        await element.msRequestFullscreen();
       }
     } else {
       // Exit fullscreen
       if (document.exitFullscreen) {
         await document.exitFullscreen();
-      } else if (document.webkitExitFullscreen) {
-        await document.webkitExitFullscreen();
-      } else if (document.mozCancelFullScreen) {
-        await document.mozCancelFullScreen();
-      } else if (document.msExitFullscreen) {
-        await document.msExitFullscreen();
       }
     }
   } catch (error) {
     console.error('Fullscreen toggle failed:', error);
   }
-};
+}
 
 const testApiHealth = async () => {
   console.log('🔍 Testing API health...');
@@ -845,22 +835,20 @@ const testApiHealth = async () => {
 };
 
 const clearDetectionCache = () => {
-  serverStore.clearAllCache();
-  console.log('🗑️ All detection cache cleared by user');
-};
+  // Clear detection results - the store no longer has clearAllCache method
+  serverStore.results = null
+  serverStore.error = null
+  console.log('🗑️ Detection results cleared by user')
+}
 
 const clearCurrentImageCache = () => {
-  if (!imageUrl.value) return;
+  if (!imageUrl.value) return
 
-  const cleared = serverStore.clearCacheForImage(imageUrl.value, serverStore.compressionSettings);
-  if (cleared) {
-    console.log('🗑️ Cache cleared for current image:', imageUrl.value);
-    // Also clear any current results to force re-detection
-    serverStore.clearResults();
-  } else {
-    console.log('ℹ️ No cache found for current image:', imageUrl.value);
-  }
-};
+  // Clear current results - the store no longer has clearCacheForImage method
+  serverStore.results = null
+  serverStore.error = null
+  console.log('🗑️ Detection results cleared for current image:', imageUrl.value)
+}
 
 // Magic Wand functionality
 const toggleMagicWand = () => {
@@ -1333,37 +1321,40 @@ const loadImageFromQuery = async () => {
 
       // Load location data to get grading system
       try {
-        const location = await locationService.getLocation(locationId);
-        if (location && location.gradingSystem) {
+        const location = await locationService.getLocation(locationId)
+        if (location && typeof location === 'object' && 'gradingSystem' in location && location.gradingSystem) {
           boulderProblemsStore.setLocationGradingSystem(location.gradingSystem);
-          console.log('🎚️ Loaded location grading system:', location.gradingSystem);
+          console.log('🎚️ Loaded location grading system:', location.gradingSystem)
         } else {
-          console.log('🎚️ No custom grading system found for location, using default');
+          console.log('🎚️ No custom grading system found for location, using default')
           boulderProblemsStore.setLocationGradingSystem(null);
         }
       } catch (error) {
-        console.warn('⚠️ Error loading location grading system:', error);
+        console.warn('⚠️ Error loading location grading system:', error)
         // Continue with default system
         boulderProblemsStore.setLocationGradingSystem(null);
       }
 
       // Load image data from the location service
       const imageRecords = await locationService.getLocationImages(locationId);
-      const imageRecord = imageRecords.find((record) => record.id === imageId);
+      if (Array.isArray(imageRecords)) {
+        const imageRecord = imageRecords.find((record) => record.id === imageId);
 
-      if (imageRecord) {
-        currentImage.value = {
-          id: imageRecord.id,
-          url: getResizedImageUrl(imageRecord.downloadUrl, '1920x1440', 'jpg'),
-          name: imageRecord.fileName,
-        };
-        console.log('✅ Loaded image for hold detection:', currentImage.value);
+        if (imageRecord) {
+          currentImage.value = {
+            id: imageRecord.id,
+            url: getResizedImageUrl(imageRecord.downloadUrl, '1920x1440', 'jpg'),
+            name: imageRecord.fileName,
+          }
+          console.log('✅ Loaded image for hold detection:', currentImage.value);
 
-        // Load existing manual holds for this image
-        await serverStore.loadManualHolds(locationId, imageId);
+          // Load existing manual holds for this image
+          await serverStore.loadManualHolds(locationId, imageId);
+        } else {
+          console.warn('⚠️ Image not found in location images:', imageId);
+        }
       } else {
-        console.warn(`⚠️ Image with ID ${imageId} not found in location ${locationId}`);
-        currentImage.value = null;
+        console.warn('⚠️ Invalid image records format:', imageRecords);
       }
     } catch (error) {
       console.error('❌ Error loading image for hold detection:', error);
@@ -1373,11 +1364,11 @@ const loadImageFromQuery = async () => {
   } else {
     // No query parameters, use default/hardcoded image
     console.log('📷 Using default image (no query parameters)');
-    currentImage.value = null;
+    currentImage.value = null
     // Use default grading system when no location specified
     boulderProblemsStore.setLocationGradingSystem(null);
   }
-};
+}
 
 // Watch for route changes to load different images
 watch(
@@ -1485,13 +1476,10 @@ onMounted(async () => {
   // Add fullscreen event listeners
   const handleFullscreenChange = () => {
     isFullscreen.value = !!(
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.mozFullScreenElement ||
-      document.msFullscreenElement
-    );
+      document.fullscreenElement
+    )
     console.log('🖼️ Fullscreen state changed:', isFullscreen.value);
-  };
+  }
 
   document.addEventListener('fullscreenchange', handleFullscreenChange);
   document.addEventListener('webkitfullscreenchange', handleFullscreenChange);

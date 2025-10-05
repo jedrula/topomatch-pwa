@@ -901,9 +901,8 @@ const saveAllChanges = async () => {
 let updateTimeout = null;
 let isUpdating = false;
 
-const handleSliderUpdate = (value) => {
+const handleSliderUpdate = () => {
   // Real-time UI update while dragging - no URL update yet
-  console.log('🎚️ Slider update (dragging):', value);
   isUpdating = true;
 
   // Clear any pending timeout
@@ -990,8 +989,6 @@ watch(
 watch(
   () => props.editingProblemId,
   (newEditingProblemId, oldEditingProblemId) => {
-    console.log('📝 BoulderProblemsManager editing problem ID changed:', newEditingProblemId);
-
     // When starting to edit a problem, populate the form
     if (newEditingProblemId && editingProblem.value) {
       problemName.value = editingProblem.value.name;
