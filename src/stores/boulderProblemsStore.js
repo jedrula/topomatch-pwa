@@ -2,6 +2,13 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { boulderProblemsServiceV2 as boulderProblemsService } from '@/services/boulderProblemsServiceV2';
 
+/**
+ * @typedef {import('@/types/holds').Hold} Hold
+ * @typedef {import('@/types/holds').ProblemHold} ProblemHold
+ * @typedef {import('@/types/holds').AIDetectedHold} AIDetectedHold
+ * @typedef {import('@/types/holds').ManualHold} ManualHold
+ */
+
 export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
   // State
   const boulderProblems = ref([]);
@@ -303,7 +310,14 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     }
   };
 
-  const addHoldToProblem = (problemId, hold, holdIndex) => {
+  /**
+   * Add or remove a hold from a boulder problem
+   * @param {string} problemId - The problem ID
+   * @param {Hold} hold - The hold data (AI or manual)
+   * @param {number} holdIndex - The index of the hold in the detection results
+   * @param {string} [role] - Optional role of the hold (start, intermediate, finish, optional)
+   */
+  const addHoldToProblem = (problemId, hold, holdIndex, role = undefined) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return;
 
@@ -313,12 +327,15 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
       // Remove hold if it's already added
       problem.holds.splice(existingHoldIndex, 1);
     } else {
-      // Add hold to problem
-      problem.holds.push({
+      // Add hold to problem using the new ProblemHold structure
+      /** @type {ProblemHold} */
+      const problemHold = {
         holdIndex,
         hold: { ...hold },
-        addedAt: new Date(),
-      });
+        addedAt: new Date().toISOString(),
+        role: role,
+      };
+      problem.holds.push(problemHold);
     }
 
     // Mark problem as having unsaved changes (unless it's local only or being created)
@@ -327,6 +344,11 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     }
   };
 
+  /**
+   * Remove a hold from a boulder problem
+   * @param {string} problemId - The problem ID
+   * @param {number} holdIndex - The index of the hold to remove
+   */
   const removeHoldFromProblem = (problemId, holdIndex) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return;

@@ -12,6 +12,11 @@ import { db } from './firebase';
 import { getCurrentUser } from './authService';
 
 /**
+ * @typedef {import('@/types/holds').ManualHold} ManualHold
+ * @typedef {import('@/types/holds').Hold} Hold
+ */
+
+/**
  * Service for managing manual holds in Firestore
  * Manual holds are stored per image and shared across users
  */
@@ -20,7 +25,7 @@ export const manualHoldsService = {
    * Load manual holds for an image
    * @param {string} locationId - The location ID
    * @param {string} imageId - The image ID (used as document ID)
-   * @returns {Promise<Array>} Array of manual holds
+   * @returns {Promise<ManualHold[]>} Array of manual holds
    */
   async loadManualHolds(locationId, imageId) {
     try {
@@ -45,7 +50,7 @@ export const manualHoldsService = {
    * Save manual holds for an image
    * @param {string} locationId - The location ID
    * @param {string} imageId - The image ID (used as document ID)
-   * @param {Array} holds - Array of manual holds
+   * @param {ManualHold[]} holds - Array of manual holds
    * @param {string} imageUrl - The image URL (for metadata)
    * @returns {Promise<void>}
    */

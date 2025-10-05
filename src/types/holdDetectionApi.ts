@@ -149,7 +149,6 @@ export interface SimpleHold {
   type: string;
   bbox?: [number, number, number, number]; // Alternative format [x, y, width, height]
   svgMarkup?: string;
-  detectionConfidence?: number;
   holdType?: string;
 }
 
