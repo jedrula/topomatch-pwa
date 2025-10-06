@@ -570,6 +570,9 @@ const createHoldFromPath = async () => {
     timestamp: new Date().toISOString(),
   };
 
+  // Add to local store immediately for instant preview
+  serverStore.addManualHold(hold);
+
   // Save the manual hold to Firestore using persistence store
   try {
     await persistenceStore.addManualHold(props.imageId, hold);
@@ -598,6 +601,8 @@ const createHoldFromPath = async () => {
     }
   } catch (error) {
     console.error('❌ Failed to save manual hold:', error);
+    // Remove from local store since persistence failed
+    serverStore.removeManualHold(hold);
     return; // Don't add to problem if save failed
   }
 };
