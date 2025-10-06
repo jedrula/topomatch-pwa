@@ -43,7 +43,7 @@
         />
         
         <!-- Draw closest hold if available -->
-        <g v-if="pose.closestHolds && pose.closestHolds[pointIndex] && pose.closestHolds[pointIndex].coordinates" :key="`hold-${pointIndex}`">
+        <g v-if="pose.closestHolds && pose.closestHolds[pointIndex] && pose.closestHolds[pointIndex].coordinates && pose.closestHolds[pointIndex].coordinates.x !== null && pose.closestHolds[pointIndex].coordinates.y !== null" :key="`hold-${pointIndex}`">
           <!-- DEBUG: Log hold coordinates -->
           {{
             console.log(`🔴 Rendering red circle for keypoint ${pointIndex}:`, {

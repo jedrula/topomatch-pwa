@@ -473,9 +473,12 @@
                           </span>
                         </td>
                         <td class="px-2 py-1">
-                          <div v-if="keypoint.closestProblem" class="text-xs">
-                            <div class="font-medium text-gray-900">
+                          <div v-if="keypoint.closestHold" class="text-xs">
+                            <div class="font-medium text-gray-900" v-if="keypoint.closestProblem">
                               {{ keypoint.closestProblem.name }}
+                            </div>
+                            <div class="font-medium text-gray-900" v-else>
+                              AI Detected Hold
                             </div>
                             <div class="text-gray-500">
                               Hold #{{
@@ -490,9 +493,12 @@
                           <div v-else class="text-xs text-gray-400">No holds found</div>
                         </td>
                         <td class="px-2 py-1">
-                          <div v-if="keypoint.secondClosestProblem" class="text-xs">
-                            <div class="font-medium text-gray-900">
+                          <div v-if="keypoint.secondClosestHold" class="text-xs">
+                            <div class="font-medium text-gray-900" v-if="keypoint.secondClosestProblem">
                               {{ keypoint.secondClosestProblem.name }}
+                            </div>
+                            <div class="font-medium text-gray-900" v-else>
+                              AI Detected Hold
                             </div>
                             <div class="text-gray-500">
                               Hold #{{
@@ -507,9 +513,12 @@
                           <div v-else class="text-xs text-gray-400">-</div>
                         </td>
                         <td class="px-2 py-1">
-                          <div v-if="keypoint.thirdClosestProblem" class="text-xs">
-                            <div class="font-medium text-gray-900">
+                          <div v-if="keypoint.thirdClosestHold" class="text-xs">
+                            <div class="font-medium text-gray-900" v-if="keypoint.thirdClosestProblem">
                               {{ keypoint.thirdClosestProblem.name }}
+                            </div>
+                            <div class="font-medium text-gray-900" v-else>
+                              AI Detected Hold
                             </div>
                             <div class="text-gray-500">
                               Hold #{{
@@ -755,7 +764,7 @@ watch(poseVisibility, (newVisibility, oldVisibility) => {
 }, { deep: true });
 
 // Frame timestamps for extraction - configurable for debugging
-const FRAMES_FOR_ANALYSIS = 10; // Back to 10 frames for comprehensive analysis
+const FRAMES_FOR_ANALYSIS = 10;
 const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
   ? [0.5] // Just extract middle frame for debugging
   : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]; // 10 samples evenly distributed
@@ -793,24 +802,55 @@ const initializeAgentLogs = () => {
 const extractHoldCoordinates = (hold) => {
   let holdX, holdY;
 
+  console.log('🔍 extractHoldCoordinates received hold:', JSON.stringify(hold, null, 2));
+
   if (hold.coordinates) {
     holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
     holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
+    console.log('✅ Used hold.coordinates path:', { holdX, holdY });
   } else if (hold.bbox && Array.isArray(hold.bbox)) {
     holdX = hold.bbox[0] + hold.bbox[2] / 2;
     holdY = hold.bbox[1] + hold.bbox[3] / 2;
+    console.log('✅ Used hold.bbox (array) path:', { holdX, holdY });
+  } else if (hold.bbox && typeof hold.bbox === 'object') {
+    holdX = hold.bbox.x + (hold.bbox.width || 0) / 2;
+    holdY = hold.bbox.y + (hold.bbox.height || 0) / 2;
+    console.log('✅ Used hold.bbox (object) path:', { holdX, holdY });
   } else if (hold.x !== undefined && hold.y !== undefined) {
-    holdX = hold.x + (hold.width || 0) / 2;
-    holdY = hold.y + (hold.height || 0) / 2;
+    // Check if this is already a center coordinate (from our processed AI holds)
+    // Our AI holds from the server have x,y as center coordinates already
+    if (hold.source === 'ai-detected' || hold.aiModel === 'server-detection') {
+      holdX = hold.x; // Already center coordinate
+      holdY = hold.y; // Already center coordinate
+      console.log('✅ Used hold.x/y path (center coords):', { holdX, holdY });
+    } else {
+      // For other holds, treat x,y as top-left and calculate center
+      holdX = hold.x + (hold.width || 0) / 2;
+      holdY = hold.y + (hold.height || 0) / 2;
+      console.log('✅ Used hold.x/y path (calculated center):', { holdX, holdY, width: hold.width, height: hold.height });
+    }
   } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
     holdX = hold.center_x;
     holdY = hold.center_y;
+    console.log('✅ Used hold.center_x/y path:', { holdX, holdY });
   } else {
-    console.warn('Unknown hold coordinate format:', hold);
+    console.warn('❌ Unknown hold coordinate format:', hold);
     return null;
   }
 
   return { x: holdX, y: holdY };
+};
+
+// Helper function to find which boulder problem a hold belongs to
+const findBoulderProblemForHold = (holdIndex) => {
+  if (!matchedImageBoulderProblems.value) return null;
+  
+  for (const problem of matchedImageBoulderProblems.value) {
+    if (problem.holds && problem.holds.some(h => h.holdIndex === holdIndex)) {
+      return problem;
+    }
+  }
+  return null;
 };
 
 // Methods - Find closest holds with focused coordinate debugging
@@ -840,6 +880,11 @@ const findClosestHolds = (keypointX, keypointY) => {
   // SINGLE SOURCE: Only use AI detection results from Firestore hold detection service
   if (bestMatch.value.detectionResults && bestMatch.value.detectionResults.results) {
     bestMatch.value.detectionResults.results.forEach((detectedHold, index) => {
+      // Debug: Log the first few holds to understand the data structure
+      if (index < 3) {
+        console.log(`🔍 AI detected hold ${index} structure:`, JSON.stringify(detectedHold, null, 2));
+      }
+      
       const coords = extractHoldCoordinates(detectedHold);
       if (!coords) return;
 
@@ -847,13 +892,16 @@ const findClosestHolds = (keypointX, keypointY) => {
       const score = distance <= proximityThreshold ? 
         Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
 
+      // Look up which boulder problem this hold belongs to
+      const associatedProblem = findBoulderProblemForHold(index);
+
       allHoldsWithDistances.push({
         hold: {
           ...detectedHold,
           id: detectedHold.id || `detected_hold_${index}`,
           source: 'detection'
         },
-        problem: null, // No problem association for detected holds
+        problem: associatedProblem, // Associate boulder problem if found
         distance: Math.round(distance),
         score: score
       });
@@ -1402,6 +1450,16 @@ const transformPosesToMatchedImage = async (matchResult) => {
           console.log('  📐 Extracted coords:', coords);
           console.log('  📏 Distance:', holdInfo.closest.distance);
           console.log('  📊 All holds analyzed:', holdInfo.allHoldsCount || 'unknown');
+          
+          // Extra debugging for coordinate issues
+          if (coords) {
+            console.log('  ✅ Valid coordinates extracted:', coords);
+          } else {
+            console.log('  ❌ No coordinates extracted (will cause lines to (0,0))');
+            if (holdInfo.closest.hold) {
+              console.log('  🔍 Hold data structure:', JSON.stringify(holdInfo.closest.hold, null, 2));
+            }
+          }
         }
         
         return {

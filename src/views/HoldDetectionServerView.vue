@@ -959,21 +959,31 @@ const saveDetectionToFirestore = async () => {
     persistenceStore.initializeForLocation(route.params.locationId);
 
     // Convert AI detection results to unified format
-    const aiHolds = (serverStore.results?.holds || []).map((hold, index) => ({
-      id: `ai_hold_${index}`,
-      source: 'ai-detected',
-      svgMarkup: serverStore.results?.svg_markups?.[index] || '',
-      // Store individual coordinates (primary)
-      x: hold.center_x || 0,
-      y: hold.center_y || 0,
-      width: hold.bbox.width || 0,
-      height: hold.bbox.height || 0,
-      confidence: hold.confidence || 0,
-      holdType: hold.type || 'unknown',
-      detectionConfidence: hold.confidence || 0,
-      aiModel: 'server-detection',
-      addedAt: new Date()
-    }));
+    const aiHolds = (serverStore.results?.holds || []).map((hold, index) => {
+      // DEBUG: Log the structure of the first few holds
+      if (index < 3) {
+        console.log(`🔍 AI hold ${index} raw structure:`, JSON.stringify(hold, null, 2));
+        console.log(`🔍 bbox type:`, typeof hold.bbox, hold.bbox);
+        console.log(`🔍 bbox properties:`, hold.bbox ? Object.keys(hold.bbox) : 'bbox is null/undefined');
+      }
+      
+      return {
+        id: `ai_hold_${index}`,
+        source: 'ai-detected',
+        svgMarkup: serverStore.results?.svg_markups?.[index] || '',
+        // The serverStore.results.holds already have x,y,width,height from convertApiResponseToFrontendFormat
+        // x,y are top-left corner from bbox, so calculate center coordinates  
+        x: (hold.x || 0) + (hold.width || 0) / 2,
+        y: (hold.y || 0) + (hold.height || 0) / 2,
+        width: hold.width || 0,
+        height: hold.height || 0,
+        confidence: hold.confidence || 0,
+        holdType: hold.type || 'unknown',
+        detectionConfidence: hold.confidence || 0,
+        aiModel: 'server-detection',
+        addedAt: new Date()
+      };
+    });
 
     // Calculate viewBox from image dimensions
     const imageElement = climbingImage.value;
