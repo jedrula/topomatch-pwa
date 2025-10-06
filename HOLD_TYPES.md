@@ -112,10 +112,25 @@ console.log(`Total: ${stats.total}, AI: ${stats.aiCount}, Manual: ${stats.manual
 const nearbyHolds = findNearbyHolds(targetHold, allHolds, 50);
 ```
 
-### 4. Legacy Compatibility
+### 4. Direct Type Usage (Greenfield Development)
 
 ```typescript
-import { convertSimpleHoldToHold, convertHoldToSimpleHold } from '@/types/holds';
+import { createAIHold, createManualHold, isAIDetectedHold } from '@/types/holds';
+
+// Create holds directly with proper types
+const aiHold = createAIHold({
+  id: 'ai_123',
+  x: 100, y: 50, width: 30, height: 25,
+  confidence: 0.95,
+  type: 'jug'
+});
+
+const manualHold = createManualHold({
+  id: 'manual_456', 
+  x: 200, y: 100, width: 25, height: 20,
+  type: 'manual'
+});
+```
 
 ## Migration Guide
 

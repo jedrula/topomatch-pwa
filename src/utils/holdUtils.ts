@@ -14,9 +14,7 @@ import {
   isManualHold, 
   createAIHold, 
   createManualHold,
-  createProblemHold,
-  convertSimpleHoldToHold,
-  convertHoldToSimpleHold
+  createProblemHold
 } from '@/types/holds';
 
 // Re-export type guards and creators for convenience
@@ -25,9 +23,7 @@ export {
   isManualHold,
   createAIHold,
   createManualHold,
-  createProblemHold,
-  convertSimpleHoldToHold,
-  convertHoldToSimpleHold
+  createProblemHold
 };
 
 // ============================================================================
@@ -215,11 +211,12 @@ export function serializeHolds(holds: Hold[]): string {
 
 /**
  * Deserialize holds from JSON string
+ * Note: Assumes data is already in correct Hold format (greenfield development)
  */
 export function deserializeHolds(json: string): Hold[] {
   try {
     const data = JSON.parse(json);
-    return Array.isArray(data) ? data.map(convertSimpleHoldToHold) : [];
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Failed to deserialize holds:', error);
     return [];

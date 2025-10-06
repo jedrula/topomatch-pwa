@@ -135,6 +135,7 @@
                   :isolated-problem="boulderProblemsStore.isolatedProblem"
                   :filtered-problems="filteredProblems"
                   :location-id="String(route.params.locationId)"
+                  :image-id="currentImage?.id"
                   :image-url="imageUrl"
                   :boulder-hold-selection-tool="boulderHoldSelectionTool"
                   @hold-click="handleHoldClick"

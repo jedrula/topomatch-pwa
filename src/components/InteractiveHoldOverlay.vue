@@ -173,6 +173,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore';
+import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import HoldSvg from './HoldSvg.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
@@ -239,6 +240,10 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  imageId: {
+    type: String,
+    default: null,
+  },
   imageUrl: {
     type: String,
     default: null,
@@ -253,6 +258,7 @@ const props = defineProps({
 const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change', 'delete-hold']);
 
 const serverStore = useHoldDetectionServerStore();
+const persistenceStore = useHoldDetectionPersistenceStore();
 const boulderProblemsStore = useBoulderProblemsStore();
 const svgElement = ref(null);
 const drawingCanvas = ref(null);
@@ -369,14 +375,6 @@ const getCanvasCoordinates = (event) => {
     y: (event.clientY - rect.top) * scaleY,
   };
 
-  console.log('getCanvasCoordinates:', {
-    event: { clientX: event.clientX, clientY: event.clientY },
-    rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-    canvas: { width: canvas.width, height: canvas.height },
-    scale: { scaleX, scaleY },
-    coords,
-  });
-
   return coords;
 };
 
@@ -391,14 +389,6 @@ const getImageCoordinates = (canvasX, canvasY) => {
     x: canvasX * scaleX,
     y: canvasY * scaleY,
   };
-
-  console.log('getImageCoordinates:', {
-    input: { canvasX, canvasY },
-    image: { naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight },
-    canvas: { width: canvas.width, height: canvas.height },
-    scale: { scaleX, scaleY },
-    coords,
-  });
 
   return coords;
 };
@@ -463,7 +453,7 @@ const updateDrawing = (event) => {
   drawingPath.value.push(coords); // Add point to path
 };
 
-const finishDrawing = (event) => {
+const finishDrawing = async (event) => {
   if (!isDrawing.value || !isAnyDrawingMode.value) return;
 
   // Add final point if different from last point
@@ -475,7 +465,7 @@ const finishDrawing = (event) => {
 
   // Create hold from the free drawing path
   if (drawingPath.value.length >= 3) {
-    createHoldFromPath();
+    await createHoldFromPath();
   }
 
   // Reset drawing state
@@ -507,7 +497,7 @@ const createPreviewPath = () => {
   return pathData;
 };
 
-const createHoldFromPath = () => {
+const createHoldFromPath = async () => {
   if (drawingPath.value.length < 3) return;
 
   // Convert canvas coordinates to image coordinates
@@ -580,27 +570,35 @@ const createHoldFromPath = () => {
     timestamp: new Date().toISOString(),
   };
 
-  // Save the manual hold to Firestore
-  serverStore.addManualHold(hold, props.locationId, props.imageUrl);
+  // Save the manual hold to Firestore using persistence store
+  try {
+    await persistenceStore.addManualHold(props.imageId, hold);
+    console.log('✅ Manual hold saved to Firestore:', hold.id);
+    
+    // If in quick draw mode (boulder problem creation/editing),
+    // automatically add the hold to the active problem
+    if (isQuickDrawEnabled.value) {
+      const activeProblem = props.activeProblem || props.editingProblem;
+      if (activeProblem) {
+        // After persistence store reloads, get the updated manual holds count
+        const currentManualHolds = persistenceStore.getManualHoldsForImage(props.imageId) || [];
+        const aiHoldsCount = aiHolds.value.length;
+        
+        // The newly added hold will be the last one in the manual holds array
+        const manualHoldIndex = aiHoldsCount + currentManualHolds.length - 1;
 
-  // If in quick draw mode (boulder problem creation/editing),
-  // automatically add the hold to the active problem
-  if (isQuickDrawEnabled.value) {
-    const activeProblem = props.activeProblem || props.editingProblem;
-    if (activeProblem) {
-      // Get the index of the newly created hold in the combined holds array
-      // Manual holds come after AI holds in the combined array
-      const aiHoldsCount = aiHolds.value.length;
-      const manualHoldIndex = aiHoldsCount + serverStore.manualHolds.length - 1; // -1 because we just added it
+        // Ensure the hold has svgMarkup for consistent display
+        const enrichedHold = ensureHoldHasSvgMarkup(hold);
 
-      // Ensure the hold has svgMarkup for consistent display
-      const enrichedHold = ensureHoldHasSvgMarkup(hold);
+        // Add to the active problem
+        boulderProblemsStore.addHoldToProblem(activeProblem.id, enrichedHold, manualHoldIndex);
 
-      // Add to the active problem
-      boulderProblemsStore.addHoldToProblem(activeProblem.id, enrichedHold, manualHoldIndex);
-
-      console.log(`⚡ Quick Draw: Added hold to boulder problem "${activeProblem.name}"`);
+        console.log(`⚡ Quick Draw: Added hold to boulder problem "${activeProblem.name}" at index ${manualHoldIndex}`);
+      }
     }
+  } catch (error) {
+    console.error('❌ Failed to save manual hold:', error);
+    return; // Don't add to problem if save failed
   }
 };
 

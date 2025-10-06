@@ -71,7 +71,7 @@ export const holdDetectionService = {
       ...holdData,
       id: holdData.id || `manual_${Date.now()}`,
       source: 'manual-drawn',
-      addedAt: serverTimestamp(),
+      addedAt: new Date().toISOString(), // Use ISO string instead of serverTimestamp()
       createdBy: userId
     }
 
