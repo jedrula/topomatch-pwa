@@ -20,7 +20,6 @@ export async function compressImage(file, options = {}) {
 
   // If file is already small enough, return as-is
   if (file.size <= maxSizeMB * 1024 * 1024) {
-    console.log(`Image already under ${maxSizeMB}MB, skipping compression`);
     return file;
   }
 
@@ -54,7 +53,6 @@ export async function compressImage(file, options = {}) {
             lastModified: Date.now()
           });
           
-          console.log(`Image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
           resolve(compressedFile);
         },
         format,

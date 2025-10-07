@@ -60,7 +60,6 @@ class LocationService {
       // However, we can optionally clean them up explicitly for better error handling
       try {
         await boulderProblemsService.deleteAllBoulderProblemsForLocation(id);
-        console.log('Boulder problems cleaned up for location:', id);
       } catch (boulderError) {
         console.warn(
           'Error cleaning up boulder problems (will be handled by cascade delete):',

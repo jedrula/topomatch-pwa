@@ -304,7 +304,6 @@ const handleScroll = () => {
     const newIndex = Math.round(scrollTop / containerHeight);
     
     if (newIndex !== currentVideoIndex.value && newIndex >= 0 && newIndex < props.videos.length) {
-      console.log(`Scroll detected: changing from video ${currentVideoIndex.value + 1} to video ${newIndex + 1}`);
       pauseCurrentVideo();
       currentVideoIndex.value = newIndex;
       nextTick(() => {
@@ -382,7 +381,6 @@ const pauseCurrentVideo = () => {
   const currentVideo = videoElements.value[currentVideoIndex.value];
   if (currentVideo && !currentVideo.paused) {
     currentVideo.pause();
-    console.log(`Paused video ${currentVideoIndex.value + 1}`);
   }
 };
 
@@ -394,7 +392,6 @@ const playCurrentVideo = async () => {
       currentVideo.muted = isMuted.value;
       await currentVideo.play();
       startProgressTracking();
-      console.log(`Playing video ${currentVideoIndex.value + 1}`);
     } catch (error) {
       console.log('Video play failed:', error);
     }
@@ -402,13 +399,11 @@ const playCurrentVideo = async () => {
 };
 
 const handleVideoLoaded = (index) => {
-  console.log(`Video ${index + 1} loaded`);
 };
 
 const onVideoEnded = () => {
   // Don't auto-advance to next video - let user manually navigate
   // Video will stay on the current one when it ends
-  console.log(`Video ${currentVideoIndex.value + 1} ended`);
 };
 
 // Keyboard navigation
@@ -528,7 +523,6 @@ const handleProgressBarClick = (event) => {
   const newTime = clickPercentage * currentVideo.duration;
   currentVideo.currentTime = Math.max(0, Math.min(newTime, currentVideo.duration));
   
-  console.log(`Seeking to ${Math.round(newTime)}s (${Math.round(clickPercentage * 100)}%)`);
 };
 
 // Watchers
@@ -536,7 +530,6 @@ watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
     // Reset to initial video and play
     currentVideoIndex.value = props.initialVideoIndex || 0;
-    console.log(`Opening video player, starting with video ${currentVideoIndex.value + 1}`);
     nextTick(() => {
       scrollToVideo(currentVideoIndex.value);
       playCurrentVideo();
@@ -544,12 +537,10 @@ watch(() => props.isOpen, (isOpen) => {
   } else {
     pauseCurrentVideo();
     stopProgressTracking();
-    console.log('Closing video player');
   }
 });
 
 watch(currentVideoIndex, (newIndex, oldIndex) => {
-  console.log(`Video index changed from ${oldIndex} to ${newIndex}`);
   
   // Pause all videos except current one
   Object.entries(videoElements.value).forEach(([index, video]) => {
@@ -557,7 +548,6 @@ watch(currentVideoIndex, (newIndex, oldIndex) => {
     if (video && videoIndex !== newIndex) {
       if (!video.paused) {
         video.pause();
-        console.log(`Paused video ${videoIndex + 1} (background)`);
       }
     }
   });

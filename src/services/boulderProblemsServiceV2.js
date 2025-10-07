@@ -23,7 +23,6 @@ export const boulderProblemsServiceV2 = {
   async createBoulderProblem(locationId, problemData) {
     try {
       const result = await createBoulderProblemFn({ locationId, problemData });
-      console.log('Boulder problem created with ID:', result.data.problemId);
       return result.data.problemId;
     } catch (error) {
       console.error('Error creating boulder problem:', error);
@@ -41,7 +40,6 @@ export const boulderProblemsServiceV2 = {
   async updateBoulderProblem(locationId, problemId, updates) {
     try {
       await updateBoulderProblemFn({ locationId, problemId, updates });
-      console.log('Boulder problem updated successfully');
     } catch (error) {
       console.error('Error updating boulder problem:', error);
       throw error;
@@ -57,7 +55,6 @@ export const boulderProblemsServiceV2 = {
   async deleteBoulderProblem(locationId, problemId) {
     try {
       await deleteBoulderProblemFn({ locationId, problemId });
-      console.log('Boulder problem deleted successfully');
     } catch (error) {
       console.error('Error deleting boulder problem:', error);
       throw error;
@@ -83,7 +80,6 @@ export const boulderProblemsServiceV2 = {
           : new Date(problem.updatedAt),
       }));
 
-      console.log(`Retrieved ${problems.length} boulder problems for location ${locationId}`);
       return problems;
     } catch (error) {
       console.error('Error fetching boulder problems:', error);
@@ -111,9 +107,6 @@ export const boulderProblemsServiceV2 = {
           : new Date(problem.updatedAt),
       }));
 
-      console.log(
-        `Retrieved ${problems.length} boulder problems for location ${locationId} and image ${imageId}`
-      );
       
       return {
         problems,
@@ -147,7 +140,6 @@ export const boulderProblemsServiceV2 = {
       };
     } catch (error) {
       if (error.message.includes('not found')) {
-        console.log('Boulder problem not found');
         return null;
       }
       console.error('Error fetching boulder problem:', error);
@@ -166,7 +158,6 @@ export const boulderProblemsServiceV2 = {
   async addHoldToProblem(locationId, problemId, hold, holdIndex) {
     try {
       const result = await addHoldToProblemFn({ locationId, problemId, hold, holdIndex });
-      console.log(result.data.message);
     } catch (error) {
       console.error('Error adding hold to problem:', error);
       throw error;
@@ -183,7 +174,6 @@ export const boulderProblemsServiceV2 = {
   async removeHoldFromProblem(locationId, problemId, holdIndex) {
     try {
       const result = await removeHoldFromProblemFn({ locationId, problemId, holdIndex });
-      console.log(result.data.message);
     } catch (error) {
       console.error('Error removing hold from problem:', error);
       throw error;
@@ -198,7 +188,6 @@ export const boulderProblemsServiceV2 = {
   async deleteAllBoulderProblemsForLocation(locationId) {
     try {
       const result = await deleteAllBoulderProblemsFn({ locationId });
-      console.log('All boulder problems deleted:', result.data.message);
       return result.data;
     } catch (error) {
       console.error('Error deleting all boulder problems:', error);
@@ -216,7 +205,6 @@ export const boulderProblemsServiceV2 = {
   async updateProblemHolds(locationId, problemId, holds) {
     try {
       const result = await updateProblemHoldsFn({ locationId, problemId, holds });
-      console.log(result.data.message);
     } catch (error) {
       console.error('Error updating problem holds:', error);
       throw error;
@@ -235,14 +223,12 @@ export const boulderProblemsServiceV2 = {
       const holdDetectionDoc = await getDoc(holdDetectionRef);
       
       if (!holdDetectionDoc.exists()) {
-        console.log(`No hold detection found for image ${imageId} in location ${locationId}`);
         return null;
       }
       
       const data = holdDetectionDoc.data();
       const metadata = data.detectionResults?.metadata || null;
       
-      console.log(`Retrieved metadata for image ${imageId} in location ${locationId}:`, metadata);
       return metadata;
     } catch (error) {
       console.error('Error fetching hold detection metadata:', error);

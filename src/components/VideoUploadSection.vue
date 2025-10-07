@@ -630,7 +630,6 @@ const videoMetadata = reactive({
 
 // Event handlers for VideoFrameMatcher
 const handleVideoSelected = (videoFile) => {
-  console.log('Video selected:', videoFile.name);
   selectedVideoFile.value = videoFile;
 
   // Pre-populate title with filename (without extension)
@@ -639,12 +638,10 @@ const handleVideoSelected = (videoFile) => {
 };
 
 const handleFrameExtracted = (frameData) => {
-  console.log('Frame extracted:', frameData);
   extractedFrame.value = frameData;
 };
 
 const handleMatchFound = (matchData) => {
-  console.log('Match found:', matchData);
   matchedBoulderProblem.value = matchData.match;
   videoMetadata.boulderProblemId = matchData.match.id;
 
@@ -658,7 +655,6 @@ const handleMatchFound = (matchData) => {
 };
 
 const handleAnalysisComplete = (result) => {
-  console.log('Analysis complete:', result);
 
   if (result.match) {
     // Match was found, handled by handleMatchFound
@@ -680,7 +676,6 @@ const handleProcessingError = (error) => {
 };
 
 const handleVideoCleared = () => {
-  console.log('Video cleared');
   selectedVideoFile.value = null;
   extractedFrame.value = null;
   matchedBoulderProblem.value = null;
@@ -738,7 +733,6 @@ const previousPhoto = () => {
 // Simulate video upload (since actual upload isn't implemented)
 async function startVideoUpload(file) {
   try {
-    console.log(`Simulating upload: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
     uploadStatus.value = 'Uploading...';
 
     // Simulate upload progress
@@ -756,7 +750,6 @@ async function startVideoUpload(file) {
     uploadProgress.value = 100;
     uploadStatus.value = 'Upload complete! (Demo mode)';
 
-    console.log('Video upload simulation complete');
   } catch (error) {
     console.error('Upload simulation error:', error);
     uploadStatus.value = 'Upload simulation failed';
@@ -812,7 +805,6 @@ async function submitVideoMetadata() {
       },
     };
 
-    console.log('Saving video metadata:', metadataPayload);
 
     // This would be sent to your backend to save the metadata
     // const response = await fetch('/api/videos/metadata', {
@@ -821,7 +813,6 @@ async function submitVideoMetadata() {
     //   body: JSON.stringify(metadataPayload)
     // });
 
-    console.log('Video published successfully!');
     emit('video-uploaded', metadataPayload);
     closeVideoModal();
   } catch (error) {
@@ -832,7 +823,6 @@ async function submitVideoMetadata() {
 
 function saveAsDraft() {
   // Similar to submitVideoMetadata but with draft status
-  console.log('Saving video as draft:', videoMetadata);
   alert('Video saved as draft!');
   closeVideoModal();
 }

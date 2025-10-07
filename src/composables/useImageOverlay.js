@@ -73,7 +73,6 @@ export function useImageOverlay() {
   const handleImageLoad = async () => {
     isImageLoaded.value = true
     await nextTick()
-    console.log('🖼️ Image loaded, overlay ready')
   }
   
   /**

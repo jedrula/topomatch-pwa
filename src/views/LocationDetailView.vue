@@ -332,7 +332,6 @@ const loadLocationImages = async () => {
       name: record.fileName,
     }));
 
-    console.log('Loaded location images:', images.value);
   } catch (err) {
     console.error('Error loading location images:', err);
     // Don't set error here, just keep images empty
@@ -346,7 +345,6 @@ const loadLocationVideos = async () => {
   try {
     const locationVideos = await videoService.getLocationVideos(locationId.value);
     videos.value = locationVideos;
-    console.log('Loaded location videos:', videos.value);
 
     // Also load video counts for each problem
     await loadProblemVideoCounts();
@@ -375,7 +373,6 @@ const loadProblemVideoCounts = async () => {
     }
 
     problemVideoCounts.value = counts;
-    console.log('Loaded problem video counts:', counts);
   } catch (err) {
     console.error('Error loading problem video counts:', err);
   }
@@ -425,9 +422,7 @@ const filteredVideos = computed(() => {
 
   // Add problem names to videos
   return videosToShow.map((video) => {
-    console.log('boulderProblemsStore.boulderProblem', video, boulderProblemsStore.boulderProblems);
     const problem = boulderProblemsStore.boulderProblems.find((p) => p.id === video.problemId);
-    console.log('problem', problem);
 
     return {
       ...video,
@@ -507,14 +502,12 @@ const handleUploadModalClose = () => {
   if (pendingMetadataSaves.value > 0) {
     // Don't close modal while uploads are in progress
     // You could show a warning here if desired
-    console.log('Cannot close upload modal while uploads are in progress');
     return;
   }
   showUploadModal.value = false;
 };
 
 const handleImageUploadComplete = async (uploadResult) => {
-  console.log('Image uploaded successfully:', uploadResult);
 
   try {
     // Save image metadata to Firestore via backend function
@@ -523,7 +516,6 @@ const handleImageUploadComplete = async (uploadResult) => {
       uploadResult.fileName,
       uploadResult.downloadUrl
     );
-    console.log('Image metadata saved:', imageRecord);
 
     // Add the new image to the images array for immediate display
     images.value.push({
@@ -538,11 +530,9 @@ const handleImageUploadComplete = async (uploadResult) => {
 
   // Decrement pending counter
   pendingMetadataSaves.value--;
-  console.log(`Metadata save complete. Remaining: ${pendingMetadataSaves.value}/${totalUploadsExpected.value}`);
 
   // Check if all uploads and metadata saves are complete
   if (pendingMetadataSaves.value <= 0 && totalUploadsExpected.value > 0) {
-    console.log('All uploads and metadata saves complete - closing modal');
     
     // Close modal after a short delay to show completion
     setTimeout(() => {
@@ -564,19 +554,15 @@ const handleImageUploadError = (error) => {
 };
 
 const handleUploadsStarted = (uploadInfo) => {
-  console.log('Uploads started:', uploadInfo);
   // Initialize counters when uploads begin
   totalUploadsExpected.value = uploadInfo.totalUploads;
   pendingMetadataSaves.value = uploadInfo.totalUploads;
-  console.log(`Initialized counters: expecting ${uploadInfo.totalUploads} uploads`);
 };
 
 const handleAllUploadsComplete = (uploadStats) => {
-  console.log('All storage uploads complete:', uploadStats);
 
   // Update counters to reflect actual successful uploads
   if (uploadStats.completedUploads !== uploadStats.totalUploads) {
-    console.log(`Adjusting counters: ${uploadStats.totalUploads} total → ${uploadStats.completedUploads} successful`);
     totalUploadsExpected.value = uploadStats.completedUploads;
     // Adjust pending counter based on how many failed
     const failedUploads = uploadStats.totalUploads - uploadStats.completedUploads;
@@ -585,23 +571,19 @@ const handleAllUploadsComplete = (uploadStats) => {
 
   // If no successful uploads, close modal immediately
   if (uploadStats.completedUploads === 0) {
-    console.log('No successful uploads, closing modal');
     showUploadModal.value = false;
     pendingMetadataSaves.value = 0;
     totalUploadsExpected.value = 0;
   }
   
   console.log(`Upload stats: total=${uploadStats.totalUploads}, completed=${uploadStats.completedUploads}, failed=${uploadStats.failedUploads}`);
-  console.log(`Final counters: expected=${totalUploadsExpected.value}, pending=${pendingMetadataSaves.value}`);
 };
 
 onMounted(async () => {
-  console.log('🔄 Loading OpenCV.js for homography calculations...');
   try {
     // Import OpenCV.js - required for homography matrix calculation
     const cvReadyPromise = await import('@techstark/opencv-js');
     window.cv = await cvReadyPromise.default;
-    console.log('✅ OpenCV.js loaded successfully for LocationDetailView');
   } catch (err) {
     console.error('❌ Failed to load OpenCV.js:', err);
     console.warn('⚠️ Homography calculations will not be available');

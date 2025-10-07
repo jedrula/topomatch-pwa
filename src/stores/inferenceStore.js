@@ -20,26 +20,22 @@ export const useInferenceStore = defineStore('inference', () => {
   inferenceWorker.onmessage = (event) => {
     const { type, data } = event.data;
     if (type === 'inferenceComplete') {
-      console.log('Inference results:', data.results);
     } else if (type === 'sessionCreated') {
       sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
       sessionReady.value = true;
       isLoading.value = false;
       loadingMessage.value = '';
-      console.log('Session created in:', sessionTime.value);
     } else if (type === 'error') {
       errorString.value = data.message;
       isLoading.value = false;
       loadingMessage.value = '';
       console.error('Inference worker error:', data.message);
     } else if (type === 'workerMemoryInfo') {
-      console.log('Worker memory info:', data.memory);
     }
   };
 
   // Create session immediately when store is initialized
   const initializeSession = () => {
-    console.log('Initializing inference session...');
     inferenceWorker.postMessage({ type: 'createSession' });
   };
 
@@ -157,8 +153,6 @@ export const useInferenceStore = defineStore('inference', () => {
     isLoading.value = false;
     loadingMessage.value = '';
 
-    console.log('Results stored for', Object.keys(inferenceResults.value).length, 'images');
-    console.log('Best result:', bestResult, 'with', bestMatches, 'matches');
 
     // Call the completion callback if provided
     if (onComplete && bestImgPath) {

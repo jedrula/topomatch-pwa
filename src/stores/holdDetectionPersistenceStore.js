@@ -88,7 +88,6 @@ export const useHoldDetectionPersistenceStore = defineStore('holdDetectionPersis
       
       if (detectionData) {
         storedDetections.value.set(imageId, detectionData)
-        console.log(`✅ Loaded unified detection for image ${imageId}`)
       }
       
       return detectionData
@@ -120,7 +119,6 @@ export const useHoldDetectionPersistenceStore = defineStore('holdDetectionPersis
       // Reload to get the saved data
       await loadStoredDetection(imageId)
       
-      console.log(`✅ Saved unified detection for image ${imageId}`)
     } catch (err) {
       error.value = err.message
       console.error('❌ Error saving detection:', err)
@@ -152,7 +150,6 @@ export const useHoldDetectionPersistenceStore = defineStore('holdDetectionPersis
 
       // Reload to get updated data
       await loadStoredDetection(imageId)
-      console.log(`✅ Added manual hold ${holdId} for image ${imageId}`)
       return holdId
     } catch (err) {
       error.value = err.message
@@ -187,7 +184,6 @@ export const useHoldDetectionPersistenceStore = defineStore('holdDetectionPersis
 
       // Reload to get updated data
       await loadStoredDetection(imageId)
-      console.log(`✅ Updated AI detection for image ${imageId}`)
     } catch (err) {
       error.value = err.message
       console.error('❌ Error updating AI detection:', err)
@@ -214,7 +210,6 @@ export const useHoldDetectionPersistenceStore = defineStore('holdDetectionPersis
 
       // Reload to get updated data
       await loadStoredDetection(imageId)
-      console.log(`✅ Removed hold ${holdId} from image ${imageId}`)
     } catch (err) {
       error.value = err.message
       console.error('❌ Error removing hold:', err)
@@ -245,7 +240,6 @@ export const useHoldDetectionPersistenceStore = defineStore('holdDetectionPersis
 
       // Reload to get updated data
       await loadStoredDetection(imageId)
-      console.log(`✅ Updated stored detection for image ${imageId}`)
     } catch (err) {
       error.value = err.message
       console.error('❌ Error updating stored detection:', err)
@@ -264,7 +258,6 @@ export const useHoldDetectionPersistenceStore = defineStore('holdDetectionPersis
     try {
       await holdDetectionService.deleteHoldDetection?.(currentLocationId.value, imageId)
       storedDetections.value.delete(imageId)
-      console.log(`✅ Deleted stored detection for image ${imageId}`)
     } catch (err) {
       error.value = err.message
       console.error('❌ Error deleting stored detection:', err)
@@ -292,7 +285,6 @@ export const useHoldDetectionPersistenceStore = defineStore('holdDetectionPersis
 
       // Reload to get the AI detection results
       await loadStoredDetection(imageId)
-      console.log(`✅ Ran AI detection for image ${imageId}`)
       return result
     } catch (err) {
       error.value = err.message

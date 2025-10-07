@@ -101,7 +101,6 @@ export const getCachedDetectionResult = (imageUrl, settings) => {
       return null;
     }
 
-    console.log('📦 Found cached detection results for:', imageUrl);
     return data;
   } catch (error) {
     console.error('Error reading detection cache:', error);
@@ -127,7 +126,6 @@ export const setCachedDetectionResult = (imageUrl, settings, data) => {
     };
 
     localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
-    console.log('💾 Cached detection results for:', imageUrl);
   } catch (error) {
     console.error('Error saving detection cache:', error);
     // If localStorage is full, try to clear old entries
@@ -151,7 +149,6 @@ export const clearExpiredDetectionCache = () => {
           const { timestamp } = JSON.parse(localStorage.getItem(key));
           if (now - timestamp > expiry) {
             localStorage.removeItem(key);
-            console.log('🗑️ Removed expired cache entry:', key);
           }
         } catch (error) {
           // Remove corrupted cache entries
@@ -185,16 +182,13 @@ export const clearAllDetectionCache = () => {
         const cached = localStorage.getItem(key);
         if (cached) {
           const { imageUrl } = JSON.parse(cached);
-          console.log('🗑️ Removing cached detection for:', imageUrl);
         }
       } catch (parseError) {
-        console.log('🗑️ Removing corrupted cache entry:', key);
       }
       localStorage.removeItem(key);
       clearedCount++;
     });
 
-    console.log(`🗑️ Cleared ${clearedCount} detection cache entries`);
   } catch (error) {
     console.error('Error clearing cache:', error);
   }
@@ -210,7 +204,6 @@ export const clearDetectionCacheForImage = (imageUrl, settings) => {
     const cacheKey = generateCacheKey(imageUrl, settings);
     if (cacheKey && localStorage.getItem(cacheKey)) {
       localStorage.removeItem(cacheKey);
-      console.log('🗑️ Cleared cache for specific image:', imageUrl);
       return true;
     }
     return false;

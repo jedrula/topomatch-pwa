@@ -44,16 +44,6 @@
         
         <!-- Draw closest hold if available -->
         <g v-if="pose.closestHolds && pose.closestHolds[pointIndex] && pose.closestHolds[pointIndex].coordinates && pose.closestHolds[pointIndex].coordinates.x !== null && pose.closestHolds[pointIndex].coordinates.y !== null" :key="`hold-${pointIndex}`">
-          <!-- DEBUG: Log hold coordinates -->
-          {{
-            console.log(`🔴 Rendering red circle for keypoint ${pointIndex}:`, {
-              keypointCoords: { x: point.x, y: point.y },
-              holdCoords: pose.closestHolds[pointIndex].coordinates,
-              distance: pose.closestHolds[pointIndex].distance,
-              viewBox: viewBox
-            })
-          }}
-          
           <!-- Draw line to closest hold -->
           <line
             :x1="point.x"
@@ -110,18 +100,10 @@ const props = defineProps({
 
 // Create viewBox using the same method as BoulderImageWithHolds
 const viewBox = computed(() => {
-  console.log('🖼️ PoseVisualizationOverlay viewBox calculation:', {
-    holdDetectionResults: !!props.holdDetectionResults,
-    storedViewBox: props.storedViewBox,
-    imageUrl: props.imageUrl,
-    imageNaturalWidth: props.imageNaturalWidth,
-    imageNaturalHeight: props.imageNaturalHeight
-  });
   
   // Use stored viewBox from Firestore if available
   if (props.storedViewBox) {
     // The stored viewBox is already a string like "0 0 1080 1440"
-    console.log('✅ Using stored viewBox from Firestore:', props.storedViewBox);
     return props.storedViewBox;
   }
   
@@ -133,7 +115,6 @@ const viewBox = computed(() => {
     props.imageRef
   );
   
-  console.log('✅ Using detection-based viewBox (fallback):', calculatedViewBox);
   return calculatedViewBox;
 });
 
@@ -145,7 +126,6 @@ const shouldShowOverlay = computed(() => {
 // Get visible poses based on visibility array
 const visiblePoses = computed(() => {
   // The parent component already filters poses, so just return them as-is
-  console.log('🖼️ PoseVisualizationOverlay received poses:', props.transformedPoses.map(p => ({ frameIndex: p.frameIndex, color: p.color })));
   return props.transformedPoses;
 });
 </script>

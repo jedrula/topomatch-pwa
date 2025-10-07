@@ -14,7 +14,6 @@ export function usePoseDetection() {
   const sessionReady = ref(false);
 
   // Create dedicated pose detection worker
-  console.log('Loading pose detection worker...');
    const poseWorker = new Worker(new URL('/poseDetectionWorker.combined.js', import.meta.url));
 
   // Handle worker loading errors
@@ -26,7 +25,6 @@ export function usePoseDetection() {
 
   // Cleanup worker on component unmount
   onUnmounted(() => {
-    console.log('Cleaning up pose detection worker...');
     if (poseWorker) {
       poseWorker.terminate();
     }
@@ -39,23 +37,11 @@ export function usePoseDetection() {
     if (type === 'sessionCreated') {
       sessionReady.value = true;
       analysisStatus.value = 'Pose detection model ready';
-      console.log('Pose detection session created in:', data.sessionTime.toFixed(2), 'ms');
     } else if (type === 'poseDetectionComplete') {
-      console.log('🎯 Raw pose detection data:', data);
       const detections = processPoseResults(data.results, data.imageInfo);
       poseResults.value = detections;
       analysisStatus.value = `Detection complete! Found ${detections.length} person(s)`;
       isAnalyzing.value = false;
-      console.log('📊 Processed pose results:', {
-        count: detections.length,
-        firstPose: detections[0]
-          ? {
-              confidence: detections[0].confidence,
-              keypointCount: detections[0].keypoints.length,
-              sampleKeypoints: detections[0].keypoints.slice(0, 3),
-            }
-          : null,
-      });
     } else if (type === 'error') {
       console.error('Pose detection worker error details:', {
         message: data.message,
@@ -72,7 +58,6 @@ export function usePoseDetection() {
 
   // Initialize session immediately
   const initializeSession = () => {
-    console.log('Initializing pose detection session...');
     analysisStatus.value = 'Loading pose detection model...';
     poseWorker.postMessage({ type: 'createSession' });
   };
@@ -89,7 +74,6 @@ export function usePoseDetection() {
       return [];
     }
 
-    console.log('Processing YOLOv8 poses:', rawResults.poses.length);
 
     // The results are already processed by the worker
     return rawResults.poses.map((pose) => ({

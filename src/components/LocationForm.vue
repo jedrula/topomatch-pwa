@@ -123,7 +123,6 @@ const onFileChange = async (e) => {
     // Update form with the Firebase Storage URL
     form.value.heroImageUrl = downloadURL;
 
-    console.log('Hero image uploaded successfully:', downloadURL);
   } catch (error) {
     console.error('Error uploading hero image:', error);
     alert('Failed to upload hero image. Please try again.');

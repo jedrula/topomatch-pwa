@@ -130,7 +130,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
 
   const setLocationGradingSystem = (gradingSystemData) => {
     currentLocationGradingSystem.value = gradingSystemData;
-    console.log('🎚️ Boulder problems store: Set location grading system:', gradingSystemData);
   };
 
   const loadBoulderProblems = async (locationId, imageId = null) => {
@@ -143,7 +142,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
       let result;
       if (imageId) {
         result = await boulderProblemsService.getBoulderProblemsByImage(locationId, imageId);
-        console.log('Metadata responsesaidj:', result);
         // result is now { problems: [], metadata: {} }
         const problems = result.problems || result; // fallback for old format
         
@@ -153,7 +151,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
           color: problem.color || problemColors[index % problemColors.length],
         }));
 
-        console.log(`Loaded ${problems.length} boulder problems`);
         return result; // Return the full result including metadata
       } else {
         const problems = await boulderProblemsService.getBoulderProblems(locationId);
@@ -164,7 +161,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
           color: problem.color || problemColors[index % problemColors.length],
         }));
 
-        console.log(`Loaded ${problems.length} boulder problems`);
         return { problems, metadata: null };
       }
     } catch (err) {
@@ -227,7 +223,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
         activeProblem.value = boulderProblems.value[problemIndex];
       }
 
-      console.log('Boulder problem created successfully:', problemId);
       return boulderProblems.value[problemIndex];
     } catch (err) {
       // Remove the optimistic problem on error
@@ -262,7 +257,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
 
       isCreatingProblem.value = false;
       activeProblem.value = null;
-      console.log('Finished creating boulder problem');
     } catch (err) {
       error.value = err.message;
       console.error('Error finishing boulder problem creation:', err);
@@ -289,7 +283,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
 
       isCreatingProblem.value = false;
       activeProblem.value = null;
-      console.log('Cancelled boulder problem creation');
     } catch (err) {
       error.value = err.message;
       console.error('Error cancelling boulder problem creation:', err);
@@ -387,7 +380,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     if (!deletedProblem.isLocalOnly && currentLocationId.value) {
       try {
         await boulderProblemsService.deleteBoulderProblem(currentLocationId.value, problemId);
-        console.log('Boulder problem deleted successfully');
       } catch (err) {
         // Revert optimistic update on error
         boulderProblems.value.splice(problemIndex, 0, deletedProblem);
@@ -457,26 +449,21 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
 
   // Visibility management
   const showOnlyProblem = (targetProblemId) => {
-    console.log('🎯 showOnlyProblem called for problem:', targetProblemId);
     // Hide all problems except the target one
     boulderProblems.value.forEach((problem) => {
       if (problem.id === targetProblemId) {
         // Show the target problem
-        console.log('👁️ Showing problem:', problem.name);
         updateProblem({ ...problem, hidden: false });
       } else {
         // Hide all other problems
-        console.log('🙈 Hiding problem:', problem.name);
         updateProblem({ ...problem, hidden: true });
       }
     });
   };
 
   const showAllProblems = () => {
-    console.log('👁️ showAllProblems called - showing all problems');
     // Show all problems
     boulderProblems.value.forEach((problem) => {
-      console.log('👁️ Showing problem:', problem.name);
       updateProblem({ ...problem, hidden: false });
     });
   };
@@ -511,7 +498,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
 
       // Remove from unsaved changes
       problemsWithUnsavedChanges.value.delete(problemId);
-      console.log(`Saved changes for problem ${problemId}`);
     } catch (err) {
       error.value = err.message;
       console.error('Error saving problem changes:', err);
@@ -595,7 +581,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
       // Clear all unsaved changes
       problemsWithUnsavedChanges.value.clear();
 
-      console.log(`✅ Cleared ${result.deletedCount} boulder problems from server and local state`);
     } catch (err) {
       console.error('Failed to clear all boulder problems:', err);
       error.value = err.message || 'Failed to clear all boulder problems';

@@ -17,7 +17,6 @@ class ImageCacheService extends EventTarget {
     if ('caches' in window) {
       try {
         this.cache = await caches.open(CACHE_NAME);
-        console.log(`Cache ${CACHE_NAME} initialized`);
       } catch (error) {
         console.error('Failed to initialize cache:', error);
       }
@@ -38,7 +37,6 @@ class ImageCacheService extends EventTarget {
       return;
     }
 
-    console.log(`Starting to cache ${imagePaths.length} images for region...`);
 
     for (let i = 0; i < imagePaths.length; i++) {
       // Check for cancellation
@@ -52,16 +50,13 @@ class ImageCacheService extends EventTarget {
         // Check if image is already cached
         const cachedResponse = await this.cache.match(imagePath);
         if (cachedResponse) {
-          console.log(`Image already cached: ${imagePath}`);
         } else {
           // Download and cache the image
-          console.log(`Caching image: ${imagePath}`);
           const response = await fetch(imagePath, { signal });
 
           if (response.ok) {
             // Clone the response to cache it
             await this.cache.put(imagePath, response.clone());
-            console.log(`Successfully cached: ${imagePath}`);
 
             // Emit cache update event
             this.dispatchEvent(
@@ -92,7 +87,6 @@ class ImageCacheService extends EventTarget {
     // Clean up old cache entries if we exceed max size
     await this.cleanupCache();
 
-    console.log(`Finished caching region images`);
   }
 
   /**
@@ -143,12 +137,10 @@ class ImageCacheService extends EventTarget {
     // Try cache first
     const cachedResponse = await this.getCachedImage(imagePath);
     if (cachedResponse) {
-      console.log(`Serving from cache: ${imagePath}`);
       return cachedResponse;
     }
 
     // Fallback to network
-    console.log(`Fetching from network: ${imagePath}`);
     const networkResponse = await fetch(imagePath);
 
     // Cache the response for future use
@@ -178,7 +170,6 @@ class ImageCacheService extends EventTarget {
         // Remove oldest entries (this is a simple strategy, could be improved)
         const keysToDelete = keys.slice(0, keys.length - MAX_CACHE_SIZE);
         await Promise.all(keysToDelete.map((key) => this.cache.delete(key)));
-        console.log(`Cleaned up ${keysToDelete.length} old cache entries`);
       }
     } catch (error) {
       console.error('Error cleaning up cache:', error);
@@ -207,7 +198,6 @@ class ImageCacheService extends EventTarget {
       }
     }
 
-    console.log(`Cache status: ${cached}/${imagePaths.length} images cached`);
     return { cached, total: imagePaths.length };
   }
 
@@ -220,7 +210,6 @@ class ImageCacheService extends EventTarget {
 
     try {
       await Promise.all(imagePaths.map((imagePath) => this.cache.delete(imagePath)));
-      console.log(`Removed ${imagePaths.length} images from cache`);
 
       // Emit cache update events for removed images
       imagePaths.forEach((imagePath) => {
@@ -251,7 +240,6 @@ class ImageCacheService extends EventTarget {
     try {
       const keys = await this.cache.keys();
       await Promise.all(keys.map((key) => this.cache.delete(key)));
-      console.log('Cleared all cached images');
     } catch (error) {
       console.error('Error clearing cache:', error);
     }

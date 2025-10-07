@@ -586,6 +586,9 @@
         </div>
       </div>
     </div>
+    
+    <!-- Memory Monitor for Mobile Debugging -->
+    <MemoryMonitorComponent />
   </div>
 </template>
 
@@ -595,6 +598,7 @@ import ImageMatcher from './ImageMatcher.vue';
 import VideoRecorder from './VideoRecorder.vue';
 import PoseVisualizationOverlay from './PoseVisualizationOverlay.vue';
 import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
+import MemoryMonitorComponent from './MemoryMonitorComponent.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
   extractVideoFrames,
@@ -691,17 +695,11 @@ const uniquePoseErrors = computed(() => {
 
 // Helper function to get visible poses
 const getVisiblePoses = () => {
-  console.log('🔍 getVisiblePoses called');
-  console.log('📊 transformedPoses.value:', transformedPoses.value.map(p => ({ frameIndex: p.frameIndex, color: p.color })));
-  console.log('👁️ poseVisibility.value:', poseVisibility.value);
-  
   const visible = transformedPoses.value.filter((pose) => {
     const isVisible = poseVisibility.value[pose.frameIndex] === true;
-    console.log(`📋 Frame ${pose.frameIndex}: visibility=${poseVisibility.value[pose.frameIndex]} → ${isVisible ? 'SHOW' : 'HIDE'}`);
     return isVisible;
   });
   
-  console.log('✅ Returning visible poses to PoseVisualizationOverlay:', visible.map(p => ({ frameIndex: p.frameIndex, color: p.color })));
   return visible;
 };
 
@@ -748,20 +746,6 @@ watch(poseDetectionError, (newError) => {
 });
 
 // Watch for pose visibility changes to debug checkbox behavior
-watch(poseVisibility, (newVisibility, oldVisibility) => {
-  console.log('🔄 poseVisibility changed!');
-  console.log('📋 Old:', oldVisibility);
-  console.log('📋 New:', newVisibility);
-  
-  // Log which specific frame visibility changed
-  if (oldVisibility) {
-    Object.keys(newVisibility).forEach(frameIndex => {
-      if (oldVisibility[frameIndex] !== newVisibility[frameIndex]) {
-        console.log(`🔀 Frame ${frameIndex}: ${oldVisibility[frameIndex]} → ${newVisibility[frameIndex]}`);
-      }
-    });
-  }
-}, { deep: true });
 
 // Frame timestamps for extraction - configurable for debugging
 const FRAMES_FOR_ANALYSIS = 10;
@@ -802,37 +786,29 @@ const initializeAgentLogs = () => {
 const extractHoldCoordinates = (hold) => {
   let holdX, holdY;
 
-  console.log('🔍 extractHoldCoordinates received hold:', JSON.stringify(hold, null, 2));
-
   if (hold.coordinates) {
     holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
     holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
-    console.log('✅ Used hold.coordinates path:', { holdX, holdY });
   } else if (hold.bbox && Array.isArray(hold.bbox)) {
     holdX = hold.bbox[0] + hold.bbox[2] / 2;
     holdY = hold.bbox[1] + hold.bbox[3] / 2;
-    console.log('✅ Used hold.bbox (array) path:', { holdX, holdY });
   } else if (hold.bbox && typeof hold.bbox === 'object') {
     holdX = hold.bbox.x + (hold.bbox.width || 0) / 2;
     holdY = hold.bbox.y + (hold.bbox.height || 0) / 2;
-    console.log('✅ Used hold.bbox (object) path:', { holdX, holdY });
   } else if (hold.x !== undefined && hold.y !== undefined) {
     // Check if this is already a center coordinate (from our processed AI holds)
     // Our AI holds from the server have x,y as center coordinates already
     if (hold.source === 'ai-detected' || hold.aiModel === 'server-detection') {
       holdX = hold.x; // Already center coordinate
       holdY = hold.y; // Already center coordinate
-      console.log('✅ Used hold.x/y path (center coords):', { holdX, holdY });
     } else {
       // For other holds, treat x,y as top-left and calculate center
       holdX = hold.x + (hold.width || 0) / 2;
       holdY = hold.y + (hold.height || 0) / 2;
-      console.log('✅ Used hold.x/y path (calculated center):', { holdX, holdY, width: hold.width, height: hold.height });
     }
   } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
     holdX = hold.center_x;
     holdY = hold.center_y;
-    console.log('✅ Used hold.center_x/y path:', { holdX, holdY });
   } else {
     console.warn('❌ Unknown hold coordinate format:', hold);
     return null;
@@ -882,7 +858,6 @@ const findClosestHolds = (keypointX, keypointY) => {
     bestMatch.value.detectionResults.results.forEach((detectedHold, index) => {
       // Debug: Log the first few holds to understand the data structure
       if (index < 3) {
-        console.log(`🔍 AI detected hold ${index} structure:`, JSON.stringify(detectedHold, null, 2));
       }
       
       const coords = extractHoldCoordinates(detectedHold);
@@ -908,7 +883,6 @@ const findClosestHolds = (keypointX, keypointY) => {
     });
   } else {
     // No AI detection results available - this is expected for some images
-    console.log('ℹ️ No AI detection results available for image:', bestMatch.value.id);
   }
 
   // Sort by distance and get top 3
@@ -1276,9 +1250,7 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       const imageViewBox = await holdDetectionService.getViewBox(props.locationId, bestMatchResult.id);
       if (imageViewBox) {
         storedViewBox.value = imageViewBox;
-        console.log('✅ Retrieved stored viewBox from Firestore:', imageViewBox);
       } else {
-        console.log('⚠️ No stored viewBox found in Firestore for image:', bestMatchResult.id);
       }
 
       // CRITICAL FIX: Also load AI detection results for this image
@@ -1288,10 +1260,6 @@ const handleAnalysisComplete = async (bestMatchResult) => {
         bestMatch.value.detectionResults = {
           results: holdDetectionData.detectionResults.aiHolds || []
         };
-        console.log('✅ Retrieved AI detection results from Firestore:', {
-          imageId: bestMatchResult.id,
-          aiHoldsCount: holdDetectionData.detectionResults.aiHolds?.length || 0
-        });
       } else {
         console.log('⚠️ No AI detection results found in Firestore for image:', bestMatchResult.id);
       }
@@ -1364,7 +1332,6 @@ const handleAnalysisComplete = async (bestMatchResult) => {
         
         // Store feature matches for visualization (limit to first 100 for performance)
         featureMatches.value = matches.slice(0, 100);
-        console.log('🔍 Stored feature matches for visualization:', featureMatches.value.length);
       } else {
         console.warn('Not enough matches for homography calculation:', matches.length);
       }
@@ -1401,7 +1368,6 @@ const transformPosesToMatchedImage = async (matchResult) => {
     for (let i = 0; i < extractedFrames.value.length; i++) {
       const frame = extractedFrames.value[i];
       if (!frame.poseData) {
-        console.log(`⏭️ Skipping frame ${i} - no pose data`);
         continue;
       }
 
@@ -1418,25 +1384,6 @@ const transformPosesToMatchedImage = async (matchResult) => {
       // Transform points using homography
       const transformedPoints = transformPoints(sourcePoints, homographyMatrix);
 
-      // DEBUGGING: Focus on frame 0 only
-      if (i === debugFrameIndex) {
-        console.log(`🎯 FRAME ${i} DEBUG - COORDINATE ANALYSIS:`);
-        console.log('📹 Original video keypoints:', sourcePoints);
-        console.log('🗺️ Transformed image keypoints:', transformedPoints);
-        console.log('🖼️ Image info:', {
-          naturalDimensions: imageNaturalDimensions.value,
-          visualizationDimensions: visualizationDimensions.value,
-          imageName: bestMatch.value.name
-        });
-        console.log('🔍 Sample hold coordinates from debug:', {
-          holdY_values: [1273.62, 1250.20, 1246.34],
-          imageHeight: imageNaturalDimensions.value.height,
-          suggestedIssue: imageNaturalDimensions.value.height ? 
-            (1273 > imageNaturalDimensions.value.height ? 'HOLDS_OUTSIDE_IMAGE_BOUNDS' : 'COORDINATES_LOOK_VALID') : 
-            'IMAGE_DIMENSIONS_NOT_SET'
-        });
-      }
-
       // Find closest holds for each transformed keypoint
       const closestHolds = transformedPoints.map((point, pointIndex) => {
         const holdInfo = findClosestHolds(point.x, point.y);
@@ -1444,20 +1391,11 @@ const transformPosesToMatchedImage = async (matchResult) => {
         
         // DEBUGGING: Focus on frame 0 only
         if (i === debugFrameIndex) {
-          console.log(`🎯 Frame ${i}, Keypoint ${pointIndex} (${['leftWrist', 'rightWrist', 'leftAnkle', 'rightAnkle'][pointIndex]}):`);
-          console.log('  📍 Transformed keypoint:', { x: point.x, y: point.y });
-          console.log('  🎯 Closest hold:', holdInfo.closest.hold);
-          console.log('  📐 Extracted coords:', coords);
-          console.log('  📏 Distance:', holdInfo.closest.distance);
-          console.log('  📊 All holds analyzed:', holdInfo.allHoldsCount || 'unknown');
           
           // Extra debugging for coordinate issues
           if (coords) {
-            console.log('  ✅ Valid coordinates extracted:', coords);
           } else {
-            console.log('  ❌ No coordinates extracted (will cause lines to (0,0))');
             if (holdInfo.closest.hold) {
-              console.log('  🔍 Hold data structure:', JSON.stringify(holdInfo.closest.hold, null, 2));
             }
           }
         }
@@ -1467,40 +1405,31 @@ const transformPosesToMatchedImage = async (matchResult) => {
           hold: holdInfo.closest.hold,
           problem: holdInfo.closest.problem,
           distance: holdInfo.closest.distance,
-          score: holdInfo.closest.score,
-          coordinates: coords
-        };
-      });
-
-      const transformedFrame = {
-        frameIndex: i,
-        originalPoints: sourcePoints,
-        transformedPoints,
-        closestHolds, // Add the closest holds data
-        color: FRAME_COLORS[i],
-        confidence: frame.poseData.confidence,
+        score: holdInfo.closest.score,
+        coordinates: coords
       };
-      
-      console.log(`➕ Adding transformed frame ${i}:`, {
-        frameIndex: transformedFrame.frameIndex,
-        color: transformedFrame.color,
-        pointsCount: transformedFrame.transformedPoints.length
-      });
-      
-      transformedFrames.push(transformedFrame);
+    });
+
+    const transformedFrame = {
+      frameIndex: i,
+      originalPoints: sourcePoints,
+      transformedPoints,
+      closestHolds, // Add the closest holds data
+      color: FRAME_COLORS[i],
+      confidence: frame.poseData.confidence,
+    };
+    
+    transformedFrames.push(transformedFrame);
     }
 
     transformedPoses.value = transformedFrames;
     
     // Initialize pose visibility for all frames as visible using original frame indices
-    console.log('🏗️ Initializing pose visibility for frames:', transformedFrames.map(f => f.frameIndex));
     const newVisibility = {};
     transformedFrames.forEach((frame) => {
       newVisibility[frame.frameIndex] = true;
-      console.log(`✅ Setting poseVisibility[${frame.frameIndex}] = true`);
     });
     poseVisibility.value = newVisibility;
-    console.log('📊 Final poseVisibility:', poseVisibility.value);
 
     // Trigger visualization redraw
     await nextTick();
@@ -1685,14 +1614,6 @@ const onImageLoad = async () => {
       };
     }
     
-    console.log('🖼️ Image loaded - Natural dimensions captured:', {
-      naturalWidth: visualizationImage.value.naturalWidth,
-      naturalHeight: visualizationImage.value.naturalHeight,
-      clientWidth: visualizationImage.value.clientWidth,
-      clientHeight: visualizationImage.value.clientHeight,
-      holdYrange: [1200, 1300],
-      coordinateSystemCheck: visualizationImage.value.naturalHeight > 1300 ? 'VALID' : 'PROBLEM_DETECTED'
-    });
   }
   
   await nextTick();
@@ -1729,7 +1650,6 @@ const startRecording = async () => {
       }
     });
 
-    console.log('Camera access granted:', stream);
     
     mediaStream.value = stream;
     
@@ -1774,7 +1694,6 @@ const startRecording = async () => {
       recordingMimeType.value = 'video/webm';
     }
     
-    console.log('Using MediaRecorder format:', options.mimeType);
 
     mediaRecorder.value = new MediaRecorder(stream, options);
     

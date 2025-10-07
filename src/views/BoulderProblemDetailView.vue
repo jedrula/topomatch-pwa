@@ -303,11 +303,8 @@ const loadProblemData = async () => {
     }
 
     // Initialize and load ascent data
-    console.log('Initializing ascent store for problem:', locationId, problemId);
     ascentStore.initializeForProblem(locationId, problemId);
     await ascentStore.loadAscents(locationId, problemId);
-    console.log('Ascents loaded:', ascentStore.ascents.length, 'ascents');
-    console.log('Ascent stats:', ascentStore.ascentStats);
 
     // Load the associated image
     const imageId = problem.value.imageId;
@@ -357,7 +354,6 @@ const editAscent = (ascent) => {
   // For now, just show the logger with the ascent data
   // In a more complex implementation, you could pre-populate the form
   showAscentLogger.value = true;
-  console.log('Edit ascent:', ascent);
 };
 
 const openVideoFullscreen = (videoUrl) => {
@@ -371,7 +367,6 @@ onMounted(() => {
 
   // Check if we should auto-open ascent logger with prefilled video
   if (route.query.action === 'log-ascent' && route.query.hasPrefilledVideo === 'true') {
-    console.log('🎯 Auto-opening ascent logger with prefilled video data');
 
     // Auto-open the ascent logger
     showAscentLogger.value = true;

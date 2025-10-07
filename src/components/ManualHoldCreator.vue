@@ -234,7 +234,6 @@ const onImageLoad = async () => {
   drawingCanvas.value.width = canvasWidth.value;
   drawingCanvas.value.height = canvasHeight.value;
 
-  console.log('Canvas initialized:', { width: canvasWidth.value, height: canvasHeight.value });
 };
 
 const getMousePos = (event) => {

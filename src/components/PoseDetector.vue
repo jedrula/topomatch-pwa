@@ -196,7 +196,6 @@ watch(poseResults, (newResults) => {
     const frameIndex = currentFrameIndex.value;
     const frame = extractedFrames.value[frameIndex];
 
-    console.log(`🎯 Received results for frame ${frameIndex + 1}:`, newResults);
 
     // Store results for this frame
     frameResults.value[frameIndex] = {
@@ -226,18 +225,11 @@ const extractVideoFrames = async (videoFile, framePercentages = [15, 50, 85]) =>
     let currentFrameIndex = 0;
 
     video.onloadedmetadata = () => {
-      console.log(`📹 Video metadata:`, {
-        width: video.videoWidth,
-        height: video.videoHeight,
-        duration: video.duration,
-      });
-
       // Ensure minimum size for better detection
       const scale = Math.max(640 / video.videoWidth, 640 / video.videoHeight);
       canvas.width = Math.round(video.videoWidth * scale);
       canvas.height = Math.round(video.videoHeight * scale);
 
-      console.log(`🖼️ Canvas size:`, { width: canvas.width, height: canvas.height });
 
       const processNextFrame = () => {
         if (currentFrameIndex >= framePercentages.length) {
@@ -258,10 +250,6 @@ const extractVideoFrames = async (videoFile, framePercentages = [15, 50, 85]) =>
           // Use higher quality for better detection
           const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
 
-          console.log(`✅ Extracted frame ${currentFrameIndex + 1} at ${timePercent}%:`, {
-            seekTime: seekTime.toFixed(2),
-            dataUrlSize: Math.round(dataUrl.length / 1024) + 'KB',
-          });
 
           frames.push({
             dataUrl,
@@ -359,14 +347,6 @@ const runVideoAnalysis = async () => {
       const imageFile = new File([blob], `frame-${i}.jpg`, {
         type: 'image/jpeg',
         lastModified: Date.now(),
-      });
-
-      // Debug: Log file details
-      console.log(`🖼️ Processing frame ${i + 1}:`, {
-        size: imageFile.size,
-        type: imageFile.type,
-        name: imageFile.name,
-        timePercent: frame.timePercent,
       });
 
       // Run pose detection on this frame (results will be handled by watcher)

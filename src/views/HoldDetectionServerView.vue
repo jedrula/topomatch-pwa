@@ -767,7 +767,6 @@ const imageUrl = computed(() => {
 // Debug: Reactive computed to track API health changes
 const apiHealthStatus = computed(() => {
   const status = serverStore.apiHealthy;
-  console.log('🔍 Computed apiHealthStatus triggered, value:', status);
   return status;
 });
 
@@ -797,7 +796,6 @@ const boulderProblemsManagerProps = computed(() => ({
 // Methods
 const onImageLoad = () => {
   imageLoaded.value = true;
-  console.log('🖼️ Image loaded successfully');
 
   // Image loaded - ready for interactions
 };
@@ -825,11 +823,9 @@ const toggleFullscreen = async () => {
 }
 
 const testApiHealth = async () => {
-  console.log('🔍 Testing API health...');
   const result = await serverStore.testApiHealth();
 
   if (result.success) {
-    console.log('✅ API health check successful');
   } else {
     console.error('❌ API health check failed:', result.error);
   }
@@ -839,7 +835,6 @@ const clearDetectionCache = () => {
   // Clear detection results - the store no longer has clearAllCache method
   serverStore.results = null
   serverStore.error = null
-  console.log('🗑️ Detection results cleared by user')
 }
 
 const clearCurrentImageCache = () => {
@@ -848,7 +843,6 @@ const clearCurrentImageCache = () => {
   // Clear current results - the store no longer has clearCacheForImage method
   serverStore.results = null
   serverStore.error = null
-  console.log('🗑️ Detection results cleared for current image:', imageUrl.value)
 }
 
 // Magic Wand functionality
@@ -856,7 +850,6 @@ const toggleMagicWand = () => {
   magicWandActive.value = !magicWandActive.value;
 
   if (magicWandActive.value) {
-    console.log('🪄 Magic Wand activated - click any hold to select 10 closest holds');
     // Clear any previous selection when activating
     magicWandSelection.value = {
       selectedIndices: [],
@@ -864,7 +857,6 @@ const toggleMagicWand = () => {
       stats: null,
     };
   } else {
-    console.log('🪄 Magic Wand deactivated');
     // Clear selection when deactivating
     magicWandSelection.value = {
       selectedIndices: [],
@@ -877,15 +869,9 @@ const toggleMagicWand = () => {
 // Manual Hold Drawing functionality
 const toggleDrawingMode = () => {
   const newDrawingMode = !serverStore.isDrawingMode;
-  console.log('🔄 Toggling drawing mode:', serverStore.isDrawingMode, '→', newDrawingMode);
   serverStore.setDrawingMode(newDrawingMode);
 
   if (newDrawingMode) {
-    console.log('✏️ Drawing mode activated - draw holds directly on the image');
-    console.log('📊 Current state:', {
-      isDrawingMode: serverStore.isDrawingMode,
-      manualHolds: serverStore.manualHolds.length,
-    });
     // Disable magic wand when entering drawing mode
     if (magicWandActive.value) {
       toggleMagicWand();
@@ -893,7 +879,6 @@ const toggleDrawingMode = () => {
     // Load existing manual holds for this image
     serverStore.loadManualHolds(route.params.locationId, route.query.imageId);
   } else {
-    console.log('✏️ Drawing mode deactivated');
     // Save manual holds when exiting drawing mode
     serverStore.saveManualHolds(route.params.locationId, route.query.imageId, imageUrl.value);
   }
@@ -901,11 +886,9 @@ const toggleDrawingMode = () => {
 
 const toggleDeleteMode = () => {
   const newDeleteMode = !serverStore.isDeleteMode;
-  console.log('🔄 Toggling delete mode:', serverStore.isDeleteMode, '→', newDeleteMode);
   serverStore.setDeleteMode(newDeleteMode);
 
   if (newDeleteMode) {
-    console.log('🗑️ Delete mode activated - click on manual holds to delete them');
     // Disable magic wand when entering delete mode
     if (magicWandActive.value) {
       toggleMagicWand();
@@ -913,7 +896,6 @@ const toggleDeleteMode = () => {
     // Load existing manual holds for this image
     serverStore.loadManualHolds(route.params.locationId, route.query.imageId);
   } else {
-    console.log('🗑️ Delete mode deactivated');
     // Save manual holds when exiting delete mode
     serverStore.saveManualHolds(route.params.locationId, route.query.imageId, imageUrl.value);
   }
@@ -925,7 +907,6 @@ const processImage = async () => {
     return;
   }
 
-  console.log('🚀 Starting server-side hold detection for:', imageUrl.value);
 
   const result = await serverStore.processImage(
     imageUrl.value, 
@@ -934,11 +915,9 @@ const processImage = async () => {
   );
 
   if (result.success) {
-    console.log('✅ Processing completed successfully:', result.result);
     
     // Automatically save detection results to Firestore
     if (currentImage.value && route.params.locationId) {
-      console.log('💾 Auto-saving detection results to Firestore...');
       await saveDetectionToFirestore();
     }
   } else {
@@ -962,9 +941,6 @@ const saveDetectionToFirestore = async () => {
     const aiHolds = (serverStore.results?.holds || []).map((hold, index) => {
       // DEBUG: Log the structure of the first few holds
       if (index < 3) {
-        console.log(`🔍 AI hold ${index} raw structure:`, JSON.stringify(hold, null, 2));
-        console.log(`🔍 bbox type:`, typeof hold.bbox, hold.bbox);
-        console.log(`🔍 bbox properties:`, hold.bbox ? Object.keys(hold.bbox) : 'bbox is null/undefined');
       }
       
       return {
@@ -1006,7 +982,6 @@ const saveDetectionToFirestore = async () => {
     // Save to Firestore using unified system
     await persistenceStore.saveDetectionResults(currentImage.value.id, detectionData);
 
-    console.log('✅ Detection results saved to Firestore successfully');
     
     // Show success notification
     showSuccessNotification('Detection results saved successfully!');
@@ -1036,14 +1011,12 @@ const showSuccessNotification = (message) => {
 
 // Hold interaction handlers
 const handleHoldClick = (hold, holdIndex) => {
-  console.log('🎯 Hold clicked in main view:', { hold, holdIndex });
 
   // Check if we're in boulder creation/editing mode
   const isBoulderMode = boulderProblemsStore.isCreatingProblem || editingState.value.isEditing;
 
   // Priority 1: Boulder creation/editing with magic wand tool
   if (isBoulderMode && boulderHoldSelectionTool.value === 'magic-wand') {
-    console.log('🪄 Boulder Magic Wand is active - performing route selection for boulder problem');
 
     // Get all holds from AI + manual holds
     const aiHolds = serverStore.results?.holds || []
@@ -1064,7 +1037,6 @@ const handleHoldClick = (hold, holdIndex) => {
     }
 
     if (!targetProblem) {
-      console.log('⚠️ No active problem being created or edited, ignoring magic wand click');
       return;
     }
 
@@ -1072,9 +1044,6 @@ const handleHoldClick = (hold, holdIndex) => {
     const result = performMagicWandSelection(holdIndex, allHolds);
 
     if (result.success) {
-      console.log(
-        `✨ Magic Wand found ${result.selectedIndices.length} connected holds for boulder problem`
-      );
 
       // Add all selected holds to the target problem
         result.selectedIndices.forEach((selectedHoldIndex) => {
@@ -1098,9 +1067,7 @@ const handleHoldClick = (hold, holdIndex) => {
             // Add hold to the target problem (this will toggle - add if not present, remove if present)
             boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, selectedHoldIndex);
           }
-        });      console.log(
-        `✅ Added ${result.selectedIndices.length} holds to boulder problem via Magic Wand`
-      );
+        });
     }
 
     return; // Don't proceed with other logic when using boulder magic wand
@@ -1108,7 +1075,6 @@ const handleHoldClick = (hold, holdIndex) => {
 
   // Priority 2: Standalone Magic Wand functionality (when not in boulder mode)
   if (!isBoulderMode && magicWandActive.value) {
-    console.log('🪄 Standalone Magic Wand is active - performing proximity selection');
 
     // Get all holds from AI + manual holds
     const aiHolds = serverStore.results?.holds || []
@@ -1137,7 +1103,6 @@ const handleHoldClick = (hold, holdIndex) => {
   // Priority 3: Normal boulder creation/editing (single hold selection)
   if (isBoulderMode) {
     // Normal hold selection logic for boulder problems
-    console.log('🏔️ Boulder mode: single hold selection');
 
     // Check if hold is already assigned to another problem
     const existingProblem = boulderProblemsStore.sortedProblems.find((problem) =>
@@ -1155,7 +1120,6 @@ const handleHoldClick = (hold, holdIndex) => {
     }
 
     if (!targetProblem) {
-      console.log('⚠️ No active problem being created or edited, ignoring hold click');
       return;
     }
 
@@ -1192,18 +1156,10 @@ const handleHoldClick = (hold, holdIndex) => {
     // Add or remove hold from the target problem
     boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, holdIndex);
 
-    console.log(
-      `✅ Hold added/removed from ${
-        editingState.value.isEditing ? 'edited' : 'created'
-      } problem with SVG markup:`,
-      enhancedHold.svgMarkup ? 'included' : 'not available'
-    );
-
     return; // Don't proceed with other logic when in boulder mode
   }
 
   // Priority 4: No special mode active - ignore click
-  console.log('ℹ️ No special mode active, ignoring hold click');
 };
 
 // Helper function to get problem ID for a hold
@@ -1218,7 +1174,6 @@ const getHoldProblemId = (holdIndex) => {
 };
 
 const handleHoldHover = (holdIndex, isEntering, event) => {
-  console.log('🎯 handleHoldHover called:', { holdIndex, isEntering, hasEvent: !!event });
 
   // Clear any pending hide timeout
   if (tooltipHideTimeout) {
@@ -1229,17 +1184,14 @@ const handleHoldHover = (holdIndex, isEntering, event) => {
   if (isEntering && event) {
     // Find which problem this hold belongs to
     const problemId = getHoldProblemId(holdIndex);
-    console.log('🔍 Problem ID found:', problemId);
 
     if (problemId) {
       const problem = boulderProblemsStore.sortedProblems.find((p) => p.id === problemId);
-      console.log('📝 Problem found:', problem?.name || 'None');
 
       if (problem) {
         // Position tooltip near the mouse cursor
         const mouseX = event.clientX;
         const mouseY = event.clientY;
-        console.log('🖱️ Mouse position:', { mouseX, mouseY });
 
         // Show floating card at mouse position with small offset
         floatingCard.value = {
@@ -1247,7 +1199,6 @@ const handleHoldHover = (holdIndex, isEntering, event) => {
           problem: problem,
           position: { x: mouseX, y: mouseY },
         };
-        console.log('💫 Showing floating card at mouse position');
       }
     }
 
@@ -1257,13 +1208,11 @@ const handleHoldHover = (holdIndex, isEntering, event) => {
     tooltipHideTimeout = setTimeout(() => {
       floatingCard.value.visible = false;
       hoveredProblemId.value = null;
-      console.log('💫 Hiding floating card (delayed)');
     }, 300); // 300ms delay
   }
 };
 
 const startEditingProblem = (problem) => {
-  console.log('🔧 Starting edit mode for problem:', problem.name);
   router.push({
     query: {
       ...route.query,
@@ -1273,7 +1222,6 @@ const startEditingProblem = (problem) => {
 };
 
 const stopEditingProblem = () => {
-  console.log('🔧 Stopping edit mode');
   const query = { ...route.query };
   delete query.editingProblemId;
   router.push({ query });
@@ -1281,19 +1229,15 @@ const stopEditingProblem = () => {
 
 const handleToolSelectionChange = (selectedTool) => {
   boulderHoldSelectionTool.value = selectedTool;
-  console.log('🔧 Boulder tool selection changed:', selectedTool);
 };
 
 const handleDeleteHold = async ({ hold, index, type }) => {
-  console.log('🗑️ Deleting hold:', { hold, index, type });
   
   if (type === 'ai') {
     // For AI holds, use the store method to remove them
     await serverStore.removeAIHold(index, route.params.locationId, route.query.imageId);
-    console.log('✅ AI hold deleted successfully');
   } else if (type === 'manual') {
     // Manual holds are already handled by the serverStore.removeManualHold call
-    console.log('✅ Manual hold deleted successfully');
   }
   
   // TODO: Also remove the hold from any boulder problems that might reference it
@@ -1303,12 +1247,10 @@ const handleDeleteHold = async ({ hold, index, type }) => {
 const handleProblemCardHover = (problem, isEntering) => {
   // Set hovered problem ID when entering, clear when leaving
   hoveredProblemId.value = isEntering ? problem.id : null;
-  console.log('🏔️ Problem card hover:', { problemId: problem.id, isEntering });
 };
 
 const handleFilteredProblemsChange = (newFilteredProblems) => {
   filteredProblems.value = newFilteredProblems;
-  console.log('📊 Filtered problems changed:', newFilteredProblems.length);
 };
 
 // Shared events for BoulderProblemsManager (DRY principle) - defined after all functions
@@ -1328,16 +1270,13 @@ const loadImageFromQuery = async () => {
   if (locationId && imageId) {
     try {
       // Load existing boulder problems for this image
-      console.log('📂 Loading image from location:', { locationId, imageId });
 
       // Load location data to get grading system
       try {
         const location = await locationService.getLocation(locationId)
         if (location && typeof location === 'object' && 'gradingSystem' in location && location.gradingSystem) {
           boulderProblemsStore.setLocationGradingSystem(location.gradingSystem);
-          console.log('🎚️ Loaded location grading system:', location.gradingSystem)
         } else {
-          console.log('🎚️ No custom grading system found for location, using default')
           boulderProblemsStore.setLocationGradingSystem(null);
         }
       } catch (error) {
@@ -1357,7 +1296,6 @@ const loadImageFromQuery = async () => {
             url: getResizedImageUrl(imageRecord.downloadUrl, '1920x1440', 'jpg'),
             name: imageRecord.fileName,
           }
-          console.log('✅ Loaded image for hold detection:', currentImage.value);
 
           // Load existing manual holds for this image
           await serverStore.loadManualHolds(locationId, imageId);
@@ -1374,7 +1312,6 @@ const loadImageFromQuery = async () => {
     }
   } else {
     // No query parameters, use default/hardcoded image
-    console.log('📷 Using default image (no query parameters)');
     currentImage.value = null
     // Use default grading system when no location specified
     boulderProblemsStore.setLocationGradingSystem(null);
@@ -1389,11 +1326,9 @@ watch(
 
     // If imageId changed, reload boulder problems for the new image
     if (newQuery.imageId !== oldQuery?.imageId && route.params.locationId) {
-      console.log('🏔️ ImageId changed, reloading boulder problems for:', newQuery.imageId);
       try {
         boulderProblemsStore.initializeForLocation(route.params.locationId, newQuery.imageId);
         await boulderProblemsStore.loadBoulderProblems(route.params.locationId, newQuery.imageId);
-        console.log(`✅ Boulder problems reloaded for image: ${newQuery.imageId}`);
       } catch (error) {
         console.error('❌ Failed to reload boulder problems:', error);
       }
@@ -1406,15 +1341,12 @@ watch(
 watch(
   () => editingState.value,
   (newEditingState) => {
-    console.log('🔄 URL editing state changed, syncing with store:', newEditingState);
 
     if (newEditingState.isEditing && newEditingState.editingProblem) {
       // Problem found - start editing mode in the store
-      console.log('✅ Problem found, selecting in store:', newEditingState.editingProblem.name);
       boulderProblemsStore.selectProblem(newEditingState.editingProblem);
     } else if (!newEditingState.isEditing) {
       // Not editing - exit editing mode in the store
-      console.log('🚫 Exiting edit mode');
       boulderProblemsStore.deselectProblem();
     }
     // If isEditing but no editingProblem found yet, wait for data to load
@@ -1428,21 +1360,16 @@ const loadExistingDetectionResults = async () => {
   const imageId = route.query.imageId;
   
   if (!locationId || !imageId) {
-    console.log('ℹ️ No location ID or image ID available, skipping detection result loading');
     return;
   }
 
   try {
-    console.log('🔍 Checking for existing detection results...', { locationId, imageId });
     
     // Use the server store method to load detection results
-    console.log('📂 Loading detection results from Firestore for image:', imageId);
     const resultsLoaded = await serverStore.loadDetectionResults(locationId, imageId);
     
     if (resultsLoaded) {
-      console.log('✅ Detection results loaded from Firestore');
     } else {
-      console.log('ℹ️ No existing detection results found for this image');
     }
     
   } catch (error) {
@@ -1453,7 +1380,6 @@ const loadExistingDetectionResults = async () => {
 
 // Lifecycle
 onMounted(async () => {
-  console.log('🚀 Server Hold Detection View mounted');
 
   // Reset state
   serverStore.resetState();
@@ -1462,14 +1388,10 @@ onMounted(async () => {
 
   // Load boulder problems immediately on mount
   if (route.params.locationId) {
-    console.log('🏔️ Loading boulder problems for location:', route.params.locationId);
     const imageId = route.query.imageId;
     try {
       boulderProblemsStore.initializeForLocation(route.params.locationId, imageId);
       await boulderProblemsStore.loadBoulderProblems(route.params.locationId, imageId);
-      console.log(
-        `✅ Boulder problems loaded successfully${imageId ? ` for image: ${imageId}` : ''}`
-      );
     } catch (error) {
       console.error('❌ Failed to load boulder problems:', error);
     }
@@ -1489,7 +1411,6 @@ onMounted(async () => {
     isFullscreen.value = !!(
       document.fullscreenElement
     )
-    console.log('🖼️ Fullscreen state changed:', isFullscreen.value);
   }
 
   document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -1509,13 +1430,11 @@ onUnmounted(() => {
 
 // Floating card event handlers
 const handleFloatingCardEdit = (problem) => {
-  console.log('✏️ Editing problem from floating card:', problem.name);
   // Use URL-based editing state management
   startEditingProblem(problem);
 };
 
 const handleFloatingCardToggleVisibility = (problem) => {
-  console.log('🔄 Toggling problem visibility:', problem.name);
   // Check if we're showing only this problem or showing all problems
   if (boulderProblemsStore.isShowingOnlyOneProblem && !problem.hidden) {
     // Currently showing only this problem - show all problems
@@ -1527,7 +1446,6 @@ const handleFloatingCardToggleVisibility = (problem) => {
 };
 
 const handleFloatingCardMouseEnter = () => {
-  console.log('🖱️ Mouse entered floating card - keeping it visible');
   // Clear any pending hide timeout when mouse enters the tooltip
   if (tooltipHideTimeout) {
     clearTimeout(tooltipHideTimeout);
@@ -1536,12 +1454,10 @@ const handleFloatingCardMouseEnter = () => {
 };
 
 const handleFloatingCardMouseLeave = () => {
-  console.log('🖱️ Mouse left floating card - starting hide timer');
   // Hide the tooltip when mouse leaves it
   tooltipHideTimeout = setTimeout(() => {
     floatingCard.value.visible = false;
     hoveredProblemId.value = null;
-    console.log('💫 Hiding floating card (after leaving tooltip)');
   }, 200); // Shorter delay when leaving tooltip
 };
 </script>

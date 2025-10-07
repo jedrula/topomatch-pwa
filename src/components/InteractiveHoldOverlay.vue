@@ -302,20 +302,12 @@ const svgViewBox = computed(() => {
   
   const { naturalWidth, naturalHeight } = props.imageElement;
   
-  // Debug: Log what we have
-  console.log('🔍 SVG ViewBox Debug:', {
-    hasDetectionResults: !!props.detectionResults,
-    compressionRatio: props.detectionResults?.compressionRatio,
-    naturalDimensions: { width: naturalWidth, height: naturalHeight }
-  });
-  
   // If we have compression info, calculate the actual processed image dimensions
   if (props.detectionResults?.compressionRatio && props.detectionResults.compressionRatio > 1) {
     // Get compression settings from the server store to determine processed dimensions
     const serverStore = useHoldDetectionServerStore();
     const compressionSettings = serverStore.compressionSettings;
     
-    console.log('🔍 Compression settings:', compressionSettings);
     
     if (compressionSettings.enabled && compressionSettings.maxWidthOrHeight) {
       const maxDimension = compressionSettings.maxWidthOrHeight;
@@ -343,17 +335,6 @@ const svgViewBox = computed(() => {
         }
       }
       
-      console.log('🔧 SVG ViewBox calculated from compression settings:', {
-        natural: { width: naturalWidth, height: naturalHeight },
-        processed: { width: processedWidth, height: processedHeight },
-        compressionRatio: props.detectionResults.compressionRatio,
-        maxDimension,
-        scaleFactor: {
-          x: processedWidth / naturalWidth,
-          y: processedHeight / naturalHeight
-        },
-        viewBox: `0 0 ${processedWidth} ${processedHeight}`
-      });
       
       return `0 0 ${processedWidth} ${processedHeight}`;
     }
@@ -433,12 +414,10 @@ const startDrawing = (event) => {
     if (isClickOnExistingHold(event)) {
       // Let the click pass through to hold selection by not starting drawing
       // The canvas will not intercept this event
-      console.log('🎯 Click on existing hold detected - allowing pass-through');
       return;
     }
 
     // Start drawing in empty area
-    console.log('⚡ Quick Draw: Starting draw in empty area');
     isDrawing.value = true;
     const coords = getCanvasCoordinates(event);
     drawingPath.value = [coords]; // Start new path
@@ -576,7 +555,6 @@ const createHoldFromPath = async () => {
   // Save the manual hold to Firestore using persistence store
   try {
     await persistenceStore.addManualHold(props.imageId, hold);
-    console.log('✅ Manual hold saved to Firestore:', hold.id);
     
     // If in quick draw mode (boulder problem creation/editing),
     // automatically add the hold to the active problem
@@ -596,7 +574,6 @@ const createHoldFromPath = async () => {
         // Add to the active problem
         boulderProblemsStore.addHoldToProblem(activeProblem.id, enrichedHold, manualHoldIndex);
 
-        console.log(`⚡ Quick Draw: Added hold to boulder problem "${activeProblem.name}" at index ${manualHoldIndex}`);
       }
     }
   } catch (error) {
@@ -847,7 +824,6 @@ const getManualHoldColor = (hold, manualIndex) => {
 const handleHoldClick = (hold, index) => {
   // In delete mode, both AI and manual holds can be deleted
   if (serverStore.isDeleteMode) {
-    console.log('🗑️ Deleting AI-detected hold:', hold);
     // For AI holds, we need to remove them from the detection results
     // This will require updating the parent component or store
     emit('delete-hold', { hold, index, type: 'ai' });
@@ -873,7 +849,6 @@ const handleHoldHover = (index, isEntering, event) => {
 
 const handleManualHoldClick = (hold, manualIndex) => {
   if (serverStore.isDeleteMode) {
-    console.log('🗑️ Deleting manual hold:', hold);
     // For manual holds, we can delete them directly from the store
     serverStore.removeManualHold(hold.id);
     // Also emit for consistency
@@ -882,13 +857,11 @@ const handleManualHoldClick = (hold, manualIndex) => {
   }
 
   const combinedIndex = getCombinedHoldIndex(manualIndex);
-  console.log('Manual hold clicked:', { hold, manualIndex, combinedIndex });
   emit('hold-click', hold, combinedIndex);
 };
 
 const handleManualHoldHover = (hold, manualIndex, isEntering, event) => {
   const combinedIndex = getCombinedHoldIndex(manualIndex);
-  console.log('Manual hold hover:', { hold, manualIndex, combinedIndex, isEntering });
 
   hoveredHoldIndex.value = isEntering ? combinedIndex : null;
 
@@ -913,20 +886,12 @@ const exitDeleteMode = () => {
 };
 
 const handleToolChange = (tool) => {
-  console.log('🔧 Tool selection changed:', tool);
   emit('tool-selection-change', tool);
 };
 
 // Canvas setup
 function setupCanvas() {
-  console.log('setupCanvas called', {
-    isAnyDrawingMode: isAnyDrawingMode.value,
-    canvasRef: !!drawingCanvas.value,
-    imageElement: !!props.imageElement,
-  });
-
   if (!isAnyDrawingMode.value || !drawingCanvas.value || !props.imageElement) {
-    console.log('setupCanvas early return - conditions not met');
     return;
   }
 
@@ -935,13 +900,6 @@ function setupCanvas() {
 
   // Wait for next tick to ensure DOM is updated
   nextTick(() => {
-    console.log('setupCanvas - setting dimensions', {
-      imageWidth: img.clientWidth,
-      imageHeight: img.clientHeight,
-      imageOffsetWidth: img.offsetWidth,
-      imageOffsetHeight: img.offsetHeight,
-    });
-
     // Set canvas size to match the actual displayed image size
     const rect = img.getBoundingClientRect();
     canvas.width = rect.width;
@@ -951,12 +909,6 @@ function setupCanvas() {
     canvas.style.width = rect.width + 'px';
     canvas.style.height = rect.height + 'px';
 
-    console.log('setupCanvas - canvas dimensions set', {
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
-      canvasStyleWidth: canvas.style.width,
-      canvasStyleHeight: canvas.style.height,
-    });
 
     // Clear any existing drawing
     const ctx = canvas.getContext('2d');
@@ -965,26 +917,18 @@ function setupCanvas() {
 }
 
 onMounted(() => {
-  console.log('🎨 InteractiveHoldOverlay mounted');
   nextTick(() => {
     setupCanvas();
-    console.log('🎨 Canvas setup completed');
   });
 });
 
 onUnmounted(() => {
-  console.log('🎨 InteractiveHoldOverlay unmounted');
 });
 
 // Watch for drawing mode changes
 watch(
   [() => serverStore.isDrawingMode, () => isQuickDrawEnabled.value],
   ([newDrawingMode, newQuickDrawMode]) => {
-    console.log('🎨 Drawing mode changed:', {
-      drawingMode: newDrawingMode,
-      quickDrawMode: newQuickDrawMode,
-      anyDrawingMode: isAnyDrawingMode.value,
-    });
     if (newDrawingMode || newQuickDrawMode) {
       nextTick(() => {
         setupCanvas();

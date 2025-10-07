@@ -22,7 +22,6 @@ export async function calculateHomographyMatrix(matches) {
 
     try {
       const cv = window.cv;
-      console.log(`Calculating homography from ${matches.length} point matches`);
 
       // Create OpenCV point arrays
       const srcMat = new cv.Mat(matches.length, 1, cv.CV_32FC2);
@@ -52,12 +51,6 @@ export async function calculateHomographyMatrix(matches) {
       for (let i = 0; i < 9; i++) {
         matrixData.push(homography.data64F[i]);
       }
-
-      console.log('✅ Homography calculated:', {
-        inliers: inlierCount,
-        total: matches.length,
-        successRate: ((inlierCount / matches.length) * 100).toFixed(1) + '%'
-      });
 
       // Cleanup
       srcMat.delete();
@@ -167,7 +160,6 @@ export async function extractVideoFrames(videoFile, timestamps) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
-      console.log('Video loaded - Duration:', video.duration, 'seconds');
       
       // Simple validation for MP4 videos
       if (isFinite(video.duration) && video.duration > 0) {

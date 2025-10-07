@@ -27,21 +27,18 @@ export function getDetectionImageViewBox(detectionResults, imageUrl = null, comp
     // Server-side detection results have image_info
     if (detectionResults.image_info) {
       const { width, height } = detectionResults.image_info;
-      console.log('� Using server detection image dimensions:', { width, height });
       return `0 0 ${width} ${height}`;
     }
     
     // Client-side detection results have imageWidth/imageHeight
     if (detectionResults.imageWidth && detectionResults.imageHeight) {
       const { imageWidth: width, imageHeight: height } = detectionResults;
-      console.log('📐 Using client detection image dimensions:', { width, height });
       return `0 0 ${width} ${height}`;
     }
     
     // Fallback: check for other possible dimension properties
     if (detectionResults.width && detectionResults.height) {
       const { width, height } = detectionResults;
-      console.log('📐 Using detection result dimensions:', { width, height });
       return `0 0 ${width} ${height}`;
     }
   }
@@ -51,7 +48,6 @@ export function getDetectionImageViewBox(detectionResults, imageUrl = null, comp
     try {
       const cachedResults = getCachedDetectionResult(imageUrl, compressionSettings);
       if (cachedResults && hasDetectionImageDimensions(cachedResults.result)) {
-        console.log('Using cached detection image dimensions for:', imageUrl);
         return getDetectionImageViewBox(cachedResults.result);
       }
     } catch (error) {
@@ -63,7 +59,6 @@ export function getDetectionImageViewBox(detectionResults, imageUrl = null, comp
   if (fallbackImage && fallbackImage.naturalWidth && fallbackImage.naturalHeight) {
     const width = fallbackImage.naturalWidth;
     const height = fallbackImage.naturalHeight;
-    console.log('📐 Using fallback image dimensions:', { width, height });
     return `0 0 ${width} ${height}`;
   }
   

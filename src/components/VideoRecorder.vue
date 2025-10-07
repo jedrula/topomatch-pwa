@@ -344,7 +344,6 @@ const startRecording = async () => {
         cameraPreview.value.onloadedmetadata = () => {
           if (cameraPreview.value.duration && isFinite(cameraPreview.value.duration)) {
             originalVideoDuration.value = cameraPreview.value.duration;
-            console.log('Recorded video duration:', originalVideoDuration.value, 'seconds');
           }
         };
       }

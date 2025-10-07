@@ -41,9 +41,7 @@ class ConfigService {
           Object.assign(this.config.holdDetectionServer, data.holdDetectionServer);
         }
         
-        console.log('✅ Configuration loaded:', this.config);
       } else {
-        console.log('ℹ️ No configuration found, using defaults');
         // Save defaults to Firestore
         await this.saveConfig();
       }
@@ -77,7 +75,6 @@ class ConfigService {
       this.config.holdDetectionServer.lastUpdated = configData.holdDetectionServer.lastUpdated;
       this.config.holdDetectionServer.updatedBy = configData.holdDetectionServer.updatedBy;
       
-      console.log('✅ Configuration saved successfully');
       return true;
     } catch (error) {
       console.error('❌ Error saving configuration:', error);
@@ -130,7 +127,6 @@ class ConfigService {
           Object.assign(this.config.holdDetectionServer, data.holdDetectionServer);
         }
         
-        console.log('📡 Configuration updated from server:', this.config);
         
         // Call optional callback
         if (callback && typeof callback === 'function') {

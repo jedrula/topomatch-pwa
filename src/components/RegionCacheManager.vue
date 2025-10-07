@@ -185,10 +185,8 @@ const downloadRegion = async () => {
     // Update cache status
     await updateCacheStatus()
     
-    console.log(`Successfully downloaded ${props.regionId} for offline use`)
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.log('Download cancelled by user')
     } else {
       console.error('Error downloading region:', error)
     }
@@ -209,7 +207,6 @@ const removeDownloads = async () => {
     try {
       await imageCacheService.removeCachedImages(props.imagePaths)
       await updateCacheStatus()
-      console.log(`Removed downloads for ${props.regionId}`)
     } catch (error) {
       console.error('Error removing downloads:', error)
     }

@@ -49,7 +49,6 @@ export async function checkApiHealth(): Promise<boolean> {
     }
     
     const data = await response.json() as HoldDetectionHealthResponse
-    console.log('✅ API Health check successful:', data)
     return true
   } catch (error) {
     console.error('❌ API Health check failed:', error)
@@ -125,7 +124,6 @@ export async function pollForJobResults(
       throw new Error('Polling timeout: Maximum attempts exceeded')
     }
     
-    console.log(`🔄 Polling job ${jobId}, attempt ${attempts}/${maxAttempts}`)
     
     const response = await fetch(`${baseUrl}/api/v1/status/${jobId}`, {
       headers: {

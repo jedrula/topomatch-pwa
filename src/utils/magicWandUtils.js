@@ -96,13 +96,11 @@ export const performMagicWandSelection = (
   }
 
   const targetHold = allHolds[targetHoldIndex];
-  console.log(`🎯 Magic Wand: Starting route discovery from hold ${targetHoldIndex}`);
 
   // Step 1: Find ALL color-similar holds across the entire image
   const colorSimilarHolds = findAllSimilarColorHolds(targetHold, allHolds, maxColorDistance);
 
   if (colorSimilarHolds.length === 0) {
-    console.log('Magic Wand: No color-similar holds found');
     return {
       success: true,
       targetHold: { hold: targetHold, index: targetHoldIndex },
@@ -148,7 +146,6 @@ export const performMagicWandSelection = (
     },
   };
 
-  console.log(`✅ Magic Wand: Found connected route with ${result.stats.selected} holds`);
   return result;
 };
 
@@ -218,16 +215,9 @@ export const extractHoldColor = (hold) => {
 export const findAllSimilarColorHolds = (targetHold, allHolds, maxColorDistance = 33) => {
   const targetColor = extractHoldColor(targetHold);
   if (!targetColor) {
-    console.log('Magic Wand: No color data found for target hold');
-    console.log('Target hold structure:', targetHold);
     return [];
   }
 
-  console.log(
-    `🎯 Target color LAB: [${targetColor.l.toFixed(1)}, ${targetColor.a.toFixed(
-      1
-    )}, ${targetColor.b.toFixed(1)}]`
-  );
 
   let holdsWithColor = 0;
   let holdsWithoutColor = 0;
@@ -246,38 +236,11 @@ export const findAllSimilarColorHolds = (targetHold, allHolds, maxColorDistance 
       colorDistances.push(colorDistance);
 
       if (colorDistance <= maxColorDistance) {
-        console.log(
-          `✅ Similar hold ${index}: LAB[${holdColor.l.toFixed(1)}, ${holdColor.a.toFixed(
-            1
-          )}, ${holdColor.b.toFixed(1)}], distance: ${colorDistance.toFixed(1)}`
-        );
         return { hold, index, colorDistance };
-      } else {
-        // Log a few examples of non-matching holds
-        if (colorDistances.length <= 5) {
-          console.log(
-            `❌ Different hold ${index}: LAB[${holdColor.l.toFixed(1)}, ${holdColor.a.toFixed(
-              1
-            )}, ${holdColor.b.toFixed(1)}], distance: ${colorDistance.toFixed(1)}`
-          );
-        }
       }
       return null;
     })
     .filter((item) => item !== null);
-
-  console.log(`📊 Color analysis stats:
-    - Holds with color data: ${holdsWithColor}/${allHolds.length}
-    - Holds without color data: ${holdsWithoutColor}
-    - Color distances range: ${Math.min(...colorDistances).toFixed(1)} - ${Math.max(
-    ...colorDistances
-  ).toFixed(1)}
-    - Threshold: ${maxColorDistance}
-    - Similar holds found: ${similarHolds.length}`);
-
-  console.log(
-    `🎨 Found ${similarHolds.length}/${allHolds.length} color-similar holds across entire image`
-  );
   return similarHolds;
 };
 
@@ -311,12 +274,6 @@ export const buildReachabilityGraph = (holds, maxReachDistance = 500) => {
     }
   }
 
-  const totalConnections =
-    Array.from(graph.values()).reduce((sum, neighbors) => sum + neighbors.length, 0) / 2;
-  console.log(
-    `🕸️ Built reachability graph: ${holds.length} holds, ${totalConnections} connections (max reach: ${maxReachDistance}px)`
-  );
-
   return graph;
 };
 
@@ -347,7 +304,6 @@ export const findConnectedComponent = (graph, targetHoldIndex) => {
     }
   }
 
-  console.log(`🔗 Found connected route: ${component.size} holds form a reachable sequence`);
   return component;
 };
 /**

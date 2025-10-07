@@ -12,16 +12,7 @@ export const holdDetectionService = {
   /**
    * Save complete hold detection results (AI + manual)
    */
-  async saveHoldDetection(locationId, imageId, detectionData) {
-    console.log('🔍 SERVICE DEBUG: Received detection data:', {
-      locationId,
-      imageId,
-      aiHoldsCount: detectionData.aiHolds?.length || 0,
-      firstAiHoldHasSvg: !!detectionData.aiHolds?.[0]?.svgMarkup,
-      firstAiHoldSvgLength: detectionData.aiHolds?.[0]?.svgMarkup?.length || 0,
-      detectionDataKeys: Object.keys(detectionData)
-    })
-    
+  async saveHoldDetection(locationId, imageId, detectionData) {    
     const docRef = doc(db, 'locations', locationId, 'holdDetections', imageId)
     
     const unifiedDoc = {
@@ -43,13 +34,6 @@ export const holdDetectionService = {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     }
-
-    console.log('🔍 SERVICE DEBUG: About to save unified doc:', {
-      aiHoldsCount: unifiedDoc.detectionResults.aiHolds.length,
-      firstAiHoldKeys: Object.keys(unifiedDoc.detectionResults.aiHolds[0] || {}),
-      firstAiHoldHasSvg: !!unifiedDoc.detectionResults.aiHolds[0]?.svgMarkup,
-      firstAiHoldSvgLength: unifiedDoc.detectionResults.aiHolds[0]?.svgMarkup?.length || 0
-    })
 
     await setDoc(docRef, unifiedDoc, { merge: true })
     return docRef.id
@@ -144,7 +128,6 @@ export const holdDetectionService = {
       await updateDoc(docRef, updateData)
     }
 
-    console.log(`✅ Saved ${manualHolds.length} manual holds for image ${imageId}`)
   },
 
   /**

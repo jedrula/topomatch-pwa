@@ -11,13 +11,6 @@ const getFirebaseConfig = () => {
   const useEmulators =
     import.meta.env.MODE === 'development' || import.meta.env.VITE_USE_EMULATORS === 'true';
 
-  console.log('🔍 Environment debug:', {
-    'import.meta.env.DEV': import.meta.env.DEV,
-    'import.meta.env.MODE': import.meta.env.MODE,
-    'import.meta.env.PROD': import.meta.env.PROD,
-    'import.meta.env.VITE_USE_EMULATORS': import.meta.env.VITE_USE_EMULATORS,
-    useEmulators: useEmulators,
-  });
 
   if (useEmulators) {
     // Development/Emulator configuration
@@ -63,7 +56,6 @@ const useEmulators =
   import.meta.env.MODE === 'development' || import.meta.env.VITE_USE_EMULATORS === 'true';
 
 if (useEmulators) {
-  console.log('🔧 Connecting to Firebase emulators...');
 
   // Determine the emulator host - use localhost if running on the same machine,
   // or the current hostname if accessing from another device (like mobile)
@@ -76,7 +68,6 @@ if (useEmulators) {
     // Check if we're accessing via an IP address (likely mobile testing)
     const hostname = window.location.hostname;
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      console.log(`🔧 Detected non-localhost access (${hostname}), using ${hostname} for emulators`);
       return hostname;
     }
     
@@ -84,11 +75,9 @@ if (useEmulators) {
   };
 
   const emulatorHost = getEmulatorHost();
-  console.log(`🔧 Using emulator host: ${emulatorHost}`);
 
   try {
     connectStorageEmulator(storage, emulatorHost, 9199);
-    console.log('✅ Connected to Firebase Storage emulator');
   } catch (error) {
     // Emulator might already be connected
     if (error.code !== 'storage/emulator-config-failed') {
@@ -98,7 +87,6 @@ if (useEmulators) {
 
   try {
     connectFunctionsEmulator(functions, emulatorHost, 5001);
-    console.log('✅ Connected to Firebase Functions emulator');
   } catch (error) {
     // Emulator might already be connected
     if (error.code !== 'functions/emulator-config-failed') {
@@ -108,7 +96,6 @@ if (useEmulators) {
 
   try {
     connectFirestoreEmulator(db, emulatorHost, 8080);
-    console.log('✅ Connected to Firestore emulator');
   } catch (error) {
     // Emulator might already be connected
     if (error.code !== 'firestore/emulator-config-failed') {
@@ -118,7 +105,6 @@ if (useEmulators) {
 
   try {
     connectAuthEmulator(auth, `http://${emulatorHost}:9099`);
-    console.log('✅ Connected to Firebase Auth emulator');
   } catch (error) {
     // Emulator might already be connected
     if (error.code !== 'auth/emulator-config-failed') {
@@ -126,7 +112,6 @@ if (useEmulators) {
     }
   }
 } else {
-  console.log('🚀 Using production Firebase services');
 }
 
 export { storage, functions, db, auth };

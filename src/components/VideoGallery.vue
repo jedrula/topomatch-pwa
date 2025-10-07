@@ -31,7 +31,6 @@
           controls
           autoplay
           class="max-h-screen max-w-screen rounded-lg"
-          @loadedmetadata="onVideoLoaded"
         />
 
         <!-- Loading state -->
@@ -95,11 +94,6 @@ const closeOnBackdrop = (event) => {
   if (event.target === event.currentTarget) {
     closeGallery();
   }
-};
-
-const onVideoLoaded = (event) => {
-  // Video metadata loaded
-  console.log('Video loaded:', event.target.duration);
 };
 
 const formatDate = (dateString) => {

@@ -89,7 +89,6 @@ export const videoService = {
                 },
               };
 
-              console.log('Video uploaded successfully:', result);
               resolve(result);
             } catch (error) {
               console.error('Error getting download URL:', error);
@@ -122,7 +121,6 @@ export const videoService = {
       const storageRef = ref(storage, videoPath);
 
       await deleteObject(storageRef);
-      console.log('Video deleted successfully:', videoId);
     } catch (error) {
       console.error('Error deleting video:', error);
       throw error;
@@ -209,7 +207,6 @@ export const videoService = {
                 },
               };
 
-              console.log('Location video uploaded successfully:', result);
               resolve(result);
             } catch (error) {
               console.error('Error getting download URL:', error);

@@ -34,11 +34,9 @@ export const manualHoldsService = {
 
       if (holdsSnap.exists()) {
         const data = holdsSnap.data();
-        console.log(`📥 Loaded ${data.holds?.length || 0} manual holds for image`);
         return data.holds || [];
       }
 
-      console.log('📥 No manual holds found for image');
       return [];
     } catch (error) {
       console.error('❌ Error loading manual holds:', error);
@@ -84,7 +82,6 @@ export const manualHoldsService = {
         });
       }
 
-      console.log(`💾 Saved ${holds.length} manual holds to Firestore`);
     } catch (error) {
       console.error('❌ Error saving manual holds:', error);
       throw error;
@@ -122,7 +119,6 @@ export const manualHoldsService = {
       // Save back to Firestore
       await this.saveManualHolds(locationId, imageId, updatedHolds, imageUrl);
 
-      console.log('✅ Added manual hold to Firestore:', enhancedHold.id);
       return updatedHolds;
     } catch (error) {
       console.error('❌ Error adding manual hold:', error);
@@ -154,7 +150,6 @@ export const manualHoldsService = {
       // Save back to Firestore
       await this.saveManualHolds(locationId, imageId, updatedHolds, imageUrl);
 
-      console.log('🗑️ Removed manual hold from Firestore:', holdId);
       return updatedHolds;
     } catch (error) {
       console.error('❌ Error removing manual hold:', error);
@@ -172,7 +167,6 @@ export const manualHoldsService = {
   async clearManualHolds(locationId, imageId, imageUrl) {
     try {
       await this.saveManualHolds(locationId, imageId, [], imageUrl);
-      console.log('🧹 Cleared all manual holds from Firestore');
     } catch (error) {
       console.error('❌ Error clearing manual holds:', error);
       throw error;

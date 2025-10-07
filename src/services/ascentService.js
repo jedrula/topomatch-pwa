@@ -60,7 +60,6 @@ export const ascentService = {
       };
 
       const docRef = await addDoc(ascentsRef, newAscent);
-      console.log('Ascent logged with ID:', docRef.id);
 
       return docRef.id;
     } catch (error) {
@@ -77,7 +76,6 @@ export const ascentService = {
    */
   async getBoulderAscents(locationId, problemId) {
     try {
-      console.log('🔍 Fetching ascents from Firestore for:', { locationId, problemId });
       const ascentsRef = collection(
         db,
         'locations',
@@ -96,11 +94,9 @@ export const ascentService = {
           id: doc.id,
           ...doc.data(),
         };
-        console.log('📝 Individual ascent data:', ascentData);
         ascents.push(ascentData);
       });
 
-      console.log('✅ Total ascents fetched:', ascents.length);
       return ascents;
     } catch (error) {
       console.error('Error fetching boulder ascents:', error);
@@ -226,7 +222,6 @@ export const ascentService = {
       };
 
       await updateDoc(ascentRef, updateData);
-      console.log('Ascent updated successfully');
     } catch (error) {
       console.error('Error updating ascent:', error);
       throw error;
@@ -272,7 +267,6 @@ export const ascentService = {
       if (ascentData.betaVideo && ascentData.betaVideo.videoId) {
         try {
           await videoService.deleteBetaVideo(locationId, problemId, ascentData.betaVideo.videoId);
-          console.log('Beta video deleted with ascent');
         } catch (videoError) {
           console.warn('Error deleting beta video (continuing with ascent deletion):', videoError);
           // Continue with ascent deletion even if video deletion fails
@@ -280,7 +274,6 @@ export const ascentService = {
       }
 
       await deleteDoc(ascentRef);
-      console.log('Ascent deleted successfully');
     } catch (error) {
       console.error('Error deleting ascent:', error);
       throw error;

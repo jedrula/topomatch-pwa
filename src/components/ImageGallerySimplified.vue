@@ -475,7 +475,6 @@ const handleFloatingCardMouseLeave = () => {
 
 // Boulder problem interaction handlers
 const handleProblemClick = (problem) => {
-  console.log('Problem clicked:', problem.name);
   // For now, just log the click - could add navigation or edit functionality
 };
 
@@ -512,11 +511,9 @@ watch(
   async (newImage) => {
     imageLoaded.value = false;
     imageMetadata.value = null; // Reset metadata
-    console.log('Current image changed:', newImage?.name || 'No image');
     
     // Load metadata for the new image
     if (newImage && props.locationId) {
-      console.log('Loading metadata for image:', newImage.name);
       await loadImageMetadata(newImage.id);
       
       // Also load hold detection data if needed
@@ -536,9 +533,7 @@ watch(
   async (newLocationId) => {
     if (newLocationId) {
       try {
-        console.log('Loading boulder problems for location:', newLocationId);
         await boulderProblemsStore.loadProblemsForLocation(newLocationId);
-        console.log('Boulder problems loaded');
         
         // Initialize hold detection persistence store
         holdDetectionPersistenceStore.initializeForLocation(newLocationId);

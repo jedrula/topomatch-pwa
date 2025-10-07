@@ -21,7 +21,6 @@ export function useVideoAnalysis() {
 
   // Handle beta video selection
   const handleBetaVideoSelected = (videoFile) => {
-    console.log('Beta video selected:', videoFile.name);
     // Reset previous results and start matching phase
     videoAnalysisResult.value = null;
     extractedFrame.value = null;
@@ -34,10 +33,8 @@ export function useVideoAnalysis() {
 
   // Handle complete beta analysis
   const handleBetaAnalysisComplete = async (analysisData) => {
-    console.log('🎉 Enhanced analysis complete:', analysisData);
 
     if (!analysisData.match) {
-      console.log('❌ No match found in analysis');
       videoAnalysisResult.value = {
         success: false,
         error: true,
@@ -57,11 +54,6 @@ export function useVideoAnalysis() {
     if (analysisData.frames) {
       for (let i = 0; i < analysisData.frames.length; i++) {
         const frame = analysisData.frames[i];
-
-        console.log(`🔍 Processing frame ${i}:`, {
-          hasPoseData: !!frame.poseData,
-          poseDataStructure: frame.poseData ? Object.keys(frame.poseData) : 'none',
-        });
 
         if (frame.poseData && frame.poseData.keypoints) {
           // Convert Enhanced component keypoints format to array format expected by hold analysis
@@ -96,15 +88,7 @@ export function useVideoAnalysis() {
               },
             ],
           });
-
-          console.log(`✅ Frame ${i} converted with keypoints:`, {
-            leftWrist: keypoints[9],
-            rightWrist: keypoints[10],
-            leftAnkle: keypoints[15],
-            rightAnkle: keypoints[16],
-          });
         } else {
-          console.log(`⚠️ Frame ${i} has no valid pose data`);
           frameResults.push({
             frameIndex: i,
             frame: frame,
@@ -118,8 +102,6 @@ export function useVideoAnalysis() {
     analysisPhase.value = 'analyzing-holds';
 
     // Analyze holds using homography and boulder problem data
-    console.log('🧗 Analyzing hold usage...');
-    console.log('🔗 Homography matrix available:', !!analysisData.match?.homographyMatrix);
 
     let holdAnalysisResult = null;
     try {
@@ -130,7 +112,6 @@ export function useVideoAnalysis() {
       );
 
       if (holdAnalysisResult?.bestMatch) {
-        console.log('🎯 Best matching problem:', holdAnalysisResult.bestMatch.problem.name);
         analysisPhase.value = 'complete';
 
         // Store data for potential redirect but don't redirect automatically
@@ -139,7 +120,6 @@ export function useVideoAnalysis() {
           problem: holdAnalysisResult.bestMatch.problem,
         };
       } else if (holdAnalysisResult) {
-        console.log('⚠️ Hold analysis completed but no matches found');
         analysisPhase.value = 'complete';
       } else {
         console.log('❌ Hold analysis failed to return results');
@@ -163,7 +143,6 @@ export function useVideoAnalysis() {
     };
 
     isAnalyzing.value = false;
-    console.log('✅ Complete video analysis finished!');
   };
 
   // Handle processing errors
@@ -179,7 +158,6 @@ export function useVideoAnalysis() {
 
   // Handle video cleared
   const handleBetaVideoCleared = () => {
-    console.log('Beta video cleared');
     resetAnalysisState();
   };
 
@@ -213,17 +191,7 @@ export function useVideoAnalysis() {
 
   // Run hold analysis - compare poses with boulder problems
   const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => {
-    console.log('🎯 Phase 4: Starting hold analysis...');
-    console.log('📊 Input data:', {
-      frameResultsLength: frameResults?.length || 0,
-      hasHomography: !!homographyMatrix,
-      locationId: route.params.id,
-      matchedImageId: matchedImage?.id,
-      matchedImageName: matchedImage?.name,
-    });
-
     if (!homographyMatrix) {
-      console.log('⚠️ No homography matrix available for hold analysis');
       return {
         error: 'No homography matrix available',
         bestMatch: null,
@@ -241,21 +209,14 @@ export function useVideoAnalysis() {
         problemsForLocation = boulderProblemsStore.sortedProblems.filter(
           (problem) => problem.locationId === route.params.id && problem.imageId === matchedImage.id
         );
-        console.log(
-          `🔍 Found ${problemsForLocation.length} boulder problems for matched image "${matchedImage.name}" (ID: ${matchedImage.id})`
-        );
       } else {
         // Fallback: use all problems for the location (old behavior)
         problemsForLocation = boulderProblemsStore.sortedProblems.filter(
           (problem) => problem.locationId === route.params.id
         );
-        console.log(
-          `⚠️ No matched image ID available, using all ${problemsForLocation.length} boulder problems for location ${route.params.id}`
-        );
       }
 
       if (problemsForLocation.length === 0) {
-        console.log('ℹ️ No boulder problems found for this location');
         return {
           error: 'No boulder problems found for this location',
           bestMatch: null,
@@ -264,43 +225,18 @@ export function useVideoAnalysis() {
         };
       }
 
-      console.log(
-        '🏔️ Boulder problems:',
-        problemsForLocation.map((p) => ({
-          id: p.id,
-          name: p.name,
-          nameType: typeof p.name,
-          nameLength: p.name?.length,
-          grade: p.grade,
-          holdsCount: p.holds?.length || 0,
-          allKeys: Object.keys(p).slice(0, 10), // Show first 10 keys to avoid huge logs
-        }))
-      );
-
       // Transform pose keypoints to boulder image space
       const transformedFrames = [];
 
       for (const frameResult of frameResults) {
-        console.log(`🔍 Processing frame ${frameResult.frameIndex}:`, {
-          hasPoses: !!(frameResult.poses && frameResult.poses.length > 0),
-          posesCount: frameResult.poses?.length || 0,
-        });
-
         if (!frameResult.poses || frameResult.poses.length === 0) {
-          console.log(`⚠️ Frame ${frameResult.frameIndex} has no poses`);
           continue;
         }
 
         // Use the first pose from the frame
         const firstPose = frameResult.poses[0];
-        console.log(`👤 First pose keypoints:`, {
-          hasKeypoints: !!firstPose.keypoints,
-          keypointsLength: firstPose.keypoints?.length || 0,
-          confidence: firstPose.confidence,
-        });
 
         if (!firstPose.keypoints) {
-          console.log(`⚠️ Frame ${frameResult.frameIndex} pose has no keypoints`);
           continue;
         }
 
@@ -313,38 +249,14 @@ export function useVideoAnalysis() {
         ].filter((kp) => {
           // Lower confidence threshold to be more inclusive
           const hasPoint = kp.point && kp.point.confidence > 0.3;
-          if (!hasPoint) {
-            console.log(
-              `❌ ${kp.type} keypoint missing or low confidence:`,
-              kp.point?.confidence || 'undefined'
-            );
-          }
           return hasPoint;
         });
 
-        console.log(`📊 Frame ${frameResult.frameIndex} keypoint summary:`, {
-          totalKeypoints: firstPose.keypoints?.length || 0,
-          validClimbingKeypoints: climbingKeypoints.length,
-          requiredMinimum: 2,
-        });
 
         // Skip frame if we don't have enough valid keypoints
         if (climbingKeypoints.length < 2) {
-          console.log(
-            `⚠️ Frame ${frameResult.frameIndex} skipped: insufficient valid keypoints (${climbingKeypoints.length}/2 minimum)`
-          );
           continue;
         }
-
-        console.log(
-          `🎯 Frame ${frameResult.frameIndex} valid keypoints:`,
-          climbingKeypoints.map((kp) => ({
-            type: kp.type,
-            x: kp.point.x,
-            y: kp.point.y,
-            confidence: kp.point.confidence,
-          }))
-        );
 
         // Transform each keypoint to boulder image coordinates using homography
         const transformedKeypoints = [];
@@ -359,11 +271,6 @@ export function useVideoAnalysis() {
               y: transformed.y,
               confidence: keypoint.point.confidence,
             });
-            console.log(
-              `✅ Transformed ${keypoint.type}: (${keypoint.point.x}, ${
-                keypoint.point.y
-              }) → (${transformed.x.toFixed(1)}, ${transformed.y.toFixed(1)})`
-            );
           } else {
             console.log(`❌ Failed to transform ${keypoint.type}`);
           }
@@ -378,10 +285,8 @@ export function useVideoAnalysis() {
         }
       }
 
-      console.log(`✅ Transformed ${transformedFrames.length} frames with valid poses`);
 
       if (transformedFrames.length === 0) {
-        console.log('⚠️ No valid poses to analyze');
         return {
           error: 'No valid poses found for analysis',
           bestMatch: null,
@@ -394,7 +299,6 @@ export function useVideoAnalysis() {
       const problemScores = [];
 
       for (const problem of problemsForLocation) {
-        console.log(`🔍 Scoring problem "${problem.name}" with ${problem.holds?.length || 0} holds`);
         const score = calculateProblemScoreSimple(problem, transformedFrames);
 
         // Include ALL problems in the results, not just those with score > 0
@@ -405,23 +309,12 @@ export function useVideoAnalysis() {
         });
 
         if (score > 0) {
-          console.log(`✅ Problem "${problem.name}" scored: ${score.toFixed(3)}`);
         } else {
-          console.log(`❌ Problem "${problem.name}" scored: 0 (no matches)`);
         }
       }
 
       // Sort by score (highest first)
       problemScores.sort((a, b) => b.score - a.score);
-
-      console.log(
-        '🏆 Final problem scores:',
-        problemScores.map((p) => ({
-          name: p.problem.name,
-          score: p.score.toFixed(3),
-          confidence: `${Math.round(p.confidence * 100)}%`,
-        }))
-      );
 
       const result = {
         bestMatch: problemScores[0] || null,
@@ -433,12 +326,6 @@ export function useVideoAnalysis() {
           totalScores: problemScores.length,
         },
       };
-
-      console.log('🎯 Hold analysis complete:', {
-        hasBestMatch: !!result.bestMatch,
-        bestMatchName: result.bestMatch?.problem?.name,
-        totalCandidates: result.allScores.length,
-      });
 
       return result;
     } catch (error) {
@@ -454,10 +341,8 @@ export function useVideoAnalysis() {
 
   // Calculate how well pose keypoints match with problem holds
   const calculateProblemScoreSimple = (problem, transformedFrames) => {
-    console.log(`🎯 Scoring problem "${problem.name}" with ${problem.holds?.length || 0} holds`);
     
     if (!problem.holds || problem.holds.length === 0) {
-      console.log(`❌ Problem "${problem.name}" has no holds defined`);
       return 0;
     }
 
@@ -467,7 +352,6 @@ export function useVideoAnalysis() {
 
     // For each transformed frame, check proximity to holds  
     for (const frame of transformedFrames) {
-      console.log(`🎯 Analyzing frame ${frame.frameIndex} with ${frame.keypoints.length} keypoints`);
 
       for (const keypoint of frame.keypoints) {
         // Skip very low-confidence keypoints
@@ -527,28 +411,15 @@ export function useVideoAnalysis() {
             distance: bestHold.distance,
             score: bestHold.score
           });
-
-          console.log(
-            `✅ ${keypoint.type} (frame ${frame.frameIndex}) matches hold #${bestHold.holdIndex} ` +
-            `(${bestHold.distance}px, score: ${bestHold.score.toFixed(3)})`
-          );
         }
       }
     }
 
-    console.log(`📊 Problem "${problem.name}" total score: ${totalScore.toFixed(3)} from ${problemMatches.length} matches`);
     return totalScore;
   };
 
   // Redirect to problem page with video data
   const redirectToProblemPageWithVideo = async (analysisData, problem) => {
-    console.log('🚀 Redirecting to problem page with video data:', {
-      problemId: problem.id,
-      problemName: problem.name,
-      hasVideo: !!analysisData.video,
-      hasFrames: !!(analysisData.frames && analysisData.frames.length > 0),
-    });
-
     try {
       // Store enhanced data for visual confirmation in sessionStorage
       const minimalData = {
@@ -586,14 +457,12 @@ export function useVideoAnalysis() {
       };
 
       sessionStorage.setItem('prefilledVideoData', JSON.stringify(minimalData));
-      console.log('📁 Stored minimal data in sessionStorage:', minimalData);
     } catch (storageError) {
       console.warn('⚠️ Could not store data in sessionStorage:', storageError);
     }
 
     // Store the actual File object
     window.tempVideoFile = analysisData.video;
-    console.log('📁 Stored video file in window.tempVideoFile');
 
     // Navigate to the problem page
     await router.push({

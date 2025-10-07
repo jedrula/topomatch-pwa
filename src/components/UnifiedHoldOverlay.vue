@@ -159,12 +159,8 @@ const getHoldInteraction = (holdIndex) => {
 
   // "Show only one problem" mode - hide all holds except those belonging to the isolated problem
   if (props.isShowingOnlyOneProblem && props.isolatedProblem) {
-    console.log(
-      `🔍 Show only mode active for problem: ${props.isolatedProblem.name}, checking hold ${holdIndex}`
-    );
     if (problemId === props.isolatedProblem.id) {
       // This hold belongs to the isolated problem - show it
-      console.log(`✅ Hold ${holdIndex} belongs to isolated problem - showing`);
       if (hoveredHoldIndex.value === holdIndex) {
         return 'hover';
       } else if (
@@ -177,11 +173,6 @@ const getHoldInteraction = (holdIndex) => {
       }
     } else {
       // This hold belongs to a different problem or is unclassified - hide it
-      console.log(
-        `🙈 Hold ${holdIndex} does NOT belong to isolated problem (belongs to: ${
-          problemId || 'unclassified'
-        }) - hiding`
-      );
       return 'hidden';
     }
   }
@@ -192,13 +183,11 @@ const getHoldInteraction = (holdIndex) => {
       // This hold belongs to a problem - check if it's in the filtered list
       if (!filteredProblemIds.value.has(problemId)) {
         // This hold belongs to a problem that doesn't match the filter - hide it
-        console.log(`🙈 Hold ${holdIndex} belongs to filtered-out problem ${problemId} - hiding`);
         return 'hidden';
       }
       // Fall through to normal problem hold logic
     } else {
       // This is an unclassified hold - hide it during filtering for cleaner view
-      console.log(`🙈 Hold ${holdIndex} is unclassified during grade filtering - hiding`);
       return 'hidden';
     }
   }
@@ -322,7 +311,6 @@ const getHoldColor = (holdIndex) => {
 
 // Hold interaction handlers
 const handleHoldClick = (hold, index) => {
-  console.log(`🎯 Hold clicked:`, { hold, index });
   emit('hold-click', hold, index);
 };
 

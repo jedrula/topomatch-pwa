@@ -4,6 +4,7 @@ import { useHoldDetectionPersistenceStore } from './holdDetectionPersistenceStor
 import { configService } from '../services/configService.js'
 import { holdDetectionService } from '../services/holdDetectionService.js'
 import { holdDetectionApiService } from '@/services/holdDetectionApiService'
+import { analyzeApiResponse, compareWithTypes } from '@/utils/holdDetectionDebugger'
 
 /**
  * Simplified Hold Detection Server Store
@@ -73,7 +74,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       if (isHealthy) {
         apiHealthy.value = true
         statusMessage.value = 'API is ready'
-        console.log('✅ API Health check successful')
         return { success: true, data: { healthy: true } }
       } else {
         throw new Error('API health check returned false')
@@ -109,7 +109,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       statusMessage.value = 'Fetching image from Firebase Storage...'
       progressPercent.value = 10
       
-      console.log('🖼️ Fetching image from URL:', imageUrl)
       const imageResponse = await fetch(imageUrl, {
         method: 'GET',
         mode: 'cors',
@@ -126,7 +125,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       progressPercent.value = 25
       
       const imageBlob = await imageResponse.blob()
-      console.log('📦 Image blob size:', imageBlob.size, 'bytes')
       
       // Convert blob to File object for TypeScript service
       const imageFile = new File([imageBlob], 'climbing_wall.jpg', { type: imageBlob.type })
@@ -136,9 +134,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       statusMessage.value = 'Uploading to server...'
       progressPercent.value = 50
       
-      console.log('🚀 Using TypeScript service for upload...')
       const jobId = await holdDetectionApiService.uploadImageForProcessing(imageFile)
-      console.log('✅ Upload successful, job ID:', jobId)
       
       // Step 4: Poll for results using TypeScript service
       currentStep.value = 3
@@ -150,17 +146,27 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
         (status) => {
           statusMessage.value = `Processing on server... (${status})`
           // Update detailed progress if available from status
-          console.log(`🔄 Processing status: ${status}`)
         }
       )
       
-      console.log('✅ Detection results received:', result)
-      console.log('🔍 DEBUG: TypeScript result structure:', {
-        holds: result.holds?.length || 0,
-        metadata: result.metadata,
-        // TypeScript ensures proper typing here
-        processingTime: result.metadata?.processing_time_ms
-      })
+      // TypeScript debugging and validation (development only)
+      if (import.meta.env.DEV) {
+        
+        // Create proper HoldDetectionStatusResponse structure for validation
+        const mockStatusResponse = {
+          job_id: jobId,
+          status: 'completed',
+          progress: 'Complete',
+          result: result
+        }
+        
+        compareWithTypes(mockStatusResponse, 'Hold Detection Results')
+        
+        // Additional analysis if we have holds
+        if (result.holds?.length > 0) {
+          analyzeApiResponse(mockStatusResponse)
+        }
+      }
       
       // Step 5: Complete
       currentStep.value = 4
@@ -246,13 +252,11 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       try {
         if (locationId && imageId && holdToRemove.id) {
           await holdDetectionService.removeHold(locationId, imageId, holdToRemove.id)
-          console.log(`🗑️ AI hold ${holdToRemove.id} removed from database`)
         }
       } catch (error) {
         console.error('❌ Error removing AI hold from database:', error)
       }
       
-      console.log(`🗑️ AI hold at index ${holdIndex} removed from detection results`)
     }
   }
   
@@ -313,7 +317,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       // Reload the detection data to keep the store in sync
       await persistenceStore.loadStoredDetection(imageId)
       
-      console.log(`✅ Saved ${manualHolds.value.length} manual holds`)
     } catch (error) {
       console.error('Error saving manual holds:', error)
     }
@@ -321,9 +324,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
   
   // Load all detection results (AI + manual) from persistence
   const loadDetectionResults = async (locationId, imageId) => {
-    console.log(locationId, imageId);
     try {
-      console.log(locationId, imageId);
       if (!locationId || !imageId) return false
       
       // Initialize persistence store
@@ -335,13 +336,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       if (existingDetection?.detectionResults) {
         const aiHolds = existingDetection.detectionResults.aiHolds || []
         const storedManualHolds = existingDetection.detectionResults.manualHolds || []
-        
-        console.log(`📦 Loading detection results:`, {
-          aiHolds: aiHolds.length,
-          manualHolds: storedManualHolds.length
-        })
-        
-        console.log('🔍 DEBUG: Loaded aiHolds from Firestore:', aiHolds.map(h => ({ id: h.id, hasSvg: !!h.svgMarkup })))
         
         // Load AI holds into results format
         if (aiHolds.length > 0) {

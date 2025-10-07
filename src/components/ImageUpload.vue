@@ -329,21 +329,17 @@ const uploadSingleFile = async (uploadItem) => {
       throw new Error('Location ID is required for upload');
     }
 
-    console.log(`🔄 Starting upload for ${uploadItem.file.name}...`);
     
     // Compress image before upload to reduce emulator issues
     let fileToUpload = uploadItem.file;
     const originalSize = (fileToUpload.size / 1024 / 1024).toFixed(2);
     
     if (fileToUpload.size > 2 * 1024 * 1024) { // If larger than 2MB
-      console.log(`📦 Compressing ${uploadItem.file.name} (${originalSize}MB)...`);
       fileToUpload = await compressImage(uploadItem.file, { maxSizeMB: 2, quality: 0.85 });
       const compressedSize = (fileToUpload.size / 1024 / 1024).toFixed(2);
       uploadItem.compressedSize = fileToUpload.size;
-      console.log(`✅ Compressed ${uploadItem.file.name}: ${originalSize}MB → ${compressedSize}MB`);
     } else {
       uploadItem.compressedSize = fileToUpload.size;
-      console.log(`✅ ${uploadItem.file.name} already under 2MB (${originalSize}MB), no compression needed`);
     }
 
     const timestamp = Date.now();
@@ -358,7 +354,6 @@ const uploadSingleFile = async (uploadItem) => {
     
     const snapshot = await Promise.race([uploadPromise, uploadTimeoutPromise]);
     
-    console.log(`✅ Upload completed for ${uploadItem.file.name}, getting download URL...`);
     
     // Always use proper Firebase getDownloadURL, with timeout protection
     const downloadURLPromise = getDownloadURL(snapshot.ref);
@@ -367,7 +362,6 @@ const uploadSingleFile = async (uploadItem) => {
     });
     
     const downloadURL = await Promise.race([downloadURLPromise, timeoutPromise]);
-    console.log(`🔗 Download URL obtained for ${uploadItem.file.name}:`, downloadURL);
     
     uploadItem.downloadUrl = downloadURL;
     uploadItem.status = 'complete';
@@ -402,7 +396,6 @@ const startUploads = async () => {
 
   if (isDev) {
     // Sequential uploads for emulator (development)
-    console.log('🔄 Starting sequential uploads for emulator...');
     for (const item of pendingItems) {
       try {
         await uploadSingleFile(item);
@@ -423,7 +416,6 @@ const startUploads = async () => {
     }
   } else {
     // Parallel uploads for production
-    console.log('🚀 Starting parallel uploads for production...');
     const uploadPromises = pendingItems.map(async (item) => {
       try {
         await uploadSingleFile(item);

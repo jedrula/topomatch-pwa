@@ -2,7 +2,6 @@ self.onmessage = async (event) => {
   const { type, userImageBuffer, topoImageBuffer } = event.data;
 
   if (type === 'createSession') {
-    console.log('createSession in worker 2');
     try {
       const startTime = performance.now();
       // Use WASM options to enable SIMD and threads if supported

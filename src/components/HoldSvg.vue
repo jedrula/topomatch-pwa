@@ -72,7 +72,6 @@ const handleClick = () => {
 };
 
 const handleHover = (isEntering, event) => {
-  console.log('🎯 HoldSvg handleHover:', { isEntering, hasEvent: !!event });
   emit('hover', isEntering, event);
 };
 </script>
