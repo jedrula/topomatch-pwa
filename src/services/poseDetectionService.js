@@ -92,63 +92,16 @@ class PoseDetectionService {
 
   formatPoseResults(poses) {
     if (!poses || poses.length === 0) {
-      // Return mock data if no poses detected (similar to the mock in the component)
-      const { width, height } = { width: 640, height: 480 }; // Default dimensions
-      
-      return {
-        keypoints: {
-          leftWrist: { 
-            x: width * 0.3, 
-            y: height * 0.4, 
-            confidence: 0.5 
-          },
-          rightWrist: { 
-            x: width * 0.7, 
-            y: height * 0.4, 
-            confidence: 0.5 
-          },
-          leftAnkle: { 
-            x: width * 0.4, 
-            y: height * 0.9, 
-            confidence: 0.5 
-          },
-          rightAnkle: { 
-            x: width * 0.6, 
-            y: height * 0.9, 
-            confidence: 0.5 
-          }
-        },
-        confidence: 0.5
-      };
+      // Return empty array if no poses detected (matching original working code)
+      return [];
     }
 
-    // Take the highest confidence pose
-    const bestPose = poses.reduce((best, current) => 
-      current.confidence > best.confidence ? current : best
-    );
-
-    // YOLOv8-pose keypoint indices (COCO format)
-    // 0: nose, 1-2: eyes, 3-4: ears, 5-6: shoulders, 7-8: elbows, 9-10: wrists, 11-12: hips, 13-14: knees, 15-16: ankles
-    const keypoints = bestPose.keypoints;
-    
-    // Return all keypoints for debugging, not just climbing-relevant ones
-    const allKeypoints = [];
-    for (let i = 0; i < 17; i++) { // COCO has 17 keypoints
-      allKeypoints.push(this.extractKeypoint(keypoints, i));
-    }
-    
-    return {
-      keypoints: {
-        // Keep simplified format for UI display
-        leftWrist: this.extractKeypoint(keypoints, 9), // left wrist
-        rightWrist: this.extractKeypoint(keypoints, 10), // right wrist  
-        leftAnkle: this.extractKeypoint(keypoints, 15), // left ankle
-        rightAnkle: this.extractKeypoint(keypoints, 16) // right ankle
-      },
-      // Add full keypoints array for debugging
-      allKeypoints: allKeypoints,
-      confidence: bestPose.confidence
-    };
+    // Return all poses in the format expected by the original working code
+    return poses.map(pose => ({
+      bbox: pose.bbox,
+      confidence: pose.confidence,
+      keypoints: pose.keypoints
+    }));
   }
 
   extractKeypoint(keypoints, index) {
@@ -166,10 +119,16 @@ class PoseDetectionService {
 
   terminate() {
     if (this.worker) {
-      this.worker.terminate();
-      this.worker = null;
-      this.isInitialized = false;
-      this.initializationPromise = null;
+      // Send disposal message before terminating
+      this.worker.postMessage({ type: 'dispose' });
+      
+      // Give it a moment to dispose sessions, then terminate
+      setTimeout(() => {
+        this.worker.terminate();
+        this.worker = null;
+        this.isInitialized = false;
+        this.initializationPromise = null;
+      }, 100);
     }
   }
 }

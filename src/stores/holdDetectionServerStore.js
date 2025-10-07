@@ -4,7 +4,6 @@ import { useHoldDetectionPersistenceStore } from './holdDetectionPersistenceStor
 import { configService } from '../services/configService.js'
 import { holdDetectionService } from '../services/holdDetectionService.js'
 import { holdDetectionApiService } from '@/services/holdDetectionApiService'
-import { analyzeApiResponse, compareWithTypes } from '@/utils/holdDetectionDebugger'
 
 /**
  * Simplified Hold Detection Server Store
@@ -158,13 +157,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
           status: 'completed',
           progress: 'Complete',
           result: result
-        }
-        
-        compareWithTypes(mockStatusResponse, 'Hold Detection Results')
-        
-        // Additional analysis if we have holds
-        if (result.holds?.length > 0) {
-          analyzeApiResponse(mockStatusResponse)
         }
       }
       

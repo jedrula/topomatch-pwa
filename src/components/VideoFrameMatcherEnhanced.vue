@@ -586,9 +586,6 @@
         </div>
       </div>
     </div>
-    
-    <!-- Memory Monitor for Mobile Debugging -->
-    <MemoryMonitorComponent />
   </div>
 </template>
 
@@ -598,7 +595,6 @@ import ImageMatcher from './ImageMatcher.vue';
 import VideoRecorder from './VideoRecorder.vue';
 import PoseVisualizationOverlay from './PoseVisualizationOverlay.vue';
 import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
-import MemoryMonitorComponent from './MemoryMonitorComponent.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
   extractVideoFrames,

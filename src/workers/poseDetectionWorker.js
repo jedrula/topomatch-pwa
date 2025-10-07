@@ -1,23 +1,7 @@
 // Pose Detection Worker - YOLOv8 Implementation
 // Based on FatemeZamanian/YOLOv8-pose-onnxruntime-web
 
-// Simple memory logging for worker context
-function logMemory(context) {
-  if (typeof performance !== 'undefined' && performance.memory) {
-    const memory = performance.memory;
-    const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024 * 100) / 100;
-    const limitMB = Math.round(memory.jsHeapSizeLimit / 1024 / 1024 * 100) / 100;
-    const usagePercent = Math.round((memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100 * 100) / 100;
-    
-    const level = usedMB > 100 ? '🔴' : usedMB > 50 ? '⚠️' : '🟢';
-    
-    return { usedMB, limitMB, usagePercent };
-  }
-  return null;
-}
-
-// Log initial memory
-logMemory('Worker Init');
+/* global ort */
 
 // The ort object is available from the concatenated ONNX code
 if (typeof ort !== 'undefined' && ort.env) {
@@ -56,9 +40,6 @@ self.onmessage = async (event) => {
     try {
       const startTime = performance.now();
 
-      // Log memory before model loading
-      logMemory('Before YOLOv8 model loading');
-
       // Create main YOLOv8 session with mobile optimizations
       yolov8Session = await ort.InferenceSession.create(MODEL_PATH, {
         executionProviders: ['wasm'],
@@ -71,9 +52,6 @@ self.onmessage = async (event) => {
           threads: false, // Disable multi-threading for memory safety
         },
       });
-
-      // Log memory after YOLOv8 model loading
-      logMemory('After YOLOv8 model loading');
 
       // Create NMS session with mobile optimizations
       nmsSession = await ort.InferenceSession.create(NMS_PATH, {
@@ -88,9 +66,6 @@ self.onmessage = async (event) => {
         },
       });
 
-      // Log memory after NMS model loading
-      logMemory('After NMS model loading');
-
       // Warmup the model
       const tensor = new ort.Tensor(
         'float32',
@@ -98,9 +73,6 @@ self.onmessage = async (event) => {
         MODEL_INPUT_SHAPE
       );
       await yolov8Session.run({ images: tensor });
-
-      // Log memory after warmup
-      logMemory('After model warmup');
 
       const endTime = performance.now();
 
@@ -112,12 +84,36 @@ self.onmessage = async (event) => {
       });
 
     } catch (error) {
-      // Log memory on error to help debug memory issues
-      logMemory('On model loading error');
       console.error('Failed to create pose detection sessions:', error);
       self.postMessage({
         type: 'error',
         data: { message: 'Failed to load pose detection models: ' + error.message },
+      });
+    }
+  }
+
+  // Add handler for worker termination/cleanup
+  if (type === 'dispose' || type === 'terminate') {
+    try {
+      if (yolov8Session) {
+        await yolov8Session.dispose();
+        yolov8Session = null;
+      }
+      
+      if (nmsSession) {
+        await nmsSession.dispose();
+        nmsSession = null;
+      }
+      
+      self.postMessage({
+        type: 'disposed',
+        data: { message: 'Sessions disposed successfully' }
+      });
+    } catch (error) {
+      console.error('Error disposing sessions:', error);
+      self.postMessage({
+        type: 'error',
+        data: { message: 'Error disposing sessions: ' + error.message }
       });
     }
   }
@@ -148,9 +144,6 @@ self.onmessage = async (event) => {
       imageBitmap = await createImageBitmap(imageBlob);
 
       const startTime = performance.now();
-
-      // Log memory before inference
-      logMemory('Before pose inference');
 
       // Preprocess image using our custom preprocessing
       const { tensor, xRatio, yRatio, xOffset, yOffset } = preprocessImageYOLOv8(imageBitmap);
@@ -190,9 +183,6 @@ self.onmessage = async (event) => {
 
       const endTime = performance.now();
       
-      // Log memory after inference completion
-      logMemory('After pose inference completion');
-
       self.postMessage({
         type: 'poseDetectionComplete',
         data: {

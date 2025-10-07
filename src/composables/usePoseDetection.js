@@ -1,169 +1,140 @@
 import { ref, onUnmounted } from 'vue';
+import poseDetectionService from '@/services/poseDetectionService';
 
 /**
- * Composable for YOLO11n-pose detection
- * Uses a dedicated worker for pose detection inference
+ * Composable for pose detection using singleton service
+ * This ensures only one ONNX session exists across the entire app
  */
 export function usePoseDetection() {
-  // State
   const isAnalyzing = ref(false);
   const analysisStatus = ref('');
   const error = ref(null);
   const poseResults = ref(null);
-  const confidenceThreshold = ref(0.1); // Lower threshold to catch more detections
+  const confidenceThreshold = ref(0.1);
   const sessionReady = ref(false);
 
-  // Create dedicated pose detection worker
-   const poseWorker = new Worker(new URL('/poseDetectionWorker.combined.js', import.meta.url));
-
-  // Handle worker loading errors
-  poseWorker.onerror = (event) => {
-    console.error('Pose detection worker loading error:', event);
-    error.value = 'Failed to load pose detection worker. Please refresh the page.';
-    sessionReady.value = false;
-  };
-
-  // Cleanup worker on component unmount
-  onUnmounted(() => {
-    if (poseWorker) {
-      poseWorker.terminate();
-    }
-  });
-
-  // Handle worker messages
-  poseWorker.onmessage = (event) => {
-    const { type, data } = event.data;
-
-    if (type === 'sessionCreated') {
+  // Initialize service and track ready state
+  const initializeService = async () => {
+    try {
+      await poseDetectionService.initialize();
       sessionReady.value = true;
+      error.value = null;
       analysisStatus.value = 'Pose detection model ready';
-    } else if (type === 'poseDetectionComplete') {
-      const detections = processPoseResults(data.results, data.imageInfo);
-      poseResults.value = detections;
-      analysisStatus.value = `Detection complete! Found ${detections.length} person(s)`;
-      isAnalyzing.value = false;
-    } else if (type === 'error') {
-      console.error('Pose detection worker error details:', {
-        message: data.message,
-        originalError: data.originalError,
-        userAgent: navigator.userAgent,
-        timestamp: new Date().toISOString()
-      });
-      
-      error.value = data.message;
-      isAnalyzing.value = false;
-      analysisStatus.value = '';
+    } catch (err) {
+      console.error('Failed to initialize pose detection service:', err);
+      error.value = 'Failed to initialize pose detection. Please refresh the page.';
+      sessionReady.value = false;
     }
   };
 
-  // Initialize session immediately
-  const initializeSession = () => {
-    analysisStatus.value = 'Loading pose detection model...';
-    poseWorker.postMessage({ type: 'createSession' });
-  };
+  // Initialize immediately
+  initializeService();
 
-  // Start session creation immediately
-  initializeSession();
-
-  /**
-   * Process YOLOv8 pose results into our display format
-   */
-  const processPoseResults = (rawResults, imageInfo) => {
-    if (!rawResults || !rawResults.poses) {
-      console.error('No poses found in results');
-      return [];
-    }
-
-
-    // The results are already processed by the worker
-    return rawResults.poses.map((pose) => ({
-      bbox: pose.bbox,
-      confidence: pose.confidence,
-      keypoints: pose.keypoints,
-    }));
-  };
-
-  /**
-   * Run pose detection on an image
-   */
-  const runPoseDetection = async (imageFile) => {
-    if (!imageFile) {
-      error.value = 'No image file provided';
+  // Run pose detection
+  const runPoseDetection = async (imageInput, fileName = '') => {
+    if (!sessionReady.value) {
+      error.value = 'Pose detection is not ready. Please wait...';
       return;
     }
 
-    // Wait for session to be ready
-    if (!sessionReady.value) {
-      analysisStatus.value = 'Waiting for pose detection model to load...';
-
-      const maxWait = 30000; // 30 seconds for model loading
-      const checkInterval = 100;
-      let waited = 0;
-
-      while (!sessionReady.value && waited < maxWait) {
-        await new Promise((resolve) => setTimeout(resolve, checkInterval));
-        waited += checkInterval;
-      }
-
-      if (!sessionReady.value) {
-        error.value = 'Pose detection model failed to load';
-        return;
-      }
+    if (isAnalyzing.value) {
+      console.warn('Pose detection already in progress');
+      return;
     }
 
-    isAnalyzing.value = true;
-    error.value = null;
-    poseResults.value = null;
-    analysisStatus.value = 'Preprocessing image...';
+    let actualImageElement = imageInput;
 
     try {
-      // Get image dimensions
-      const imageInfo = await getImageInfo(imageFile);
+      isAnalyzing.value = true;
+      error.value = null;
+      analysisStatus.value = 'Analyzing poses...';
 
-      // Convert to array buffer for worker
-      const imageBuffer = await imageFile.arrayBuffer();
+      // Handle different input types and convert to HTMLImageElement
+      if (imageInput instanceof File) {
+        // If it's a File, create an Image element
+        actualImageElement = new Image();
+        await new Promise((resolve, reject) => {
+          actualImageElement.onload = resolve;
+          actualImageElement.onerror = reject;
+          actualImageElement.src = URL.createObjectURL(imageInput);
+        });
+      } else if (typeof imageInput === 'string') {
+        // If it's a URL string, create an Image element
+        actualImageElement = new Image();
+        await new Promise((resolve, reject) => {
+          actualImageElement.onload = resolve;
+          actualImageElement.onerror = reject;
+          actualImageElement.src = imageInput;
+        });
+      } else if (imageInput instanceof HTMLImageElement) {
+        // Already an image element, use as-is
+        actualImageElement = imageInput;
+      } else if (!imageInput || typeof imageInput.naturalWidth === 'undefined') {
+        console.error('Invalid image input:', imageInput, 'Type:', typeof imageInput, 'Constructor:', imageInput?.constructor?.name);
+        throw new Error(`Invalid image input provided. Expected HTMLImageElement, File, or image URL string. Got: ${typeof imageInput} (${imageInput?.constructor?.name})`);
+      }
 
-      analysisStatus.value = 'Running pose detection...';
+      // Convert image element to ImageData
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = actualImageElement.naturalWidth || actualImageElement.width;
+      canvas.height = actualImageElement.naturalHeight || actualImageElement.height;
+      ctx.drawImage(actualImageElement, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-      // Send to worker
-      poseWorker.postMessage(
-        {
-          type: 'runPoseDetection',
-          imageBuffer: imageBuffer,
-          imageInfo: imageInfo,
-        },
-        [imageBuffer] // Transfer buffer to worker
-      );
+      // Use the correct service method
+      const results = await poseDetectionService.detectPoses(imageData);
+      
+      // Results should be an array of poses now
+      if (!Array.isArray(results)) {
+        console.error('Expected array from detectPoses, got:', typeof results, results);
+        throw new Error('Invalid results format from pose detection service');
+      }
+      
+      // Filter and process results
+      const filteredResults = filterResultsByConfidence(results);
+      poseResults.value = filteredResults.map(pose => ({
+        ...pose,
+        id: Math.random().toString(36).substr(2, 9)
+      }));
+      
+      analysisStatus.value = `Detection complete! Found ${filteredResults.length} person(s)`;
+      
+      // Cleanup object URLs if we created them
+      if (imageInput instanceof File && actualImageElement.src && actualImageElement.src.startsWith('blob:')) {
+        URL.revokeObjectURL(actualImageElement.src);
+      }
+      
     } catch (err) {
-      console.error('Pose detection error:', err);
-      error.value = err.message || 'Pose detection failed';
+      console.error('Pose detection failed:', err);
+      error.value = 'Pose detection failed: ' + err.message;
+      analysisStatus.value = 'Detection failed';
+      
+      // Cleanup object URLs on error too
+      if (imageInput instanceof File && actualImageElement && actualImageElement.src && actualImageElement.src.startsWith('blob:')) {
+        URL.revokeObjectURL(actualImageElement.src);
+      }
+    } finally {
       isAnalyzing.value = false;
     }
   };
 
-  /**
-   * Get image dimensions without loading into canvas
-   */
-  const getImageInfo = async (imageFile) => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-
-      img.onload = () => {
-        resolve({
-          originalWidth: img.width,
-          originalHeight: img.height,
-        });
-        URL.revokeObjectURL(img.src);
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        reject(new Error('Failed to load image'));
-      };
-
-      img.src = URL.createObjectURL(imageFile);
-    });
+  // Filter results by confidence threshold
+  const filterResultsByConfidence = (results) => {
+    return results.filter(pose => pose.confidence >= confidenceThreshold.value);
   };
+
+  // Clear results
+  const clearResults = () => {
+    poseResults.value = null;
+    error.value = null;
+    analysisStatus.value = '';
+  };
+
+  // Cleanup (service is singleton, no need to terminate)
+  onUnmounted(() => {
+    // Service handles its own lifecycle
+  });
 
   return {
     // State
@@ -171,10 +142,11 @@ export function usePoseDetection() {
     analysisStatus,
     error,
     poseResults,
-    confidenceThreshold,
     sessionReady,
-
+    confidenceThreshold,
+    
     // Methods
     runPoseDetection,
+    clearResults
   };
 }
