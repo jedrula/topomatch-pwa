@@ -308,11 +308,9 @@ watch(
   () => props.problem,
   async (newProblem) => {
     if (newProblem && props.locationId) {
-      console.log('Loading videos for problem:', newProblem.name);
       videosLoading.value = true;
       try {
         problemVideos.value = await videoService.getProblemVideos(props.locationId, newProblem.id);
-        console.log('Loaded', problemVideos.value.length, 'videos for problem:', newProblem.name);
       } catch (error) {
         console.error('Failed to load problem videos:', error);
         problemVideos.value = [];

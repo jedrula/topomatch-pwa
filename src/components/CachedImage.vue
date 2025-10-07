@@ -37,7 +37,6 @@ const loadFromCache = async (imagePath) => {
     if (cachedResponse) {
       const blob = await cachedResponse.blob();
       cachedSrc.value = URL.createObjectURL(blob);
-      console.log(`Loaded from cache: ${imagePath}`);
     }
   } catch (error) {
     console.error('Error loading from cache:', error);

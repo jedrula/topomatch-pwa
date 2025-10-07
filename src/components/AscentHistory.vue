@@ -291,20 +291,6 @@ const handleVideoFullscreen = (videoUrl) => {
   emit('video-fullscreen', videoUrl);
 };
 
-// Debug: Watch for changes in ascents
-watch(
-  () => ascentStore.ascents,
-  (newAscents) => {
-    console.log('AscentHistory: Ascents updated:', newAscents);
-    newAscents.forEach((ascent, index) => {
-      if (ascent.betaVideo) {
-        console.log(`Ascent ${index} has video:`, ascent.betaVideo);
-      }
-    });
-  },
-  { immediate: true, deep: true }
-);
-
 const editAscent = (ascent) => {
   emit('edit-ascent', ascent);
 };

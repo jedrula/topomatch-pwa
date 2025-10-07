@@ -372,23 +372,11 @@ const canRenderCombinedView = computed(() => {
 // Check if we can render pose transformation
 const canRenderPoseTransformation = computed(() => {
   const result = canRenderCombinedView.value && props.poseKeypoints.length > 0 && props.homographyMatrix
-  console.log('🎯 canRenderPoseTransformation:', {
-    canRenderCombinedView: canRenderCombinedView.value,
-    poseKeypointsLength: props.poseKeypoints.length,
-    hasHomographyMatrix: !!props.homographyMatrix,
-    result
-  })
   return result
 })
 
 // Transform pose keypoints using homography matrix
 const poseTransformations = computed(() => {
-  console.log('🎯 Pose transformation check:', {
-    canRender: canRenderPoseTransformation.value,
-    poseKeypoints: props.poseKeypoints?.length || 0,
-    homographyMatrix: props.homographyMatrix ? 'present' : 'missing',
-    keypointsSample: props.poseKeypoints?.slice(0, 2)
-  })
   
   if (!canRenderPoseTransformation.value) return []
   
@@ -399,11 +387,6 @@ const poseTransformations = computed(() => {
       keypoint.y, 
       props.homographyMatrix
     )
-    
-    console.log(`🎯 Keypoint ${index}:`, {
-      original: { x: keypoint.x, y: keypoint.y },
-      transformed: transformedPoint
-    })
     
     // Scale for display
     const sourceScaleX = sourceImageDimensions.value.naturalWidth > 0 ? 
@@ -436,7 +419,6 @@ const poseTransformations = computed(() => {
     )
   })
   
-  console.log('🎯 Final transformations:', transforms.length, transforms.slice(0, 2))
   return transforms
 })
 

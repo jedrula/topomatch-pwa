@@ -23,7 +23,6 @@ const closeAuthModal = () => {
 };
 
 const onAuthSuccess = () => {
-  console.log('Authentication successful!');
   closeAuthModal();
 };
 

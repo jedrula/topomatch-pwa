@@ -912,7 +912,6 @@ const handleSliderUpdate = () => {
 };
 
 const handleSliderChange = (value) => {
-  console.log('🎚️ Slider change (final):', value);
   isUpdating = false;
 
   // Debounce URL updates to avoid excessive navigation
@@ -927,11 +926,9 @@ const handleSliderChange = (value) => {
 
 const updateGradeFilter = () => {
   if (isUpdating) {
-    console.log('⏭️ Skipping URL update - still dragging');
     return;
   }
 
-  console.log('🔄 Updating URL with grade filter');
 
   // Update URL query parameters
   const query = { ...route.query };

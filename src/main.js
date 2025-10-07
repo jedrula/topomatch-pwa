@@ -34,6 +34,4 @@ app.use(pinia);
 import { useInferenceStore } from './stores/inferenceStore';
 useInferenceStore(); // This will trigger the session creation immediately
 
-console.log('a change4');
-
 app.mount('#app');

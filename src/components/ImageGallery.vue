@@ -341,8 +341,6 @@ const getProblemInteraction = (problemId) => {
 
 // Handle click/tap on problem holds
 const handleProblemClick = (problem, event) => {
-  console.log('🎯 ImageGallery handleProblemClick:', { problemId: problem.id, isTouchDevice: isTouchDevice.value });
-  
   if (isTouchDevice.value) {
     // On touch devices, toggle the tapped state
     if (tappedProblemId.value === problem.id) {
@@ -371,7 +369,6 @@ const showFloatingCard = (problem, event) => {
     problem: problem,
     position: { x: mouseX, y: mouseY },
   };
-  console.log('💫 Showing floating card for problem:', problem.name);
 };
 
 const goToProblemDetail = (problem) => {
@@ -394,14 +391,11 @@ const handleImageContainerClick = (event) => {
     if (!isClickOnHold) {
       tappedProblemId.value = null;
       floatingCard.value.visible = false;
-      console.log('🎯 Hiding tooltip - clicked outside holds');
     }
   }
 };
 
 const handleProblemHover = (problemId, isEntering, event) => {
-  console.log('🎯 ImageGallery handleProblemHover:', { problemId, isEntering, hasEvent: !!event });
-
   // Clear any pending hide timeout
   if (tooltipHideTimeout) {
     clearTimeout(tooltipHideTimeout);
@@ -411,13 +405,11 @@ const handleProblemHover = (problemId, isEntering, event) => {
   if (isEntering && event) {
     // Find the problem data
     const problem = currentImageProblems.value.find((p) => p.id === problemId);
-    console.log('📝 Problem found:', problem?.name || 'None');
 
     if (problem) {
       // Position tooltip near the mouse cursor
       const mouseX = event.clientX;
       const mouseY = event.clientY;
-      console.log('🖱️ Mouse position:', { mouseX, mouseY });
 
       // Show floating card at mouse position
       floatingCard.value = {
@@ -425,7 +417,6 @@ const handleProblemHover = (problemId, isEntering, event) => {
         problem: problem,
         position: { x: mouseX, y: mouseY },
       };
-      console.log('💫 Showing floating card for problem:', problem.name);
     }
 
     hoveredProblemId.value = problemId;
@@ -434,7 +425,6 @@ const handleProblemHover = (problemId, isEntering, event) => {
     tooltipHideTimeout = setTimeout(() => {
       floatingCard.value.visible = false;
       hoveredProblemId.value = null;
-      console.log('💫 Hiding floating card (delayed)');
     }, 300); // 300ms delay
   }
 };
@@ -458,11 +448,9 @@ watch(
   async (newImage) => {
     if (newImage?.url) {
       try {
-        console.log('📊 Loading detection results for image:', newImage.url);
         const defaultSettings = getDefaultCompressionSettings();
         const cachedResult = await getCachedDetectionResult(newImage.url, defaultSettings);
         detectionResults.value = cachedResult;
-        console.log('📊 Detection results loaded:', cachedResult ? 'Found' : 'Not found');
       } catch (error) {
         console.error('Error loading detection results:', error);
         detectionResults.value = null;
@@ -509,7 +497,6 @@ watch(
 
 // Floating card event handlers
 const handleFloatingCardEdit = (problem) => {
-  console.log('✏️ Editing problem from ImageGallery:', problem.name);
   // Navigate to HoldDetectionServerView with editing state
   router.push({
     name: 'location-hold-detection-server',
@@ -525,7 +512,6 @@ const handleFloatingCardEdit = (problem) => {
 };
 
 const handleFloatingCardToggleVisibility = (problem) => {
-  console.log('🔄 Toggling problem visibility from ImageGallery:', problem.name);
   // Check if we're showing only this problem or showing all problems
   if (boulderProblemsStore.isShowingOnlyOneProblem && !problem.hidden) {
     // Currently showing only this problem - show all problems
@@ -537,7 +523,6 @@ const handleFloatingCardToggleVisibility = (problem) => {
 };
 
 const handleFloatingCardMouseEnter = () => {
-  console.log('🖱️ Mouse entered floating card in ImageGallery');
   // Clear any pending hide timeout when mouse enters the tooltip
   if (tooltipHideTimeout) {
     clearTimeout(tooltipHideTimeout);
@@ -546,12 +531,10 @@ const handleFloatingCardMouseEnter = () => {
 };
 
 const handleFloatingCardMouseLeave = () => {
-  console.log('🖱️ Mouse left floating card in ImageGallery');
   // Hide the tooltip when mouse leaves it
   tooltipHideTimeout = setTimeout(() => {
     floatingCard.value.visible = false;
     hoveredProblemId.value = null;
-    console.log('💫 Hiding floating card (after leaving tooltip)');
   }, 200); // Shorter delay when leaving tooltip
 };
 </script>

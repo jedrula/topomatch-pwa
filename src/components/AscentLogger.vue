@@ -334,20 +334,12 @@ const checkForPrefilledVideo = async () => {
     const tempVideoFile = window.tempVideoFile;
 
     if (tempVideoFile) {
-      console.log('📁 Found prefilled video file, uploading automatically...');
-      console.log('📄 Video file info:', {
-        name: tempVideoFile.name,
-        size: tempVideoFile.size,
-        type: tempVideoFile.type,
-      });
-
       // Check for additional analysis data from sessionStorage (optional)
       let analysisInfo = null;
       try {
         const prefilledData = sessionStorage.getItem('prefilledVideoData');
         if (prefilledData) {
           analysisInfo = JSON.parse(prefilledData);
-          console.log('🔍 Found analysis info:', analysisInfo);
         }
       } catch (storageError) {
         console.warn('⚠️ Could not read from sessionStorage:', storageError);
@@ -368,8 +360,6 @@ const checkForPrefilledVideo = async () => {
             console.log(`📤 Upload progress: ${progress}%`);
           }
         );
-
-        console.log('✅ Prefilled video uploaded successfully:', uploadResult);
 
         // Set the video data in the form
         formData.value.betaVideo = uploadResult;
@@ -417,8 +407,6 @@ const checkForPrefilledVideo = async () => {
         console.warn('⚠️ Could not clear sessionStorage:', storageError);
       }
       delete window.tempVideoFile;
-
-      console.log('🧹 Cleaned up temporary video data');
     }
   } catch (error) {
     console.error('❌ Error checking for prefilled video:', error);
@@ -451,8 +439,6 @@ const submitAscent = async () => {
       delete ascentData.betaVideo;
     }
 
-    console.log('Submitting ascent with data:', ascentData);
-
     await ascentStore.logAscent(ascentData);
 
     // Reset form
@@ -473,12 +459,10 @@ const submitAscent = async () => {
 };
 
 const onVideoUploadStart = () => {
-  console.log('Video upload started');
   isVideoUploading.value = true;
 };
 
-const onVideoUploadComplete = (videoData) => {
-  console.log('Video upload complete:', videoData);
+const onVideoUploadComplete = () => {
   isVideoUploading.value = false;
   // Video data is already bound to formData.betaVideo via v-model
 };

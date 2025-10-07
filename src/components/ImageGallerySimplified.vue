@@ -392,16 +392,8 @@ const loadImageMetadata = async (imageId) => {
   }
 
   try {
-    console.log('Loading metadata for image:', imageId);
     const metadata = await boulderProblemsServiceV2.getHoldDetectionMetadata(props.locationId, imageId);
-    console.log('Metadata response:', metadata);
     imageMetadata.value = metadata;
-    
-    if (metadata) {
-      console.log('Metadata loaded:', metadata);
-    } else {
-      console.warn('No metadata returned for image:', imageId);
-    }
   } catch (error) {
     console.error('Failed to load image metadata:', error);
     imageMetadata.value = null;
@@ -420,12 +412,10 @@ const closeGallery = () => {
 // Image loading
 const onImageLoad = () => {
   imageLoaded.value = true;
-  console.log('Image loaded in simplified gallery');
 };
 
 // Floating card event handlers
 const handleFloatingCardEdit = (problem) => {
-  console.log('Editing problem from simplified gallery:', problem.name);
   router.push({
     name: 'location-hold-detection-server',
     params: {
@@ -440,7 +430,6 @@ const handleFloatingCardEdit = (problem) => {
 };
 
 const handleFloatingCardToggleVisibility = (problem) => {
-  console.log('Toggling problem visibility from simplified gallery:', problem.name);
   if (boulderProblemsStore.isShowingOnlyOneProblem && !problem.hidden) {
     boulderProblemsStore.showAllProblems();
   } else {
@@ -449,7 +438,6 @@ const handleFloatingCardToggleVisibility = (problem) => {
 };
 
 const handleFloatingCardShowVideos = ({ problem, videos }) => {
-  console.log('Showing videos for problem:', problem.name, videos.length, 'videos');
   if (videos.length > 0) {
     // Hide the floating card when opening video player
     hideFloatingCard();
@@ -492,8 +480,6 @@ const handleProblemClick = (problem) => {
 };
 
 const handleProblemHover = (problem, isEntering, event) => {
-  console.log('Problem hover:', problem.name, 'entering:', isEntering);
-  
   if (isEntering) {
     // Clear any existing timeout
     if (tooltipHideTimeout) {
