@@ -86,6 +86,7 @@
 <script setup>
 import { computed } from 'vue';
 import { getDetectionImageViewBox } from '@/utils/imageMetadata';
+import { convertHoldCoordinatesForDisplay } from '@/utils/coordinateScaling';
 
 const props = defineProps({
   imageUrl: String,
@@ -138,33 +139,34 @@ const visiblePoses = computed(() => {
   const scaledPoses = props.transformedPoses.map(pose => {
     if (!pose.closestHolds) return pose;
     
-    // Calculate scaling factors if we're using natural viewBox but holds are in stored viewBox
+    // Use DRY utility to convert hold coordinates for display
     const needsScaling = props.storedViewBox && props.imageNaturalWidth && props.imageNaturalHeight;
     
-    let scaleX = 1, scaleY = 1;
-    if (needsScaling) {
-      // Parse stored viewBox (format: "0 0 width height")
-      const storedParts = props.storedViewBox.split(' ');
-      if (storedParts.length >= 4) {
-        const storedWidth = parseFloat(storedParts[2]);
-        const storedHeight = parseFloat(storedParts[3]);
-        scaleX = props.imageNaturalWidth / storedWidth;
-        scaleY = props.imageNaturalHeight / storedHeight;
-        
-        console.log(`Hold coordinate scaling: ${scaleX.toFixed(3)}x, ${scaleY.toFixed(3)}y (${storedWidth}×${storedHeight} → ${props.imageNaturalWidth}×${props.imageNaturalHeight})`);
-      }
+    if (!needsScaling) {
+      return pose; // No scaling needed
     }
     
-    // Scale hold coordinates
+    // Extract hold coordinates for conversion
+    const holdCoordinates = pose.closestHolds
+      .filter(hold => hold.coordinates)
+      .map(hold => hold.coordinates);
+    
+    // Convert using DRY utility
+    const scaledCoordinates = convertHoldCoordinatesForDisplay(
+      holdCoordinates,
+      props.storedViewBox,
+      { width: props.imageNaturalWidth, height: props.imageNaturalHeight }
+    );
+    
+    // Map scaled coordinates back to holds
+    let coordinateIndex = 0;
     const scaledClosestHolds = pose.closestHolds.map(hold => {
       if (!hold.coordinates) return hold;
       
+      const scaledCoord = scaledCoordinates[coordinateIndex++];
       return {
         ...hold,
-        coordinates: {
-          x: hold.coordinates.x * scaleX,
-          y: hold.coordinates.y * scaleY
-        }
+        coordinates: scaledCoord
       };
     });
     

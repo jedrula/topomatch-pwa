@@ -601,6 +601,7 @@ import {
   calculateHomographyMatrix,
   transformPoints,
 } from '@/utils/homographyUtils';
+import { convertProjectedPointsForDistanceCalculation } from '@/utils/coordinateScaling';
 import { usePoseDetection } from '@/composables/usePoseDetection';
 import { useInferenceStore } from '@/stores/inferenceStore';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
@@ -744,7 +745,7 @@ watch(poseDetectionError, (newError) => {
 // Watch for pose visibility changes to debug checkbox behavior
 
 // Frame timestamps for extraction - configurable for debugging
-const FRAMES_FOR_ANALYSIS = 1;
+const FRAMES_FOR_ANALYSIS = 10;
 const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
   ? [0.1] // Just extract first frame for debugging
   : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]; // 10 samples evenly distributed
@@ -1391,7 +1392,27 @@ const transformPosesToMatchedImage = async (matchResult) => {
 
       // Find closest holds for each transformed keypoint
       const closestHolds = transformedPoints.map((point, pointIndex) => {
-        const holdInfo = findClosestHolds(point.x, point.y);
+        // COORDINATE SYSTEM FIX: Scale projected points to match stored hold coordinates
+        let searchPoint = point;
+        
+        // Use DRY utility to convert coordinates for distance calculation
+        if (bestMatch.value.detectionResults?.imageMetadata?.viewBox && imageNaturalDimensions.value.width > 0) {
+          const convertedPoints = convertProjectedPointsForDistanceCalculation(
+            [point], // Convert single point
+            imageNaturalDimensions.value, // Natural dimensions
+            bestMatch.value.detectionResults.imageMetadata.viewBox // Stored viewBox
+          );
+          
+          if (convertedPoints.length > 0) {
+            searchPoint = convertedPoints[0];
+            
+            if (i === debugFrameIndex && pointIndex === 0) {
+              console.log(`Using DRY utility - projected point for hold search: (${point.x}, ${point.y}) → (${searchPoint.x.toFixed(1)}, ${searchPoint.y.toFixed(1)})`);
+            }
+          }
+        }
+        
+        const holdInfo = findClosestHolds(searchPoint.x, searchPoint.y);
         const coords = holdInfo.closest.hold ? extractHoldCoordinates(holdInfo.closest.hold) : null;
         
         // DEBUGGING: Focus on frame 0 only
