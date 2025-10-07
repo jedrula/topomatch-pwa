@@ -1396,11 +1396,17 @@ const transformPosesToMatchedImage = async (matchResult) => {
         
         // DEBUGGING: Focus on frame 0 only
         if (i === debugFrameIndex) {
+          console.log('=== HOLD COORDINATE DEBUG (Frame 0) ===');
+          console.log(`Transformed point ${pointIndex}:`, point);
+          console.log(`Hold info for point ${pointIndex}:`, holdInfo);
           
           // Extra debugging for coordinate issues
           if (coords) {
+            console.log(`Extracted coordinates for point ${pointIndex}:`, coords);
+            console.log(`Distance: ${holdInfo.closest.distance}px`);
           } else {
             if (holdInfo.closest.hold) {
+              console.log(`Failed to extract coordinates from hold:`, holdInfo.closest.hold);
             }
           }
         }

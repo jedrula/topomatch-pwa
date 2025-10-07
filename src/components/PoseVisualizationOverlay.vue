@@ -134,18 +134,55 @@ const shouldShowOverlay = computed(() => {
 
 // Get visible poses based on visibility array
 const visiblePoses = computed(() => {
+  // Scale hold coordinates if needed to match the natural image viewBox
+  const scaledPoses = props.transformedPoses.map(pose => {
+    if (!pose.closestHolds) return pose;
+    
+    // Calculate scaling factors if we're using natural viewBox but holds are in stored viewBox
+    const needsScaling = props.storedViewBox && props.imageNaturalWidth && props.imageNaturalHeight;
+    
+    let scaleX = 1, scaleY = 1;
+    if (needsScaling) {
+      // Parse stored viewBox (format: "0 0 width height")
+      const storedParts = props.storedViewBox.split(' ');
+      if (storedParts.length >= 4) {
+        const storedWidth = parseFloat(storedParts[2]);
+        const storedHeight = parseFloat(storedParts[3]);
+        scaleX = props.imageNaturalWidth / storedWidth;
+        scaleY = props.imageNaturalHeight / storedHeight;
+        
+        console.log(`Hold coordinate scaling: ${scaleX.toFixed(3)}x, ${scaleY.toFixed(3)}y (${storedWidth}×${storedHeight} → ${props.imageNaturalWidth}×${props.imageNaturalHeight})`);
+      }
+    }
+    
+    // Scale hold coordinates
+    const scaledClosestHolds = pose.closestHolds.map(hold => {
+      if (!hold.coordinates) return hold;
+      
+      return {
+        ...hold,
+        coordinates: {
+          x: hold.coordinates.x * scaleX,
+          y: hold.coordinates.y * scaleY
+        }
+      };
+    });
+    
+    return {
+      ...pose,
+      closestHolds: scaledClosestHolds
+    };
+  });
+
   // DEBUG: Log the poses being drawn
   if (props.transformedPoses.length > 0) {
     console.log('=== POSE OVERLAY DEBUG ===');
     console.log('ViewBox:', viewBox.value);
-    console.log('Transformed poses:', props.transformedPoses);
-    if (props.transformedPoses[0]?.transformedPoints) {
-      console.log('First pose transformed points:', props.transformedPoses[0].transformedPoints);
-    }
+    console.log('Original hold coordinates:', props.transformedPoses[0]?.closestHolds?.[0]?.coordinates);
+    console.log('Scaled hold coordinates:', scaledPoses[0]?.closestHolds?.[0]?.coordinates);
     console.log('=== END POSE OVERLAY DEBUG ===');
   }
   
-  // The parent component already filters poses, so just return them as-is
-  return props.transformedPoses;
+  return scaledPoses;
 });
 </script>
