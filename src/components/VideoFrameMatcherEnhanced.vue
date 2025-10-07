@@ -744,9 +744,9 @@ watch(poseDetectionError, (newError) => {
 // Watch for pose visibility changes to debug checkbox behavior
 
 // Frame timestamps for extraction - configurable for debugging
-const FRAMES_FOR_ANALYSIS = 10;
+const FRAMES_FOR_ANALYSIS = 1;
 const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
-  ? [0.5] // Just extract middle frame for debugging
+  ? [0.1] // Just extract first frame for debugging
   : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]; // 10 samples evenly distributed
 
 // Colors for different frames - 10 distinct colors for better visualization
@@ -1379,6 +1379,15 @@ const transformPosesToMatchedImage = async (matchResult) => {
 
       // Transform points using homography
       const transformedPoints = transformPoints(sourcePoints, homographyMatrix);
+
+      // DEBUG: Log first frame's transformation for comparison with manual testing
+      if (i === 0) {
+        console.log('=== POSE TRANSFORMATION DEBUG (Frame 0) ===');
+        console.log('Original keypoints:', sourcePoints);
+        console.log('Homography matrix:', homographyMatrix);
+        console.log('Transformed points:', transformedPoints);
+        console.log('=== Compare these with your manual click results ===');
+      }
 
       // Find closest holds for each transformed keypoint
       const closestHolds = transformedPoints.map((point, pointIndex) => {

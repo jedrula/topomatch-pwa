@@ -101,8 +101,17 @@ const props = defineProps({
 // Create viewBox using the same method as BoulderImageWithHolds
 const viewBox = computed(() => {
   
-  // Use stored viewBox from Firestore if available
+  // TEMPORARY FIX: Use natural image dimensions instead of stored viewBox
+  // to match the coordinate system used in the working clickable testing
+  if (props.imageNaturalWidth && props.imageNaturalHeight) {
+    const naturalViewBox = `0 0 ${props.imageNaturalWidth} ${props.imageNaturalHeight}`;
+    console.log('Using natural image viewBox for accurate pose projection:', naturalViewBox);
+    return naturalViewBox;
+  }
+  
+  // Use stored viewBox from Firestore if available (fallback)
   if (props.storedViewBox) {
+    console.log('Using stored viewBox (may cause coordinate mismatch):', props.storedViewBox);
     // The stored viewBox is already a string like "0 0 1080 1440"
     return props.storedViewBox;
   }
@@ -125,6 +134,17 @@ const shouldShowOverlay = computed(() => {
 
 // Get visible poses based on visibility array
 const visiblePoses = computed(() => {
+  // DEBUG: Log the poses being drawn
+  if (props.transformedPoses.length > 0) {
+    console.log('=== POSE OVERLAY DEBUG ===');
+    console.log('ViewBox:', viewBox.value);
+    console.log('Transformed poses:', props.transformedPoses);
+    if (props.transformedPoses[0]?.transformedPoints) {
+      console.log('First pose transformed points:', props.transformedPoses[0].transformedPoints);
+    }
+    console.log('=== END POSE OVERLAY DEBUG ===');
+  }
+  
   // The parent component already filters poses, so just return them as-is
   return props.transformedPoses;
 });

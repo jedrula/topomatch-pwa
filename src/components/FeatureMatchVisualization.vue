@@ -141,113 +141,164 @@
       </div>
     </div>
 
-    <!-- Pose Keypoint Transformation Visualization -->
+    <!-- Pose Keypoint Transformation Visualization - Simplified -->
     <div v-if="poseKeypoints.length > 0 && homographyMatrix" class="mt-4">
-      <h6 class="text-xs font-medium text-gray-700 mb-2">Pose Keypoint Transformation via Homography</h6>
-      <div class="relative border rounded bg-gray-50 p-2">
-        <svg
-          v-if="canRenderPoseTransformation"
-          :width="combinedDimensions.width"
-          :height="combinedDimensions.height"
-          class="w-full"
-          :viewBox="`0 0 ${combinedDimensions.width} ${combinedDimensions.height}`"
-        >
-          <!-- Source image -->
-          <image
-            :href="sourceImageUrl"
-            x="0"
-            y="0"
-            :width="sourceImageScale.width"
-            :height="sourceImageScale.height"
-            preserveAspectRatio="xMidYMid meet"
-          />
-          
-          <!-- Target image -->
-          <image
-            :href="targetImageUrl"
-            :x="sourceImageScale.width + 20"
-            y="0"
-            :width="targetImageScale.width"
-            :height="targetImageScale.height"
-            preserveAspectRatio="xMidYMid meet"
-          />
-
-          <!-- Pose keypoint transformation lines -->
-          <g v-for="(transform, index) in poseTransformations" :key="`pose-line-${index}`">
-            <line
-              :x1="transform.sourcePoint.x"
-              :y1="transform.sourcePoint.y"
-              :x2="transform.targetPoint.x"
-              :y2="transform.targetPoint.y"
-              stroke="#ff6b35"
-              stroke-width="3"
-              opacity="0.8"
-              stroke-dasharray="5,3"
+      <h6 class="text-xs font-medium text-gray-700 mb-2">Transformed Pose Projection (Simplified)</h6>
+      
+      <!-- Use the same simple layout as debug mode -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Source Image with Original Pose Points -->
+        <div class="relative">
+          <h6 class="text-xs font-medium text-gray-700 mb-2">
+            Source Image (Original Pose Keypoints)
+          </h6>
+          <div class="relative inline-block border-2 border-red-300 rounded">
+            <img
+              ref="poseSourceImage"
+              :src="sourceImageUrl"
+              alt="Source with pose"
+              class="max-w-full max-h-[300px] object-contain"
+              @load="onPoseSourceImageLoad"
             />
-          </g>
+            <!-- Original pose keypoints overlay -->
+            <svg
+              v-if="poseSourceImageDimensions.width > 0"
+              class="absolute inset-0 pointer-events-none"
+              :width="poseSourceImageDimensions.width"
+              :height="poseSourceImageDimensions.height"
+              :viewBox="`0 0 ${poseSourceImageDimensions.naturalWidth} ${poseSourceImageDimensions.naturalHeight}`"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <g v-for="(keypoint, index) in poseKeypoints" :key="`pose-source-${index}`">
+                <circle
+                  :cx="keypoint.x"
+                  :cy="keypoint.y"
+                  r="6"
+                  fill="#ef4444"
+                  stroke="white"
+                  stroke-width="2"
+                  opacity="0.8"
+                />
+                <text
+                  :x="keypoint.x + 8"
+                  :y="keypoint.y - 8"
+                  font-size="12"
+                  fill="#dc2626"
+                  font-weight="bold"
+                  stroke="white"
+                  stroke-width="0.5"
+                >{{ index }}</text>
+              </g>
+            </svg>
+          </div>
+        </div>
 
-          <!-- Source pose keypoints -->
-          <g v-for="(transform, index) in poseTransformations" :key="`pose-source-${index}`">
-            <circle
-              :cx="transform.sourcePoint.x"
-              :cy="transform.sourcePoint.y"
-              r="6"
-              fill="#ef4444"
-              stroke="white"
-              stroke-width="2"
+        <!-- Target Image with Projected Pose Points -->
+        <div class="relative">
+          <h6 class="text-xs font-medium text-gray-700 mb-2">
+            Target Image (Projected Pose Keypoints)
+          </h6>
+          <div class="relative inline-block border-2 border-green-300 rounded">
+            <img
+              ref="poseTargetImage"
+              :src="targetImageUrl"
+              alt="Target with projected pose"
+              class="max-w-full max-h-[300px] object-contain"
+              @load="onPoseTargetImageLoad"
             />
-            <text
-              :x="transform.sourcePoint.x + 8"
-              :y="transform.sourcePoint.y - 8"
-              font-size="12"
-              fill="#dc2626"
-              font-weight="bold"
-            >{{ index }}</text>
-          </g>
-
-          <!-- Transformed pose keypoints -->
-          <g v-for="(transform, index) in poseTransformations" :key="`pose-target-${index}`">
-            <circle
-              :cx="transform.targetPoint.x"
-              :cy="transform.targetPoint.y"
-              r="6"
-              fill="#22c55e"
-              stroke="white"
-              stroke-width="2"
-            />
-            <text
-              :x="transform.targetPoint.x + 8"
-              :y="transform.targetPoint.y - 8"
-              font-size="12"
-              fill="#16a34a"
-              font-weight="bold"
-            >{{ index }}</text>
-          </g>
-        </svg>
-        
-        <div v-if="!canRenderPoseTransformation" class="text-center py-8 text-gray-500 text-sm">
-          Waiting for images to load...
+            <!-- Projected pose keypoints overlay -->
+            <svg
+              v-if="poseTargetImageDimensions.width > 0"
+              class="absolute inset-0 pointer-events-none"
+              :width="poseTargetImageDimensions.width"
+              :height="poseTargetImageDimensions.height"
+              :viewBox="`0 0 ${poseTargetImageDimensions.naturalWidth} ${poseTargetImageDimensions.naturalHeight}`"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <g v-for="(projection, index) in simplePoseProjections" :key="`pose-target-${index}`">
+                <circle
+                  :cx="projection.projected.x"
+                  :cy="projection.projected.y"
+                  r="6"
+                  fill="#22c55e"
+                  stroke="white"
+                  stroke-width="2"
+                  opacity="0.8"
+                />
+                <text
+                  :x="projection.projected.x + 8"
+                  :y="projection.projected.y - 8"
+                  font-size="12"
+                  fill="#16a34a"
+                  font-weight="bold"
+                  stroke="white"
+                  stroke-width="0.5"
+                >{{ index }}</text>
+                
+                <!-- Show closest hold connection if available -->
+                <g v-if="projection.closestHold">
+                  <line
+                    :x1="projection.projected.x"
+                    :y1="projection.projected.y"
+                    :x2="projection.closestHold.x"
+                    :y2="projection.closestHold.y"
+                    stroke="black"
+                    stroke-width="2"
+                    opacity="0.6"
+                  />
+                  <circle
+                    :cx="projection.closestHold.x"
+                    :cy="projection.closestHold.y"
+                    r="4"
+                    fill="black"
+                    opacity="0.6"
+                  />
+                </g>
+              </g>
+            </svg>
+          </div>
         </div>
       </div>
-      
-      <!-- Pose transformation legend -->
-      <div v-if="poseKeypoints.length > 0 && homographyMatrix" class="mt-2 flex flex-wrap items-center justify-between gap-4 text-xs">
-        <div class="flex items-center space-x-4">
-          <div class="flex items-center space-x-1">
-            <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-            <span>Source pose keypoints ({{ poseKeypoints.length }})</span>
-          </div>
-          <div class="flex items-center space-x-1">
-            <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span>Transformed keypoints</span>
-          </div>
-          <div class="flex items-center space-x-1">
-            <div class="w-6 h-0.5 bg-orange-500" style="border-top: 3px dashed #ff6b35;"></div>
-            <span>Transformation paths</span>
-          </div>
-        </div>
-        <div class="text-gray-600">
-          Numbers = keypoint index
+
+      <!-- Simplified pose transformation table -->
+      <div v-if="simplePoseProjections.length > 0" class="mt-4">
+        <h6 class="text-xs font-medium text-gray-700 mb-2">Pose Projection Coordinates</h6>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs bg-white border border-gray-200 rounded">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Keypoint #</th>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Original (x, y)</th>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Projected (x, y)</th>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Status</th>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Closest Hold Distance</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr v-for="(projection, index) in simplePoseProjections" :key="index" class="hover:bg-gray-50">
+                <td class="px-2 py-1 font-medium text-gray-900">{{ index }}</td>
+                <td class="px-2 py-1 text-gray-600">
+                  ({{ Math.round(projection.original.x) }}, {{ Math.round(projection.original.y) }})
+                </td>
+                <td class="px-2 py-1 text-gray-600">
+                  <span v-if="isValidSimpleProjection(projection.projected)">
+                    ({{ Math.round(projection.projected.x) }}, {{ Math.round(projection.projected.y) }})
+                  </span>
+                  <span v-else class="text-red-500">Invalid</span>
+                </td>
+                <td class="px-2 py-1">
+                  <span v-if="isValidSimpleProjection(projection.projected)" class="text-green-600">✓ Valid</span>
+                  <span v-else class="text-red-600">✗ Invalid</span>
+                </td>
+                <td class="px-2 py-1 text-gray-600">
+                  <span v-if="projection.closestHold">
+                    {{ Math.round(projection.holdDistance) }}px
+                  </span>
+                  <span v-else class="text-gray-400">No hold found</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -283,6 +334,181 @@
             <option value="999">All</option>
           </select>
         </label>
+      </div>
+    </div>
+
+    <!-- Interactive Homography Testing -->
+    <div v-if="homographyMatrix" class="mt-6 border-t pt-6">
+      <div class="flex items-center justify-between mb-4">
+        <h6 class="text-sm font-medium text-gray-700">Interactive Homography Testing</h6>
+        <div class="flex items-center space-x-2">
+          <label class="text-xs text-gray-600">
+            <input v-model="debugMode" type="checkbox" class="mr-1" />
+            Enable click testing
+          </label>
+          <button
+            v-if="testPoints.length > 0"
+            @click="clearTestPoints"
+            class="text-xs text-red-600 hover:text-red-800 px-2 py-1 border border-red-300 rounded"
+          >
+            Clear test points
+          </button>
+        </div>
+      </div>
+      
+      <div v-if="debugMode" class="mb-4 p-3 bg-blue-50 rounded-lg">
+        <p class="text-xs text-blue-700 mb-2">
+          <strong>Click Testing Mode:</strong> Click on the source image (left) to test homography projection accuracy.
+          The projected point will appear on the target image (right).
+        </p>
+        <div class="flex items-center space-x-4 text-xs text-blue-600">
+          <span>Test points: {{ testPoints.length }}</span>
+          <span v-if="averageProjectionError">
+            Avg error: {{ Math.round(averageProjectionError) }}px
+          </span>
+        </div>
+      </div>
+
+      <!-- Modified source and target images for click testing -->
+      <div v-if="debugMode" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Clickable Source Image -->
+        <div class="relative">
+          <h6 class="text-xs font-medium text-gray-700 mb-2">
+            Source Image (Click to Test) 
+            <span class="text-blue-600">- {{ testPoints.length }} test points</span>
+          </h6>
+          <div class="relative inline-block border-2 border-blue-300 rounded">
+            <img
+              ref="debugSourceImage"
+              :src="sourceImageUrl"
+              alt="Source for testing"
+              class="max-w-full max-h-[300px] object-contain cursor-crosshair"
+              @load="onDebugSourceImageLoad"
+              @click="onSourceImageClick"
+            />
+            <!-- Test points overlay on source -->
+            <svg
+              v-if="debugSourceImageDimensions.width > 0"
+              class="absolute inset-0 pointer-events-none"
+              :width="debugSourceImageDimensions.width"
+              :height="debugSourceImageDimensions.height"
+              :viewBox="`0 0 ${debugSourceImageDimensions.naturalWidth} ${debugSourceImageDimensions.naturalHeight}`"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <g v-for="(point, index) in testPoints" :key="`test-source-${index}`">
+                <circle
+                  :cx="point.source.x"
+                  :cy="point.source.y"
+                  r="8"
+                  fill="#3b82f6"
+                  stroke="white"
+                  stroke-width="2"
+                  opacity="0.8"
+                />
+                <text
+                  :x="point.source.x + 12"
+                  :y="point.source.y - 8"
+                  font-size="12"
+                  fill="#1d4ed8"
+                  font-weight="bold"
+                  stroke="white"
+                  stroke-width="0.5"
+                >{{ index + 1 }}</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Target Image with Projections -->
+        <div class="relative">
+          <h6 class="text-xs font-medium text-gray-700 mb-2">
+            Target Image (Projected Points)
+            <span class="text-green-600">- {{ validTestProjections.length }} valid projections</span>
+          </h6>
+          <div class="relative inline-block border-2 border-green-300 rounded">
+            <img
+              ref="debugTargetImage"
+              :src="targetImageUrl"
+              alt="Target with projections"
+              class="max-w-full max-h-[300px] object-contain"
+              @load="onDebugTargetImageLoad"
+            />
+            <!-- Projected test points overlay on target -->
+            <svg
+              v-if="debugTargetImageDimensions.width > 0"
+              class="absolute inset-0 pointer-events-none"
+              :width="debugTargetImageDimensions.width"
+              :height="debugTargetImageDimensions.height"
+              :viewBox="`0 0 ${debugTargetImageDimensions.naturalWidth} ${debugTargetImageDimensions.naturalHeight}`"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <g v-for="(point, index) in validTestProjections" :key="`test-target-${index}`">
+                <circle
+                  :cx="point.projected.x"
+                  :cy="point.projected.y"
+                  r="8"
+                  fill="#10b981"
+                  stroke="white"
+                  stroke-width="2"
+                  opacity="0.8"
+                />
+                <text
+                  :x="point.projected.x + 12"
+                  :y="point.projected.y - 8"
+                  font-size="12"
+                  fill="#059669"
+                  font-weight="bold"
+                  stroke="white"
+                  stroke-width="0.5"
+                >{{ index + 1 }}</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test Results Table -->
+      <div v-if="debugMode && testPoints.length > 0" class="mt-4">
+        <h6 class="text-xs font-medium text-gray-700 mb-2">Projection Test Results</h6>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs bg-white border border-gray-200 rounded">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">#</th>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Source (x, y)</th>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Projected (x, y)</th>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Status</th>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr v-for="(point, index) in testPoints" :key="index" class="hover:bg-gray-50">
+                <td class="px-2 py-1 font-medium text-gray-900">{{ index + 1 }}</td>
+                <td class="px-2 py-1 text-gray-600">
+                  ({{ Math.round(point.source.x) }}, {{ Math.round(point.source.y) }})
+                </td>
+                <td class="px-2 py-1 text-gray-600">
+                  <span v-if="isValidProjection(point.projected)">
+                    ({{ Math.round(point.projected.x) }}, {{ Math.round(point.projected.y) }})
+                  </span>
+                  <span v-else class="text-red-500">Invalid</span>
+                </td>
+                <td class="px-2 py-1">
+                  <span v-if="isValidProjection(point.projected)" class="text-green-600">✓ Valid</span>
+                  <span v-else class="text-red-600">✗ Invalid</span>
+                </td>
+                <td class="px-2 py-1">
+                  <button
+                    @click="removeTestPoint(index)"
+                    class="text-red-600 hover:text-red-800"
+                  >
+                    Remove
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -324,6 +550,20 @@ const targetImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, natura
 const showOutliers = ref(true)
 const maxDisplayMatches = ref(50)
 
+// Debug mode for interactive testing
+const debugMode = ref(false)
+const testPoints = ref([])
+const debugSourceImage = ref(null)
+const debugTargetImage = ref(null)
+const debugSourceImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
+const debugTargetImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
+
+// Simple pose projection refs
+const poseSourceImage = ref(null)
+const poseTargetImage = ref(null)
+const poseSourceImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
+const poseTargetImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
+
 // Image load handlers
 const onSourceImageLoad = () => {
   if (sourceImage.value) {
@@ -343,6 +583,52 @@ const onTargetImageLoad = () => {
       height: targetImage.value.clientHeight,
       naturalWidth: targetImage.value.naturalWidth,
       naturalHeight: targetImage.value.naturalHeight
+    }
+  }
+}
+
+// Debug image load handlers
+const onDebugSourceImageLoad = () => {
+  if (debugSourceImage.value) {
+    debugSourceImageDimensions.value = {
+      width: debugSourceImage.value.clientWidth,
+      height: debugSourceImage.value.clientHeight,
+      naturalWidth: debugSourceImage.value.naturalWidth,
+      naturalHeight: debugSourceImage.value.naturalHeight
+    }
+  }
+}
+
+const onDebugTargetImageLoad = () => {
+  if (debugTargetImage.value) {
+    debugTargetImageDimensions.value = {
+      width: debugTargetImage.value.clientWidth,
+      height: debugTargetImage.value.clientHeight,
+      naturalWidth: debugTargetImage.value.naturalWidth,
+      naturalHeight: debugTargetImage.value.naturalHeight
+    }
+  }
+}
+
+// Pose image load handlers
+const onPoseSourceImageLoad = () => {
+  if (poseSourceImage.value) {
+    poseSourceImageDimensions.value = {
+      width: poseSourceImage.value.clientWidth,
+      height: poseSourceImage.value.clientHeight,
+      naturalWidth: poseSourceImage.value.naturalWidth,
+      naturalHeight: poseSourceImage.value.naturalHeight
+    }
+  }
+}
+
+const onPoseTargetImageLoad = () => {
+  if (poseTargetImage.value) {
+    poseTargetImageDimensions.value = {
+      width: poseTargetImage.value.clientWidth,
+      height: poseTargetImage.value.clientHeight,
+      naturalWidth: poseTargetImage.value.naturalWidth,
+      naturalHeight: poseTargetImage.value.naturalHeight
     }
   }
 }
@@ -369,58 +655,50 @@ const canRenderCombinedView = computed(() => {
   )
 })
 
-// Check if we can render pose transformation
-const canRenderPoseTransformation = computed(() => {
-  const result = canRenderCombinedView.value && props.poseKeypoints.length > 0 && props.homographyMatrix
-  return result
-})
-
 // Transform pose keypoints using homography matrix
-const poseTransformations = computed(() => {
+// Simple pose projections using the same logic as interactive testing
+const simplePoseProjections = computed(() => {
+  if (!props.poseKeypoints.length || !props.homographyMatrix) return []
   
-  if (!canRenderPoseTransformation.value) return []
-  
-  const transforms = props.poseKeypoints.map((keypoint, index) => {
-    // Transform keypoint using homography matrix
-    const transformedPoint = transformPointWithHomography(
+  return props.poseKeypoints.map((keypoint, index) => {
+    // Use the same transformation as the clickable testing (which works correctly)
+    const projectedPoint = transformPointWithHomography(
       keypoint.x, 
       keypoint.y, 
       props.homographyMatrix
     )
     
-    // Scale for display
-    const sourceScaleX = sourceImageDimensions.value.naturalWidth > 0 ? 
-      sourceImageScale.value.width / sourceImageDimensions.value.naturalWidth : 0
-    const sourceScaleY = sourceImageDimensions.value.naturalHeight > 0 ? 
-      sourceImageScale.value.height / sourceImageDimensions.value.naturalHeight : 0
-    const targetScaleX = targetImageDimensions.value.naturalWidth > 0 ? 
-      targetImageScale.value.width / targetImageDimensions.value.naturalWidth : 0
-    const targetScaleY = targetImageDimensions.value.naturalHeight > 0 ? 
-      targetImageScale.value.height / targetImageDimensions.value.naturalHeight : 0
+    // Find closest hold (if you have hold data available)
+    let closestHold = null
+    let holdDistance = null
+    
+    // TODO: Add hold detection logic here if you have hold coordinates
+    // For now, this is just a placeholder for the closest hold feature
     
     return {
       index,
-      sourcePoint: {
-        x: keypoint.x * sourceScaleX,
-        y: keypoint.y * sourceScaleY
-      },
-      targetPoint: {
-        x: sourceImageScale.value.width + 20 + (transformedPoint.x * targetScaleX),
-        y: transformedPoint.y * targetScaleY
-      }
+      original: { x: keypoint.x, y: keypoint.y },
+      projected: projectedPoint,
+      closestHold,
+      holdDistance
     }
-  }).filter(transform => {
-    // Filter out invalid transformations
-    return (
-      !isNaN(transform.sourcePoint.x) && !isNaN(transform.sourcePoint.y) &&
-      !isNaN(transform.targetPoint.x) && !isNaN(transform.targetPoint.y) &&
-      isFinite(transform.sourcePoint.x) && isFinite(transform.sourcePoint.y) &&
-      isFinite(transform.targetPoint.x) && isFinite(transform.targetPoint.y)
-    )
+  }).filter(projection => {
+    // Filter out invalid projections using the same validation as clickable testing
+    return projection.projected && 
+           !isNaN(projection.projected.x) && !isNaN(projection.projected.y) &&
+           isFinite(projection.projected.x) && isFinite(projection.projected.y)
   })
-  
-  return transforms
 })
+
+// Validation for simple projections
+const isValidSimpleProjection = (point) => {
+  return point && 
+         !isNaN(point.x) && !isNaN(point.y) &&
+         isFinite(point.x) && isFinite(point.y) &&
+         point.x >= 0 && point.y >= 0 &&
+         point.x <= poseTargetImageDimensions.value.naturalWidth &&
+         point.y <= poseTargetImageDimensions.value.naturalHeight
+}
 
 // Helper function to transform a point using homography matrix
 const transformPointWithHomography = (x, y, homography) => {
@@ -515,4 +793,61 @@ const targetImageScale = computed(() => ({
   width: targetImageDimensions.value.width,
   height: targetImageDimensions.value.height
 }))
+
+// Interactive testing functions
+const onSourceImageClick = (event) => {
+  if (!props.homographyMatrix || !debugMode.value) {
+    return
+  }
+
+  const rect = debugSourceImage.value.getBoundingClientRect()
+  const scaleX = debugSourceImageDimensions.value.naturalWidth / debugSourceImageDimensions.value.width
+  const scaleY = debugSourceImageDimensions.value.naturalHeight / debugSourceImageDimensions.value.height
+  
+  // Get click coordinates relative to the natural image size
+  const clickX = (event.clientX - rect.left) * scaleX
+  const clickY = (event.clientY - rect.top) * scaleY
+  
+  // Project the point using homography
+  const projectedPoint = transformPointWithHomography(clickX, clickY, props.homographyMatrix)
+  
+  const testPoint = {
+    source: { x: clickX, y: clickY },
+    projected: projectedPoint,
+    timestamp: Date.now()
+  }
+  
+  testPoints.value.push(testPoint)
+}
+
+// Validate that a projection is reasonable for debug testing
+const isValidProjection = (point) => {
+  return point && 
+         !isNaN(point.x) && !isNaN(point.y) &&
+         isFinite(point.x) && isFinite(point.y) &&
+         point.x >= 0 && point.y >= 0 &&
+         point.x <= debugTargetImageDimensions.value.naturalWidth &&
+         point.y <= debugTargetImageDimensions.value.naturalHeight
+}
+
+// Filter out invalid projections
+const validTestProjections = computed(() => {
+  return testPoints.value.filter(point => isValidProjection(point.projected))
+})
+
+// Calculate average projection error (for future validation features)
+const averageProjectionError = computed(() => {
+  // This could be enhanced to compare against known validation points
+  // For now, we can't calculate real error without validation data
+  return null
+})
+
+// Control functions
+const removeTestPoint = (index) => {
+  testPoints.value.splice(index, 1)
+}
+
+const clearTestPoints = () => {
+  testPoints.value = []
+}
 </script>
