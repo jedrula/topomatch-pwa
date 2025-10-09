@@ -97,26 +97,6 @@ export function convertProjectedPointsForDistanceCalculation(projectedPoints, na
 }
 
 /**
- * Convert hold coordinates from stored coordinates to natural coordinates for display
- * @param {Array} holdCoordinates - Hold coordinates in stored coordinate system
- * @param {String} storedViewBox - Stored viewBox string
- * @param {Object} naturalDimensions - Natural image dimensions {width, height}
- * @returns {Array} Hold coordinates scaled to natural coordinate system
- */
-export function convertHoldCoordinatesForDisplay(holdCoordinates, storedViewBox, naturalDimensions) {
-  const storedDimensions = parseViewBoxDimensions(storedViewBox);
-  if (!storedDimensions || !naturalDimensions) {
-    return holdCoordinates; // No scaling possible
-  }
-  
-  const scalingFactors = getScalingFactors(storedDimensions, naturalDimensions);
-  
-  console.log(`Converting hold coordinates for display: ${storedDimensions.width}×${storedDimensions.height} → ${naturalDimensions.width}×${naturalDimensions.height} (scale: ${scalingFactors.scaleX.toFixed(3)}x, ${scalingFactors.scaleY.toFixed(3)}y)`);
-  
-  return scalePoints(holdCoordinates, scalingFactors);
-}
-
-/**
  * Check if coordinate scaling is needed between two systems
  * @param {Object} system1 - First coordinate system {width, height}
  * @param {Object} system2 - Second coordinate system {width, height}

@@ -267,33 +267,9 @@
               </div>
             </div>
 
-            <!-- Side-by-side comparison view -->
+            <!-- Original Video Frames -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <!-- Transformed Pose Visualization (left side) -->
-              <div class="space-y-4">
-                <h5 class="text-sm font-medium text-gray-900">Transformed Pose Projection</h5>
-                <div class="relative inline-block">
-                  <img
-                    ref="visualizationImage"
-                    :src="bestMatch.url"
-                    alt="Pose visualization"
-                    class="max-w-full max-h-[500px] object-contain border rounded"
-                    @load="onImageLoad"
-                  />
-                  <PoseVisualizationOverlay
-                    :image-url="bestMatch.url"
-                    :image-ref="visualizationImage"
-                    :transformed-poses="getVisiblePoses()"
-                    :pose-visibility="poseVisibility"
-                    :hold-detection-results="bestMatch.detectionResults"
-                    :stored-view-box="storedViewBox"
-                    :image-natural-width="imageNaturalDimensions.width"
-                    :image-natural-height="imageNaturalDimensions.height"
-                  />
-                </div>
-              </div>
-
-              <!-- Original Video Frames (right side) -->
+              <!-- Original Video Frames (left side) -->
               <div v-if="getVisiblePoses().length > 0" class="space-y-4">
                 <h5 class="text-sm font-medium text-gray-900">Original Video Frames</h5>
                 <div class="space-y-3">
@@ -383,6 +359,7 @@
                   :homography-inliers="bestMatch.homographyInliers || 0"
                   :pose-keypoints="extractedFrames[0]?.poseData?.keypoints || []"
                   :homography-matrix="bestMatch.homographyMatrix"
+                  :selected-keypoint="selectedKeypoint"
                 />
               </div>
             </div>
@@ -406,7 +383,12 @@
 
             <!-- Keypoints Detail Table -->
             <div class="mt-4">
-              <h5 class="text-sm font-medium text-gray-900 mb-2">Detected Keypoints</h5>
+              <div class="flex items-center justify-between mb-2">
+                <h5 class="text-sm font-medium text-gray-900">Detected Keypoints</h5>
+                <p class="text-xs text-blue-600">
+                  💡 Click any row to visualize keypoint and closest hold on both images
+                </p>
+              </div>
               <div class="overflow-x-auto">
                 <table class="min-w-full text-xs border border-gray-200 rounded">
                   <thead class="bg-gray-50">
@@ -428,7 +410,13 @@
                       <tr
                         v-for="(keypoint, keypointIndex) in getKeypointRows(frame)"
                         :key="`${frameIndex}-${keypointIndex}`"
-                        class="border-b border-gray-100"
+                        :class="[
+                          'border-b border-gray-100 cursor-pointer transition-colors',
+                          selectedKeypoint === keypoint 
+                            ? 'bg-yellow-100 hover:bg-yellow-200' 
+                            : 'hover:bg-blue-50'
+                        ]"
+                        @click="handleKeypointRowClick(keypoint)"
                       >
                         <td class="px-2 py-1">
                           <div class="flex items-center">
@@ -590,10 +578,9 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, watch, onUnmounted } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import ImageMatcher from './ImageMatcher.vue';
 import VideoRecorder from './VideoRecorder.vue';
-import PoseVisualizationOverlay from './PoseVisualizationOverlay.vue';
 import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
@@ -651,16 +638,15 @@ const processingDetails = ref('');
 const error = ref(null);
 const bestMatch = ref(null);
 const transformedPoses = ref([]);
-const visualizationImage = ref(null);
-const poseCanvas = ref(null);
-const visualizationDimensions = ref({ width: 0, height: 0 });
 const imageNaturalDimensions = ref({ width: 0, height: 0 }); // Track natural image dimensions for SVG
 const storedViewBox = ref(null); // Store the viewBox from Firestore
 const featureMatches = ref([]); // Store feature match data for visualization
-const isDrawing = ref(false); // Add flag to prevent concurrent drawing
 
 // Pose visibility controls
 const poseVisibility = ref({}); // Track which poses are visible
+
+// Selected keypoint for visualization
+const selectedKeypoint = ref(null);
 
 // Recording mode state
 const recordingMode = ref('upload'); // 'upload' or 'record'
@@ -745,7 +731,7 @@ watch(poseDetectionError, (newError) => {
 // Watch for pose visibility changes to debug checkbox behavior
 
 // Frame timestamps for extraction - configurable for debugging
-const FRAMES_FOR_ANALYSIS = 10;
+const FRAMES_FOR_ANALYSIS = 1;
 const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
   ? [0.1] // Just extract first frame for debugging
   : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]; // 10 samples evenly distributed
@@ -853,10 +839,6 @@ const findClosestHolds = (keypointX, keypointY) => {
   // SINGLE SOURCE: Only use AI detection results from Firestore hold detection service
   if (bestMatch.value.detectionResults && bestMatch.value.detectionResults.results) {
     bestMatch.value.detectionResults.results.forEach((detectedHold, index) => {
-      // Debug: Log the first few holds to understand the data structure
-      if (index < 3) {
-      }
-      
       const coords = extractHoldCoordinates(detectedHold);
       if (!coords) return;
 
@@ -984,6 +966,11 @@ const getKeypointRows = (frame) => {
   }
 
   return keypointData;
+};
+
+// Handle keypoint row click
+const handleKeypointRowClick = (keypoint) => {
+  selectedKeypoint.value = keypoint;
 };
 
 const handleVideoSelect = async (event) => {
@@ -1247,7 +1234,6 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       const imageViewBox = await holdDetectionService.getViewBox(props.locationId, bestMatchResult.id);
       if (imageViewBox) {
         storedViewBox.value = imageViewBox;
-      } else {
       }
 
       // CRITICAL FIX: Also load AI detection results for this image
@@ -1462,194 +1448,12 @@ const transformPosesToMatchedImage = async (matchResult) => {
       newVisibility[frame.frameIndex] = true;
     });
     poseVisibility.value = newVisibility;
-
-    // Trigger visualization redraw
-    await nextTick();
-    // Use setTimeout to ensure image is fully rendered before drawing
-    setTimeout(() => {
-      drawPoseVisualization();
-    }, 200);
   } catch (err) {
     console.error('Pose transformation error:', err);
     error.value = 'Failed to transform poses: ' + err.message;
   } finally {
     isProcessing.value = false;
   }
-};
-
-const drawPoseVisualization = () => {
-  // Prevent concurrent drawing calls
-  if (isDrawing.value) {
-    return;
-  }
-  
-  isDrawing.value = true;
-  
-  if (!visualizationImage.value || !poseCanvas.value || transformedPoses.value.length === 0) {
-    console.warn('Pose visualization skipped:', {
-      hasVisualizationImage: !!visualizationImage.value,
-      hasPoseCanvas: !!poseCanvas.value,
-      transformedPosesLength: transformedPoses.value.length
-    });
-    isDrawing.value = false;
-    return;
-  }
-
-  const img = visualizationImage.value;
-  const canvas = poseCanvas.value;
-  const ctx = canvas.getContext('2d');
-
-  // Check if image is properly loaded
-  if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) {
-    console.warn('Image not fully loaded yet, skipping pose visualization');
-    isDrawing.value = false;
-    return;
-  }
-
-  // Set canvas size to match image EXACTLY
-  canvas.width = img.clientWidth;
-  canvas.height = img.clientHeight;
-  
-  // Also set the CSS dimensions to match
-  canvas.style.width = img.clientWidth + 'px';
-  canvas.style.height = img.clientHeight + 'px';
-
-  visualizationDimensions.value = {
-    width: img.clientWidth,
-    height: img.clientHeight,
-  };
-
-  // Clear canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Calculate scale factors
-  const scaleX = img.clientWidth / img.naturalWidth;
-  const scaleY = img.clientHeight / img.naturalHeight;
-
-  // Validate scale factors
-  if (isNaN(scaleX) || isNaN(scaleY) || !isFinite(scaleX) || !isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) {
-    console.error('Invalid scale factors, aborting pose visualization');
-    isDrawing.value = false;
-    return;
-  }
-
-  // Draw poses for each frame
-  transformedPoses.value.forEach((frame, index) => {
-    const { transformedPoints, color } = frame;
-
-    if (transformedPoints.length !== 4) {
-      console.warn(`Frame ${index} has ${transformedPoints.length} points, expected 4`);
-      return;
-    }
-
-    // Scale points to display size
-    const scaledPoints = transformedPoints.map((point) => ({
-      x: point.x * scaleX,
-      y: point.y * scaleY,
-    }));
-
-    // Validate scaled points
-    const validPoints = scaledPoints.filter(p => 
-      !isNaN(p.x) && !isNaN(p.y) && isFinite(p.x) && isFinite(p.y)
-    );
-
-    if (validPoints.length !== scaledPoints.length) {
-      console.warn(`Frame ${index} has invalid points, skipping`);
-      return;
-    }
-
-    // Draw with high visibility
-    ctx.save();
-
-    // Draw wrists (first two points)
-    scaledPoints.slice(0, 2).forEach((point, pointIndex) => {
-      
-      // Draw large, visible circles for wrists
-      ctx.fillStyle = color;
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 4;
-      
-      // White outline
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, 12, 0, 2 * Math.PI);
-      ctx.stroke();
-      
-      // Colored fill
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, 8, 0, 2 * Math.PI);
-      ctx.fill();
-
-      // Label
-      ctx.fillStyle = 'black';
-      ctx.font = 'bold 14px Arial';
-      ctx.fillText(`H${pointIndex + 1}`, point.x + 15, point.y);
-    });
-
-    // Draw ankles (last two points)
-    scaledPoints.slice(2, 4).forEach((point, pointIndex) => {
-      
-      // Draw large, visible squares for ankles
-      ctx.fillStyle = color;
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 4;
-      
-      // White outline
-      ctx.strokeRect(point.x - 10, point.y - 10, 20, 20);
-      
-      // Colored fill
-      ctx.fillRect(point.x - 8, point.y - 8, 16, 16);
-
-      // Label
-      ctx.fillStyle = 'black';
-      ctx.font = 'bold 14px Arial';
-      ctx.fillText(`F${pointIndex + 1}`, point.x + 15, point.y);
-    });
-
-    // Draw connecting lines
-    if (scaledPoints.length === 4) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 6;
-      
-      // Connect wrists
-      ctx.beginPath();
-      ctx.moveTo(scaledPoints[0].x, scaledPoints[0].y);
-      ctx.lineTo(scaledPoints[1].x, scaledPoints[1].y);
-      ctx.stroke();
-
-      // Connect ankles
-      ctx.beginPath();
-      ctx.moveTo(scaledPoints[2].x, scaledPoints[2].y);
-      ctx.lineTo(scaledPoints[3].x, scaledPoints[3].y);
-      ctx.stroke();
-    }
-
-    ctx.restore();
-  });
-
-  isDrawing.value = false;
-};
-
-// New function to handle image load and ensure proper timing
-const onImageLoad = async () => {
-  // Capture natural dimensions for SVG overlay
-  if (visualizationImage.value) {
-    imageNaturalDimensions.value = {
-      width: visualizationImage.value.naturalWidth,
-      height: visualizationImage.value.naturalHeight,
-    };
-    
-    // Update agent logs with correct dimensions
-    if (window.agentLogs?.coordinateIssues?.imageInfo) {
-      window.agentLogs.coordinateIssues.imageInfo.naturalDimensions = {
-        width: visualizationImage.value.naturalWidth,
-        height: visualizationImage.value.naturalHeight
-      };
-    }
-    
-  }
-  
-  await nextTick();
-  // SVG overlay will update automatically, no need to call drawPoseVisualization
 };
 
 const handleAnalysisError = (analysisError) => {

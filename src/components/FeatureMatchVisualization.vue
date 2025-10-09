@@ -342,10 +342,6 @@
       <div class="flex items-center justify-between mb-4">
         <h6 class="text-sm font-medium text-gray-700">Interactive Homography Testing</h6>
         <div class="flex items-center space-x-2">
-          <label class="text-xs text-gray-600">
-            <input v-model="debugMode" type="checkbox" class="mr-1" />
-            Enable click testing
-          </label>
           <button
             v-if="testPoints.length > 0"
             @click="clearTestPoints"
@@ -356,7 +352,7 @@
         </div>
       </div>
       
-      <div v-if="debugMode" class="mb-4 p-3 bg-blue-50 rounded-lg">
+      <div class="mb-4 p-3 bg-blue-50 rounded-lg">
         <p class="text-xs text-blue-700 mb-2">
           <strong>Click Testing Mode:</strong> Click on the source image (left) to test homography projection accuracy.
           The projected point will appear on the target image (right).
@@ -370,7 +366,7 @@
       </div>
 
       <!-- Modified source and target images for click testing -->
-      <div v-if="debugMode" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- Clickable Source Image -->
         <div class="relative">
           <h6 class="text-xs font-medium text-gray-700 mb-2">
@@ -395,6 +391,7 @@
               :viewBox="`0 0 ${debugSourceImageDimensions.naturalWidth} ${debugSourceImageDimensions.naturalHeight}`"
               preserveAspectRatio="xMidYMid meet"
             >
+              <!-- Test points from clicking -->
               <g v-for="(point, index) in testPoints" :key="`test-source-${index}`">
                 <circle
                   :cx="point.source.x"
@@ -414,6 +411,28 @@
                   stroke="white"
                   stroke-width="0.5"
                 >{{ index + 1 }}</text>
+              </g>
+              
+              <!-- Selected keypoint from table -->
+              <g v-if="selectedKeypoint">
+                <circle
+                  :cx="selectedKeypoint.original.x"
+                  :cy="selectedKeypoint.original.y"
+                  r="12"
+                  fill="#ef4444"
+                  stroke="yellow"
+                  stroke-width="3"
+                  opacity="0.9"
+                />
+                <text
+                  :x="selectedKeypoint.original.x + 16"
+                  :y="selectedKeypoint.original.y - 10"
+                  font-size="14"
+                  fill="#dc2626"
+                  font-weight="bold"
+                  stroke="yellow"
+                  stroke-width="1"
+                >{{ selectedKeypoint.name }}</text>
               </g>
             </svg>
           </div>
@@ -442,6 +461,7 @@
               :viewBox="`0 0 ${debugTargetImageDimensions.naturalWidth} ${debugTargetImageDimensions.naturalHeight}`"
               preserveAspectRatio="xMidYMid meet"
             >
+              <!-- Test points from clicking -->
               <g v-for="(point, index) in validTestProjections" :key="`test-target-${index}`">
                 <circle
                   :cx="point.projected.x"
@@ -462,13 +482,70 @@
                   stroke-width="0.5"
                 >{{ index + 1 }}</text>
               </g>
+              
+              <!-- Selected keypoint and its closest hold -->
+              <g v-if="selectedKeypoint">
+                <!-- Line connecting keypoint to hold -->
+                <line
+                  v-if="selectedKeypointHoldCoords"
+                  :x1="selectedKeypoint.transformed.x"
+                  :y1="selectedKeypoint.transformed.y"
+                  :x2="selectedKeypointHoldCoords.x"
+                  :y2="selectedKeypointHoldCoords.y"
+                  stroke="yellow"
+                  stroke-width="3"
+                  opacity="0.8"
+                />
+                
+                <!-- Projected keypoint -->
+                <circle
+                  :cx="selectedKeypoint.transformed.x"
+                  :cy="selectedKeypoint.transformed.y"
+                  r="12"
+                  fill="#ef4444"
+                  stroke="yellow"
+                  stroke-width="3"
+                  opacity="0.9"
+                />
+                <text
+                  :x="selectedKeypoint.transformed.x + 16"
+                  :y="selectedKeypoint.transformed.y - 10"
+                  font-size="14"
+                  fill="#dc2626"
+                  font-weight="bold"
+                  stroke="yellow"
+                  stroke-width="1"
+                >{{ selectedKeypoint.name }}</text>
+                
+                <!-- Closest hold -->
+                <g v-if="selectedKeypointHoldCoords">
+                  <circle
+                    :cx="selectedKeypointHoldCoords.x"
+                    :cy="selectedKeypointHoldCoords.y"
+                    r="10"
+                    fill="#22c55e"
+                    stroke="yellow"
+                    stroke-width="3"
+                    opacity="0.9"
+                  />
+                  <text
+                    :x="selectedKeypointHoldCoords.x + 14"
+                    :y="selectedKeypointHoldCoords.y + 5"
+                    font-size="12"
+                    fill="#16a34a"
+                    font-weight="bold"
+                    stroke="yellow"
+                    stroke-width="1"
+                  >Hold</text>
+                </g>
+              </g>
             </svg>
           </div>
         </div>
       </div>
 
       <!-- Test Results Table -->
-      <div v-if="debugMode && testPoints.length > 0" class="mt-4">
+      <div v-if="testPoints.length > 0" class="mt-4">
         <h6 class="text-xs font-medium text-gray-700 mb-2">Projection Test Results</h6>
         <div class="overflow-x-auto">
           <table class="min-w-full text-xs bg-white border border-gray-200 rounded">
@@ -535,6 +612,10 @@ const props = defineProps({
   homographyMatrix: {
     type: Array,
     default: () => null
+  },
+  selectedKeypoint: {
+    type: Object,
+    default: () => null
   }
 })
 
@@ -550,8 +631,7 @@ const targetImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, natura
 const showOutliers = ref(true)
 const maxDisplayMatches = ref(50)
 
-// Debug mode for interactive testing
-const debugMode = ref(false)
+// Interactive testing (always enabled)
 const testPoints = ref([])
 const debugSourceImage = ref(null)
 const debugTargetImage = ref(null)
@@ -642,6 +722,42 @@ const processedMatches = computed(() => {
     ...match,
     isInlier: index < props.homographyInliers
   }))
+})
+
+// Extract hold coordinates for selected keypoint
+const selectedKeypointHoldCoords = computed(() => {
+  if (!props.selectedKeypoint || !props.selectedKeypoint.closestHold) return null
+  
+  const hold = props.selectedKeypoint.closestHold
+  let holdX, holdY
+  
+  // Extract center coordinates from various hold formats
+  if (hold.coordinates) {
+    holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2
+    holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2
+  } else if (hold.bbox && Array.isArray(hold.bbox)) {
+    holdX = hold.bbox[0] + hold.bbox[2] / 2
+    holdY = hold.bbox[1] + hold.bbox[3] / 2
+  } else if (hold.bbox && typeof hold.bbox === 'object') {
+    holdX = hold.bbox.x + (hold.bbox.width || 0) / 2
+    holdY = hold.bbox.y + (hold.bbox.height || 0) / 2
+  } else if (hold.x !== undefined && hold.y !== undefined) {
+    // Check if this is already a center coordinate (from AI detected holds)
+    if (hold.source === 'ai-detected' || hold.aiModel === 'server-detection') {
+      holdX = hold.x // Already center coordinate
+      holdY = hold.y // Already center coordinate
+    } else {
+      holdX = hold.x + (hold.width || 0) / 2
+      holdY = hold.y + (hold.height || 0) / 2
+    }
+  } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
+    holdX = hold.center_x
+    holdY = hold.center_y
+  } else {
+    return null
+  }
+  
+  return { x: holdX, y: holdY }
 })
 
 // Check if we can render the combined view
@@ -796,7 +912,7 @@ const targetImageScale = computed(() => ({
 
 // Interactive testing functions
 const onSourceImageClick = (event) => {
-  if (!props.homographyMatrix || !debugMode.value) {
+  if (!props.homographyMatrix) {
     return
   }
 
