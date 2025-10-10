@@ -939,18 +939,17 @@ const saveDetectionToFirestore = async () => {
 
     // Convert AI detection results to unified format
     const aiHolds = (serverStore.results?.holds || []).map((hold, index) => {
-      // DEBUG: Log the structure of the first few holds
-      if (index < 3) {
-      }
+      const centerX = (hold.x || 0) + (hold.width || 0) / 2;
+      const centerY = (hold.y || 0) + (hold.height || 0) / 2;
       
       return {
         id: `ai_hold_${index}`,
         source: 'ai-detected',
         svgMarkup: serverStore.results?.svg_markups?.[index] || '',
-        // The serverStore.results.holds already have x,y,width,height from convertApiResponseToFrontendFormat
-        // x,y are top-left corner from bbox, so calculate center coordinates  
-        x: (hold.x || 0) + (hold.width || 0) / 2,
-        y: (hold.y || 0) + (hold.height || 0) / 2,
+        // COORDINATE SYSTEM: Server returns bbox in UNKNOWN coordinate space
+        // We calculate center and store it - this will be saved to Firestore
+        x: centerX,
+        y: centerY,
         width: hold.width || 0,
         height: hold.height || 0,
         confidence: hold.confidence || 0,
@@ -963,9 +962,92 @@ const saveDetectionToFirestore = async () => {
 
     // Calculate viewBox from image dimensions
     const imageElement = climbingImage.value;
-    const viewBox = imageElement ? 
-      `0 0 ${imageElement.naturalWidth} ${imageElement.naturalHeight}` : 
-      '0 0 1920 1080'; // fallback
+    
+    console.log('\n🖼️  STEP 2: IMAGE ELEMENT ANALYSIS');
+    console.log('─────────────────────────────────────');
+    if (imageElement) {
+      console.log(`   - Image element exists: YES`);
+      console.log(`   - naturalWidth: ${imageElement.naturalWidth}`);
+      console.log(`   - naturalHeight: ${imageElement.naturalHeight}`);
+      console.log(`   - displayWidth: ${imageElement.clientWidth}`);
+      console.log(`   - displayHeight: ${imageElement.clientHeight}`);
+    } else {
+      console.log(`   - Image element exists: NO`);
+    }
+    
+    // CRITICAL: Check if SVG markup uses a different viewBox than the natural image
+    // Parse the first SVG markup to extract its viewBox if present
+    console.log('\n📐 STEP 3: SVG VIEWBOX DETECTION');
+    console.log('─────────────────────────────────────');
+    let svgViewBox = null;
+    if (serverStore.results?.svg_markups?.[0]) {
+      const firstMarkup = serverStore.results.svg_markups[0];
+      console.log(`   - First SVG markup length: ${firstMarkup.length} chars`);
+      
+      const viewBoxMatch = firstMarkup.match(/viewBox=["']([^"']+)["']/);
+      if (viewBoxMatch) {
+        svgViewBox = viewBoxMatch[1];
+        const parts = svgViewBox.split(' ');
+        console.log(`   - ✅ Found viewBox in SVG: "${svgViewBox}"`);
+        console.log(`   - viewBox dimensions: ${parts[2]} x ${parts[3]}`);
+      } else {
+        console.log(`   - ❌ No viewBox attribute found in SVG markup`);
+        console.log(`   - SVG start: ${firstMarkup.substring(0, 200)}`);
+      }
+    } else {
+      console.log(`   - ❌ No SVG markups available`);
+    }
+    
+    // Use SVG viewBox if found, otherwise use natural dimensions
+    const viewBox = svgViewBox || 
+      (imageElement ? `0 0 ${imageElement.naturalWidth} ${imageElement.naturalHeight}` : '0 0 1920 1080');
+    
+    console.log('\n� STEP 4: METADATA TO BE SAVED TO FIRESTORE');
+    console.log('─────────────────────────────────────');
+    console.log(`   - viewBox: "${viewBox}"`);
+    console.log(`   - imageDimensions.width: ${imageElement?.naturalWidth || 1920}`);
+    console.log(`   - imageDimensions.height: ${imageElement?.naturalHeight || 1080}`);
+    console.log(`   - Using server SVG viewBox: ${!!svgViewBox ? 'YES ✅' : 'NO ❌'}`);
+    
+    const viewBoxParts = viewBox.split(' ');
+    const viewBoxWidth = parseFloat(viewBoxParts[2]);
+    const viewBoxHeight = parseFloat(viewBoxParts[3]);
+    const actualWidth = imageElement?.naturalWidth || 1920;
+    const actualHeight = imageElement?.naturalHeight || 1080;
+    
+    console.log('\n🔢 STEP 5: COORDINATE SYSTEM ANALYSIS');
+    console.log('─────────────────────────────────────');
+    console.log(`   - viewBox dimensions: ${viewBoxWidth} x ${viewBoxHeight}`);
+    console.log(`   - actual (natural) dimensions: ${actualWidth} x ${actualHeight}`);
+    console.log(`   - Scale factor X: ${actualWidth / viewBoxWidth} (actual/viewBox)`);
+    console.log(`   - Scale factor Y: ${actualHeight / viewBoxHeight} (actual/viewBox)`);
+    
+    if (viewBoxWidth === actualWidth && viewBoxHeight === actualHeight) {
+      console.log(`   ⚠️  WARNING: viewBox === actualDimensions`);
+      console.log(`   ⚠️  This means NO coordinate conversion will happen!`);
+      console.log(`   ⚠️  Hold coordinates are ALREADY in natural image space`);
+    } else {
+      console.log(`   ✅ viewBox ≠ actualDimensions`);
+      console.log(`   ✅ Hold coordinates WILL be converted from viewBox to natural`);
+    }
+    
+    console.log('\n📊 STEP 6: SAMPLE HOLD COORDINATE VERIFICATION');
+    console.log('─────────────────────────────────────');
+    if (aiHolds.length > 0) {
+      const sampleHold = aiHolds[0];
+      console.log(`   Sample: ${sampleHold.id}`);
+      console.log(`   - Saved center coordinates: (${sampleHold.x.toFixed(1)}, ${sampleHold.y.toFixed(1)})`);
+      console.log(`   - These coordinates are in: ${svgViewBox ? 'SVG viewBox space' : 'Natural image space'}`);
+      console.log(`   - When loaded by VideoFrameMatcherEnhanced, they will be:`);
+      if (svgViewBox && viewBoxWidth !== actualWidth) {
+        const convertedX = sampleHold.x * (actualWidth / viewBoxWidth);
+        const convertedY = sampleHold.y * (actualHeight / viewBoxHeight);
+        console.log(`     → Converted to: (${convertedX.toFixed(1)}, ${convertedY.toFixed(1)}) in natural space`);
+      } else {
+        console.log(`     → Used as-is: (${sampleHold.x.toFixed(1)}, ${sampleHold.y.toFixed(1)}) (already natural)`);
+      }
+    }
+    console.log('═══════════════════════════════════════════════════════════════\n');
 
     const detectionData = {
       aiHolds,

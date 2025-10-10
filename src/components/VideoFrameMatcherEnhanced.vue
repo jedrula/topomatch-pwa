@@ -811,8 +811,8 @@ const extractHoldCoordinates = (hold) => {
     // Check if this is already a center coordinate (from our processed AI holds)
     // Our AI holds from the server have x,y as center coordinates already
     if (hold.source === 'ai-detected' || hold.aiModel === 'server-detection') {
-      holdX = hold.x; // Already center coordinate
-      holdY = hold.y; // Already center coordinate
+      holdX = hold.x; // Already center coordinate in detection space (e.g., 1080x1440)
+      holdY = hold.y; // Already center coordinate in detection space
     } else {
       // For other holds, treat x,y as top-left and calculate center
       holdX = hold.x + (hold.width || 0) / 2;
@@ -824,6 +824,8 @@ const extractHoldCoordinates = (hold) => {
     return null;
   }
 
+  // NOTE: Holds are kept in their stored coordinate space (detection image space, e.g., 1080x1440)
+  // Keypoints will be scaled to match this space in findClosestHolds()
   return { x: holdX, y: holdY };
 };
 
@@ -853,6 +855,41 @@ const findClosestHolds = (keypointX, keypointY) => {
     };
   }
 
+  // CRITICAL COORDINATE SPACE CONVERSION
+  // Transformed keypoints are in REFERENCE IMAGE space (the actual loaded image dimensions, e.g., 1200x1600)
+  // Holds are stored in DETECTION IMAGE space (the resized dimensions from AI detection, e.g., 1080x1440)
+  // We MUST scale the keypoint to match the hold coordinate space before calculating distances!
+  
+  const referenceImageDims = bestMatch.value.referenceImageDimensions; // The actual loaded image (e.g., 1200x1600)
+  const metadata = bestMatch.value.detectionResults?.imageMetadata;
+  const detectionImageDims = metadata?.imageDimensions; // The AI detection dimensions (e.g., 1080x1440)
+  
+  let scaledKeypointX = keypointX;
+  let scaledKeypointY = keypointY;
+  
+  if (referenceImageDims && detectionImageDims) {
+    const scaleX = detectionImageDims.width / referenceImageDims.width;
+    const scaleY = detectionImageDims.height / referenceImageDims.height;
+    
+    scaledKeypointX = keypointX * scaleX;
+    scaledKeypointY = keypointY * scaleY;
+    
+    console.log(`🔄 COORDINATE SPACE CONVERSION:`, {
+      originalKeypoint: `(${keypointX.toFixed(1)}, ${keypointY.toFixed(1)})`,
+      referenceImageSpace: `${referenceImageDims.width}x${referenceImageDims.height}`,
+      scaledKeypoint: `(${scaledKeypointX.toFixed(1)}, ${scaledKeypointY.toFixed(1)})`,
+      detectionImageSpace: `${detectionImageDims.width}x${detectionImageDims.height}`,
+      scaleFactors: `${scaleX.toFixed(3)}x, ${scaleY.toFixed(3)}x`
+    });
+  } else {
+    console.warn(`⚠️ Missing dimensions for coordinate conversion:`, {
+      hasReferenceImageDims: !!referenceImageDims,
+      referenceImageDims,
+      hasDetectionImageDims: !!detectionImageDims,
+      detectionImageDims
+    });
+  }
+
   const proximityThreshold = 300;
   const allHoldsWithDistances = [];
   
@@ -868,49 +905,20 @@ const findClosestHolds = (keypointX, keypointY) => {
   // DUAL SOURCE: Check both AI detection results AND manual holds from boulder problems
   // Source 1: AI detection results from Firestore hold detection service
   if (bestMatch.value.detectionResults && bestMatch.value.detectionResults.results) {
-    console.log(`🔬 Total AI holds to check: ${bestMatch.value.detectionResults.results.length}`);
-    
     bestMatch.value.detectionResults.results.forEach((detectedHold, index) => {
-      // DEBUG: Show RAW hold data for first few holds
-      if (index < 3) {
-        console.log(`🔬 RAW AI Hold #${index}:`, JSON.parse(JSON.stringify(detectedHold)));
-      }
-      
       const coords = extractHoldCoordinates(detectedHold);
       if (!coords) {
         console.warn(`⚠️ Could not extract coords from AI hold #${index}:`, detectedHold);
         return;
       }
 
-      const distance = Math.sqrt(Math.pow(keypointX - coords.x, 2) + Math.pow(keypointY - coords.y, 2));
+      const distance = Math.sqrt(Math.pow(scaledKeypointX - coords.x, 2) + Math.pow(scaledKeypointY - coords.y, 2));
       const score = distance <= proximityThreshold ? 
         Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
 
       // Look up which boulder problem this hold belongs to
       const holdIndex = detectedHold.holdIndex ?? index;
       const associatedProblem = findBoulderProblemForHold(holdIndex);
-      
-      // DEBUG: Log ALL AI holds within range with FULL details
-      if (distance < proximityThreshold) {
-        console.log(`🔍 AI Hold within range:`, {
-          arrayIndex: index,
-          holdIndex: holdIndex,
-          holdId: detectedHold.id,
-          extractedCoords: coords,
-          rawHoldData: {
-            bbox: detectedHold.bbox,
-            x: detectedHold.x,
-            y: detectedHold.y,
-            centerX: detectedHold.centerX,
-            centerY: detectedHold.centerY,
-            center_x: detectedHold.center_x,
-            center_y: detectedHold.center_y
-          },
-          distance: distance,
-          problemName: associatedProblem?.name || 'unclassified',
-          source: 'ai-detection'
-        });
-      }
 
       allHoldsWithDistances.push({
         hold: {
@@ -935,21 +943,9 @@ const findClosestHolds = (keypointX, keypointY) => {
           // The actual hold data is in the nested 'hold' property
           const hold = holdWrapper.hold || holdWrapper;
           const coords = extractHoldCoordinates(hold);
-          if (!coords) return;          const distance = Math.sqrt(Math.pow(keypointX - coords.x, 2) + Math.pow(keypointY - coords.y, 2));
+          if (!coords) return;          const distance = Math.sqrt(Math.pow(scaledKeypointX - coords.x, 2) + Math.pow(scaledKeypointY - coords.y, 2));
           const score = distance <= proximityThreshold ? 
             Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
-
-          // DEBUG: Log manual hold details
-          if (distance < proximityThreshold) {
-            console.log(`🔍 Manual Hold within range:`, {
-              holdIndex: holdWrapper.holdIndex || hold.holdIndex,
-              holdId: hold.id,
-              coords: coords,
-              distance: distance,
-              problemName: problem.name,
-              source: 'manual'
-            });
-          }
 
           allHoldsWithDistances.push({
             hold: {
@@ -977,11 +973,13 @@ const findClosestHolds = (keypointX, keypointY) => {
   // DEBUG: Show what was selected as closest
   if (closest.hold) {
     console.log(`✅ Closest hold selected:`, {
+      originalKeypoint: `(${keypointX.toFixed(1)}, ${keypointY.toFixed(1)})`,
+      scaledKeypoint: `(${scaledKeypointX.toFixed(1)}, ${scaledKeypointY.toFixed(1)})`,
       holdId: closest.hold.id,
       holdIndex: closest.hold.holdIndex,
       distance: closest.distance,
       problemName: closest.problem?.name || 'unclassified',
-      coords: extractHoldCoordinates(closest.hold)
+      holdCoords: extractHoldCoordinates(closest.hold)
     });
   }
 
@@ -1368,9 +1366,17 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       const holdDetectionData = await holdDetectionService.getHoldDetection(props.locationId, bestMatchResult.id);
       if (holdDetectionData && holdDetectionData.detectionResults) {
         // Attach detection results to bestMatch so findClosestHolds can use them
+        // Include BOTH results and metadata (which contains viewBox)
         bestMatch.value.detectionResults = {
-          results: holdDetectionData.detectionResults.aiHolds || []
+          results: holdDetectionData.detectionResults.aiHolds || [],
+          imageMetadata: holdDetectionData.detectionResults.metadata || {}
         };
+        
+        console.log('✅ Loaded AI detection results with metadata:', {
+          holdCount: holdDetectionData.detectionResults.aiHolds?.length || 0,
+          viewBox: holdDetectionData.detectionResults.metadata?.viewBox || 'not found',
+          imageDimensions: holdDetectionData.detectionResults.metadata?.imageDimensions
+        });
       } else {
         console.log('⚠️ No AI detection results found in Firestore for image:', bestMatchResult.id);
       }
@@ -1440,6 +1446,18 @@ const handleAnalysisComplete = async (bestMatchResult) => {
         bestMatchResult.homographyMatrix = homographyResult.matrix;
         bestMatchResult.homographyInliers = homographyResult.inliers;
         bestMatchResult.totalMatches = matches.length;
+        
+        // CRITICAL: Store the reference image dimensions that homography was calculated against
+        // These are the actual loaded image dimensions (e.g., 1200x1600)
+        // NOT the AI detection dimensions (1080x1440)
+        // We need these to correctly scale transformed keypoints to match hold coordinate space
+        bestMatchResult.referenceImageDimensions = topoImageDims;
+        
+        console.log('🔍 Stored reference image dimensions for coordinate conversion:', {
+          width: topoImageDims.width,
+          height: topoImageDims.height,
+          storedIn: 'bestMatchResult.referenceImageDimensions'
+        });
         
         // Store feature matches for visualization (limit to first 100 for performance)
         featureMatches.value = matches.slice(0, 100);
