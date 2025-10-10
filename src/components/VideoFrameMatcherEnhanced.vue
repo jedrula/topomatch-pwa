@@ -357,9 +357,12 @@
                   :target-image-url="bestMatch.url"
                   :feature-matches="featureMatches"
                   :homography-inliers="bestMatch.homographyInliers || 0"
-                  :pose-keypoints="extractedFrames[0]?.poseData?.keypoints || []"
+                  :pose-keypoints="getPoseKeypointsArray(extractedFrames[0]?.poseData)"
                   :homography-matrix="bestMatch.homographyMatrix"
                   :selected-keypoint="selectedKeypoint"
+                  :reference-image-dimensions="bestMatch.referenceImageDimensions"
+                  :detection-space-dimensions="bestMatch.detectionResults?.imageMetadata?.viewBox ? 
+                    parseViewBoxDimensions(bestMatch.detectionResults.imageMetadata.viewBox) : null"
                 />
               </div>
             </div>
@@ -601,6 +604,7 @@ import {
   transformPoints,
 } from '@/utils/homographyUtils';
 import { convertProjectedPointsForDistanceCalculation } from '@/utils/coordinateScaling';
+import { parseViewBoxDimensions } from '@/utils/coordinateScaling';
 import { usePoseDetection } from '@/composables/usePoseDetection';
 import { useInferenceStore } from '@/stores/inferenceStore';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
@@ -745,7 +749,7 @@ watch(poseDetectionError, (newError) => {
 // Frame timestamps for extraction - configurable for debugging
 const FRAMES_FOR_ANALYSIS = 1;
 const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
-  ? [0.1] // Just extract first frame for debugging
+  ? [0.2] // Just extract one frame for debugging
   : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]; // 10 samples evenly distributed
 
 // Colors for different frames - 10 distinct colors for better visualization
@@ -761,6 +765,34 @@ const FRAME_COLORS = [
   '#84cc16', // lime
   '#ec4899'  // pink
 ];
+
+// Helper function to convert pose keypoints object to array
+const getPoseKeypointsArray = (poseData) => {
+  if (!poseData || !poseData.keypoints) return [];
+  
+  const keypoints = poseData.keypoints;
+  const keypointArray = [];
+  
+  // Convert object properties to array
+  const keypointNames = [
+    'leftWrist', 'rightWrist', 
+    'leftAnkle', 'rightAnkle',
+  ];
+  
+  debugger;
+  for (const name of keypointNames) {
+    if (keypoints[name] && keypoints[name].x !== undefined && keypoints[name].y !== undefined) {
+      keypointArray.push({
+        x: keypoints[name].x,
+        y: keypoints[name].y,
+        confidence: keypoints[name].confidence || 0,
+        name: name
+      });
+    }
+  }
+  
+  return keypointArray;
+};
 
 // Helper function to initialize agent logging
 const initializeAgentLogs = () => {
@@ -1195,6 +1227,17 @@ const processVideo = async () => {
 
       try {
         const poseResult = await extractPoseKeypoints(frames[i].imageData);
+        
+        // DIAGNOSTIC: Log frame and pose data to detect anomalies
+        if (i === 9 || (poseResult?.keypoints?.leftWrist?.y > 640)) {
+          console.warn(`🔍 FRAME ${i} DIAGNOSTIC:`, {
+            frameIndex: i,
+            imageDataDims: `${frames[i].imageData.width}×${frames[i].imageData.height}`,
+            leftWristCoords: poseResult?.keypoints?.leftWrist ? 
+              `(${poseResult.keypoints.leftWrist.x}, ${poseResult.keypoints.leftWrist.y})` : 'N/A',
+            suspicious: poseResult?.keypoints?.leftWrist?.y > 640 ? '⚠️ Y > 640!' : 'OK'
+          });
+        }
         
         if (poseResult && poseResult.error) {
           // Pose detection failed with specific error

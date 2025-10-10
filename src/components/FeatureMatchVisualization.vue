@@ -616,6 +616,15 @@ const props = defineProps({
   selectedKeypoint: {
     type: Object,
     default: () => null
+  },
+  // Coordinate space metadata for proper scaling
+  referenceImageDimensions: {
+    type: Object,
+    default: () => null // { width, height } - inference dimensions
+  },
+  detectionSpaceDimensions: {
+    type: Object,
+    default: () => null // { width, height } - from viewBox where holds are stored
   }
 })
 
@@ -726,6 +735,12 @@ const processedMatches = computed(() => {
 
 // Extract hold coordinates for selected keypoint
 const selectedKeypointHoldCoords = computed(() => {
+  console.log('🔍 selectedKeypointHoldCoords computed called:', {
+    hasSelectedKeypoint: !!props.selectedKeypoint,
+    hasClosestHold: !!props.selectedKeypoint?.closestHold,
+    selectedKeypoint: props.selectedKeypoint
+  });
+  
   if (!props.selectedKeypoint || !props.selectedKeypoint.closestHold) return null
   
   const hold = props.selectedKeypoint.closestHold
@@ -742,16 +757,68 @@ const selectedKeypointHoldCoords = computed(() => {
     holdX = hold.bbox.x + (hold.bbox.width || 0) / 2
     holdY = hold.bbox.y + (hold.bbox.height || 0) / 2
   } else if (hold.x !== undefined && hold.y !== undefined) {
-    // Check if this is already a center coordinate (from AI detected holds)
-    if (hold.source === 'ai-detected' || hold.aiModel === 'server-detection') {
-      // CRITICAL FIX: These coordinates are stored in detection space (1080x1440)
-      // but the visualization canvas shows the reference image (1200x1600)
-      // Scale UP from detection space to reference space for correct display
-      const scaleX = 1200 / 1080  // ~1.111 (inverse of the 0.9x used for keypoints)
-      const scaleY = 1600 / 1440  // ~1.111
-      holdX = hold.x * scaleX // Scale from detection to reference space
-      holdY = hold.y * scaleY // Scale from detection to reference space
+    // Check if this hold comes from server detection (AI or manual)
+    // Both AI holds and manual holds drawn on HoldDetectionServerView are stored in detection space
+    const isFromServerDetection = 
+      hold.source === 'ai-detected' || 
+      hold.aiModel === 'server-detection' ||
+      hold.detectionSource === 'server' ||
+      hold.source === 'manual'; // Manual holds drawn on server view are also in detection space
+    
+    if (isFromServerDetection) {
+      // CRITICAL FIX: These coordinates are stored in detection space (1080×1440)
+      // but the visualization canvas shows the reference image
+      // Scale UP from detection space to SVG viewBox space for correct display
+      
+      // FAIL LOUDLY if dimensions are missing - no silent fallbacks!
+      if (!props.detectionSpaceDimensions || !props.referenceImageDimensions) {
+        console.error('❌ MISSING COORDINATE DIMENSIONS:', {
+          detectionSpaceDimensions: props.detectionSpaceDimensions,
+          referenceImageDimensions: props.referenceImageDimensions,
+          hold: hold
+        });
+        return null; // Don't render with wrong coordinates
+      }
+      
+      const detectionWidth = props.detectionSpaceDimensions.width
+      const detectionHeight = props.detectionSpaceDimensions.height
+      const referenceWidth = props.referenceImageDimensions.width
+      const referenceHeight = props.referenceImageDimensions.height
+      
+      // CRITICAL QUESTION: Does referenceImageDimensions match the SVG viewBox dimensions?
+      const svgWidth = debugTargetImageDimensions.value.naturalWidth
+      const svgHeight = debugTargetImageDimensions.value.naturalHeight
+      
+      const dimensionsMatch = (referenceWidth === svgWidth && referenceHeight === svgHeight)
+      
+      console.log('🔍 COORDINATE SPACE DIAGNOSTIC:', {
+        holdSource: hold.source,
+        holdDetectionSource: hold.detectionSource,
+        referenceImageDimensions: `${referenceWidth}×${referenceHeight}`,
+        svgViewBoxDimensions: `${svgWidth}×${svgHeight}`,
+        dimensionsMatch: dimensionsMatch ? '✅ SAME' : '⚠️ DIFFERENT!',
+        detectionSpace: `${detectionWidth}×${detectionHeight}`
+      })
+      
+      // Scale from detection space to the CORRECT target space
+      // The SVG viewBox uses naturalWidth/Height
+      // The keypoints are in referenceImageDimensions space (from homography)
+      // For visualization, we need to use SVG viewBox space
+      const scaleX = svgWidth / detectionWidth
+      const scaleY = svgHeight / detectionHeight
+      
+      holdX = hold.x * scaleX
+      holdY = hold.y * scaleY
+      
+      console.log('🎯 HOLD VISUALIZATION SCALING:', {
+        holdInDetectionSpace: `(${hold.x}, ${hold.y})`,
+        scaledHold: `(${holdX.toFixed(1)}, ${holdY.toFixed(1)})`,
+        scaleFactors: `${scaleX.toFixed(3)}×${scaleY.toFixed(3)}`,
+        targetSpace: 'SVG viewBox (for rendering)',
+        holdType: hold.source || 'unknown'
+      });
     } else {
+      // Legacy holds or holds from other sources - use as center with width/height
       holdX = hold.x + (hold.width || 0) / 2
       holdY = hold.y + (hold.height || 0) / 2
     }
