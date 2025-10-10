@@ -744,8 +744,13 @@ const selectedKeypointHoldCoords = computed(() => {
   } else if (hold.x !== undefined && hold.y !== undefined) {
     // Check if this is already a center coordinate (from AI detected holds)
     if (hold.source === 'ai-detected' || hold.aiModel === 'server-detection') {
-      holdX = hold.x // Already center coordinate
-      holdY = hold.y // Already center coordinate
+      // CRITICAL FIX: These coordinates are stored in detection space (1080x1440)
+      // but the visualization canvas shows the reference image (1200x1600)
+      // Scale UP from detection space to reference space for correct display
+      const scaleX = 1200 / 1080  // ~1.111 (inverse of the 0.9x used for keypoints)
+      const scaleY = 1600 / 1440  // ~1.111
+      holdX = hold.x * scaleX // Scale from detection to reference space
+      holdY = hold.y * scaleY // Scale from detection to reference space
     } else {
       holdX = hold.x + (hold.width || 0) / 2
       holdY = hold.y + (hold.height || 0) / 2
