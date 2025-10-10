@@ -747,7 +747,7 @@ watch(poseDetectionError, (newError) => {
 // Watch for pose visibility changes to debug checkbox behavior
 
 // Frame timestamps for extraction - configurable for debugging
-const FRAMES_FOR_ANALYSIS = 1;
+const FRAMES_FOR_ANALYSIS = 10;
 const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
   ? [0.2] // Just extract one frame for debugging
   : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]; // 10 samples evenly distributed
