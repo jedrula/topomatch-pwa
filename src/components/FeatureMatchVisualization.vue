@@ -187,7 +187,7 @@
                   font-weight="bold"
                   stroke="white"
                   stroke-width="0.5"
-                >{{ index }}</text>
+                >{{ index + 1 }}</text>
               </g>
             </svg>
           </div>
@@ -233,7 +233,7 @@
                   font-weight="bold"
                   stroke="white"
                   stroke-width="0.5"
-                >{{ index }}</text>
+                >{{ index + 1 }}</text>
                 
                 <!-- Show closest hold connection if available -->
                 <g v-if="projection.closestHold">

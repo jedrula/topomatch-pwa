@@ -357,7 +357,7 @@
                   :target-image-url="bestMatch.url"
                   :feature-matches="featureMatches"
                   :homography-inliers="bestMatch.homographyInliers || 0"
-                  :pose-keypoints="getPoseKeypointsArray(extractedFrames[0]?.poseData)"
+                  :pose-keypoints="getAllPoseKeypointsArray()"
                   :homography-matrix="bestMatch.homographyMatrix"
                   :selected-keypoint="selectedKeypoint"
                   :reference-image-dimensions="bestMatch.referenceImageDimensions"
@@ -766,7 +766,7 @@ const FRAME_COLORS = [
   '#ec4899'  // pink
 ];
 
-// Helper function to convert pose keypoints object to array
+// Helper function to convert pose keypoints object to array (single frame)
 const getPoseKeypointsArray = (poseData) => {
   if (!poseData || !poseData.keypoints) return [];
   
@@ -779,7 +779,6 @@ const getPoseKeypointsArray = (poseData) => {
     'leftAnkle', 'rightAnkle',
   ];
   
-  debugger;
   for (const name of keypointNames) {
     if (keypoints[name] && keypoints[name].x !== undefined && keypoints[name].y !== undefined) {
       keypointArray.push({
@@ -792,6 +791,30 @@ const getPoseKeypointsArray = (poseData) => {
   }
   
   return keypointArray;
+};
+
+// Helper function to get ALL pose keypoints from ALL frames
+const getAllPoseKeypointsArray = () => {
+  const allKeypoints = [];
+  
+  // Iterate through all extracted frames
+  extractedFrames.value.forEach((frame, frameIndex) => {
+    if (frame.poseData && frame.poseData.keypoints) {
+      const frameKeypoints = getPoseKeypointsArray(frame.poseData);
+      
+      // Add frame index to each keypoint for identification
+      frameKeypoints.forEach(kp => {
+        allKeypoints.push({
+          ...kp,
+          frameIndex: frameIndex,
+          // Name will be like "Frame 0 - leftWrist", "Frame 1 - rightAnkle", etc.
+          frameName: `Frame ${frameIndex}`
+        });
+      });
+    }
+  });
+  
+  return allKeypoints;
 };
 
 // Helper function to initialize agent logging
