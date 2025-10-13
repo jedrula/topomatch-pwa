@@ -37,6 +37,7 @@
           :auto-start-matching="true"
           @video-selected="$emit('video-selected', $event)"
           @analysis-complete="$emit('analysis-complete', $event)"
+          @table-scores-ready="$emit('table-scores-ready', $event)"
           @processing-error="$emit('processing-error', $event)"
           @video-cleared="$emit('video-cleared')"
         />
@@ -367,6 +368,7 @@ defineEmits([
   'close',
   'video-selected',
   'analysis-complete',
+  'table-scores-ready',
   'processing-error',
   'video-cleared',
   'try-another-video',

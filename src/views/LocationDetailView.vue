@@ -163,6 +163,7 @@
       @close="showBetaUploadModal = false"
       @video-selected="handleBetaVideoSelected"
       @analysis-complete="handleBetaAnalysisComplete"
+      @table-scores-ready="handleTableScoresReady"
       @processing-error="handleBetaProcessingError"
       @video-cleared="handleBetaVideoCleared"
       @try-another-video="handleTryAnotherVideo"
@@ -226,6 +227,7 @@ const {
   pendingRedirectData,
   handleBetaVideoSelected,
   handleBetaAnalysisComplete,
+  handleTableScoresReady, // ✅ NEW: Table-based scoring handler
   handleBetaProcessingError,
   handleBetaVideoCleared,
   handleTryAnotherVideo,

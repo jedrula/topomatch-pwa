@@ -101,34 +101,21 @@ export function useVideoAnalysis() {
     poseResults.value = frameResults;
     analysisPhase.value = 'analyzing-holds';
 
-    // Analyze holds using homography and boulder problem data
-
-    let holdAnalysisResult = null;
-    try {
-      holdAnalysisResult = await runHoldAnalysis(
-        frameResults,
-        analysisData.match?.homographyMatrix,
-        analysisData.match
-      );
-
-      if (holdAnalysisResult?.bestMatch) {
-        analysisPhase.value = 'complete';
-
-        // Store data for potential redirect but don't redirect automatically
-        pendingRedirectData.value = {
-          analysisData,
-          problem: holdAnalysisResult.bestMatch.problem,
-        };
-      } else if (holdAnalysisResult) {
-        analysisPhase.value = 'complete';
-      } else {
-        console.log('❌ Hold analysis failed to return results');
-        analysisPhase.value = 'hold-analysis-failed';
+    // ✅ SIMPLIFIED: Don't calculate scores here - wait for table scores from VideoFrameMatcherEnhanced
+    // The table uses the same shared utility (calculateProblemScores) and will emit results via 'table-scores-ready'
+    // This avoids duplicate calculation and ensures single source of truth
+    
+    // Set initial placeholder - will be replaced by table scores
+    const holdAnalysisResult = {
+      bestMatch: null,
+      allScores: [],
+      transformedFrames: [],
+      debugInfo: {
+        note: 'Waiting for table scores from VideoFrameMatcherEnhanced'
       }
-    } catch (error) {
-      console.error('❌ Hold analysis error:', error);
-      analysisPhase.value = 'hold-analysis-error';
-    }
+    };
+
+    analysisPhase.value = 'complete';
 
     // Store complete result
     videoAnalysisResult.value = {
@@ -178,6 +165,57 @@ export function useVideoAnalysis() {
     pendingRedirectData.value = null;
   };
 
+  // ✅ Handle table scores from VideoFrameMatcherEnhanced (CORRECT scoring)
+  // This replaces the buggy holdAnalysis results with the table-based scores
+  const handleTableScoresReady = (tableScoresData) => {
+    console.log('📊 TABLE SCORES RECEIVED in useVideoAnalysis:', tableScoresData);
+    
+    if (!videoAnalysisResult.value || !tableScoresData.scores || tableScoresData.scores.length === 0) {
+      return;
+    }
+
+    // Convert table scores to the format expected by the UI
+    const winner = tableScoresData.winner;
+    const allScores = tableScoresData.scores;
+    
+    // Create proper score objects for display
+    const formattedScores = allScores.map(scoreData => {
+      // Find the full problem object
+      const problem = tableScoresData.allProblems?.find(p => p.id === scoreData.id);
+      
+      return {
+        problem: problem || { id: scoreData.id, name: scoreData.name },
+        score: scoreData.totalScore, // Raw score (e.g., 7.499)
+        confidence: Math.min(scoreData.totalScore, 1.0),
+        // Additional metadata
+        uniqueHoldsMatched: scoreData.uniqueHoldsCount,
+        matchCount: scoreData.matchCount,
+        averageScorePerHold: parseFloat(scoreData.averageScore)
+      };
+    });
+
+    // ✅ REPLACE the buggy holdAnalysis with correct table scores
+    videoAnalysisResult.value.holdAnalysis = {
+      bestMatch: formattedScores[0], // Winner
+      allScores: formattedScores, // All problems sorted
+      transformedFrames: videoAnalysisResult.value.holdAnalysis?.transformedFrames || []
+    };
+
+    // Update pending redirect data with the CORRECT winner
+    if (formattedScores[0]) {
+      pendingRedirectData.value = {
+        analysisData: {
+          match: videoAnalysisResult.value.match,
+          frames: videoAnalysisResult.value.allFrames,
+          video: videoAnalysisResult.value.video
+        },
+        problem: formattedScores[0].problem
+      };
+      
+      console.log('✅ UPDATED WINNER from table scores:', formattedScores[0].problem.name);
+    }
+  };
+
   // Handle manual continue after analysis review
   const continueToUpload = async () => {
     if (!pendingRedirectData.value) {
@@ -187,235 +225,6 @@ export function useVideoAnalysis() {
 
     const { analysisData, problem } = pendingRedirectData.value;
     await redirectToProblemPageWithVideo(analysisData, problem);
-  };
-
-  // Run hold analysis - compare poses with boulder problems
-  const runHoldAnalysis = async (frameResults, homographyMatrix, matchedImage) => {
-    if (!homographyMatrix) {
-      return {
-        error: 'No homography matrix available',
-        bestMatch: null,
-        allScores: [],
-        transformedFrames: [],
-      };
-    }
-
-    try {
-      // Get boulder problems for the matched image only
-      let problemsForLocation;
-
-      if (matchedImage?.id) {
-        // Filter to only boulder problems that exist on the matched image
-        problemsForLocation = boulderProblemsStore.sortedProblems.filter(
-          (problem) => problem.locationId === route.params.id && problem.imageId === matchedImage.id
-        );
-      } else {
-        // Fallback: use all problems for the location (old behavior)
-        problemsForLocation = boulderProblemsStore.sortedProblems.filter(
-          (problem) => problem.locationId === route.params.id
-        );
-      }
-
-      if (problemsForLocation.length === 0) {
-        return {
-          error: 'No boulder problems found for this location',
-          bestMatch: null,
-          allScores: [],
-          transformedFrames: [],
-        };
-      }
-
-      // Transform pose keypoints to boulder image space
-      const transformedFrames = [];
-
-      for (const frameResult of frameResults) {
-        if (!frameResult.poses || frameResult.poses.length === 0) {
-          continue;
-        }
-
-        // Use the first pose from the frame
-        const firstPose = frameResult.poses[0];
-
-        if (!firstPose.keypoints) {
-          continue;
-        }
-
-        // Extract relevant keypoints for climbing analysis (wrists and ankles)
-        const climbingKeypoints = [
-          { type: 'leftWrist', point: firstPose.keypoints[9] },
-          { type: 'rightWrist', point: firstPose.keypoints[10] },
-          { type: 'leftAnkle', point: firstPose.keypoints[15] },
-          { type: 'rightAnkle', point: firstPose.keypoints[16] },
-        ].filter((kp) => {
-          // Lower confidence threshold to be more inclusive
-          const hasPoint = kp.point && kp.point.confidence > 0.3;
-          return hasPoint;
-        });
-
-
-        // Skip frame if we don't have enough valid keypoints
-        if (climbingKeypoints.length < 2) {
-          continue;
-        }
-
-        // Transform each keypoint to boulder image coordinates using homography
-        const transformedKeypoints = [];
-
-        for (const keypoint of climbingKeypoints) {
-          const transformed = transformPoint(keypoint.point.x, keypoint.point.y, homographyMatrix);
-
-          if (transformed) {
-            transformedKeypoints.push({
-              type: keypoint.type,
-              x: transformed.x,
-              y: transformed.y,
-              confidence: keypoint.point.confidence,
-            });
-          } else {
-            console.log(`❌ Failed to transform ${keypoint.type}`);
-          }
-        }
-
-        if (transformedKeypoints.length > 0) {
-          transformedFrames.push({
-            frameIndex: frameResult.frameIndex,
-            timePercent: frameResult.frame.timePercent,
-            keypoints: transformedKeypoints,
-          });
-        }
-      }
-
-
-      if (transformedFrames.length === 0) {
-        return {
-          error: 'No valid poses found for analysis',
-          bestMatch: null,
-          allScores: [],
-          transformedFrames: [],
-        };
-      }
-
-      // Score each boulder problem based on hold proximity
-      const problemScores = [];
-
-      for (const problem of problemsForLocation) {
-        const score = calculateProblemScoreSimple(problem, transformedFrames);
-
-        // Include ALL problems in the results, not just those with score > 0
-        problemScores.push({
-          problem,
-          score,
-          confidence: Math.min(score, 1.0), // Cap at 1.0
-        });
-
-        if (score > 0) {
-        } else {
-        }
-      }
-
-      // Sort by score (highest first)
-      problemScores.sort((a, b) => b.score - a.score);
-
-      const result = {
-        bestMatch: problemScores[0] || null,
-        allScores: problemScores,
-        transformedFrames,
-        debugInfo: {
-          totalProblems: problemsForLocation.length,
-          validFrames: transformedFrames.length,
-          totalScores: problemScores.length,
-        },
-      };
-
-      return result;
-    } catch (error) {
-      console.error('❌ Hold analysis error:', error);
-      return {
-        error: error.message,
-        bestMatch: null,
-        allScores: [],
-        transformedFrames: [],
-      };
-    }
-  };
-
-  // Calculate how well pose keypoints match with problem holds
-  const calculateProblemScoreSimple = (problem, transformedFrames) => {
-    
-    if (!problem.holds || problem.holds.length === 0) {
-      return 0;
-    }
-
-    let totalScore = 0;
-    const proximityThreshold = 300;
-    const problemMatches = [];
-
-    // For each transformed frame, check proximity to holds  
-    for (const frame of transformedFrames) {
-
-      for (const keypoint of frame.keypoints) {
-        // Skip very low-confidence keypoints
-        if (keypoint.confidence < 0.2) {
-          continue;
-        }
-
-        // Get hold center positions from the problem
-        const holdDistances = problem.holds
-          .map((holdData, index) => {
-            const hold = holdData.hold;
-            let x, y;
-
-            // Extract coordinates
-            if (hold.coordinates) {
-              x = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
-              y = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
-            } else if (hold.bbox && Array.isArray(hold.bbox)) {
-              x = hold.bbox[0] + hold.bbox[2] / 2;
-              y = hold.bbox[1] + hold.bbox[3] / 2;
-            } else if (hold.x !== undefined && hold.y !== undefined) {
-              x = hold.x + (hold.width || 0) / 2;
-              y = hold.y + (hold.height || 0) / 2;
-            } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
-              x = hold.center_x;
-              y = hold.center_y;
-            } else {
-              console.warn('Unknown hold coordinate format:', hold);
-              return null;
-            }
-
-            const distance = Math.sqrt(
-              Math.pow(keypoint.x - x, 2) + Math.pow(keypoint.y - y, 2)
-            );
-
-            // Calculate score
-            const score = distance <= proximityThreshold ? 
-              (proximityThreshold - distance) / proximityThreshold : 0;
-
-            return {
-              holdIndex: holdData.holdIndex || index,
-              distance: Math.round(distance),
-              score: score
-            };
-          })
-          .filter(Boolean)
-          .sort((a, b) => a.distance - b.distance);
-
-        // Get the best scoring hold for this keypoint
-        const bestHold = holdDistances[0];
-        if (bestHold && bestHold.score > 0) {
-          totalScore += bestHold.score;
-          problemMatches.push({
-            keypoint: keypoint.type,
-            frame: frame.frameIndex,
-            holdIndex: bestHold.holdIndex,
-            distance: bestHold.distance,
-            score: bestHold.score
-          });
-        }
-      }
-    }
-
-    return totalScore;
   };
 
   // Redirect to problem page with video data
@@ -492,13 +301,12 @@ export function useVideoAnalysis() {
     // Methods
     handleBetaVideoSelected,
     handleBetaAnalysisComplete,
+    handleTableScoresReady, // ✅ Handle table-based scores (single source of truth)
     handleBetaProcessingError,
     handleBetaVideoCleared,
     handleTryAnotherVideo,
     resetAnalysisState,
     continueToUpload,
-    runHoldAnalysis,
-    calculateProblemScoreSimple,
     redirectToProblemPageWithVideo
   };
 }

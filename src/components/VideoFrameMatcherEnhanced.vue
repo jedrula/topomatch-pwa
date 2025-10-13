@@ -609,6 +609,7 @@ import { usePoseDetection } from '@/composables/usePoseDetection';
 import { useInferenceStore } from '@/stores/inferenceStore';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { holdDetectionService } from '@/services/holdDetectionService';
+import { calculateProblemScores, formatScore } from '@/utils/problemScoringUtils';
 
 // Props
 const props = defineProps({
@@ -640,6 +641,7 @@ const emit = defineEmits([
   'pose-detected',
   'match-found',
   'analysis-complete',
+  'table-scores-ready', // New event for table-based problem scores
   'processing-error',
   'video-cleared',
 ]);
@@ -690,6 +692,46 @@ const uniquePoseErrors = computed(() => {
     .filter(f => f.poseError)
     .map(f => f.poseError);
   return [...new Set(errors)]; // Remove duplicates
+});
+
+// 📊 Calculate problem scores using the shared utility (single source of truth)
+const aggregatedProblemScores = computed(() => {
+  if (!transformedPoses.value || transformedPoses.value.length === 0) return [];
+  
+  // Use the canonical scoring function
+  const scores = calculateProblemScores(transformedPoses.value, getKeypointRows);
+  
+  // Format for display compatibility
+  const results = scores.map(problemScore => ({
+    id: problemScore.problem.id,
+    name: problemScore.problem.name,
+    totalScore: problemScore.score,
+    displayScore: formatScore(problemScore.score, 'percentage'),
+    matchCount: problemScore.matchCount,
+    uniqueHoldsCount: problemScore.uniqueHoldsMatched,
+    averageScore: problemScore.averageScorePerHold.toFixed(3)
+  }));
+  
+  // Log for verification
+  console.log('📊 PROBLEM SCORES (from shared utility):', results);
+  
+  return results;
+});
+
+// Compute and display aggregated scores whenever they change
+watch(aggregatedProblemScores, (scores) => {
+  if (scores.length > 0) {
+    console.log('🏆 TABLE WINNER:', scores[0].name, 'with score:', scores[0].displayScore);
+    console.log('🥈 TABLE 2ND:', scores[1]?.name || 'none', 'with score:', scores[1]?.displayScore || '0%');
+    
+    // ✅ Emit table scores to parent components
+    // This is the CORRECT scoring that should be displayed in the UI
+    emit('table-scores-ready', {
+      scores: scores, // All scores sorted by best first
+      winner: scores[0], // Best match
+      allProblems: matchedImageBoulderProblems.value // All problems for context
+    });
+  }
 });
 
 // Helper function to get visible poses
@@ -900,8 +942,6 @@ const findBoulderProblemForHold = (holdIndex) => {
 const findClosestHolds = (keypointX, keypointY) => {
   initializeAgentLogs(); // Ensure logs are initialized
   
-  console.log(`🎯 Finding closest holds for keypoint at (${keypointX.toFixed(1)}, ${keypointY.toFixed(1)})`);
-  
   if (!bestMatch.value || !bestMatch.value.name) {
     return { 
       closest: { hold: null, problem: null, distance: Infinity, score: 0 },
@@ -928,14 +968,7 @@ const findClosestHolds = (keypointX, keypointY) => {
     
     scaledKeypointX = keypointX * scaleX;
     scaledKeypointY = keypointY * scaleY;
-    
-    console.log(`🔄 COORDINATE SPACE CONVERSION:`, {
-      originalKeypoint: `(${keypointX.toFixed(1)}, ${keypointY.toFixed(1)})`,
-      referenceImageSpace: `${referenceImageDims.width}x${referenceImageDims.height}`,
-      scaledKeypoint: `(${scaledKeypointX.toFixed(1)}, ${scaledKeypointY.toFixed(1)})`,
-      detectionImageSpace: `${detectionImageDims.width}x${detectionImageDims.height}`,
-      scaleFactors: `${scaleX.toFixed(3)}x, ${scaleY.toFixed(3)}x`
-    });
+
   } else {
     console.warn(`⚠️ Missing dimensions for coordinate conversion:`, {
       hasReferenceImageDims: !!referenceImageDims,
@@ -1024,19 +1057,6 @@ const findClosestHolds = (keypointX, keypointY) => {
   const closest = allHoldsWithDistances[0] || { hold: null, problem: null, distance: Infinity, score: 0 };
   const secondClosest = allHoldsWithDistances[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
   const thirdClosest = allHoldsWithDistances[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
-
-  // DEBUG: Show what was selected as closest
-  if (closest.hold) {
-    console.log(`✅ Closest hold selected:`, {
-      originalKeypoint: `(${keypointX.toFixed(1)}, ${keypointY.toFixed(1)})`,
-      scaledKeypoint: `(${scaledKeypointX.toFixed(1)}, ${scaledKeypointY.toFixed(1)})`,
-      holdId: closest.hold.id,
-      holdIndex: closest.hold.holdIndex,
-      distance: closest.distance,
-      problemName: closest.problem?.name || 'unclassified',
-      holdCoords: extractHoldCoordinates(closest.hold)
-    });
-  }
 
   return { 
     closest, 
