@@ -4,25 +4,28 @@
 
 This document describes the **unified scoring system** for boulder problem matching with **proportional credit** to handle ambiguous matches.
 
-## 🎯 Key Innovation: Proportional Scoring
+## 🎯 Key Innovation: Proportional Scoring with Confidence Weighting
 
 **Old Approach (REMOVED):** "Winner takes all" - only the closest hold gets credit  
-**New Approach (CURRENT):** Top 3 closest holds get proportional credit
+**New Approach (CURRENT):** Top 3 closest holds get proportional credit, weighted by AI confidence
 
-### Why Proportional Scoring?
+### Why Proportional Scoring With Confidence?
 
 When a keypoint is at position (500, 600):
-- Hold A (problem "drewniane") is **51px** away
-- Hold B (problem "wiadra") is **55px** away
+- Hold A (problem "drewniane") is **51px** away → proximity score: **0.83**
+- Hold B (problem "wiadra") is **55px** away → proximity score: **0.82**
 
-**Problem:** These are almost equally close! With "winner takes all", problem B gets nothing despite being only 4px further.
+**Problem with winner-takes-all:** Hold B gets nothing despite being only 4px further.
 
-**Solution:** Give both credit, weighted by their ranking:
-- Hold A gets **100%** credit (1st place)
-- Hold B gets **50%** credit (2nd place)
-- Hold C gets **25%** credit (3rd place)
+**Solution:** Give both problems credit based on proximity AND AI confidence:
+- If AI is **90% confident** about keypoint position:
+  - Problem "drewniane" gets: **0.83 × 0.9 = 0.747**
+  - Problem "wiadra" gets: **0.82 × 0.9 = 0.738**
+- If AI is only **20% confident** (e.g., occluded ankle):
+  - Problem "drewniane" gets: **0.83 × 0.2 = 0.166**
+  - Problem "wiadra" gets: **0.82 × 0.2 = 0.164**
 
-This handles ambiguous cases fairly and produces more accurate results.
+**Why confidence weighting?** Prevents unreliable detections from skewing results. A hold 10px away with 20% confidence (score 0.19) shouldn't beat a hold 50px away with 95% confidence (score 0.79).
 
 ## Single Source of Truth: `problemScoringUtils.js`
 
@@ -58,22 +61,26 @@ calculateProblemScores(transformedFrames, getKeypointRowsForFrame)
 ### Key Scoring Rules
 
 1. **Top 3 Closest Holds**: For each keypoint, we find the 3 closest holds across ALL problems
-2. **Proportional Credit**: 
-   - 1st place: **100%** credit (weight: 1.0)
-   - 2nd place: **50%** credit (weight: 0.5)
-   - 3rd place: **25%** credit (weight: 0.25)
-3. **No Double Counting**: Each hold can only contribute its BEST weighted score, even if multiple keypoints match it
-4. **Distance-Based Scoring**: 
-   - Proximity threshold: 300 pixels
-   - Base score formula: `score = (300 - distance) / 300`
-   - Weighted score: `weightedScore = baseScore × weight`
-   - Ranges from 0.0 (far) to 1.0 (perfect 1st place match)
-5. **Total Score**: Sum of all unique weighted hold scores for a problem
+2. **Confidence-Weighted Proportional Credit**: 
+   - Final Score = Proximity Score × Confidence Score
+   - Proximity score: `(300 - distance) / 300`, ranges 0.0 to 1.0
+   - Confidence score: AI model's certainty about keypoint position, ranges 0.0 to 1.0
+   - Example: Hold 51px away (proximity 0.83) with 90% confidence → **0.747**
+   - Example: Hold 51px away (proximity 0.83) with 20% confidence → **0.166**
+3. **No Double Counting**: Each hold can only contribute its BEST score, even if multiple keypoints match it
+4. **AI Confidence Levels**:
+   - 🟢 **High (>70%)**: Model is very sure about keypoint location
+   - 🟡 **Medium (50-70%)**: Model has some uncertainty
+   - 🔴 **Low (<50%)**: Model is unsure, score contribution is minimal
+5. **Total Score**: Sum of all unique confidence-weighted scores for a problem
 
 ### Anti-Patterns (Now Eliminated)
 
 ❌ **WRONG**: "Winner takes all" - only closest hold gets credit  
-✅ **RIGHT**: Proportional credit to top 3 holds with weights [1.0, 0.5, 0.25]
+✅ **RIGHT**: Proportional credit to top 3 holds, weighted by AI confidence
+
+❌ **WRONG**: Treating all keypoint detections equally regardless of confidence  
+✅ **RIGHT**: Scale scores by AI confidence - low confidence = low contribution
 
 ❌ **WRONG**: Checking only holds within one problem  
 ✅ **RIGHT**: Check ALL holds across ALL problems, find top 3 globally
@@ -90,16 +97,27 @@ calculateProblemScores(transformedFrames, getKeypointRowsForFrame)
 Video with 1 frame, 4 keypoints (2 wrists, 2 ankles)  
 Two problems: "drewniane" and "wiadra"
 
-### Keypoint 1 (Left Wrist at 500, 600)
-| Rank | Problem | Hold | Distance | Base Score | Weight | Weighted Score |
-|------|---------|------|----------|------------|--------|----------------|
-| 1st | drewniane | #3 | 51px | 0.83 | 1.0 | **0.83** |
-| 2nd | wiadra | #7 | 55px | 0.82 | 0.5 | **0.41** |
-| 3rd | drewniane | #12 | 75px | 0.75 | 0.25 | **0.19** |
+### Keypoint 1 (Left Wrist at 500, 600) - 90% Confidence
+| Rank | Problem | Hold | Distance | Proximity Score | Confidence | Final Score |
+|------|---------|------|----------|-----------------|------------|-------------|
+| 1st | drewniane | #3 | 51px | 0.83 | 0.90 | **0.747** |
+| 2nd | wiadra | #7 | 55px | 0.82 | 0.90 | **0.738** |
+| 3rd | drewniane | #12 | 75px | 0.75 | 0.90 | **0.675** |
 
 **Credits:**
-- drewniane: 0.83 (hold #3) + 0.19 (hold #12) = **1.02**
-- wiadra: 0.41 (hold #7) = **0.41**
+- drewniane: 0.747 (hold #3) + 0.675 (hold #12) = **1.422**
+- wiadra: 0.738 (hold #7) = **0.738**
+
+### Keypoint 2 (Right Ankle at 450, 800) - 25% Confidence (occluded)
+| Rank | Problem | Hold | Distance | Proximity Score | Confidence | Final Score |
+|------|---------|------|----------|-----------------|------------|-------------|
+| 1st | drewniane | #5 | 40px | 0.87 | 0.25 | **0.218** |
+| 2nd | wiadra | #9 | 45px | 0.85 | 0.25 | **0.213** |
+| 3rd | drewniane | #8 | 60px | 0.80 | 0.25 | **0.200** |
+
+**Credits (heavily reduced due to low confidence):**
+- drewniane: 0.218 (hold #5) + 0.200 (hold #8) = **0.418**
+- wiadra: 0.213 (hold #9) = **0.213**
 
 ### After Processing All 4 Keypoints
 
@@ -107,6 +125,8 @@ Two problems: "drewniane" and "wiadra"
 **wiadra total:** 3.69 points → Display: **369.0%**
 
 **Winner:** drewniane 🎉
+
+**Key Insight:** The low-confidence ankle (25%) contributed very little (0.418 vs 1.422 from high-confidence wrist), preventing unreliable detections from affecting the final result.
 
 ## 🎨 Display Formats
 

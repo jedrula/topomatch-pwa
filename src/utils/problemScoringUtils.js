@@ -11,10 +11,12 @@
  * - Winner selection in useVideoAnalysis
  * - Any other scoring needs
  * 
- * SCORING APPROACH: Proportional credit to TOP 3 closest holds
- * - If hold A is 51px away and hold B is 55px away, BOTH get credit
- * - Scores are weighted: 1st place gets full credit, 2nd/3rd get proportional credit
- * - This avoids harsh "winner takes all" and recognizes ambiguous matches
+ * SCORING APPROACH: Proportional credit to TOP 3 closest holds with CONFIDENCE WEIGHTING
+ * - Each hold contributes: proximityScore × confidenceScore
+ * - Proximity score: (300 - distance) / 300, ranges 0.0 to 1.0
+ * - Confidence score: AI model's certainty about keypoint position (0.0 to 1.0)
+ * - Example: Hold 51px away (proximity 0.83) but only 20% confident → final score: 0.83 × 0.2 = 0.166
+ * - This prevents unreliable keypoint detections from skewing problem matches
  * 
  * @param {Array} transformedFrames - Array of frames with transformed keypoints
  * @param {Function} getKeypointRowsForFrame - Function that returns keypoint rows for a frame
@@ -32,16 +34,23 @@ export function calculateProblemScores(transformedFrames, getKeypointRowsForFram
     const keypointRows = getKeypointRowsForFrame(frame);
     
     keypointRows.forEach(keypoint => {
-      // 🎯 PROPORTIONAL SCORING: Give credit to top 3 closest holds
-      // This handles cases where multiple holds are similarly close
+      // 🎯 PROPORTIONAL SCORING: Give credit to top 3 closest holds based on pure proximity
+      // ✨ CONFIDENCE WEIGHTING: Multiply score by keypoint confidence (0.0 to 1.0)
+      // - If model is 20% confident about ankle position, that keypoint contributes only 20% of its proximity score
+      // - This prevents unreliable detections from skewing results
+      const confidence = keypoint.confidence || 0.5; // Default to 50% if missing
+      
       const candidates = [
-        { problem: keypoint.closestProblem, hold: keypoint.closestHold, score: keypoint.closestScore, weight: 1.0 },
-        { problem: keypoint.secondClosestProblem, hold: keypoint.secondClosestHold, score: keypoint.secondClosestScore, weight: 0.5 },
-        { problem: keypoint.thirdClosestProblem, hold: keypoint.thirdClosestHold, score: keypoint.thirdClosestScore, weight: 0.25 }
+        { problem: keypoint.closestProblem, hold: keypoint.closestHold, score: keypoint.closestScore },
+        { problem: keypoint.secondClosestProblem, hold: keypoint.secondClosestHold, score: keypoint.secondClosestScore },
+        { problem: keypoint.thirdClosestProblem, hold: keypoint.thirdClosestHold, score: keypoint.thirdClosestScore }
       ];
       
-      candidates.forEach(({ problem, hold, score, weight }) => {
+      candidates.forEach(({ problem, hold, score }) => {
         if (!problem || !hold || !score || score <= 0) return;
+        
+        // Apply confidence weighting: finalScore = proximityScore × confidence
+        const confidenceWeightedScore = score * confidence;
         
         const problemId = problem.id;
         const holdId = hold.id || hold.holdIndex;
@@ -61,15 +70,12 @@ export function calculateProblemScores(transformedFrames, getKeypointRowsForFram
         const problemData = problemScoresMap.get(problemId);
         problemData.matchCount++;
         
-        // Apply weighted score
-        const weightedScore = score * weight;
-        
         // Track unique holds with their best scores (avoid double-counting)
         const currentBestScore = problemData.uniqueHolds.get(holdId) || 0;
-        if (weightedScore > currentBestScore) {
-          const scoreDiff = weightedScore - currentBestScore;
+        if (confidenceWeightedScore > currentBestScore) {
+          const scoreDiff = confidenceWeightedScore - currentBestScore;
           problemData.totalScore += scoreDiff;
-          problemData.uniqueHolds.set(holdId, weightedScore);
+          problemData.uniqueHolds.set(holdId, confidenceWeightedScore);
         }
       });
     });
