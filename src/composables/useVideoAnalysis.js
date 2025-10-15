@@ -143,11 +143,6 @@ export function useVideoAnalysis() {
     };
   };
 
-  // Handle video cleared
-  const handleBetaVideoCleared = () => {
-    resetAnalysisState();
-  };
-
   // Handle "Try Another Video" action
   const handleTryAnotherVideo = () => {
     resetAnalysisState();
@@ -303,7 +298,6 @@ export function useVideoAnalysis() {
     handleBetaAnalysisComplete,
     handleTableScoresReady, // ✅ Handle table-based scores (single source of truth)
     handleBetaProcessingError,
-    handleBetaVideoCleared,
     handleTryAnotherVideo,
     resetAnalysisState,
     continueToUpload,

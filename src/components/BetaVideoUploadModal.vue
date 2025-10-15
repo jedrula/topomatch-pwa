@@ -39,7 +39,6 @@
           @analysis-complete="$emit('analysis-complete', $event)"
           @table-scores-ready="$emit('table-scores-ready', $event)"
           @processing-error="$emit('processing-error', $event)"
-          @video-cleared="$emit('video-cleared')"
         />
 
         <!-- Analysis in Progress -->
@@ -370,7 +369,6 @@ defineEmits([
   'analysis-complete',
   'table-scores-ready',
   'processing-error',
-  'video-cleared',
   'try-another-video',
   'continue-to-upload'
 ]);

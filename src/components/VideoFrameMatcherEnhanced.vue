@@ -111,16 +111,6 @@
               <p class="text-xs text-gray-500">{{ formatFileSize(selectedVideo.size) }}</p>
             </div>
           </div>
-          <button @click="clearVideo" class="text-gray-400 hover:text-gray-600">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -643,7 +633,6 @@ const emit = defineEmits([
   'analysis-complete',
   'table-scores-ready', // New event for table-based problem scores
   'processing-error',
-  'video-cleared',
 ]);
 
 // Reactive state
@@ -1909,10 +1898,6 @@ const cleanupRecording = () => {
 };
 */
 
-const clearVideo = () => {
-  clearState();
-  emit('video-cleared');
-};
 
 const clearState = () => {
   selectedVideo.value = null;
@@ -1976,7 +1961,6 @@ onUnmounted(() => {
 
 // Expose methods for parent component
 defineExpose({
-  clearVideo,
   processVideo,
 });
 </script>
