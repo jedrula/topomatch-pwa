@@ -86,44 +86,14 @@
       </svg>
     </CollapsibleSection>
 
-    <!-- Legend and Controls -->
-    <div class="mt-3 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center space-x-4 text-xs">
-        <div class="flex items-center space-x-1">
-          <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-          <span>Inlier matches ({{ inlierCount }})</span>
-        </div>
-        <div class="flex items-center space-x-1">
-          <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-          <span>Outlier matches ({{ outlierCount }})</span>
-        </div>
-      </div>
-      
-      <div class="flex items-center space-x-2">
-        <label class="text-xs text-gray-600">
-          <input
-            v-model="showOutliers"
-            type="checkbox"
-            class="mr-1"
-          />
-          Show outliers
-        </label>
-        <label class="text-xs text-gray-600">
-          Max matches:
-          <select v-model="maxDisplayMatches" class="ml-1 text-xs border rounded px-1">
-            <option value="20">20</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-            <option value="999">All</option>
-          </select>
-        </label>
-      </div>
-    </div>
-
     <!-- Detected Keypoints Table -->
-    <div v-if="transformedPoses && transformedPoses.length > 0" class="mt-6">
-      <div class="flex items-center justify-between mb-2">
-        <h5 class="text-sm font-medium text-gray-900">Detected Keypoints</h5>
+    <CollapsibleSection
+      v-if="transformedPoses && transformedPoses.length > 0"
+      title="Detected Keypoints"
+      :default-expanded="false"
+      class="mt-6"
+    >
+      <div class="flex items-center justify-end mb-2">
         <p class="text-xs text-blue-600">
           💡 Click any row to visualize keypoint and closest hold on both images
         </p>
@@ -280,7 +250,7 @@
         Original coordinates are from the video frame. Transformed coordinates are projected
         onto the boulder image using homography.
       </p>
-    </div>
+    </CollapsibleSection>
 
     <!-- Interactive Homography Testing -->
     <div v-if="homographyMatrix" class="mt-6 border-t pt-6">
@@ -602,10 +572,6 @@ const targetImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, natura
 // Internal state for keypoint selection
 const selectedKeypoint = ref(null)
 
-// Display controls
-const showOutliers = ref(true)
-const maxDisplayMatches = ref(50)
-
 // Interactive testing (always enabled)
 const testPoints = ref([])
 const debugSourceImage = ref(null)
@@ -790,15 +756,8 @@ const transformPointWithHomography = (x, y, homography) => {
 const validMatches = computed(() => {
   if (!canRenderCombinedView.value) return []
   
+  // Always show all matches (outliers and inliers)
   let matches = processedMatches.value
-  
-  if (!showOutliers.value) {
-    matches = matches.filter(match => match.isInlier)
-  }
-  
-  if (maxDisplayMatches.value < 999) {
-    matches = matches.slice(0, maxDisplayMatches.value)
-  }
   
   // Transform coordinates for display
   return matches.map(match => {
@@ -832,10 +791,6 @@ const validMatches = computed(() => {
     )
   })
 })
-
-// Count inliers and outliers
-const inlierCount = computed(() => processedMatches.value.filter(m => m.isInlier).length)
-const outlierCount = computed(() => processedMatches.value.filter(m => !m.isInlier).length)
 
 // Combined view dimensions and scaling
 const combinedDimensions = computed(() => {

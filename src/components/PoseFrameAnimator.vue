@@ -29,8 +29,8 @@
       </button>
     </div>
     
-    <!-- Frame Info -->
-    <div class="mt-2 text-xs text-gray-600">
+    <!-- Frame Info (only shown in debug mode) -->
+    <div v-if="debugMode" class="mt-2 text-xs text-gray-600">
       <p v-if="currentFrame.poseData">
         ✓ Pose detected (confidence: {{ (currentFrame.poseData.confidence * 100).toFixed(0) }}%)
       </p>
@@ -58,6 +58,10 @@ const props = defineProps({
   autoPlay: {
     type: Boolean,
     default: true
+  },
+  debugMode: {
+    type: Boolean,
+    default: false
   }
 });
 

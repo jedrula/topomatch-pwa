@@ -75,22 +75,23 @@
 
       <!-- Concise Pose Detection Status -->
       <div v-if="extractedFrames.length > 0 && !isProcessing" class="text-sm text-gray-600 px-1 py-2">
-        <span v-if="extractedFrames.filter(f => f.poseData).length === extractedFrames.length" class="text-green-600">
+        <!-- Success message only shown in debug mode -->
+        <span v-if="debugMode && extractedFrames.filter(f => f.poseData).length === extractedFrames.length" class="text-green-600">
           ✓ All {{ extractedFrames.length }} frames analyzed successfully
         </span>
-        <span v-else-if="extractedFrames.filter(f => f.poseData).length === 0" class="text-red-600">
+        <!-- Warning messages always shown -->
+        <span v-if="extractedFrames.filter(f => f.poseData).length === 0" class="text-red-600">
           ⚠ No poses detected in {{ extractedFrames.length }} frames
         </span>
-        <span v-else class="text-yellow-600">
+        <span v-else-if="extractedFrames.filter(f => f.poseData).length < extractedFrames.length" class="text-yellow-600">
           ⚠ {{ extractedFrames.filter(f => f.poseData).length }}/{{ extractedFrames.length }} frames detected
         </span>
       </div>
 
       <!-- Image Matching Results -->
       <div v-if="bestMatch" class="space-y-4">
-        <h3 class="text-lg font-medium text-gray-900">Best Matching Image</h3>
-        <div class="bg-white border rounded-lg p-4">
-          <div class="flex items-center space-x-4 mb-4">
+        <div>
+          <div v-if="debugMode" class="flex items-center space-x-4 mb-4">
             <img
               :src="bestMatch.url"
               alt="Best match"
@@ -106,41 +107,27 @@
 
           <!-- Enhanced Pose Visualization -->
           <div v-if="transformedPoses.length > 0" class="space-y-4">
-            <div class="flex items-center justify-between">
-              <h4 class="text-sm font-medium text-gray-900">Climber Pose Projection</h4>
-              <div class="flex items-center space-x-2">
-                <button
-                  @click="selectedKeypoint = null"
-                  class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                >
-                  Clear Selection
-                </button>
-                <button
-                  @click="debugMode = !debugMode"
-                  class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                >
-                  {{ debugMode ? 'Hide' : 'Show' }} Debug Info
-                </button>
-              </div>
-            </div>
-
+            
             <!-- Original Video Frames Animator -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <!-- Original Video Frames (left side) -->
               <div class="space-y-4">
-                <h5 class="text-sm font-medium text-gray-900">Original Video Frames</h5>
                 <PoseFrameAnimator 
                   :frames="extractedFrames"
                   :frame-rate="1"
                   :auto-play="true"
+                  :debug-mode="debugMode"
                 />
               </div>
             </div>
 
             <!-- Homography Quality Visualization -->
-            <div v-if="bestMatch.homographyMatrix" class="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h5 class="text-sm font-medium text-gray-900 mb-3">Homography Quality Analysis</h5>
-              
+            <CollapsibleSection
+              v-if="bestMatch.homographyMatrix"
+              title="Homography Quality Analysis"
+              :default-expanded="false"
+              class="mt-6"
+            >
               <!-- Quality Metrics -->
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div class="text-center">
@@ -172,47 +159,30 @@
               </div>
 
               <!-- Feature Match Distribution Hint -->
-              <div class="text-xs text-gray-500 bg-white p-2 rounded border mb-4">
+              <div class="text-xs text-gray-500 bg-white p-2 rounded border">
                 💡 <strong>Tip:</strong> Poor keypoint alignment often indicates that feature matches are concentrated 
                 in areas away from where the climber's hands and feet are located, or that the camera perspective 
                 differs significantly between the video and reference image.
               </div>
+            </CollapsibleSection>
 
-              <!-- Feature Match Visualization -->
-                <FeatureMatchVisualization
-                  v-if="featureMatches.length > 0 && debugMode"
-                  :source-image-url="extractedFrames[0]?.url"
-                  :target-image-url="bestMatch.url"
-                  :feature-matches="featureMatches"
-                  :homography-inliers="bestMatch.homographyInliers || 0"
-                  :pose-keypoints="getAllPoseKeypointsArray()"
-                  :homography-matrix="bestMatch.homographyMatrix"
-                  :reference-image-dimensions="bestMatch.referenceImageDimensions"
-                  :detection-space-dimensions="bestMatch.detectionResults?.imageMetadata?.viewBox ? 
-                    parseViewBoxDimensions(bestMatch.detectionResults.imageMetadata.viewBox) : null"
-                  :transformed-poses="transformedPoses"
-                  :extracted-frames="extractedFrames"
-                  :boulder-problems="matchedImageBoulderProblems"
-                  :best-match-image="bestMatch"
-                />
-            </div>
-            
-            <div class="mt-2 text-xs text-gray-600">
-              <p>Projected hand and foot positions from video frames</p>
-              <div class="flex flex-wrap gap-3 mt-1">
-                <span class="flex items-center">
-                  <div class="w-2 h-2 bg-blue-500 mr-1"></div>
-                  Keypoints (blue squares)
-                </span>
-                <span class="flex items-center">
-                  <div class="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
-                  Closest holds (red dots)
-                </span>
-                <span class="text-gray-500">
-                  • Dashed lines show distance to nearest holds • Check/uncheck frames above to toggle visibility
-                </span>
-              </div>
-            </div>
+            <!-- Feature Match Visualization -->
+            <FeatureMatchVisualization
+              v-if="featureMatches.length > 0 && debugMode"
+              :source-image-url="extractedFrames[0]?.url"
+              :target-image-url="bestMatch.url"
+              :feature-matches="featureMatches"
+              :homography-inliers="bestMatch.homographyInliers || 0"
+              :pose-keypoints="getAllPoseKeypointsArray()"
+              :homography-matrix="bestMatch.homographyMatrix"
+              :reference-image-dimensions="bestMatch.referenceImageDimensions"
+              :detection-space-dimensions="bestMatch.detectionResults?.imageMetadata?.viewBox ? 
+                parseViewBoxDimensions(bestMatch.detectionResults.imageMetadata.viewBox) : null"
+              :transformed-poses="transformedPoses"
+              :extracted-frames="extractedFrames"
+              :boulder-problems="matchedImageBoulderProblems"
+              :best-match-image="bestMatch"
+            />
           </div>
         </div>
       </div>
@@ -266,6 +236,7 @@ import ImageMatcher from './ImageMatcher.vue';
 import VideoUploadSelector from './VideoUploadSelector.vue';
 import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
 import PoseFrameAnimator from './PoseFrameAnimator.vue';
+import CollapsibleSection from './CollapsibleSection.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
   extractVideoFrames,

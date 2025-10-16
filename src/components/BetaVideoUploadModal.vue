@@ -237,59 +237,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Analysis Details from VideoFrameMatcherEnhanced -->
-              <div
-                v-if="videoAnalysisResult.holdAnalysis?.bestMatch"
-                class="bg-white border border-green-200 rounded-lg p-4"
-              >
-                <h5 class="text-md font-medium text-gray-900 mb-2">Analysis Details</h5>
-
-                <!-- Show pose detection summary -->
-                <div class="text-sm text-gray-600 space-y-1">
-                  <p>
-                    <strong>Frames analyzed:</strong>
-                    {{ videoAnalysisResult.allFrames?.length || 0 }}
-                  </p>
-                  <p>
-                    <strong>Poses detected:</strong>
-                    {{
-                      videoAnalysisResult.poseResults?.filter((r) => r.poses.length > 0).length ||
-                      0
-                    }}
-                  </p>
-                  <p>
-                    <strong>Hold analysis:</strong>
-                    {{ videoAnalysisResult.holdAnalysis.bestMatch.votes || 0 }} keypoints matched
-                  </p>
-                </div>
-
-                <!-- Show pose visualization if available -->
-                <div v-if="videoAnalysisResult.frame" class="mt-3">
-                  <p class="text-sm font-medium text-gray-700 mb-2">Analyzed Frame</p>
-                  <img
-                    :src="videoAnalysisResult.frame.url"
-                    alt="Analyzed video frame"
-                    class="w-full max-w-xs h-32 object-contain rounded-lg border mx-auto"
-                  />
-                </div>
-              </div>
-
-              <!-- Matched Image -->
-              <div
-                v-if="videoAnalysisResult.match"
-                class="bg-white border border-green-200 rounded-lg p-4"
-              >
-                <h5 class="text-md font-medium text-gray-900 mb-2">Matched Boulder Image</h5>
-                <img
-                  :src="videoAnalysisResult.match.url"
-                  alt="Matched boulder image"
-                  class="w-full max-w-md h-48 object-contain rounded-lg border mx-auto"
-                />
-                <p class="text-xs text-gray-500 mt-2 text-center">
-                  {{ videoAnalysisResult.match.name }}
-                </p>
-              </div>
             </div>
 
             <!-- Action Buttons -->
