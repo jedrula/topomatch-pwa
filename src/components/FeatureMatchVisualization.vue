@@ -86,168 +86,6 @@
       </svg>
     </CollapsibleSection>
 
-    <!-- Pose Keypoint Transformation Visualization - Simplified -->
-    <div v-if="poseKeypoints.length > 0 && homographyMatrix" class="mt-4">
-      <h6 class="text-xs font-medium text-gray-700 mb-2">Transformed Pose Projection (Simplified)</h6>
-      
-      <!-- Use the same simple layout as debug mode -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <!-- Source Image with Original Pose Points -->
-        <div class="relative">
-          <h6 class="text-xs font-medium text-gray-700 mb-2">
-            Source Image (Original Pose Keypoints)
-          </h6>
-          <div class="relative inline-block border-2 border-red-300 rounded">
-            <img
-              ref="poseSourceImage"
-              :src="sourceImageUrl"
-              alt="Source with pose"
-              class="max-w-full max-h-[300px] object-contain"
-              @load="onPoseSourceImageLoad"
-            />
-            <!-- Original pose keypoints overlay -->
-            <svg
-              v-if="poseSourceImageDimensions.width > 0"
-              class="absolute inset-0 pointer-events-none"
-              :width="poseSourceImageDimensions.width"
-              :height="poseSourceImageDimensions.height"
-              :viewBox="`0 0 ${poseSourceImageDimensions.naturalWidth} ${poseSourceImageDimensions.naturalHeight}`"
-              preserveAspectRatio="xMidYMid meet"
-            >
-              <g v-for="(keypoint, index) in poseKeypoints" :key="`pose-source-${index}`">
-                <circle
-                  :cx="keypoint.x"
-                  :cy="keypoint.y"
-                  r="6"
-                  fill="#ef4444"
-                  stroke="white"
-                  stroke-width="2"
-                  opacity="0.8"
-                />
-                <text
-                  :x="keypoint.x + 8"
-                  :y="keypoint.y - 8"
-                  font-size="12"
-                  fill="#dc2626"
-                  font-weight="bold"
-                  stroke="white"
-                  stroke-width="0.5"
-                >{{ index + 1 }}</text>
-              </g>
-            </svg>
-          </div>
-        </div>
-
-        <!-- Target Image with Projected Pose Points -->
-        <div class="relative">
-          <h6 class="text-xs font-medium text-gray-700 mb-2">
-            Target Image (Projected Pose Keypoints)
-          </h6>
-          <div class="relative inline-block border-2 border-green-300 rounded">
-            <img
-              ref="poseTargetImage"
-              :src="targetImageUrl"
-              alt="Target with projected pose"
-              class="max-w-full max-h-[300px] object-contain"
-              @load="onPoseTargetImageLoad"
-            />
-            <!-- Projected pose keypoints overlay -->
-            <svg
-              v-if="poseTargetImageDimensions.width > 0"
-              class="absolute inset-0 pointer-events-none"
-              :width="poseTargetImageDimensions.width"
-              :height="poseTargetImageDimensions.height"
-              :viewBox="`0 0 ${poseTargetImageDimensions.naturalWidth} ${poseTargetImageDimensions.naturalHeight}`"
-              preserveAspectRatio="xMidYMid meet"
-            >
-              <g v-for="(projection, index) in simplePoseProjections" :key="`pose-target-${index}`">
-                <circle
-                  :cx="projection.projected.x"
-                  :cy="projection.projected.y"
-                  r="6"
-                  fill="#22c55e"
-                  stroke="white"
-                  stroke-width="2"
-                  opacity="0.8"
-                />
-                <text
-                  :x="projection.projected.x + 8"
-                  :y="projection.projected.y - 8"
-                  font-size="12"
-                  fill="#16a34a"
-                  font-weight="bold"
-                  stroke="white"
-                  stroke-width="0.5"
-                >{{ index + 1 }}</text>
-                
-                <!-- Show closest hold connection if available -->
-                <g v-if="projection.closestHold">
-                  <line
-                    :x1="projection.projected.x"
-                    :y1="projection.projected.y"
-                    :x2="projection.closestHold.x"
-                    :y2="projection.closestHold.y"
-                    stroke="black"
-                    stroke-width="2"
-                    opacity="0.6"
-                  />
-                  <circle
-                    :cx="projection.closestHold.x"
-                    :cy="projection.closestHold.y"
-                    r="4"
-                    fill="black"
-                    opacity="0.6"
-                  />
-                </g>
-              </g>
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Simplified pose transformation table -->
-      <div v-if="simplePoseProjections.length > 0" class="mt-4">
-        <h6 class="text-xs font-medium text-gray-700 mb-2">Pose Projection Coordinates</h6>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-xs bg-white border border-gray-200 rounded">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-2 py-1 text-left font-medium text-gray-500">Keypoint #</th>
-                <th class="px-2 py-1 text-left font-medium text-gray-500">Original (x, y)</th>
-                <th class="px-2 py-1 text-left font-medium text-gray-500">Projected (x, y)</th>
-                <th class="px-2 py-1 text-left font-medium text-gray-500">Status</th>
-                <th class="px-2 py-1 text-left font-medium text-gray-500">Closest Hold Distance</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-              <tr v-for="(projection, index) in simplePoseProjections" :key="index" class="hover:bg-gray-50">
-                <td class="px-2 py-1 font-medium text-gray-900">{{ index }}</td>
-                <td class="px-2 py-1 text-gray-600">
-                  ({{ Math.round(projection.original.x) }}, {{ Math.round(projection.original.y) }})
-                </td>
-                <td class="px-2 py-1 text-gray-600">
-                  <span v-if="isValidSimpleProjection(projection.projected)">
-                    ({{ Math.round(projection.projected.x) }}, {{ Math.round(projection.projected.y) }})
-                  </span>
-                  <span v-else class="text-red-500">Invalid</span>
-                </td>
-                <td class="px-2 py-1">
-                  <span v-if="isValidSimpleProjection(projection.projected)" class="text-green-600">✓ Valid</span>
-                  <span v-else class="text-red-600">✗ Invalid</span>
-                </td>
-                <td class="px-2 py-1 text-gray-600">
-                  <span v-if="projection.closestHold">
-                    {{ Math.round(projection.holdDistance) }}px
-                  </span>
-                  <span v-else class="text-gray-400">No hold found</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
     <!-- Legend and Controls -->
     <div class="mt-3 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center space-x-4 text-xs">
@@ -280,6 +118,168 @@
           </select>
         </label>
       </div>
+    </div>
+
+    <!-- Detected Keypoints Table -->
+    <div v-if="transformedPoses && transformedPoses.length > 0" class="mt-6">
+      <div class="flex items-center justify-between mb-2">
+        <h5 class="text-sm font-medium text-gray-900">Detected Keypoints</h5>
+        <p class="text-xs text-blue-600">
+          💡 Click any row to visualize keypoint and closest hold on both images
+        </p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-xs border border-gray-200 rounded">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-2 py-1 text-left border-b border-gray-200">Frame</th>
+              <th class="px-2 py-1 text-left border-b border-gray-200">Keypoint</th>
+              <th class="px-2 py-1 text-left border-b border-gray-200">Original Coords</th>
+              <th class="px-2 py-1 text-left border-b border-gray-200">
+                Transformed Coords
+              </th>
+              <th class="px-2 py-1 text-left border-b border-gray-200">Confidence</th>
+              <th class="px-2 py-1 text-left border-b border-gray-200">1st Closest Hold</th>
+              <th class="px-2 py-1 text-left border-b border-gray-200">2nd Closest Hold</th>
+              <th class="px-2 py-1 text-left border-b border-gray-200">3rd Closest Hold</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="(frame, frameIndex) in transformedPoses" :key="frameIndex">
+              <tr
+                v-for="(keypoint, keypointIndex) in getKeypointRows(frame)"
+                :key="`${frameIndex}-${keypointIndex}`"
+                :class="[
+                  'border-b border-gray-100 cursor-pointer transition-colors',
+                  selectedKeypoint === keypoint 
+                    ? 'bg-yellow-100 hover:bg-yellow-200' 
+                    : 'hover:bg-blue-50'
+                ]"
+                @click="handleKeypointRowClick(keypoint)"
+              >
+                <td class="px-2 py-1">
+                  <div class="flex items-center">
+                    <div
+                      :class="`w-2 h-2 rounded-full mr-1 ${
+                        frame.color === '#ef4444'
+                          ? 'bg-red-500'
+                          : frame.color === '#3b82f6'
+                          ? 'bg-blue-500'
+                          : frame.color === '#22c55e'
+                          ? 'bg-green-500'
+                          : frame.color === '#f59e0b'
+                          ? 'bg-amber-500'
+                          : frame.color === '#8b5cf6'
+                          ? 'bg-violet-500'
+                          : 'bg-gray-500'
+                      }`"
+                    ></div>
+                    Frame {{ frameIndex + 1 }} ({{ Math.round(extractedFrames[frame.frameIndex]?.percentage * 100) || 50 }}%)
+                  </div>
+                </td>
+                <td class="px-2 py-1 font-medium">{{ keypoint.name }}</td>
+                <td class="px-2 py-1 font-mono text-gray-600">
+                  ({{ Math.round(keypoint.original.x) }},
+                  {{ Math.round(keypoint.original.y) }})
+                </td>
+                <td class="px-2 py-1 font-mono text-gray-600">
+                  ({{ Math.round(keypoint.transformed.x) }},
+                  {{ Math.round(keypoint.transformed.y) }})
+                </td>
+                <td class="px-2 py-1">
+                  <span
+                    :class="`px-1 py-0.5 rounded text-xs ${
+                      keypoint.confidence > 0.7
+                        ? 'bg-green-100 text-green-800'
+                        : keypoint.confidence > 0.5
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`"
+                  >
+                    {{ (keypoint.confidence * 100).toFixed(0) }}%
+                  </span>
+                </td>
+                <td class="px-2 py-1">
+                  <div v-if="keypoint.closestHold" class="text-xs">
+                    <div class="font-medium text-gray-900" v-if="keypoint.closestProblem">
+                      {{ keypoint.closestProblem.name }}
+                    </div>
+                    <div class="font-medium text-gray-900" v-else>
+                      AI Detected Hold
+                    </div>
+                    <div class="text-gray-500">
+                      {{
+                        keypoint.closestHold?.id || keypoint.closestHold?.holdIndex || "?"
+                      }}
+                    </div>
+                    <div class="text-gray-400">{{ keypoint.distanceToHold }}px away</div>
+                    <div class="text-gray-400 font-mono" v-if="extractHoldCoordinates(keypoint.closestHold)">
+                      ({{ Math.round(extractHoldCoordinates(keypoint.closestHold).x) }}, 
+                      {{ Math.round(extractHoldCoordinates(keypoint.closestHold).y) }})
+                    </div>
+                    <div class="text-green-600 font-medium">
+                      Score: {{ keypoint.closestScore.toFixed(3) }}
+                    </div>
+                  </div>
+                  <div v-else class="text-xs text-gray-400">No holds found</div>
+                </td>
+                <td class="px-2 py-1">
+                  <div v-if="keypoint.secondClosestHold" class="text-xs">
+                    <div class="font-medium text-gray-900" v-if="keypoint.secondClosestProblem">
+                      {{ keypoint.secondClosestProblem.name }}
+                    </div>
+                    <div class="font-medium text-gray-900" v-else>
+                      AI Detected Hold
+                    </div>
+                    <div class="text-gray-500">
+                      {{
+                        keypoint.secondClosestHold?.id || keypoint.secondClosestHold?.holdIndex || "?"
+                      }}
+                    </div>
+                    <div class="text-gray-400">{{ keypoint.secondClosestDistance }}px away</div>
+                    <div class="text-gray-400 font-mono" v-if="extractHoldCoordinates(keypoint.secondClosestHold)">
+                      ({{ Math.round(extractHoldCoordinates(keypoint.secondClosestHold).x) }}, 
+                      {{ Math.round(extractHoldCoordinates(keypoint.secondClosestHold).y) }})
+                    </div>
+                    <div class="text-blue-600 font-medium">
+                      Score: {{ keypoint.secondClosestScore.toFixed(3) }}
+                    </div>
+                  </div>
+                  <div v-else class="text-xs text-gray-400">-</div>
+                </td>
+                <td class="px-2 py-1">
+                  <div v-if="keypoint.thirdClosestHold" class="text-xs">
+                    <div class="font-medium text-gray-900" v-if="keypoint.thirdClosestProblem">
+                      {{ keypoint.thirdClosestProblem.name }}
+                    </div>
+                    <div class="font-medium text-gray-900" v-else>
+                      AI Detected Hold
+                    </div>
+                    <div class="text-gray-500">
+                      {{
+                        keypoint.thirdClosestHold?.id || keypoint.thirdClosestHold?.holdIndex || "?"
+                      }}
+                    </div>
+                    <div class="text-gray-400">{{ keypoint.thirdClosestDistance }}px away</div>
+                    <div class="text-gray-400 font-mono" v-if="extractHoldCoordinates(keypoint.thirdClosestHold)">
+                      ({{ Math.round(extractHoldCoordinates(keypoint.thirdClosestHold).x) }}, 
+                      {{ Math.round(extractHoldCoordinates(keypoint.thirdClosestHold).y) }})
+                    </div>
+                    <div class="text-orange-600 font-medium">
+                      Score: {{ keypoint.thirdClosestScore.toFixed(3) }}
+                    </div>
+                  </div>
+                  <div v-else class="text-xs text-gray-400">-</div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-gray-500 mt-2">
+        Original coordinates are from the video frame. Transformed coordinates are projected
+        onto the boulder image using homography.
+      </p>
     </div>
 
     <!-- Interactive Homography Testing -->
@@ -539,6 +539,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import CollapsibleSection from './CollapsibleSection.vue'
+import { 
+  extractHoldCoordinates,
+  getKeypointRows as processKeypointRows 
+} from '../composables/useHoldMatching'
 
 const props = defineProps({
   sourceImageUrl: String,
@@ -559,10 +563,6 @@ const props = defineProps({
     type: Array,
     default: () => null
   },
-  selectedKeypoint: {
-    type: Object,
-    default: () => null
-  },
   // Coordinate space metadata for proper scaling
   referenceImageDimensions: {
     type: Object,
@@ -571,6 +571,23 @@ const props = defineProps({
   detectionSpaceDimensions: {
     type: Object,
     default: () => null // { width, height } - from viewBox where holds are stored
+  },
+  // Data for keypoints table
+  transformedPoses: {
+    type: Array,
+    default: () => []
+  },
+  extractedFrames: {
+    type: Array,
+    default: () => []
+  },
+  boulderProblems: {
+    type: Array,
+    default: () => []
+  },
+  bestMatchImage: {
+    type: Object,
+    default: () => null
   }
 })
 
@@ -582,6 +599,9 @@ const targetImage = ref(null)
 const sourceImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
 const targetImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
 
+// Internal state for keypoint selection
+const selectedKeypoint = ref(null)
+
 // Display controls
 const showOutliers = ref(true)
 const maxDisplayMatches = ref(50)
@@ -592,12 +612,6 @@ const debugSourceImage = ref(null)
 const debugTargetImage = ref(null)
 const debugSourceImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
 const debugTargetImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
-
-// Simple pose projection refs
-const poseSourceImage = ref(null)
-const poseTargetImage = ref(null)
-const poseSourceImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
-const poseTargetImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
 
 // Image load handlers
 const onSourceImageLoad = () => {
@@ -645,29 +659,6 @@ const onDebugTargetImageLoad = () => {
   }
 }
 
-// Pose image load handlers
-const onPoseSourceImageLoad = () => {
-  if (poseSourceImage.value) {
-    poseSourceImageDimensions.value = {
-      width: poseSourceImage.value.clientWidth,
-      height: poseSourceImage.value.clientHeight,
-      naturalWidth: poseSourceImage.value.naturalWidth,
-      naturalHeight: poseSourceImage.value.naturalHeight
-    }
-  }
-}
-
-const onPoseTargetImageLoad = () => {
-  if (poseTargetImage.value) {
-    poseTargetImageDimensions.value = {
-      width: poseTargetImage.value.clientWidth,
-      height: poseTargetImage.value.clientHeight,
-      naturalWidth: poseTargetImage.value.naturalWidth,
-      naturalHeight: poseTargetImage.value.naturalHeight
-    }
-  }
-}
-
 // Process matches to add inlier/outlier information
 const processedMatches = computed(() => {
   if (!props.featureMatches.length) return []
@@ -682,97 +673,80 @@ const processedMatches = computed(() => {
 // Extract hold coordinates for selected keypoint
 const selectedKeypointHoldCoords = computed(() => {
   console.log('🔍 selectedKeypointHoldCoords computed called:', {
-    hasSelectedKeypoint: !!props.selectedKeypoint,
-    hasClosestHold: !!props.selectedKeypoint?.closestHold,
-    selectedKeypoint: props.selectedKeypoint
+    hasSelectedKeypoint: !!selectedKeypoint.value,
+    hasClosestHold: !!selectedKeypoint.value?.closestHold,
+    selectedKeypoint: selectedKeypoint.value
   });
   
-  if (!props.selectedKeypoint || !props.selectedKeypoint.closestHold) return null
+  if (!selectedKeypoint.value || !selectedKeypoint.value.closestHold) return null
   
-  const hold = props.selectedKeypoint.closestHold
-  let holdX, holdY
+  const hold = selectedKeypoint.value.closestHold
+  const coords = extractHoldCoordinates(hold)
   
-  // Extract center coordinates from various hold formats
-  if (hold.coordinates) {
-    holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2
-    holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2
-  } else if (hold.bbox && Array.isArray(hold.bbox)) {
-    holdX = hold.bbox[0] + hold.bbox[2] / 2
-    holdY = hold.bbox[1] + hold.bbox[3] / 2
-  } else if (hold.bbox && typeof hold.bbox === 'object') {
-    holdX = hold.bbox.x + (hold.bbox.width || 0) / 2
-    holdY = hold.bbox.y + (hold.bbox.height || 0) / 2
-  } else if (hold.x !== undefined && hold.y !== undefined) {
-    // Check if this hold comes from server detection (AI or manual)
-    // Both AI holds and manual holds drawn on HoldDetectionServerView are stored in detection space
-    const isFromServerDetection = 
-      hold.source === 'ai-detected' || 
-      hold.aiModel === 'server-detection' ||
-      hold.detectionSource === 'server' ||
-      hold.source === 'manual'; // Manual holds drawn on server view are also in detection space
+  if (!coords) return null
+  
+  let holdX = coords.x
+  let holdY = coords.y
+  
+  // Check if this hold comes from server detection and needs coordinate space conversion
+  const isFromServerDetection = 
+    hold.source === 'ai-detected' || 
+    hold.aiModel === 'server-detection' ||
+    hold.detectionSource === 'server' ||
+    hold.source === 'manual'; // Manual holds drawn on server view are also in detection space
+  
+  if (isFromServerDetection && (hold.x !== undefined && hold.y !== undefined)) {
+    // CRITICAL FIX: These coordinates are stored in detection space (1080×1440)
+    // but the visualization canvas shows the reference image
+    // Scale UP from detection space to SVG viewBox space for correct display
     
-    if (isFromServerDetection) {
-      // CRITICAL FIX: These coordinates are stored in detection space (1080×1440)
-      // but the visualization canvas shows the reference image
-      // Scale UP from detection space to SVG viewBox space for correct display
-      
-      // FAIL LOUDLY if dimensions are missing - no silent fallbacks!
-      if (!props.detectionSpaceDimensions || !props.referenceImageDimensions) {
-        console.error('❌ MISSING COORDINATE DIMENSIONS:', {
-          detectionSpaceDimensions: props.detectionSpaceDimensions,
-          referenceImageDimensions: props.referenceImageDimensions,
-          hold: hold
-        });
-        return null; // Don't render with wrong coordinates
-      }
-      
-      const detectionWidth = props.detectionSpaceDimensions.width
-      const detectionHeight = props.detectionSpaceDimensions.height
-      const referenceWidth = props.referenceImageDimensions.width
-      const referenceHeight = props.referenceImageDimensions.height
-      
-      // CRITICAL QUESTION: Does referenceImageDimensions match the SVG viewBox dimensions?
-      const svgWidth = debugTargetImageDimensions.value.naturalWidth
-      const svgHeight = debugTargetImageDimensions.value.naturalHeight
-      
-      const dimensionsMatch = (referenceWidth === svgWidth && referenceHeight === svgHeight)
-      
-      console.log('🔍 COORDINATE SPACE DIAGNOSTIC:', {
-        holdSource: hold.source,
-        holdDetectionSource: hold.detectionSource,
-        referenceImageDimensions: `${referenceWidth}×${referenceHeight}`,
-        svgViewBoxDimensions: `${svgWidth}×${svgHeight}`,
-        dimensionsMatch: dimensionsMatch ? '✅ SAME' : '⚠️ DIFFERENT!',
-        detectionSpace: `${detectionWidth}×${detectionHeight}`
-      })
-      
-      // Scale from detection space to the CORRECT target space
-      // The SVG viewBox uses naturalWidth/Height
-      // The keypoints are in referenceImageDimensions space (from homography)
-      // For visualization, we need to use SVG viewBox space
-      const scaleX = svgWidth / detectionWidth
-      const scaleY = svgHeight / detectionHeight
-      
-      holdX = hold.x * scaleX
-      holdY = hold.y * scaleY
-      
-      console.log('🎯 HOLD VISUALIZATION SCALING:', {
-        holdInDetectionSpace: `(${hold.x}, ${hold.y})`,
-        scaledHold: `(${holdX.toFixed(1)}, ${holdY.toFixed(1)})`,
-        scaleFactors: `${scaleX.toFixed(3)}×${scaleY.toFixed(3)}`,
-        targetSpace: 'SVG viewBox (for rendering)',
-        holdType: hold.source || 'unknown'
+    // FAIL LOUDLY if dimensions are missing - no silent fallbacks!
+    if (!props.detectionSpaceDimensions || !props.referenceImageDimensions) {
+      console.error('❌ MISSING COORDINATE DIMENSIONS:', {
+        detectionSpaceDimensions: props.detectionSpaceDimensions,
+        referenceImageDimensions: props.referenceImageDimensions,
+        hold: hold
       });
-    } else {
-      // Legacy holds or holds from other sources - use as center with width/height
-      holdX = hold.x + (hold.width || 0) / 2
-      holdY = hold.y + (hold.height || 0) / 2
+      return null; // Don't render with wrong coordinates
     }
-  } else if (hold.center_x !== undefined && hold.center_y !== undefined) {
-    holdX = hold.center_x
-    holdY = hold.center_y
-  } else {
-    return null
+    
+    const detectionWidth = props.detectionSpaceDimensions.width
+    const detectionHeight = props.detectionSpaceDimensions.height
+    const referenceWidth = props.referenceImageDimensions.width
+    const referenceHeight = props.referenceImageDimensions.height
+    
+    // CRITICAL QUESTION: Does referenceImageDimensions match the SVG viewBox dimensions?
+    const svgWidth = debugTargetImageDimensions.value.naturalWidth
+    const svgHeight = debugTargetImageDimensions.value.naturalHeight
+    
+    const dimensionsMatch = (referenceWidth === svgWidth && referenceHeight === svgHeight)
+    
+    console.log('🔍 COORDINATE SPACE DIAGNOSTIC:', {
+      holdSource: hold.source,
+      holdDetectionSource: hold.detectionSource,
+      referenceImageDimensions: `${referenceWidth}×${referenceHeight}`,
+      svgViewBoxDimensions: `${svgWidth}×${svgHeight}`,
+      dimensionsMatch: dimensionsMatch ? '✅ SAME' : '⚠️ DIFFERENT!',
+      detectionSpace: `${detectionWidth}×${detectionHeight}`
+    })
+    
+    // Scale from detection space to the CORRECT target space
+    // The SVG viewBox uses naturalWidth/Height
+    // The keypoints are in referenceImageDimensions space (from homography)
+    // For visualization, we need to use SVG viewBox space
+    const scaleX = svgWidth / detectionWidth
+    const scaleY = svgHeight / detectionHeight
+    
+    holdX = hold.x * scaleX
+    holdY = hold.y * scaleY
+    
+    console.log('🎯 HOLD VISUALIZATION SCALING:', {
+      holdInDetectionSpace: `(${hold.x}, ${hold.y})`,
+      scaledHold: `(${holdX.toFixed(1)}, ${holdY.toFixed(1)})`,
+      scaleFactors: `${scaleX.toFixed(3)}×${scaleY.toFixed(3)}`,
+      targetSpace: 'SVG viewBox (for rendering)',
+      holdType: hold.source || 'unknown'
+    });
   }
   
   return { x: holdX, y: holdY }
@@ -788,51 +762,6 @@ const canRenderCombinedView = computed(() => {
     combinedDimensions.value.width > 0
   )
 })
-
-// Transform pose keypoints using homography matrix
-// Simple pose projections using the same logic as interactive testing
-const simplePoseProjections = computed(() => {
-  if (!props.poseKeypoints.length || !props.homographyMatrix) return []
-  
-  return props.poseKeypoints.map((keypoint, index) => {
-    // Use the same transformation as the clickable testing (which works correctly)
-    const projectedPoint = transformPointWithHomography(
-      keypoint.x, 
-      keypoint.y, 
-      props.homographyMatrix
-    )
-    
-    // Find closest hold (if you have hold data available)
-    let closestHold = null
-    let holdDistance = null
-    
-    // TODO: Add hold detection logic here if you have hold coordinates
-    // For now, this is just a placeholder for the closest hold feature
-    
-    return {
-      index,
-      original: { x: keypoint.x, y: keypoint.y },
-      projected: projectedPoint,
-      closestHold,
-      holdDistance
-    }
-  }).filter(projection => {
-    // Filter out invalid projections using the same validation as clickable testing
-    return projection.projected && 
-           !isNaN(projection.projected.x) && !isNaN(projection.projected.y) &&
-           isFinite(projection.projected.x) && isFinite(projection.projected.y)
-  })
-})
-
-// Validation for simple projections
-const isValidSimpleProjection = (point) => {
-  return point && 
-         !isNaN(point.x) && !isNaN(point.y) &&
-         isFinite(point.x) && isFinite(point.y) &&
-         point.x >= 0 && point.y >= 0 &&
-         point.x <= poseTargetImageDimensions.value.naturalWidth &&
-         point.y <= poseTargetImageDimensions.value.naturalHeight
-}
 
 // Helper function to transform a point using homography matrix
 const transformPointWithHomography = (x, y, homography) => {
@@ -984,4 +913,15 @@ const removeTestPoint = (index) => {
 const clearTestPoints = () => {
   testPoints.value = []
 }
+
+// Wrapper functions that call the composable with component-specific data
+const getKeypointRows = (frame) => {
+  return processKeypointRows(frame, props.extractedFrames, props.bestMatchImage, props.boulderProblems)
+}
+
+// Handle keypoint row click
+const handleKeypointRowClick = (keypoint) => {
+  selectedKeypoint.value = keypoint;
+};
 </script>
+

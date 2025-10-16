@@ -187,10 +187,13 @@
                   :homography-inliers="bestMatch.homographyInliers || 0"
                   :pose-keypoints="getAllPoseKeypointsArray()"
                   :homography-matrix="bestMatch.homographyMatrix"
-                  :selected-keypoint="selectedKeypoint"
                   :reference-image-dimensions="bestMatch.referenceImageDimensions"
                   :detection-space-dimensions="bestMatch.detectionResults?.imageMetadata?.viewBox ? 
                     parseViewBoxDimensions(bestMatch.detectionResults.imageMetadata.viewBox) : null"
+                  :transformed-poses="transformedPoses"
+                  :extracted-frames="extractedFrames"
+                  :boulder-problems="matchedImageBoulderProblems"
+                  :best-match-image="bestMatch"
                 />
             </div>
             
@@ -209,168 +212,6 @@
                   • Dashed lines show distance to nearest holds • Check/uncheck frames above to toggle visibility
                 </span>
               </div>
-            </div>
-
-            <!-- Keypoints Detail Table -->
-            <div class="mt-4">
-              <div class="flex items-center justify-between mb-2">
-                <h5 class="text-sm font-medium text-gray-900">Detected Keypoints</h5>
-                <p class="text-xs text-blue-600">
-                  💡 Click any row to visualize keypoint and closest hold on both images
-                </p>
-              </div>
-              <div class="overflow-x-auto">
-                <table class="min-w-full text-xs border border-gray-200 rounded">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">Frame</th>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">Keypoint</th>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">Original Coords</th>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">
-                        Transformed Coords
-                      </th>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">Confidence</th>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">1st Closest Hold</th>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">2nd Closest Hold</th>
-                      <th class="px-2 py-1 text-left border-b border-gray-200">3rd Closest Hold</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template v-for="(frame, frameIndex) in transformedPoses" :key="frameIndex">
-                      <tr
-                        v-for="(keypoint, keypointIndex) in getKeypointRows(frame)"
-                        :key="`${frameIndex}-${keypointIndex}`"
-                        :class="[
-                          'border-b border-gray-100 cursor-pointer transition-colors',
-                          selectedKeypoint === keypoint 
-                            ? 'bg-yellow-100 hover:bg-yellow-200' 
-                            : 'hover:bg-blue-50'
-                        ]"
-                        @click="handleKeypointRowClick(keypoint)"
-                      >
-                        <td class="px-2 py-1">
-                          <div class="flex items-center">
-                            <div
-                              :class="`w-2 h-2 rounded-full mr-1 ${
-                                frame.color === '#ef4444'
-                                  ? 'bg-red-500'
-                                  : frame.color === '#3b82f6'
-                                  ? 'bg-blue-500'
-                                  : frame.color === '#22c55e'
-                                  ? 'bg-green-500'
-                                  : frame.color === '#f59e0b'
-                                  ? 'bg-amber-500'
-                                  : frame.color === '#8b5cf6'
-                                  ? 'bg-violet-500'
-                                  : 'bg-gray-500'
-                              }`"
-                            ></div>
-                            Frame {{ frameIndex + 1 }} ({{ Math.round(extractedFrames[frame.frameIndex]?.percentage * 100) || 50 }}%)
-                          </div>
-                        </td>
-                        <td class="px-2 py-1 font-medium">{{ keypoint.name }}</td>
-                        <td class="px-2 py-1 font-mono text-gray-600">
-                          ({{ Math.round(keypoint.original.x) }},
-                          {{ Math.round(keypoint.original.y) }})
-                        </td>
-                        <td class="px-2 py-1 font-mono text-gray-600">
-                          ({{ Math.round(keypoint.transformed.x) }},
-                          {{ Math.round(keypoint.transformed.y) }})
-                        </td>
-                        <td class="px-2 py-1">
-                          <span
-                            :class="`px-1 py-0.5 rounded text-xs ${
-                              keypoint.confidence > 0.7
-                                ? 'bg-green-100 text-green-800'
-                                : keypoint.confidence > 0.5
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                            }`"
-                          >
-                            {{ (keypoint.confidence * 100).toFixed(0) }}%
-                          </span>
-                        </td>
-                        <td class="px-2 py-1">
-                          <div v-if="keypoint.closestHold" class="text-xs">
-                            <div class="font-medium text-gray-900" v-if="keypoint.closestProblem">
-                              {{ keypoint.closestProblem.name }}
-                            </div>
-                            <div class="font-medium text-gray-900" v-else>
-                              AI Detected Hold
-                            </div>
-                            <div class="text-gray-500">
-                              {{
-                                keypoint.closestHold?.id || keypoint.closestHold?.holdIndex || "?"
-                              }}
-                            </div>
-                            <div class="text-gray-400">{{ keypoint.distanceToHold }}px away</div>
-                            <div class="text-gray-400 font-mono" v-if="extractHoldCoordinates(keypoint.closestHold)">
-                              ({{ Math.round(extractHoldCoordinates(keypoint.closestHold).x) }}, 
-                              {{ Math.round(extractHoldCoordinates(keypoint.closestHold).y) }})
-                            </div>
-                            <div class="text-green-600 font-medium">
-                              Score: {{ keypoint.closestScore.toFixed(3) }}
-                            </div>
-                          </div>
-                          <div v-else class="text-xs text-gray-400">No holds found</div>
-                        </td>
-                        <td class="px-2 py-1">
-                          <div v-if="keypoint.secondClosestHold" class="text-xs">
-                            <div class="font-medium text-gray-900" v-if="keypoint.secondClosestProblem">
-                              {{ keypoint.secondClosestProblem.name }}
-                            </div>
-                            <div class="font-medium text-gray-900" v-else>
-                              AI Detected Hold
-                            </div>
-                            <div class="text-gray-500">
-                              {{
-                                keypoint.secondClosestHold?.id || keypoint.secondClosestHold?.holdIndex || "?"
-                              }}
-                            </div>
-                            <div class="text-gray-400">{{ keypoint.secondClosestDistance }}px away</div>
-                            <div class="text-gray-400 font-mono" v-if="extractHoldCoordinates(keypoint.secondClosestHold)">
-                              ({{ Math.round(extractHoldCoordinates(keypoint.secondClosestHold).x) }}, 
-                              {{ Math.round(extractHoldCoordinates(keypoint.secondClosestHold).y) }})
-                            </div>
-                            <div class="text-blue-600 font-medium">
-                              Score: {{ keypoint.secondClosestScore.toFixed(3) }}
-                            </div>
-                          </div>
-                          <div v-else class="text-xs text-gray-400">-</div>
-                        </td>
-                        <td class="px-2 py-1">
-                          <div v-if="keypoint.thirdClosestHold" class="text-xs">
-                            <div class="font-medium text-gray-900" v-if="keypoint.thirdClosestProblem">
-                              {{ keypoint.thirdClosestProblem.name }}
-                            </div>
-                            <div class="font-medium text-gray-900" v-else>
-                              AI Detected Hold
-                            </div>
-                            <div class="text-gray-500">
-                              {{
-                                keypoint.thirdClosestHold?.id || keypoint.thirdClosestHold?.holdIndex || "?"
-                              }}
-                            </div>
-                            <div class="text-gray-400">{{ keypoint.thirdClosestDistance }}px away</div>
-                            <div class="text-gray-400 font-mono" v-if="extractHoldCoordinates(keypoint.thirdClosestHold)">
-                              ({{ Math.round(extractHoldCoordinates(keypoint.thirdClosestHold).x) }}, 
-                              {{ Math.round(extractHoldCoordinates(keypoint.thirdClosestHold).y) }})
-                            </div>
-                            <div class="text-orange-600 font-medium">
-                              Score: {{ keypoint.thirdClosestScore.toFixed(3) }}
-                            </div>
-                          </div>
-                          <div v-else class="text-xs text-gray-400">-</div>
-                        </td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </div>
-              <p class="text-xs text-gray-500 mt-2">
-                Original coordinates are from the video frame. Transformed coordinates are projected
-                onto the boulder image using homography.
-              </p>
             </div>
           </div>
         </div>
@@ -438,6 +279,11 @@ import { useInferenceStore } from '@/stores/inferenceStore';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { holdDetectionService } from '@/services/holdDetectionService';
 import { calculateProblemScores, formatScore } from '@/utils/problemScoringUtils';
+import { 
+  extractHoldCoordinates, 
+  findClosestHolds,
+  getKeypointRows
+} from '@/composables/useHoldMatching';
 
 // Props
 const props = defineProps({
@@ -486,9 +332,6 @@ const imageNaturalDimensions = ref({ width: 0, height: 0 }); // Track natural im
 const storedViewBox = ref(null); // Store the viewBox from Firestore
 const featureMatches = ref([]); // Store feature match data for visualization
 
-// Selected keypoint for visualization
-const selectedKeypoint = ref(null);
-
 // Debug mode state
 const debugMode = ref(false);
 
@@ -513,8 +356,8 @@ const isPoseDetectionComplete = computed(() => {
 const aggregatedProblemScores = computed(() => {
   if (!transformedPoses.value || transformedPoses.value.length === 0) return [];
   
-  // Use the canonical scoring function
-  const scores = calculateProblemScores(transformedPoses.value, getKeypointRows);
+  // Use the canonical scoring function with local wrapper
+  const scores = calculateProblemScores(transformedPoses.value, localGetKeypointRows);
   
   // Format for display compatibility
   const results = scores.map(problemScore => ({
@@ -655,319 +498,14 @@ const getAllPoseKeypointsArray = () => {
   return allKeypoints;
 };
 
-// Helper function to initialize agent logging
-const initializeAgentLogs = () => {
-  if (!window.agentLogs) {
-    window.agentLogs = {
-      session: Date.now(),
-      coordinateIssues: {
-        imageInfo: null,
-        aiHoldsAnalysis: [], // Focus only on AI holds coordinate issues
-        manualHoldsAnalysis: [] // Sample of working manual holds for comparison
-      }
-    };
-  }
-  return window.agentLogs;
+// Wrapper functions for the composable that use local refs
+// These are needed because the composable functions require parameters but the code expects to call them without params
+const localFindClosestHolds = (keypointX, keypointY) => {
+  return findClosestHolds(keypointX, keypointY, bestMatch.value, matchedImageBoulderProblems.value);
 };
 
-// Helper function to extract hold coordinates in a consistent way
-const extractHoldCoordinates = (hold) => {
-  let holdX, holdY;
-
-  // PRIORITY 1: Check for explicit center coordinates (manual holds from ManualHoldCreator have these)
-  if (hold.centerX !== undefined && hold.centerY !== undefined) {
-    holdX = hold.centerX;
-    holdY = hold.centerY;
-  } 
-  // PRIORITY 2: Check for center_x/center_y (alternative naming)
-  else if (hold.center_x !== undefined && hold.center_y !== undefined) {
-    holdX = hold.center_x;
-    holdY = hold.center_y;
-  }
-  // PRIORITY 3: Calculate from coordinates object (bounding box format)
-  else if (hold.coordinates) {
-    holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
-    holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
-  } 
-  // PRIORITY 4: Calculate from bbox array
-  else if (hold.bbox && Array.isArray(hold.bbox)) {
-    holdX = hold.bbox[0] + hold.bbox[2] / 2;
-    holdY = hold.bbox[1] + hold.bbox[3] / 2;
-  } 
-  // PRIORITY 5: Calculate from bbox object
-  else if (hold.bbox && typeof hold.bbox === 'object') {
-    holdX = hold.bbox.x + (hold.bbox.width || 0) / 2;
-    holdY = hold.bbox.y + (hold.bbox.height || 0) / 2;
-  } 
-  // PRIORITY 6: Use x,y coordinates (may be center or top-left depending on source)
-  else if (hold.x !== undefined && hold.y !== undefined) {
-    // Check if this is already a center coordinate (from our processed AI holds)
-    // Our AI holds from the server have x,y as center coordinates already
-    if (hold.source === 'ai-detected' || hold.aiModel === 'server-detection') {
-      holdX = hold.x; // Already center coordinate in detection space (e.g., 1080x1440)
-      holdY = hold.y; // Already center coordinate in detection space
-    } else {
-      // For other holds, treat x,y as top-left and calculate center
-      holdX = hold.x + (hold.width || 0) / 2;
-      holdY = hold.y + (hold.height || 0) / 2;
-    }
-  } 
-  else {
-    console.warn('❌ Unknown hold coordinate format:', hold);
-    return null;
-  }
-
-  // NOTE: Holds are kept in their stored coordinate space (detection image space, e.g., 1080x1440)
-  // Keypoints will be scaled to match this space in findClosestHolds()
-  return { x: holdX, y: holdY };
-};
-
-// Helper function to find which boulder problem a hold belongs to
-const findBoulderProblemForHold = (holdIndex) => {
-  if (!matchedImageBoulderProblems.value) return null;
-  
-  for (const problem of matchedImageBoulderProblems.value) {
-    if (problem.holds && problem.holds.some(h => h.holdIndex === holdIndex)) {
-      return problem;
-    }
-  }
-  return null;
-};
-
-// Methods - Find closest holds with focused coordinate debugging
-const findClosestHolds = (keypointX, keypointY) => {
-  initializeAgentLogs(); // Ensure logs are initialized
-  
-  if (!bestMatch.value || !bestMatch.value.name) {
-    return { 
-      closest: { hold: null, problem: null, distance: Infinity, score: 0 },
-      secondClosest: { hold: null, problem: null, distance: Infinity, score: 0 },
-      thirdClosest: { hold: null, problem: null, distance: Infinity, score: 0 }
-    };
-  }
-
-  // CRITICAL COORDINATE SPACE CONVERSION
-  // Transformed keypoints are in REFERENCE IMAGE space (the actual loaded image dimensions, e.g., 1200x1600)
-  // Holds are stored in DETECTION IMAGE space (the resized dimensions from AI detection, e.g., 1080x1440)
-  // We MUST scale the keypoint to match the hold coordinate space before calculating distances!
-  
-  const referenceImageDims = bestMatch.value.referenceImageDimensions; // The actual loaded image (e.g., 1200x1600)
-  const metadata = bestMatch.value.detectionResults?.imageMetadata;
-  const detectionImageDims = metadata?.imageDimensions; // The AI detection dimensions (e.g., 1080x1440)
-  
-  let scaledKeypointX = keypointX;
-  let scaledKeypointY = keypointY;
-  
-  if (referenceImageDims && detectionImageDims) {
-    const scaleX = detectionImageDims.width / referenceImageDims.width;
-    const scaleY = detectionImageDims.height / referenceImageDims.height;
-    
-    scaledKeypointX = keypointX * scaleX;
-    scaledKeypointY = keypointY * scaleY;
-
-  } else {
-    console.warn(`⚠️ Missing dimensions for coordinate conversion:`, {
-      hasReferenceImageDims: !!referenceImageDims,
-      referenceImageDims,
-      hasDetectionImageDims: !!detectionImageDims,
-      detectionImageDims
-    });
-  }
-
-  const proximityThreshold = 300;
-  const allHoldsWithDistances = [];
-  
-  // Log basic image info once
-  if (!window.agentLogs.coordinateIssues.imageInfo) {
-    window.agentLogs.coordinateIssues.imageInfo = {
-      name: bestMatch.value.name,
-      id: bestMatch.value.id,
-      naturalDimensions: imageNaturalDimensions.value
-    };
-  }
-
-  // DUAL SOURCE: Check both AI detection results AND manual holds from boulder problems
-  // Source 1: AI detection results from Firestore hold detection service
-  if (bestMatch.value.detectionResults && bestMatch.value.detectionResults.results) {
-    bestMatch.value.detectionResults.results.forEach((detectedHold, index) => {
-      const coords = extractHoldCoordinates(detectedHold);
-      if (!coords) {
-        console.warn(`⚠️ Could not extract coords from AI hold #${index}:`, detectedHold);
-        return;
-      }
-
-      const distance = Math.sqrt(Math.pow(scaledKeypointX - coords.x, 2) + Math.pow(scaledKeypointY - coords.y, 2));
-      const score = distance <= proximityThreshold ? 
-        Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
-
-      // Look up which boulder problem this hold belongs to
-      const holdIndex = detectedHold.holdIndex ?? index;
-      const associatedProblem = findBoulderProblemForHold(holdIndex);
-
-      allHoldsWithDistances.push({
-        hold: {
-          ...detectedHold,
-          id: detectedHold.id || `detected_hold_${index}`,
-          holdIndex: holdIndex,
-          source: 'ai-detection'
-        },
-        problem: associatedProblem,
-        distance: Math.round(distance),
-        score: score
-      });
-    });
-  }
-  
-    // Source 2: Manual holds from boulder problems  
-    if (matchedImageBoulderProblems.value && matchedImageBoulderProblems.value.length > 0) {
-    matchedImageBoulderProblems.value.forEach((problem) => {
-      if (problem.holds && Array.isArray(problem.holds)) {
-        problem.holds.forEach((holdWrapper) => {
-          // Manual holds from boulder problems have structure: {holdIndex, hold: {...}, addedAt, role}
-          // The actual hold data is in the nested 'hold' property
-          const hold = holdWrapper.hold || holdWrapper;
-          const coords = extractHoldCoordinates(hold);
-          if (!coords) return;          const distance = Math.sqrt(Math.pow(scaledKeypointX - coords.x, 2) + Math.pow(scaledKeypointY - coords.y, 2));
-          const score = distance <= proximityThreshold ? 
-            Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
-
-          allHoldsWithDistances.push({
-            hold: {
-              ...hold,
-              id: hold.id || `manual_hold_${holdWrapper.holdIndex || hold.holdIndex}`,
-              holdIndex: holdWrapper.holdIndex || hold.holdIndex,
-              source: 'manual'
-            },
-            problem: problem,
-            distance: Math.round(distance),
-            score: score
-          });
-        });
-      }
-    });
-  }
-
-  // Sort by distance and get top 3
-  allHoldsWithDistances.sort((a, b) => a.distance - b.distance);
-  
-  const closest = allHoldsWithDistances[0] || { hold: null, problem: null, distance: Infinity, score: 0 };
-  const secondClosest = allHoldsWithDistances[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
-  const thirdClosest = allHoldsWithDistances[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
-
-  return { 
-    closest, 
-    secondClosest, 
-    thirdClosest,
-    allHoldsCount: allHoldsWithDistances.length
-  };
-};
-
-const getKeypointRows = (frame) => {
-  const keypointNames = ['Left Wrist', 'Right Wrist', 'Left Ankle', 'Right Ankle'];
-  const keypointData = [];
-
-  // Prevent duplicate processing - check if we've already processed this frame
-  const existingFrameLog = window.agentLogs?.frameProcessing?.find(f => f.frameIndex === frame.frameIndex);
-  
-  if (!existingFrameLog) {
-    // Initialize frame processing logs if needed
-    if (!window.agentLogs.frameProcessing) {
-      window.agentLogs.frameProcessing = [];
-    }
-    
-    const frameLog = {
-      frameIndex: frame.frameIndex,
-      keypointResults: []
-    };
-    window.agentLogs.frameProcessing.push(frameLog);
-  }
-
-  // Get confidence values from the original pose data
-  const originalFrame = extractedFrames.value[frame.frameIndex];
-  const poseKeypoints = originalFrame?.poseData?.keypoints;
-
-  if (frame.originalPoints && frame.transformedPoints) {
-    frame.originalPoints.forEach((originalPoint, index) => {
-      if (index < keypointNames.length) {
-        // Get confidence for this specific keypoint
-        let confidence = 0.5; // default
-        if (poseKeypoints) {
-          switch (index) {
-            case 0:
-              confidence = poseKeypoints.leftWrist?.confidence || 0;
-              break;
-            case 1:
-              confidence = poseKeypoints.rightWrist?.confidence || 0;
-              break;
-            case 2:
-              confidence = poseKeypoints.leftAnkle?.confidence || 0;
-              break;
-            case 3:
-              confidence = poseKeypoints.rightAnkle?.confidence || 0;
-              break;
-          }
-        }
-
-        // COORDINATE SYSTEM FIX: Convert transformed point to match stored hold coordinates
-        let searchPoint = frame.transformedPoints[index];
-        if (bestMatch.value.detectionResults?.imageMetadata?.viewBox && imageNaturalDimensions.value.width > 0) {
-          const convertedPoints = convertProjectedPointsForDistanceCalculation(
-            [frame.transformedPoints[index]], // Convert single point
-            imageNaturalDimensions.value, // Natural dimensions
-            bestMatch.value.detectionResults.imageMetadata.viewBox // Stored viewBox
-          );
-          
-          if (convertedPoints.length > 0) {
-            searchPoint = convertedPoints[0];
-          }
-        }
-
-        // Find the closest holds - no contextual filtering, just pure distance
-        const holdsInfo = findClosestHolds(
-          searchPoint.x,
-          searchPoint.y
-        );
-
-        // Only log to frame processing if this is a new entry
-        if (!existingFrameLog) {
-          const currentFrameLog = window.agentLogs.frameProcessing[window.agentLogs.frameProcessing.length - 1];
-          currentFrameLog.keypointResults.push({
-            name: keypointNames[index],
-            transformedPos: `(${frame.transformedPoints[index].x.toFixed(1)}, ${frame.transformedPoints[index].y.toFixed(1)})`,
-            closestHoldId: holdsInfo.closest.hold?.id || 'none',
-            closestDistance: holdsInfo.closest.distance
-          });
-        }
-
-        keypointData.push({
-          name: keypointNames[index],
-          original: originalPoint,
-          transformed: frame.transformedPoints[index],
-          confidence: confidence,
-          closestHold: holdsInfo.closest.hold,
-          closestProblem: holdsInfo.closest.problem,
-          distanceToHold: holdsInfo.closest.distance,
-          closestScore: holdsInfo.closest.score,
-          // Add second and third closest data
-          secondClosestHold: holdsInfo.secondClosest.hold,
-          secondClosestProblem: holdsInfo.secondClosest.problem,
-          secondClosestDistance: holdsInfo.secondClosest.distance,
-          secondClosestScore: holdsInfo.secondClosest.score,
-          thirdClosestHold: holdsInfo.thirdClosest.hold,
-          thirdClosestProblem: holdsInfo.thirdClosest.problem,
-          thirdClosestDistance: holdsInfo.thirdClosest.distance,
-          thirdClosestScore: holdsInfo.thirdClosest.score,
-        });
-      }
-    });
-  }
-
-  return keypointData;
-};
-
-// Handle keypoint row click
-const handleKeypointRowClick = (keypoint) => {
-  selectedKeypoint.value = keypoint;
+const localGetKeypointRows = (frame) => {
+  return getKeypointRows(frame, extractedFrames.value, bestMatch.value, matchedImageBoulderProblems.value);
 };
 
 // Handle video selection from VideoUploadSelector component
@@ -1001,16 +539,6 @@ const handleVideoSelected = async (file) => {
 
 const processVideo = async () => {
   try {
-    // Initialize fresh agent logs for this session
-    window.agentLogs = {
-      session: Date.now(),
-      coordinateIssues: {
-        imageInfo: null,
-        aiHoldsAnalysis: [],
-        manualHoldsAnalysis: []
-      }
-    };
-
     isProcessing.value = true;
     error.value = null;
 
@@ -1219,6 +747,28 @@ const handleMatchFound = async (matchedImage) => {
 const handleAnalysisComplete = async (bestMatchResult) => {
   bestMatch.value = bestMatchResult;
 
+  // Load the actual image to get its natural dimensions as a fallback
+  // This ensures referenceImageDimensions is always available
+  if (!bestMatchResult.referenceImageDimensions) {
+    try {
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = () => {
+          bestMatch.value.referenceImageDimensions = {
+            width: img.naturalWidth,
+            height: img.naturalHeight
+          };
+          console.log('📏 Loaded reference image dimensions:', bestMatch.value.referenceImageDimensions);
+          resolve();
+        };
+        img.onerror = reject;
+        img.src = bestMatchResult.url;
+      });
+    } catch (error) {
+      console.warn('❌ Failed to load reference image dimensions:', error);
+    }
+  }
+
   // Fetch both the stored viewBox AND detection results from Firestore
   try {
     if (bestMatchResult.id && props.locationId) {
@@ -1410,7 +960,7 @@ const transformPosesToMatchedImage = async (matchResult) => {
           }
         }
         
-        const holdInfo = findClosestHolds(searchPoint.x, searchPoint.y);
+        const holdInfo = localFindClosestHolds(searchPoint.x, searchPoint.y);
         const coords = holdInfo.closest.hold ? extractHoldCoordinates(holdInfo.closest.hold) : null;
         
         // DEBUGGING: Focus on frame 0 only
