@@ -1,91 +1,13 @@
 <template>
   <div class="video-frame-matcher-component">
-    <!-- Recording/Upload Mode Selection -->
-    <div v-if="!selectedVideo" class="mb-4">
-      <div class="flex items-center justify-center space-x-1 bg-gray-100 rounded-lg p-1">
-        <button
-          @click="recordingMode = 'upload'"
-          :class="[
-            'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
-            recordingMode === 'upload'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          ]"
-        >
-          📁 Upload File
-        </button>
-        <button
-          @click="recordingMode = 'record'"
-          :class="[
-            'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
-            recordingMode === 'record'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          ]"
-        >
-          🎥 Record Video
-        </button>
-      </div>
-    </div>
-
-    <!-- Video File Selection or Recording -->
-    <div v-if="!selectedVideo" class="border-2 border-dashed border-gray-300 rounded-lg p-6">
-      <!-- Upload Mode -->
-      <div v-if="recordingMode === 'upload'" class="text-center">
-        <svg
-          class="w-12 h-12 text-gray-400 mx-auto mb-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-          ></path>
-        </svg>
-        <div class="mb-4">
-          <h4 class="text-lg font-medium text-gray-900 mb-2">{{ title }}</h4>
-          <p class="text-sm text-gray-500">{{ subtitle }}</p>
-        </div>
-
-        <!-- File Input -->
-        <input
-          ref="fileInput"
-          type="file"
-          accept="video/*"
-          @change="handleVideoSelect"
-          class="hidden"
-        />
-
-        <button
-          type="button"
-          @click="$refs.fileInput.click()"
-          :disabled="isProcessing"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 transition-colors"
-        >
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            ></path>
-          </svg>
-          Choose Video File
-        </button>
-
-        <p class="text-xs text-gray-500 mt-2">MP4, WebM, MOV up to 100MB</p>
-      </div>
-
-      <!-- Record Mode -->
-      <VideoRecorder 
-        v-else-if="recordingMode === 'record'"
-        @video-recorded="handleRecordedVideo"
-        @recording-cancelled="recordingMode = 'upload'"
-      />
-    </div>
+    <!-- Video Upload/Record Selector -->
+    <VideoUploadSelector
+      v-if="!selectedVideo"
+      :title="title"
+      :subtitle="subtitle"
+      :is-disabled="isProcessing"
+      @video-selected="handleVideoSelected"
+    />
 
     <!-- Video Selected and Processing -->
     <div v-else class="space-y-6">
@@ -566,7 +488,7 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue';
 import ImageMatcher from './ImageMatcher.vue';
-import VideoRecorder from './VideoRecorder.vue';
+import VideoUploadSelector from './VideoUploadSelector.vue';
 import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
@@ -617,7 +539,6 @@ const emit = defineEmits([
 ]);
 
 // Reactive state
-const fileInput = ref(null);
 const selectedVideo = ref(null);
 const extractedFrames = ref([]);
 const isProcessing = ref(false);
@@ -635,9 +556,6 @@ const poseVisibility = ref({}); // Track which poses are visible
 
 // Selected keypoint for visualization
 const selectedKeypoint = ref(null);
-
-// Recording mode state
-const recordingMode = ref('upload'); // 'upload' or 'record'
 
 // Debug mode state
 const debugMode = ref(false);
@@ -1139,12 +1057,9 @@ const handleKeypointRowClick = (keypoint) => {
   selectedKeypoint.value = keypoint;
 };
 
-const handleVideoSelect = async (event) => {
-  const file = event.target.files[0];
+// Handle video selection from VideoUploadSelector component
+const handleVideoSelected = async (file) => {
   if (!file) return;
-
-  // Clear previous state
-  clearState();
 
   // Validate video file
   const validation = validateVideoFile(file);
@@ -1153,6 +1068,9 @@ const handleVideoSelect = async (event) => {
     return;
   }
 
+  // Clear previous state
+  clearState();
+  
   // Set selected video
   selectedVideo.value = file;
   
@@ -1164,22 +1082,6 @@ const handleVideoSelect = async (event) => {
   
   emit('video-selected', file);
 
-  // Start processing pipeline
-  await processVideo();
-
-  // Clear the input so the same file can be selected again
-  event.target.value = '';
-};
-
-// Handle video from recorder component
-const handleRecordedVideo = async (file) => {
-  // Clear previous state
-  clearState();
-  
-  // Set selected video
-  selectedVideo.value = file;
-  emit('video-selected', file);
-  
   // Start processing pipeline
   await processVideo();
 };

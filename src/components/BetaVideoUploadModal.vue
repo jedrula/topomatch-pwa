@@ -28,12 +28,11 @@
       </div>
 
       <div class="px-6 flex-1 overflow-y-auto">
-        <VideoFrameMatcher
+        <VideoFrameMatcherEnhanced
           :comparison-images="comparisonImages"
           :location-id="locationId"
           title="Upload Beta Video"
           subtitle="Upload a climbing video and we'll identify the boulder problem automatically"
-          :frame-extraction-time="5"
           :auto-start-matching="true"
           @video-selected="$emit('video-selected', $event)"
           @analysis-complete="$emit('analysis-complete', $event)"
@@ -318,7 +317,7 @@
 </template>
 
 <script setup>
-import VideoFrameMatcher from './VideoFrameMatcherEnhanced.vue';
+import VideoFrameMatcherEnhanced from './VideoFrameMatcherEnhanced.vue';
 
 defineProps({
   isOpen: {
