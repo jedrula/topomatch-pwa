@@ -119,7 +119,7 @@
           <div v-if="transformedPoses.length > 0" class="space-y-4">
             <!-- Homography Quality Visualization -->
             <CollapsibleSection
-              v-if="bestMatch.homographyMatrix"
+              v-if="bestMatch.homographyMatrix && debugMode"
               title="Homography Quality Analysis"
               :default-expanded="false"
               class="mt-6"
