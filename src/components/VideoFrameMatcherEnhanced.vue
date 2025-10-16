@@ -179,8 +179,8 @@
               </div>
 
               <!-- Feature Match Visualization -->
-              <div v-if="featureMatches.length > 0" class="mt-4">
                 <FeatureMatchVisualization
+                  v-if="featureMatches.length > 0 && debugMode"
                   :source-image-url="extractedFrames[0]?.url"
                   :target-image-url="bestMatch.url"
                   :feature-matches="featureMatches"
@@ -192,7 +192,6 @@
                   :detection-space-dimensions="bestMatch.detectionResults?.imageMetadata?.viewBox ? 
                     parseViewBoxDimensions(bestMatch.detectionResults.imageMetadata.viewBox) : null"
                 />
-              </div>
             </div>
             
             <div class="mt-2 text-xs text-gray-600">

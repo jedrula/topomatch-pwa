@@ -1,145 +1,90 @@
 <template>
   <div class="feature-match-visualization">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <!-- Video Frame (Source) -->
-      <div class="relative">
-        <h6 class="text-xs font-medium text-gray-700 mb-2">Video Frame (Source)</h6>
-        <div class="relative inline-block border rounded">
-          <img
-            ref="sourceImage"
-            :src="sourceImageUrl"
-            alt="Video frame"
-            class="max-w-full max-h-[300px] object-contain"
-            @load="onSourceImageLoad"
-          />
-          <!-- Source feature points -->
-          <svg
-            v-if="sourceImageDimensions.width > 0"
-            class="absolute inset-0 pointer-events-none"
-            :width="sourceImageDimensions.width"
-            :height="sourceImageDimensions.height"
-            :viewBox="`0 0 ${sourceImageDimensions.naturalWidth} ${sourceImageDimensions.naturalHeight}`"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            <circle
-              v-for="(match, index) in processedMatches"
-              :key="`source-${index}`"
-              :cx="match.point1.x"
-              :cy="match.point1.y"
-              r="3"
-              :fill="match.isInlier ? '#22c55e' : '#ef4444'"
-              :stroke="match.isInlier ? '#16a34a' : '#dc2626'"
-              stroke-width="1"
-              opacity="0.8"
-            />
-          </svg>
-        </div>
-      </div>
-
-      <!-- Reference Image (Target) -->
-      <div class="relative">
-        <h6 class="text-xs font-medium text-gray-700 mb-2">Reference Image (Target)</h6>
-        <div class="relative inline-block border rounded">
-          <img
-            ref="targetImage"
-            :src="targetImageUrl"
-            alt="Reference image"
-            class="max-w-full max-h-[300px] object-contain"
-            @load="onTargetImageLoad"
-          />
-          <!-- Target feature points -->
-          <svg
-            v-if="targetImageDimensions.width > 0"
-            class="absolute inset-0 pointer-events-none"
-            :width="targetImageDimensions.width"
-            :height="targetImageDimensions.height"
-            :viewBox="`0 0 ${targetImageDimensions.naturalWidth} ${targetImageDimensions.naturalHeight}`"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            <circle
-              v-for="(match, index) in processedMatches"
-              :key="`target-${index}`"
-              :cx="match.point2.x"
-              :cy="match.point2.y"
-              r="3"
-              :fill="match.isInlier ? '#22c55e' : '#ef4444'"
-              :stroke="match.isInlier ? '#16a34a' : '#dc2626'"
-              stroke-width="1"
-              opacity="0.8"
-            />
-          </svg>
-        </div>
-      </div>
-    </div>
+      <img
+        style="position: absolute; opacity: 0;"
+        ref="sourceImage"
+        :src="sourceImageUrl"
+        alt="Video frame"
+        @load="onSourceImageLoad"
+      />
+      <img
+        style="position: absolute; opacity: 0;"
+        ref="targetImage"
+        :src="targetImageUrl"
+        alt="Reference image"
+        @load="onTargetImageLoad"
+      />
 
     <!-- Combined view with connecting lines -->
-    <div class="mt-4">
-      <h6 class="text-xs font-medium text-gray-700 mb-2">Feature Matches with Connections</h6>
-      <div class="relative border rounded bg-gray-50 p-2">
-        <svg
-          v-if="canRenderCombinedView"
-          :width="combinedDimensions.width"
-          :height="combinedDimensions.height"
-          class="w-full"
-          :viewBox="`0 0 ${combinedDimensions.width} ${combinedDimensions.height}`"
-        >
-          <!-- Source image -->
-          <image
-            :href="sourceImageUrl"
-            x="0"
-            y="0"
-            :width="sourceImageScale.width"
-            :height="sourceImageScale.height"
-            preserveAspectRatio="xMidYMid meet"
-          />
-          
-          <!-- Target image -->
-          <image
-            :href="targetImageUrl"
-            :x="sourceImageScale.width + 20"
-            y="0"
-            :width="targetImageScale.width"
-            :height="targetImageScale.height"
-            preserveAspectRatio="xMidYMid meet"
-          />
+    <CollapsibleSection
+      title="Feature Matches with Connections"
+      :default-expanded="false"
+      class="mt-4"
+      content-class="relative border rounded bg-gray-50 p-2"
+    >
+      <svg
+        v-if="canRenderCombinedView"
+        :width="combinedDimensions.width"
+        :height="combinedDimensions.height"
+        class="w-full"
+        :viewBox="`0 0 ${combinedDimensions.width} ${combinedDimensions.height}`"
+      >
+        <!-- Source image -->
+        <image
+          :href="sourceImageUrl"
+          x="0"
+          y="0"
+          :width="sourceImageScale.width"
+          :height="sourceImageScale.height"
+          preserveAspectRatio="xMidYMid meet"
+        />
+        
+        <!-- Target image -->
+        <image
+          :href="targetImageUrl"
+          :x="sourceImageScale.width + 20"
+          y="0"
+          :width="targetImageScale.width"
+          :height="targetImageScale.height"
+          preserveAspectRatio="xMidYMid meet"
+        />
 
-          <!-- Connecting lines -->
-          <g v-for="(match, index) in validMatches" :key="`line-${index}`">
-            <line
-              :x1="match.sourcePoint.x"
-              :y1="match.sourcePoint.y"
-              :x2="match.targetPoint.x"
-              :y2="match.targetPoint.y"
-              :stroke="match.isInlier ? '#22c55e' : '#ef4444'"
-              :stroke-width="match.isInlier ? '1.5' : '1'"
-              :opacity="match.isInlier ? '0.8' : '0.4'"
-            />
-          </g>
+        <!-- Connecting lines -->
+        <g v-for="(match, index) in validMatches" :key="`line-${index}`">
+          <line
+            :x1="match.sourcePoint.x"
+            :y1="match.sourcePoint.y"
+            :x2="match.targetPoint.x"
+            :y2="match.targetPoint.y"
+            :stroke="match.isInlier ? '#22c55e' : '#ef4444'"
+            :stroke-width="match.isInlier ? '1.5' : '1'"
+            :opacity="match.isInlier ? '0.8' : '0.4'"
+          />
+        </g>
 
-          <!-- Feature points on combined view -->
-          <g v-for="(match, index) in validMatches" :key="`points-${index}`">
-            <!-- Source point -->
-            <circle
-              :cx="match.sourcePoint.x"
-              :cy="match.sourcePoint.y"
-              r="2"
-              :fill="match.isInlier ? '#22c55e' : '#ef4444'"
-              stroke="white"
-              stroke-width="0.5"
-            />
-            <!-- Target point -->
-            <circle
-              :cx="match.targetPoint.x"
-              :cy="match.targetPoint.y"
-              r="2"
-              :fill="match.isInlier ? '#22c55e' : '#ef4444'"
-              stroke="white"
-              stroke-width="0.5"
-            />
-          </g>
-        </svg>
-      </div>
-    </div>
+        <!-- Feature points on combined view -->
+        <g v-for="(match, index) in validMatches" :key="`points-${index}`">
+          <!-- Source point -->
+          <circle
+            :cx="match.sourcePoint.x"
+            :cy="match.sourcePoint.y"
+            r="2"
+            :fill="match.isInlier ? '#22c55e' : '#ef4444'"
+            stroke="white"
+            stroke-width="0.5"
+          />
+          <!-- Target point -->
+          <circle
+            :cx="match.targetPoint.x"
+            :cy="match.targetPoint.y"
+            r="2"
+            :fill="match.isInlier ? '#22c55e' : '#ef4444'"
+            stroke="white"
+            stroke-width="0.5"
+          />
+        </g>
+      </svg>
+    </CollapsibleSection>
 
     <!-- Pose Keypoint Transformation Visualization - Simplified -->
     <div v-if="poseKeypoints.length > 0 && homographyMatrix" class="mt-4">
@@ -593,6 +538,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import CollapsibleSection from './CollapsibleSection.vue'
 
 const props = defineProps({
   sourceImageUrl: String,
