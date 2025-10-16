@@ -110,95 +110,30 @@
               <h4 class="text-sm font-medium text-gray-900">Climber Pose Projection</h4>
               <div class="flex items-center space-x-2">
                 <button
-                  @click="toggleAllPoses(true)"
+                  @click="selectedKeypoint = null"
                   class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                 >
-                  Show All
+                  Clear Selection
                 </button>
                 <button
-                  @click="toggleAllPoses(false)"
+                  @click="debugMode = !debugMode"
                   class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                 >
-                  Hide All
+                  {{ debugMode ? 'Hide' : 'Show' }} Debug Info
                 </button>
               </div>
             </div>
 
-            <!-- Pose Selection Controls -->
-            <div class="bg-gray-50 rounded-lg p-3">
-              <div class="grid grid-cols-5 gap-2">
-                <div
-                  v-for="(frame, index) in transformedPoses"
-                  :key="index"
-                  class="flex items-center space-x-2"
-                >
-                  <input
-                    type="checkbox" 
-                    v-model="poseVisibility[frame.frameIndex]"
-                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
-                  />
-                  <div class="flex items-center space-x-1">
-                    <div
-                      :class="`w-2 h-2 rounded-full ${
-                        frame.color === '#ef4444' ? 'bg-red-500' :
-                        frame.color === '#3b82f6' ? 'bg-blue-500' :
-                        frame.color === '#22c55e' ? 'bg-green-500' :
-                        frame.color === '#f59e0b' ? 'bg-amber-500' :
-                        frame.color === '#8b5cf6' ? 'bg-violet-500' :
-                        frame.color === '#06b6d4' ? 'bg-cyan-500' :
-                        frame.color === '#f97316' ? 'bg-orange-500' :
-                        frame.color === '#84cc16' ? 'bg-lime-500' :
-                        frame.color === '#ec4899' ? 'bg-pink-500' :
-                        frame.color === '#64748b' ? 'bg-slate-500' : 'bg-gray-500'
-                      }`"
-                    ></div>
-                    <span class="text-xs font-medium">
-                      Frame {{ frame.frameIndex + 1 }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Original Video Frames -->
+            <!-- Original Video Frames Animator -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <!-- Original Video Frames (left side) -->
-              <div v-if="getVisiblePoses().length > 0" class="space-y-4">
+              <div class="space-y-4">
                 <h5 class="text-sm font-medium text-gray-900">Original Video Frames</h5>
-                <div class="space-y-3">
-                  <div 
-                    v-for="(visiblePose, visibleIndex) in getVisiblePoses()" 
-                    :key="visiblePose.frameIndex"
-                    class="border rounded-lg p-3 bg-white"
-                  >
-                    <div class="flex items-center space-x-3 mb-3">
-                      <div
-                        :class="`w-3 h-3 rounded-full ${
-                          visiblePose.color === '#ef4444' ? 'bg-red-500' :
-                          visiblePose.color === '#3b82f6' ? 'bg-blue-500' :
-                          visiblePose.color === '#22c55e' ? 'bg-green-500' :
-                          visiblePose.color === '#f59e0b' ? 'bg-amber-500' :
-                          visiblePose.color === '#8b5cf6' ? 'bg-violet-500' :
-                          visiblePose.color === '#06b6d4' ? 'bg-cyan-500' :
-                          visiblePose.color === '#f97316' ? 'bg-orange-500' :
-                          visiblePose.color === '#84cc16' ? 'bg-lime-500' :
-                          visiblePose.color === '#ec4899' ? 'bg-pink-500' :
-                          visiblePose.color === '#64748b' ? 'bg-slate-500' : 'bg-gray-500'
-                        }`"
-                      ></div>
-                      <span class="text-sm font-medium">
-                        Frame {{ visibleIndex + 1 }} ({{ Math.round(extractedFrames[visiblePose.frameIndex]?.percentage * 100) }}%)
-                      </span>
-                    </div>
-                    <div class="relative">
-                      <img
-                        :src="extractedFrames[visiblePose.frameIndex]?.url"
-                        alt="Original video frame"
-                        class="w-full max-h-[500px] object-contain rounded border"
-                      />
-                    </div>
-                  </div>
-                </div>
+                <PoseFrameAnimator 
+                  :frames="extractedFrames"
+                  :frame-rate="1"
+                  :auto-play="true"
+                />
               </div>
             </div>
 
@@ -490,6 +425,7 @@ import { ref, computed, watch, onUnmounted } from 'vue';
 import ImageMatcher from './ImageMatcher.vue';
 import VideoUploadSelector from './VideoUploadSelector.vue';
 import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
+import PoseFrameAnimator from './PoseFrameAnimator.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
   extractVideoFrames,
@@ -550,9 +486,6 @@ const transformedPoses = ref([]);
 const imageNaturalDimensions = ref({ width: 0, height: 0 }); // Track natural image dimensions for SVG
 const storedViewBox = ref(null); // Store the viewBox from Firestore
 const featureMatches = ref([]); // Store feature match data for visualization
-
-// Pose visibility controls
-const poseVisibility = ref({}); // Track which poses are visible
 
 // Selected keypoint for visualization
 const selectedKeypoint = ref(null);
@@ -616,25 +549,6 @@ watch(aggregatedProblemScores, (scores) => {
     });
   }
 });
-
-// Helper function to get visible poses
-const getVisiblePoses = () => {
-  const visible = transformedPoses.value.filter((pose) => {
-    const isVisible = poseVisibility.value[pose.frameIndex] === true;
-    return isVisible;
-  });
-  
-  return visible;
-};
-
-// Helper function to toggle all poses visibility
-const toggleAllPoses = (visible) => {
-  const newVisibility = {};
-  transformedPoses.value.forEach((frame) => {
-    newVisibility[frame.frameIndex] = visible;
-  });
-  poseVisibility.value = newVisibility;
-};
 
 // Homography quality helper methods
 const getHomographySuccessRate = () => {
@@ -1540,13 +1454,6 @@ const transformPosesToMatchedImage = async (matchResult) => {
     }
 
     transformedPoses.value = transformedFrames;
-    
-    // Initialize pose visibility for all frames as visible using original frame indices
-    const newVisibility = {};
-    transformedFrames.forEach((frame) => {
-      newVisibility[frame.frameIndex] = true;
-    });
-    poseVisibility.value = newVisibility;
   } catch (err) {
     console.error('Pose transformation error:', err);
     error.value = 'Failed to transform poses: ' + err.message;
@@ -1787,7 +1694,6 @@ const clearState = () => {
   bestMatch.value = null;
   transformedPoses.value = [];
   featureMatches.value = [];
-  poseVisibility.value = [];
 
   // Clean up any object URLs
   extractedFrames.value.forEach((frame) => {
