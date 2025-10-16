@@ -88,6 +88,16 @@
         </span>
       </div>
 
+      <!-- Video Frames Animator (shown as soon as frames are extracted) -->
+      <div v-if="extractedFrames.length > 0 && !isProcessing" class="space-y-4">
+        <PoseFrameAnimator 
+          :frames="extractedFrames"
+          :frame-rate="1"
+          :auto-play="true"
+          :debug-mode="debugMode"
+        />
+      </div>
+
       <!-- Image Matching Results -->
       <div v-if="bestMatch" class="space-y-4">
         <div>
@@ -107,20 +117,6 @@
 
           <!-- Enhanced Pose Visualization -->
           <div v-if="transformedPoses.length > 0" class="space-y-4">
-            
-            <!-- Original Video Frames Animator -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <!-- Original Video Frames (left side) -->
-              <div class="space-y-4">
-                <PoseFrameAnimator 
-                  :frames="extractedFrames"
-                  :frame-rate="1"
-                  :auto-play="true"
-                  :debug-mode="debugMode"
-                />
-              </div>
-            </div>
-
             <!-- Homography Quality Visualization -->
             <CollapsibleSection
               v-if="bestMatch.homographyMatrix"
