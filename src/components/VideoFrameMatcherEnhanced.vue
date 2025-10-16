@@ -111,6 +111,14 @@
               <p class="text-xs text-gray-500">{{ formatFileSize(selectedVideo.size) }}</p>
             </div>
           </div>
+          <button
+            @click="debugMode = !debugMode"
+            class="text-xs px-2 py-1 rounded transition-colors"
+            :class="debugMode ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            title="Toggle debug information"
+          >
+            {{ debugMode ? '🔍 Debug ON' : '🔍 Debug' }}
+          </button>
         </div>
       </div>
 
@@ -143,44 +151,17 @@
         </div>
       </div>
 
-      <!-- Pose Detection Summary -->
-      <div v-if="extractedFrames.length > 0 && !isProcessing" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h4 class="text-sm font-medium text-gray-900 mb-2">Pose Detection Summary</h4>
-        <div class="text-sm text-gray-600">
-          <p>Successful detections: {{ extractedFrames.filter(f => f.poseData).length }} / {{ extractedFrames.length }} frames</p>
-          <div v-if="extractedFrames.some(f => f.poseError)" class="mt-2">
-            <p class="text-red-600 font-medium">Common issues found:</p>
-            <ul class="list-disc list-inside mt-1 space-y-1">
-              <li v-for="error in uniquePoseErrors" :key="error" class="text-red-600">{{ error }}</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- Extracted Frames -->
-      <div v-if="extractedFrames.length > 0" class="space-y-4">
-        <h3 class="text-lg font-medium text-gray-900">Extracted Frames with Pose Data</h3>
-        <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <div
-            v-for="(frame, index) in extractedFrames"
-            :key="index"
-            class="bg-white border-gray-200 border rounded-lg p-1"
-          >
-            <div class="space-y-1">
-              <img
-                :src="frame.url"
-                alt="Extracted frame"
-                class="w-full h-32 object-contain rounded border-gray-100 border"
-              />
-              <div class="flex items-center justify-between text-xs">
-                <span class="font-medium text-gray-900">{{ index + 1 }}</span>
-                <span class="text-gray-500">{{ Math.round(frame.percentage * 100) }}%</span>
-                <span v-if="frame.poseData" class="text-green-600">✓</span>
-                <span v-else class="text-red-500">✗</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- Concise Pose Detection Status -->
+      <div v-if="extractedFrames.length > 0 && !isProcessing" class="text-sm text-gray-600 px-1 py-2">
+        <span v-if="extractedFrames.filter(f => f.poseData).length === extractedFrames.length" class="text-green-600">
+          ✓ All {{ extractedFrames.length }} frames analyzed successfully
+        </span>
+        <span v-else-if="extractedFrames.filter(f => f.poseData).length === 0" class="text-red-600">
+          ⚠ No poses detected in {{ extractedFrames.length }} frames
+        </span>
+        <span v-else class="text-yellow-600">
+          ⚠ {{ extractedFrames.filter(f => f.poseData).length }}/{{ extractedFrames.length }} frames detected
+        </span>
       </div>
 
       <!-- Image Matching Results -->
@@ -658,6 +639,9 @@ const selectedKeypoint = ref(null);
 // Recording mode state
 const recordingMode = ref('upload'); // 'upload' or 'record'
 
+// Debug mode state
+const debugMode = ref(false);
+
 // Store instances
 const boulderProblemsStore = useBoulderProblemsStore();
 
@@ -673,14 +657,6 @@ const matchedImageBoulderProblems = computed(() => {
 // Check if pose detection is complete and ready for image matching
 const isPoseDetectionComplete = computed(() => {
   return processingStatus.value === 'Ready for image matching';
-});
-
-// Computed property for unique pose errors
-const uniquePoseErrors = computed(() => {
-  const errors = extractedFrames.value
-    .filter(f => f.poseError)
-    .map(f => f.poseError);
-  return [...new Set(errors)]; // Remove duplicates
 });
 
 // 📊 Calculate problem scores using the shared utility (single source of truth)
