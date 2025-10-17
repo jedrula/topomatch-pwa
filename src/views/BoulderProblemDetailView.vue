@@ -10,7 +10,7 @@
     <!-- Content Overlay -->
     <div class="relative z-10 min-h-screen flex flex-col">
       <!-- Main Content -->
-      <div class="flex-1 p-4">
+      <div class="flex-1 p-2 sm:p-4">
         <div v-if="loading" class="text-center">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p class="mt-4 text-gray-600">Loading boulder problem...</p>
@@ -23,71 +23,94 @@
           </div>
         </div>
 
-        <div
-          v-else-if="problem"
-          class="bg-white bg-opacity-90 rounded-lg shadow-lg p-6 sm:p-8 w-full"
-        >
-          <!-- Boulder Problem Info -->
-          <div class="text-center mb-6">
-            <div
-              class="w-4 h-4 rounded-full mx-auto mb-3"
-              :style="{ backgroundColor: problem.color }"
-            ></div>
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{{ problem.name }}</h2>
-            <div class="text-xl sm:text-2xl font-semibold text-gray-700 mb-1">
-              Grade {{ getGradeLabel(problem.grade) }}
-            </div>
-            <div class="text-gray-500">{{ problem.holds.length }} holds</div>
-          </div>
-
-          <!-- Additional Info -->
-          <div class="space-y-4">
-            <div v-if="problem.description" class="border-t pt-4">
-              <h3 class="font-semibold text-gray-900 mb-2">Description</h3>
-              <p class="text-gray-700">{{ problem.description }}</p>
-            </div>
-
-            <div class="border-t pt-4">
-              <h3 class="font-semibold text-gray-900 mb-2">Details</h3>
-              <div class="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span class="text-gray-500">Created:</span>
-                  <span class="block">{{ formatDate(problem.createdAt) }}</span>
-                </div>
-                <div>
-                  <span class="text-gray-500">Updated:</span>
-                  <span class="block">{{ formatDate(problem.updatedAt) }}</span>
-                </div>
+        <!-- Grid Layout: Image + Info on top, Videos below -->
+        <div v-else-if="problem" class="max-w-7xl mx-auto space-y-3">
+          <!-- Top Row: Problem Image (left) + Combined Info (right) -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <!-- Left: Problem Image -->
+            <div 
+              v-if="image"
+              class="bg-white bg-opacity-90 rounded-lg shadow-lg overflow-hidden"
+            >
+              <div class="relative aspect-[4/3] bg-gray-100">
+                <img 
+                  :src="image.url" 
+                  :alt="problem.name"
+                  class="w-full h-full object-cover"
+                />
               </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="border-t pt-4 space-y-3">
-              <button
-                @click="viewOnImage"
-                class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                View on Image
-              </button>
-              <button
-                v-if="userStore.isAdmin"
-                @click="editProblem"
-                class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors"
-              >
-                Edit Problem
-              </button>
+            <!-- Right: Combined Info + Statistics -->
+            <div class="bg-white bg-opacity-90 rounded-lg shadow-lg p-4">
+              <!-- Problem Header with Icons -->
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex-1">
+                  <h2 class="text-xl font-bold text-gray-900">{{ problem.name }}</h2>
+                  <div class="text-lg font-semibold text-gray-700 mt-1">
+                    {{ getGradeLabel(problem.grade) }}
+                  </div>
+                  <p v-if="problem.description" class="text-sm text-gray-600 mt-2">
+                    {{ problem.description }}
+                  </p>
+                </div>
+                
+                <!-- Action Icons -->
+                <div class="flex items-center gap-2 ml-3">
+                  <button
+                    v-if="userStore.isAdmin"
+                    @click="editProblem"
+                    class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Edit Problem"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                  </button>
+                  <button
+                    @click="viewOnImage"
+                    class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Back to Location"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Statistics (if logged in) -->
+              <div v-if="userStore.isLoggedIn && ascentStore.ascentStats" class="border-t pt-3 mt-3">
+                <div class="grid grid-cols-3 gap-3 text-center">
+                  <div class="bg-gray-50 rounded-lg p-2">
+                    <div class="text-2xl font-bold text-blue-600">
+                      {{ ascentStore.ascentStats.totalAscents }}
+                    </div>
+                    <div class="text-xs text-gray-600">Sends</div>
+                  </div>
+                  <div class="bg-gray-50 rounded-lg p-2">
+                    <div class="text-2xl font-bold text-green-600">
+                      {{ ascentStore.ascentStats.uniqueClimbers }}
+                    </div>
+                    <div class="text-xs text-gray-600">Climbers</div>
+                  </div>
+                  <div v-if="ascentStore.ascentStats.averageUserGrade" class="bg-gray-50 rounded-lg p-2">
+                    <div class="text-2xl font-bold text-purple-600">
+                      {{ ascentStore.ascentStats.averageUserGrade }}
+                    </div>
+                    <div class="text-xs text-gray-600">Grade</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Ascent History Panel - Full width underneath main content -->
-      <div v-if="userStore.isLoggedIn && problem" class="w-full px-4 pb-8">
-        <div class="bg-white bg-opacity-90 rounded-lg shadow-lg p-4 sm:p-6">
-          <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Ascent History</h3>
-          <AscentHistory 
-            :compact="true"
-            @video-fullscreen="openVideoFullscreen"
+          <!-- Bottom Row: Beta Videos (full width) -->
+          <LocationVideos 
+            v-if="userStore.isLoggedIn"
+            :videos="ascentVideos" 
+            :loading="false"
+            @video-click="handleVideoClick"
           />
         </div>
       </div>
@@ -103,7 +126,7 @@ import { useAscentStore } from '@/stores/ascentStore';
 import { useUserStore } from '@/stores/userStore';
 import { locationService } from '@/services/locationService';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
-import AscentHistory from '@/components/AscentHistory.vue';
+import LocationVideos from '@/components/LocationVideos.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -115,6 +138,30 @@ const loading = ref(true);
 const error = ref(null);
 const problem = ref(null);
 const image = ref(null);
+
+// Transform ascents with videos into LocationVideos format
+const ascentVideos = computed(() => {
+  return ascentStore.ascents
+    .filter(ascent => ascent.betaVideo) // Only ascents with videos
+    .slice(0, 12) // Limit to 12
+    .map(ascent => ({
+      id: ascent.id,
+      downloadUrl: ascent.betaVideo.downloadUrl,
+      metadata: {
+        problemName: ascent.userName,
+        uploadedBy: ascent.userEmail,
+        duration: null,
+      }
+    }));
+});
+
+// Handle video click
+const handleVideoClick = (index) => {
+  const video = ascentVideos.value[index];
+  if (video?.downloadUrl) {
+    window.open(video.downloadUrl, '_blank');
+  }
+};
 
 // Calculate cropped image style based on hold bounding boxes
 const croppedImageStyle = computed(() => {
@@ -156,12 +203,6 @@ const croppedImageStyle = computed(() => {
     backgroundSize: `${image.value.naturalWidth * scale}px ${image.value.naturalHeight * scale}px`,
   };
 });
-
-const formatDate = (timestamp) => {
-  if (!timestamp) return 'N/A';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleDateString();
-};
 
 const viewOnImage = async () => {
   // Navigate back to the image gallery with this image selected
@@ -269,12 +310,6 @@ const loadProblemData = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-const openVideoFullscreen = (videoUrl) => {
-  // Create a modal or redirect to fullscreen video
-  // For now, let's open in a new window/tab
-  window.open(videoUrl, '_blank');
 };
 
 onMounted(() => {
