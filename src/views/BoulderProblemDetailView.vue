@@ -110,11 +110,19 @@
             v-if="userStore.isLoggedIn"
             :videos="ascentVideos" 
             :loading="false"
-            @video-click="handleVideoClick"
+            @video-click="openVideoGallery"
           />
         </div>
       </div>
     </div>
+
+    <!-- Video Gallery Modal -->
+    <VideoGallery
+      :videos="ascentVideos"
+      :initial-index="videoGalleryIndex"
+      :is-open="isVideoGalleryOpen"
+      @close="closeVideoGallery"
+    />
   </div>
 </template>
 
@@ -127,6 +135,7 @@ import { useUserStore } from '@/stores/userStore';
 import { locationService } from '@/services/locationService';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
 import LocationVideos from '@/components/LocationVideos.vue';
+import VideoGallery from '@/components/VideoGallery.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -138,16 +147,24 @@ const loading = ref(true);
 const error = ref(null);
 const problem = ref(null);
 const image = ref(null);
+const isVideoGalleryOpen = ref(false);
+const videoGalleryIndex = ref(0);
 
-// Transform ascents with videos into LocationVideos format
+// Transform ascents with videos into format compatible with both LocationVideos and VideoGallery
 const ascentVideos = computed(() => {
   return ascentStore.ascents
     .filter(ascent => ascent.betaVideo) // Only ascents with videos
     .slice(0, 12) // Limit to 12
     .map(ascent => ({
       id: ascent.id,
+      name: ascent.userName || 'Unknown User', // For VideoGallery
       downloadUrl: ascent.betaVideo.downloadUrl,
+      uploadedBy: ascent.userEmail, // For VideoGallery
+      uploadedAt: ascent.timestamp, // For VideoGallery
+      problemName: problem.value?.name || 'Unknown Problem', // For VideoGallery
+      size: null, // Size not available from ascent data
       metadata: {
+        // For LocationVideos overlay
         problemName: ascent.userName,
         uploadedBy: ascent.userEmail,
         duration: null,
@@ -155,12 +172,14 @@ const ascentVideos = computed(() => {
     }));
 });
 
-// Handle video click
-const handleVideoClick = (index) => {
-  const video = ascentVideos.value[index];
-  if (video?.downloadUrl) {
-    window.open(video.downloadUrl, '_blank');
-  }
+// Video gallery handlers
+const openVideoGallery = (index = 0) => {
+  videoGalleryIndex.value = index;
+  isVideoGalleryOpen.value = true;
+};
+
+const closeVideoGallery = () => {
+  isVideoGalleryOpen.value = false;
 };
 
 // Calculate cropped image style based on hold bounding boxes
