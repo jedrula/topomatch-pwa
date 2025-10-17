@@ -167,6 +167,7 @@
       @processing-error="handleBetaProcessingError"
       @try-another-video="handleTryAnotherVideo"
       @continue-to-upload="continueToUpload"
+      @ascent-form-submit="handleAscentFormSubmit"
     />
 
     <!-- Image Gallery Modal -->
@@ -229,6 +230,7 @@ const {
   handleTableScoresReady, // ✅ NEW: Table-based scoring handler
   handleBetaProcessingError,
   handleTryAnotherVideo,
+  handleAscentFormSubmit, // ✅ NEW: Ascent form submission handler
   continueToUpload
 } = useVideoAnalysis();
 

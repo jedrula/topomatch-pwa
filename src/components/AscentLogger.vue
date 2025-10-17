@@ -6,7 +6,16 @@
       v-if="ascentStore.hasUserSent"
       class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"
     >
-      <div class="flex items-center space-x-2 mb-2">
+      <div class="fle  );
+    if (pendingUploads.length > 0) {
+    console.log('Found pending uploads:', pendingUploads.length);
+    
+    // Use the most recent one
+    const mostRecent = pendingUploads.sort((a, b) => b.createdAt - a.createdAt)[0]; (pendingUploads.length > 0) {
+    console.log('Found pending video uploads for this problem:', pendingUploads.length);
+    
+    // Use the most recent one(pendingUploads.length > 0) {
+    console.log('Found ' + pendingUploads.length + ' pending video uploads for this problem');tems-center space-x-2 mb-2">
         <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
@@ -279,22 +288,14 @@
           {{
             isVideoUploading
               ? "Uploading video..."
-              : ascentStore.isLoading
-              ? "Logging..."
-              : "Log Send"
-          }}
-        </span>
-      </button>
-    </form>
-  </div>
-</template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { useAscentStore } from '@/stores/ascentStore';
+import { useVideoUploadQueueStore } from '@/stores/videoUploadQueueStore';
 import VideoUpload from '@/components/VideoUpload.vue';
 import BoulderImageWithHolds from '@/components/BoulderImageWithHolds.vue';
-import { videoService } from '@/services/videoService';
 import { getGradeLabel, getGradeColor } from '@/utils/gradingUtils';
 
 const props = defineProps({
@@ -308,112 +309,55 @@ const props = defineProps({
   },
 });
 
+const route = useRoute();
 const ascentStore = useAscentStore();
+const videoUploadQueue = useVideoUploadQueueStore();
 
 // Form data
 const formData = ref({
   attemptType: '',
   userGrade: '',
   notes: '',
-  date: new Date().toISOString().split('T')[0], // Today's date
-  betaVideo: null, // Video upload data
+  date: new Date().toISOString().split('T')[0],
+  betaVideo: null,
 });
 
 // Video upload state
 const isVideoUploading = ref(false);
-const aiAnalysisData = ref(null); // Store AI analysis data for visual confirmation
+const aiAnalysisData = ref(null);
+const currentUploadTempId = ref(null);
 
-// Check for prefilled video data on mount
-onMounted(async () => {
-  await checkForPrefilledVideo();
+onMounted(() => {
+  // Check if we have a temp upload ID from query params (coming from video analysis)
+  if (route.query.uploadTempId) {
+    currentUploadTempId.value = route.query.uploadTempId;
+    console.log(`📌 Tracking upload: ${route.query.uploadTempId}`);
+  }
+  
+  // Also check for any pending uploads for this problem
+  checkForPendingUploads();
 });
 
-const checkForPrefilledVideo = async () => {
-  try {
-    // Check if we have prefilled video data
-    const tempVideoFile = window.tempVideoFile;
-
-    if (tempVideoFile) {
-      // Check for additional analysis data from sessionStorage (optional)
-      let analysisInfo = null;
-      try {
-        const prefilledData = sessionStorage.getItem('prefilledVideoData');
-        if (prefilledData) {
-          analysisInfo = JSON.parse(prefilledData);
-        }
-      } catch (storageError) {
-        console.warn('⚠️ Could not read from sessionStorage:', storageError);
-        // Continue without analysis info - we still have the video file
+const checkForPendingUploads = () => {
+  const pendingUploads = videoUploadQueue.getUploadsForProblem(
+    props.locationId,
+    props.problemId
+  );
+  
+  if (pendingUploads.length > 0) {
+    console.log('Found pending uploads:', pendingUploads.length);
+    const mostRecent = pendingUploads.sort((a, b) => b.createdAt - a.createdAt)[0];
+    
+    // Only set if we don't already have one from query params
+    if (!currentUploadTempId.value && (mostRecent.status === 'completed' || mostRecent.status === 'uploading')) {
+      currentUploadTempId.value = mostRecent.tempId;
+      if (mostRecent.status === 'uploading') {
+        isVideoUploading.value = true;
       }
-
-      // Set uploading state
-      isVideoUploading.value = true;
-
-      // Upload the video using the existing video service
-      try {
-        const uploadResult = await videoService.uploadBetaVideo(
-          props.locationId,
-          props.problemId,
-          `temp-ascent-${Date.now()}`, // Temporary ascent ID
-          tempVideoFile,
-          (progress) => {
-            console.log(`📤 Upload progress: ${progress}%`);
-          }
-        );
-
-        // Set the video data in the form
-        formData.value.betaVideo = uploadResult;
-
-        // Store AI analysis data for visual confirmation
-        if (analysisInfo) {
-          aiAnalysisData.value = {
-            detectedProblem: analysisInfo.analysisResult?.matchedProblem || {
-              name: analysisInfo.analysisResult?.matchedProblemName || 'Unknown Problem',
-            },
-            problem: analysisInfo.analysisResult?.matchedProblem || {
-              name: analysisInfo.analysisResult?.matchedProblemName || 'Unknown Problem',
-            },
-            matchedImage: analysisInfo.analysisResult?.matchedImage || null,
-            confidence: analysisInfo.analysisResult?.confidence || 0.9,
-            keypoints: analysisInfo.analysisResult?.keypoints || 12,
-          };
-        }
-
-        // Add a note about the AI analysis
-        if (analysisInfo?.analysisResult?.matchFound) {
-          const aiNote = `🤖 Video automatically analyzed and matched to this problem via AI\n📊 Detected: ${
-            analysisInfo.analysisResult.matchedProblemName || 'this problem'
-          }`;
-          formData.value.notes = formData.value.notes
-            ? `${formData.value.notes}\n\n${aiNote}`
-            : aiNote;
-        } else {
-          const aiNote = '🤖 Video automatically processed for this ascent';
-          formData.value.notes = formData.value.notes
-            ? `${formData.value.notes}\n\n${aiNote}`
-            : aiNote;
-        }
-      } catch (uploadError) {
-        console.error('❌ Error uploading prefilled video:', uploadError);
-        // Continue anyway - user can upload manually
-      } finally {
-        isVideoUploading.value = false;
-      }
-
-      // Clean up the temporary data
-      try {
-        sessionStorage.removeItem('prefilledVideoData');
-      } catch (storageError) {
-        console.warn('⚠️ Could not clear sessionStorage:', storageError);
-      }
-      delete window.tempVideoFile;
     }
-  } catch (error) {
-    console.error('❌ Error checking for prefilled video:', error);
   }
 };
 
-// Get today's date for max date validation
 const today = computed(() => {
   return new Date().toISOString().split('T')[0];
 });
@@ -422,26 +366,36 @@ const emit = defineEmits(['ascent-logged']);
 
 const submitAscent = async () => {
   try {
-    // Convert date string to Date object
     const ascentData = {
       ...formData.value,
       date: new Date(formData.value.date),
     };
 
-    // Remove empty fields
-    if (!ascentData.userGrade) {
-      delete ascentData.userGrade;
-    }
-    if (!ascentData.notes) {
-      delete ascentData.notes;
-    }
-    if (!ascentData.betaVideo) {
-      delete ascentData.betaVideo;
-    }
+    if (!ascentData.userGrade) delete ascentData.userGrade;
+    if (!ascentData.notes) delete ascentData.notes;
+    if (!ascentData.betaVideo) delete ascentData.betaVideo;
 
     await ascentStore.logAscent(ascentData);
+    
+    if (currentUploadTempId.value) {
+      const latestAscent = ascentStore.latestUserAscent;
+      
+      if (latestAscent && latestAscent.id) {
+        const result = await videoUploadQueue.claimUpload(
+          currentUploadTempId.value,
+          latestAscent.id
+        );
+        
+        if (result.success) {
+          console.log('Video successfully associated with ascent');
+        } else {
+          console.error('Failed to associate video:', result.error);
+        }
+      }
+      
+      currentUploadTempId.value = null;
+    }
 
-    // Reset form
     formData.value = {
       attemptType: '',
       userGrade: '',
@@ -450,11 +404,9 @@ const submitAscent = async () => {
       betaVideo: null,
     };
 
-    // Emit success event
     emit('ascent-logged');
   } catch (error) {
     console.error('Error logging ascent:', error);
-    // Error is already handled by the store
   }
 };
 
@@ -464,15 +416,13 @@ const onVideoUploadStart = () => {
 
 const onVideoUploadComplete = () => {
   isVideoUploading.value = false;
-  // Video data is already bound to formData.betaVideo via v-model
 };
 
 const onVideoUploadError = (error) => {
   console.error('Video upload error:', error);
   isVideoUploading.value = false;
-  // Error handling could be added here if needed
 };
 
-// Initialize the store with props
 ascentStore.initializeForProblem(props.locationId, props.problemId);
 </script>
+

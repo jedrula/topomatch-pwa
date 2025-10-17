@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
+import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
 import { getGradeLabel, getGradeColor } from '../utils/gradingUtils.js';
 import { transformPoint } from '../utils/homographyUtils.js';
 
@@ -8,6 +9,7 @@ export function useVideoAnalysis() {
   const route = useRoute();
   const router = useRouter();
   const boulderProblemsStore = useBoulderProblemsStore();
+  const videoUploadQueue = useVideoUploadQueueStore();
 
   // Video analysis state
   const videoAnalysisResult = ref(null);
@@ -218,68 +220,125 @@ export function useVideoAnalysis() {
       return;
     }
 
-    const { analysisData, problem } = pendingRedirectData.value;
-    await redirectToProblemPageWithVideo(analysisData, problem);
+    const { problem } = pendingRedirectData.value;
+    await redirectToProblemPage(problem);
   };
 
-  // Redirect to problem page with video data
-  const redirectToProblemPageWithVideo = async (analysisData, problem) => {
-    try {
-      // Store enhanced data for visual confirmation in sessionStorage
-      const minimalData = {
-        videoFile: {
-          name: analysisData.video.name,
-          size: analysisData.video.size,
-          type: analysisData.video.type,
-        },
-        analysisResult: {
-          matchFound: !!analysisData.match,
-          matchedProblemId: problem.id,
-          matchedProblemName: problem.name,
-          matchedProblem: {
-            id: problem.id,
-            name: problem.name,
-            grade: problem.grade,
-            description: problem.description,
-            color: problem.color,
-            holds: problem.holds,
-          },
-          matchedImage: analysisData.match
-            ? {
-                id: analysisData.match.id,
-                url: analysisData.match.url,
-                name: analysisData.match.name,
-                width: analysisData.match.width,
-                height: analysisData.match.height,
-              }
-            : null,
-          confidence: 0.95,
-          keypoints:
-            videoAnalysisResult.value?.poseResults?.filter((r) => r.poses.length > 0).length || 0,
-          timestamp: Date.now(),
-        },
-      };
+  // Redirect to problem page after analysis
+  const redirectToProblemPage = async (problem) => {
+    const locationId = route.params.locationId || route.params.id;
 
-      sessionStorage.setItem('prefilledVideoData', JSON.stringify(minimalData));
-    } catch (storageError) {
-      console.warn('⚠️ Could not store data in sessionStorage:', storageError);
-    }
-
-    // Store the actual File object
-    window.tempVideoFile = analysisData.video;
-
-    // Navigate to the problem page
+    // Just navigate to the problem page
+    // Video upload and ascent creation happen in handleAscentFormSubmit
     await router.push({
       name: 'boulder-problem-detail',
       params: {
-        locationId: route.params.locationId || route.params.id,
+        locationId,
         problemId: problem.id,
       },
-      query: {
-        action: 'log-ascent',
-        hasPrefilledVideo: 'true',
-      },
     });
+  };
+
+  // Handle ascent form submission from the video upload flow
+  const handleAscentFormSubmit = async (submitData) => {
+    console.log('🎯 Ascent form submitted:', submitData);
+    
+    try {
+      // The submitData contains:
+      // - formData: { attemptType, userGrade, notes, date }
+      // - video: the uploaded video file
+      // - detectedProblem: { id, name, grade }
+      // - analysisScores: array of all problem scores
+      // - bestMatch: the matched image data
+      
+      if (!submitData.detectedProblem) {
+        console.error('No problem detected yet');
+        return;
+      }
+      
+      // Find the full problem object
+      const problem = boulderProblemsStore.boulderProblems.find(
+        (p) => p.id === submitData.detectedProblem.id
+      );
+      
+      if (!problem) {
+        console.error('Could not find problem in store');
+        return;
+      }
+      
+      // Import required services
+      const { useAscentStore } = await import('../stores/ascentStore.js');
+      const ascentStore = useAscentStore();
+      const locationId = route.params.locationId || route.params.id;
+      
+      // Initialize the ascent store for this problem
+      ascentStore.initializeForProblem(locationId, problem.id);
+      
+      // Start video upload immediately
+      console.log('📤 Starting video upload...');
+      const tempId = videoUploadQueue.startUpload(
+        submitData.video,
+        locationId,
+        problem.id
+      );
+      console.log(`Upload started with temp ID: ${tempId}`);
+      
+      // Convert date string to Date object
+      const ascentData = {
+        attemptType: submitData.formData.attemptType,
+        userGrade: submitData.formData.userGrade || undefined,
+        notes: submitData.formData.notes || undefined,
+        date: new Date(submitData.formData.date),
+      };
+      
+      console.log('📝 Creating ascent with data:', ascentData);
+      
+      // Create the ascent first (without video)
+      await ascentStore.logAscent(ascentData);
+      
+      // Get the newly created ascent ID
+      const latestAscent = ascentStore.latestUserAscent;
+      
+      if (!latestAscent || !latestAscent.id) {
+        console.error('Failed to create ascent or get ascent ID');
+        // Still redirect but cancel the upload
+        videoUploadQueue.cancelUpload(tempId);
+        await router.push({
+          name: 'boulder-problem-detail',
+          params: {
+            locationId: locationId,
+            problemId: problem.id,
+          },
+        });
+        return;
+      }
+      
+      console.log('✅ Ascent created with ID:', latestAscent.id);
+      
+      // Now claim the video upload with the ascent ID
+      console.log('� Claiming video upload for ascent:', latestAscent.id);
+      const claimResult = await videoUploadQueue.claimUpload(tempId, latestAscent.id);
+      
+      if (claimResult.success) {
+        console.log('✅ Video successfully associated with ascent:', claimResult.uploadedUrl);
+      } else {
+        console.error('❌ Failed to associate video:', claimResult.error);
+        // Ascent was created but video association failed
+      }
+      
+      // Navigate to the problem page to show the logged ascent
+      await router.push({
+        name: 'boulder-problem-detail',
+        params: {
+          locationId: locationId,
+          problemId: problem.id,
+        },
+      });
+      
+    } catch (error) {
+      console.error('Error handling ascent form submission:', error);
+      // Show error to user (could emit an event here)
+    }
   };
 
   return {
@@ -299,8 +358,8 @@ export function useVideoAnalysis() {
     handleTableScoresReady, // ✅ Handle table-based scores (single source of truth)
     handleBetaProcessingError,
     handleTryAnotherVideo,
+    handleAscentFormSubmit, // ✅ NEW: Handle ascent form submission
     resetAnalysisState,
     continueToUpload,
-    redirectToProblemPageWithVideo
   };
 }

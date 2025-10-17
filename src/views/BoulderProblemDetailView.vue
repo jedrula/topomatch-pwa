@@ -77,63 +77,6 @@
                 Edit Problem
               </button>
             </div>
-
-            <!-- Ascent Section - Always show but require login for functionality -->
-            <div class="border-t pt-4">
-              <div class="mb-4">
-                <button
-                  @click="handleLogSendClick"
-                  class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    ></path>
-                  </svg>
-                  <span>{{
-                    userStore.isLoggedIn && showAscentLogger ? "Cancel" : "Log Send"
-                  }}</span>
-                </button>
-              </div>
-
-              <!-- Ascent Logger - Only show if logged in -->
-              <div v-if="userStore.isLoggedIn && showAscentLogger" class="mb-4">
-                <AscentLogger
-                  :location-id="route.params.locationId"
-                  :problem-id="route.params.problemId"
-                  @ascent-logged="onAscentLogged"
-                />
-              </div>
-
-              <!-- Quick Status - Only show for logged in users -->
-              <div
-                v-if="userStore.isLoggedIn && ascentStore.hasUserSent && !showAscentLogger"
-                class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"
-              >
-                <div class="flex items-center space-x-2">
-                  <svg
-                    class="w-5 h-5 text-green-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M5 13l4 4L19 7"
-                    ></path>
-                  </svg>
-                  <span class="font-medium text-green-800">You've sent this problem!</span>
-                </div>
-                <div class="text-sm text-green-700 mt-1">
-                  Total sends: {{ ascentStore.userSentCount }}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -143,7 +86,6 @@
         <div class="bg-white bg-opacity-90 rounded-lg shadow-lg p-4 sm:p-6">
           <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Ascent History</h3>
           <AscentHistory 
-            @edit-ascent="editAscent" 
             :compact="true"
             @video-fullscreen="openVideoFullscreen"
           />
@@ -154,14 +96,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useAscentStore } from '@/stores/ascentStore';
 import { useUserStore } from '@/stores/userStore';
 import { locationService } from '@/services/locationService';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
-import AscentLogger from '@/components/AscentLogger.vue';
 import AscentHistory from '@/components/AscentHistory.vue';
 
 const route = useRoute();
@@ -170,14 +111,10 @@ const boulderProblemsStore = useBoulderProblemsStore();
 const ascentStore = useAscentStore();
 const userStore = useUserStore();
 
-// Inject auth modal controls
-const authModal = inject('authModal');
-
 const loading = ref(true);
 const error = ref(null);
 const problem = ref(null);
 const image = ref(null);
-const showAscentLogger = ref(false);
 
 // Calculate cropped image style based on hold bounding boxes
 const croppedImageStyle = computed(() => {
@@ -261,17 +198,6 @@ const editProblem = () => {
   });
 };
 
-// Handle Log Send button click - show auth modal if not logged in
-const handleLogSendClick = () => {
-  if (!userStore.isLoggedIn) {
-    // User not logged in, show auth modal
-    authModal.open();
-  } else {
-    // User is logged in, toggle ascent logger
-    showAscentLogger.value = !showAscentLogger.value;
-  }
-};
-
 const loadProblemData = async () => {
   try {
     loading.value = true;
@@ -345,17 +271,6 @@ const loadProblemData = async () => {
   }
 };
 
-const onAscentLogged = () => {
-  showAscentLogger.value = false;
-  // The ascent store will automatically update with the new data
-};
-
-const editAscent = (ascent) => {
-  // For now, just show the logger with the ascent data
-  // In a more complex implementation, you could pre-populate the form
-  showAscentLogger.value = true;
-};
-
 const openVideoFullscreen = (videoUrl) => {
   // Create a modal or redirect to fullscreen video
   // For now, let's open in a new window/tab
@@ -364,15 +279,6 @@ const openVideoFullscreen = (videoUrl) => {
 
 onMounted(() => {
   loadProblemData();
-
-  // Check if we should auto-open ascent logger with prefilled video
-  if (route.query.action === 'log-ascent' && route.query.hasPrefilledVideo === 'true') {
-
-    // Auto-open the ascent logger
-    showAscentLogger.value = true;
-
-    // The AscentLogger component will handle checking for prefilled video data
-  }
 });
 </script>
 

@@ -88,14 +88,26 @@
         </span>
       </div>
 
-      <!-- Video Frames Animator (shown as soon as frames are extracted) -->
-      <div v-if="extractedFrames.length > 0 && !isProcessing" class="space-y-4">
-        <PoseFrameAnimator 
-          :frames="extractedFrames"
-          :frame-rate="1"
-          :auto-play="true"
-          :debug-mode="debugMode"
-        />
+      <!-- Video Frames Animator + Ascent Form (shown as soon as frames are extracted) -->
+      <div v-if="extractedFrames.length > 0 && !isProcessing" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Left: Animated GIF -->
+        <div>
+          <PoseFrameAnimator 
+            :frames="extractedFrames"
+            :frame-rate="1"
+            :auto-play="true"
+            :debug-mode="debugMode"
+          />
+        </div>
+
+        <!-- Right: Ascent Form -->
+        <div>
+          <AscentForm
+            :detected-problem="detectedProblemForForm"
+            :is-submitting="isSubmittingAscent"
+            @submit="handleAscentFormSubmit"
+          />
+        </div>
       </div>
 
       <!-- Image Matching Results -->
@@ -233,6 +245,7 @@ import VideoUploadSelector from './VideoUploadSelector.vue';
 import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
 import PoseFrameAnimator from './PoseFrameAnimator.vue';
 import CollapsibleSection from './CollapsibleSection.vue';
+import AscentForm from './AscentForm.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import {
   extractVideoFrames,
@@ -284,6 +297,7 @@ const emit = defineEmits([
   'analysis-complete',
   'table-scores-ready', // New event for table-based problem scores
   'processing-error',
+  'ascent-form-submit', // New event for ascent form submission
 ]);
 
 // Reactive state
@@ -298,6 +312,9 @@ const transformedPoses = ref([]);
 const imageNaturalDimensions = ref({ width: 0, height: 0 }); // Track natural image dimensions for SVG
 const storedViewBox = ref(null); // Store the viewBox from Firestore
 const featureMatches = ref([]); // Store feature match data for visualization
+
+// Ascent submission state
+const isSubmittingAscent = ref(false);
 
 // Debug mode state
 const debugMode = ref(false);
@@ -317,6 +334,18 @@ const matchedImageBoulderProblems = computed(() => {
 // Check if pose detection is complete and ready for image matching
 const isPoseDetectionComplete = computed(() => {
   return processingStatus.value === 'Ready for image matching';
+});
+
+// Detected problem for the ascent form (from top scoring problem)
+const detectedProblemForForm = computed(() => {
+  if (aggregatedProblemScores.value.length === 0) return null;
+  
+  const topScore = aggregatedProblemScores.value[0];
+  return {
+    id: topScore.id,
+    name: topScore.name,
+    grade: topScore.name.match(/\((.*?)\)/)?.[1] || '' // Extract grade from name if present
+  };
 });
 
 // 📊 Calculate problem scores using the shared utility (single source of truth)
@@ -1252,6 +1281,24 @@ const formatFileSize = (bytes) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Handle ascent form submission
+const handleAscentFormSubmit = (formData) => {
+  isSubmittingAscent.value = true;
+  
+  // Emit the form data along with video and analysis results
+  // Note: Parent handler is async and will handle navigation
+  emit('ascent-form-submit', {
+    formData,
+    video: selectedVideo.value,
+    detectedProblem: detectedProblemForForm.value,
+    analysisScores: aggregatedProblemScores.value,
+    bestMatch: bestMatch.value
+  });
+  
+  // Keep loading state until navigation happens
+  // (will be reset when component unmounts on navigation)
 };
 
 // Cleanup on component unmount

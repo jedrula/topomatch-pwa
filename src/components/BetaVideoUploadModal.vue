@@ -38,6 +38,7 @@
           @analysis-complete="$emit('analysis-complete', $event)"
           @table-scores-ready="$emit('table-scores-ready', $event)"
           @processing-error="$emit('processing-error', $event)"
+          @ascent-form-submit="$emit('ascent-form-submit', $event)"
         />
 
         <!-- Analysis in Progress -->
@@ -138,9 +139,9 @@
             </div>
           </div>
 
-          <!-- Success Result with Manual Continue -->
+          <!-- Success Result with Manual Continue (Debug Mode Only) -->
           <div
-            v-if="videoAnalysisResult.success && pendingRedirectData"
+            v-if="debugMode && videoAnalysisResult.success && pendingRedirectData"
             class="bg-green-50 border border-green-200 rounded-lg p-4"
           >
             <div class="flex items-start space-x-3 mb-4">
@@ -306,6 +307,10 @@ defineProps({
   getGradeLabel: {
     type: Function,
     required: true
+  },
+  debugMode: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -316,6 +321,7 @@ defineEmits([
   'table-scores-ready',
   'processing-error',
   'try-another-video',
-  'continue-to-upload'
+  'continue-to-upload',
+  'ascent-form-submit'
 ]);
 </script>

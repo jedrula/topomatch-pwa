@@ -108,6 +108,7 @@
     </div>
 
     <!-- Recent Ascents -->
+     
     <div
       v-if="ascentStore.ascents.length > 0"
       :class="[
@@ -165,7 +166,7 @@
                 <!-- Fullscreen button overlay for compact mode -->
                 <button
                   v-if="compact"
-                  @click="handleVideoFullscreen(ascent.betaVideo.downloadUrl)"
+                  @click="handleVideoFullscreen(ascent.betaVideo)"
                   class="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Open in fullscreen"
                 >
@@ -273,9 +274,8 @@
 <script setup>
 import { useAscentStore } from '@/stores/ascentStore';
 import { useUserStore } from '@/stores/userStore';
-import { watch } from 'vue';
 
-const props = defineProps({
+defineProps({
   compact: {
     type: Boolean,
     default: false
@@ -287,8 +287,10 @@ const userStore = useUserStore();
 
 const emit = defineEmits(['edit-ascent', 'video-fullscreen']);
 
-const handleVideoFullscreen = (videoUrl) => {
-  emit('video-fullscreen', videoUrl);
+const handleVideoFullscreen = (betaVideo) => {
+  if (betaVideo?.downloadUrl) {
+    emit('video-fullscreen', betaVideo.downloadUrl);
+  }
 };
 
 const editAscent = (ascent) => {
