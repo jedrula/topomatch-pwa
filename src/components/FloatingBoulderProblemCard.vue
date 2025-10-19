@@ -50,14 +50,8 @@
 
             <button
               @click.stop="handleShowVideos"
-              :class="[
-                'p-1 rounded transition-colors duration-200 pointer-events-auto',
-                problemVideos.length > 0
-                  ? 'text-purple-500 hover:text-purple-700 hover:bg-purple-100'
-                  : 'text-gray-400 cursor-default',
-              ]"
-              :title="problemVideos.length > 0 ? 'Show beta videos' : 'No videos'"
-              :disabled="problemVideos.length === 0"
+              class="p-1 rounded transition-colors duration-200 pointer-events-auto text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+              title="Show beta videos"
             >
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -144,10 +138,9 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore.js';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
-import { videoService } from '@/services/videoService.js';
 
 const boulderProblemsStore = useBoulderProblemsStore();
 
@@ -174,10 +167,6 @@ const emit = defineEmits(['edit', 'toggle-visibility', 'mouse-enter', 'mouse-lea
 
 // Template ref for the card element
 const cardElement = ref(null);
-
-// Videos for this problem
-const problemVideos = ref([]);
-const videosLoading = ref(false);
 
 // Check if position is valid
 const isValidPosition = computed(() => {
@@ -284,8 +273,8 @@ const handleEdit = () => {
 };
 
 const handleShowVideos = () => {
-  if (props.problem && problemVideos.value.length > 0) {
-    emit('show-videos', { problem: props.problem, videos: problemVideos.value });
+  if (props.problem) {
+    emit('show-videos', props.problem.id);
   }
 };
 
@@ -302,27 +291,6 @@ const handleMouseEnter = () => {
 const handleMouseLeave = () => {
   emit('mouse-leave');
 };
-
-// Load videos when problem changes
-watch(
-  () => props.problem,
-  async (newProblem) => {
-    if (newProblem && props.locationId) {
-      videosLoading.value = true;
-      try {
-        problemVideos.value = await videoService.getProblemVideos(props.locationId, newProblem.id);
-      } catch (error) {
-        console.error('Failed to load problem videos:', error);
-        problemVideos.value = [];
-      } finally {
-        videosLoading.value = false;
-      }
-    } else {
-      problemVideos.value = [];
-    }
-  },
-  { immediate: true }
-);
 </script>
 
 <style scoped>

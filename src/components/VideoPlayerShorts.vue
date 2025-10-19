@@ -5,7 +5,10 @@
       <div class="flex items-center justify-between text-white">
         <div class="flex-1">
           <h3 class="font-semibold text-lg">{{ problem?.name || 'Boulder Videos' }}</h3>
-          <p class="text-sm text-gray-300">{{ currentVideoIndex + 1 }} of {{ videos.length }}</p>
+          <p class="text-sm text-gray-300">
+            <span v-if="videosLoading">Loading videos...</span>
+            <span v-else>{{ currentVideoIndex + 1 }} of {{ videos.length }}</span>
+          </p>
         </div>
         <div class="flex items-center space-x-2">
           <!-- Speaker/Mute button -->
@@ -67,7 +70,7 @@
         :disabled="currentVideoIndex === videos.length - 1"
         :class="[
           'bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all duration-200',
-          currentVideoIndex === videos.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'
+                    currentVideoIndex === videos.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'
         ]"
         title="Next video"
       >
@@ -87,8 +90,30 @@
       @touchend="handleTouchEnd"
       @scroll="handleScroll"
     >
+      <!-- Loading state -->
+      <div 
+        v-if="videosLoading"
+        class="w-full h-full flex items-center justify-center text-white"
+      >
+        <div class="text-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading videos...</p>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div 
+        v-else-if="videos.length === 0"
+        class="w-full h-full flex items-center justify-center text-white"
+      >
+        <div class="text-center">
+          <p class="text-lg mb-2">No beta videos available</p>
+          <p class="text-sm text-gray-400">Be the first to upload a beta for this problem!</p>
+        </div>
+      </div>
+
       <!-- Video slides container -->
-      <div class="relative">
+      <div v-else class="relative">
         <div
           v-for="(video, index) in videos"
           :key="video.id || index"
@@ -211,28 +236,33 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { videoService } from '@/services/videoService.js';
+import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+
+const boulderProblemsStore = useBoulderProblemsStore();
 
 const props = defineProps({
-  isOpen: {
-    type: Boolean,
-    default: false
-  },
-  videos: {
-    type: Array,
-    default: () => []
-  },
-  problem: {
-    type: Object,
+  problemId: {
+    type: String,
     default: null
   },
-  initialVideoIndex: {
-    type: Number,
-    default: 0
-  }
+  locationId: {
+    type: String,
+    default: null
+  },
 });
 
 const emit = defineEmits(['close']);
+
+// Computed
+const isOpen = computed(() => !!props.problemId);
+
+// Get problem object from store
+const problem = computed(() => {
+  if (!props.problemId) return null;
+  return boulderProblemsStore.boulderProblems.find(p => p.id === props.problemId) || null;
+});
 
 // Refs
 const videoContainer = ref(null);
@@ -241,6 +271,31 @@ const currentVideoIndex = ref(0);
 const isMuted = ref(true); // Start muted by default
 const videoProgress = ref({});
 const isPlaying = ref({});
+const videos = ref([]);
+const videosLoading = ref(false);
+
+// Watch for problemId changes and load videos
+watch(
+  () => [props.problemId, props.locationId],
+  async ([newProblemId, newLocationId]) => {
+    if (newProblemId && newLocationId) {
+      try {
+        videosLoading.value = true;
+        videos.value = await videoService.getProblemVideos(newLocationId, newProblemId);
+        currentVideoIndex.value = 0; // Reset to first video
+        videosLoading.value = false;
+      } catch (error) {
+        console.error('Error loading problem videos:', error);
+        videos.value = [];
+        videosLoading.value = false;
+      }
+    } else {
+      videos.value = [];
+      videosLoading.value = false;
+    }
+  },
+  { immediate: true }
+);
 
 // Update progress for all videos
 const updateVideoProgress = () => {
@@ -274,17 +329,6 @@ const touchEndY = ref(0);
 const minSwipeDistance = 50;
 let scrollTimeout = null;
 
-// Initialize current video index
-watch(() => props.initialVideoIndex, (newIndex) => {
-  if (newIndex >= 0 && newIndex < props.videos.length) {
-    currentVideoIndex.value = newIndex;
-    // Scroll to the correct video when initializing
-    nextTick(() => {
-      scrollToVideo(newIndex);
-    });
-  }
-}, { immediate: true });
-
 // Scroll handling
 const handleScroll = () => {
   // Clear existing timeout
@@ -303,7 +347,7 @@ const handleScroll = () => {
     // Calculate which video should be considered "current" based on scroll position
     const newIndex = Math.round(scrollTop / containerHeight);
     
-    if (newIndex !== currentVideoIndex.value && newIndex >= 0 && newIndex < props.videos.length) {
+    if (newIndex !== currentVideoIndex.value && newIndex >= 0 && newIndex < videos.value.length) {
       pauseCurrentVideo();
       currentVideoIndex.value = newIndex;
       nextTick(() => {
@@ -353,7 +397,7 @@ const handleTouchEnd = (event) => {
 
 // Navigation methods
 const nextVideo = () => {
-  if (currentVideoIndex.value < props.videos.length - 1) {
+  if (currentVideoIndex.value < videos.value.length - 1) {
     const newIndex = currentVideoIndex.value + 1;
     pauseCurrentVideo();
     currentVideoIndex.value = newIndex;
@@ -398,7 +442,7 @@ const playCurrentVideo = async () => {
   }
 };
 
-const handleVideoLoaded = (index) => {
+const handleVideoLoaded = () => {
 };
 
 const onVideoEnded = () => {
@@ -408,7 +452,7 @@ const onVideoEnded = () => {
 
 // Keyboard navigation
 const handleKeyDown = (event) => {
-  if (!props.isOpen) return;
+  if (!isOpen.value) return;
   
   switch (event.key) {
     case 'ArrowUp':
@@ -526,10 +570,10 @@ const handleProgressBarClick = (event) => {
 };
 
 // Watchers
-watch(() => props.isOpen, (isOpen) => {
-  if (isOpen) {
+watch(isOpen, (newIsOpen) => {
+  if (newIsOpen) {
     // Reset to initial video and play
-    currentVideoIndex.value = props.initialVideoIndex || 0;
+    currentVideoIndex.value = 0;
     nextTick(() => {
       scrollToVideo(currentVideoIndex.value);
       playCurrentVideo();
@@ -540,7 +584,7 @@ watch(() => props.isOpen, (isOpen) => {
   }
 });
 
-watch(currentVideoIndex, (newIndex, oldIndex) => {
+watch(currentVideoIndex, (newIndex) => {
   
   // Pause all videos except current one
   Object.entries(videoElements.value).forEach(([index, video]) => {

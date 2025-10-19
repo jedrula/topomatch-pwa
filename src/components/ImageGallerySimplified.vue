@@ -166,10 +166,8 @@
 
     <!-- Video Player Shorts -->
     <VideoPlayerShorts
-      :is-open="videoPlayer.isOpen"
-      :videos="videoPlayer.videos"
-      :problem="videoPlayer.problem"
-      :initial-video-index="videoPlayer.initialIndex"
+      :problem-id="route.query.showVideosForProblem"
+      :location-id="locationId"
       @close="handleVideoPlayerClose"
     />
   </div>
@@ -307,14 +305,6 @@ const floatingCard = ref({
   position: { x: 0, y: 0 },
 });
 
-// Video player state
-const videoPlayer = ref({
-  isOpen: false,
-  videos: [],
-  problem: null,
-  initialIndex: 0,
-});
-
 // Timeout for tooltip hiding
 let tooltipHideTimeout = null;
 
@@ -437,26 +427,25 @@ const handleFloatingCardToggleVisibility = (problem) => {
   }
 };
 
-const handleFloatingCardShowVideos = ({ problem, videos }) => {
-  if (videos.length > 0) {
-    // Hide the floating card when opening video player
-    hideFloatingCard();
-    
-    videoPlayer.value = {
-      isOpen: true,
-      videos: videos,
-      problem: problem,
-      initialIndex: 0,
-    };
-  }
+const handleFloatingCardShowVideos = (problemId) => {
+  // Hide the floating card when opening video player
+  hideFloatingCard();
+  
+  // Update URL with showVideosForProblem query param
+  router.push({
+    query: {
+      ...route.query,
+      showVideosForProblem: problemId,
+    },
+  });
 };
 
 // Video player event handlers
 const handleVideoPlayerClose = () => {
-  videoPlayer.value.isOpen = false;
-  videoPlayer.value.videos = [];
-  videoPlayer.value.problem = null;
-  videoPlayer.value.initialIndex = 0;
+  // Remove showVideosForProblem from URL
+  const query = { ...route.query };
+  delete query.showVideosForProblem;
+  router.push({ query });
 };
 
 const handleFloatingCardMouseEnter = () => {
@@ -474,7 +463,7 @@ const handleFloatingCardMouseLeave = () => {
 };
 
 // Boulder problem interaction handlers
-const handleProblemClick = (problem) => {
+const handleProblemClick = () => {
   // For now, just log the click - could add navigation or edit functionality
 };
 
