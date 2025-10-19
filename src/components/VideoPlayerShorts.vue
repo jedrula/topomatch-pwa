@@ -284,6 +284,14 @@ watch(
         videos.value = await videoService.getProblemVideos(newLocationId, newProblemId);
         currentVideoIndex.value = 0; // Reset to first video
         videosLoading.value = false;
+        
+        // After videos are loaded, play the first video
+        await nextTick();
+        if (videos.value.length > 0 && isOpen.value) {
+          scrollToVideo(0);
+          await nextTick(); // Wait for scroll to complete
+          playCurrentVideo();
+        }
       } catch (error) {
         console.error('Error loading problem videos:', error);
         videos.value = [];
