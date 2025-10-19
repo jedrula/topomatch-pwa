@@ -238,7 +238,7 @@ const emit = defineEmits(['close']);
 const videoContainer = ref(null);
 const videoElements = ref({});
 const currentVideoIndex = ref(0);
-const isMuted = ref(false);
+const isMuted = ref(true); // Start muted by default
 const videoProgress = ref({});
 const isPlaying = ref({});
 
