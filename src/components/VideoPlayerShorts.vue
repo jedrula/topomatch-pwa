@@ -237,9 +237,12 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { videoService } from '@/services/videoService.js';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 
+const route = useRoute();
+const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
 
 const props = defineProps({
@@ -267,12 +270,30 @@ const problem = computed(() => {
 // Refs
 const videoContainer = ref(null);
 const videoElements = ref({});
-const currentVideoIndex = ref(0);
 const isMuted = ref(true); // Start muted by default
 const videoProgress = ref({});
 const isPlaying = ref({});
 const videos = ref([]);
 const videosLoading = ref(false);
+
+// Computed current video index based on videoId from URL
+const currentVideoIndex = computed(() => {
+  const videoId = route.query.videoId;
+  if (!videoId || videos.value.length === 0) return 0;
+  
+  const index = videos.value.findIndex(v => v.id === videoId);
+  return index >= 0 ? index : 0;
+});
+
+// Helper function to update videoId in URL
+const setCurrentVideoId = (videoId) => {
+  router.replace({
+    query: {
+      ...route.query,
+      videoId
+    }
+  });
+};
 
 // Watch for problemId changes and load videos
 watch(
@@ -282,14 +303,23 @@ watch(
       try {
         videosLoading.value = true;
         videos.value = await videoService.getProblemVideos(newLocationId, newProblemId);
-        currentVideoIndex.value = 0; // Reset to first video
         videosLoading.value = false;
         
-        // After videos are loaded, play the first video
+        // Set the first video ID in URL if not already set or if current videoId is invalid
         await nextTick();
         if (videos.value.length > 0 && isOpen.value) {
-          scrollToVideo(0);
-          await nextTick(); // Wait for scroll to complete
+          const currentVideoId = route.query.videoId;
+          const isValidVideoId = currentVideoId && videos.value.some(v => v.id === currentVideoId);
+          
+          if (!isValidVideoId) {
+            // Set first video as current
+            setCurrentVideoId(videos.value[0].id);
+          }
+          
+          // Scroll to and play the current video
+          await nextTick();
+          scrollToVideo(currentVideoIndex.value);
+          await nextTick();
           playCurrentVideo();
         }
       } catch (error) {
@@ -356,11 +386,11 @@ const handleScroll = () => {
     const newIndex = Math.round(scrollTop / containerHeight);
     
     if (newIndex !== currentVideoIndex.value && newIndex >= 0 && newIndex < videos.value.length) {
-      pauseCurrentVideo();
-      currentVideoIndex.value = newIndex;
-      nextTick(() => {
-        playCurrentVideo();
-      });
+      // Update URL with new video ID
+      const newVideo = videos.value[newIndex];
+      if (newVideo && newVideo.id) {
+        setCurrentVideoId(newVideo.id);
+      }
     }
   }, 100);
 };
@@ -407,24 +437,26 @@ const handleTouchEnd = (event) => {
 const nextVideo = () => {
   if (currentVideoIndex.value < videos.value.length - 1) {
     const newIndex = currentVideoIndex.value + 1;
-    pauseCurrentVideo();
-    currentVideoIndex.value = newIndex;
-    scrollToVideo(newIndex);
-    nextTick(() => {
-      playCurrentVideo();
-    });
+    const newVideo = videos.value[newIndex];
+    if (newVideo && newVideo.id) {
+      setCurrentVideoId(newVideo.id);
+      nextTick(() => {
+        scrollToVideo(newIndex);
+      });
+    }
   }
 };
 
 const previousVideo = () => {
   if (currentVideoIndex.value > 0) {
     const newIndex = currentVideoIndex.value - 1;
-    pauseCurrentVideo();
-    currentVideoIndex.value = newIndex;
-    scrollToVideo(newIndex);
-    nextTick(() => {
-      playCurrentVideo();
-    });
+    const newVideo = videos.value[newIndex];
+    if (newVideo && newVideo.id) {
+      setCurrentVideoId(newVideo.id);
+      nextTick(() => {
+        scrollToVideo(newIndex);
+      });
+    }
   }
 };
 
@@ -580,17 +612,28 @@ const handleProgressBarClick = (event) => {
 // Watchers
 watch(isOpen, (newIsOpen) => {
   if (newIsOpen) {
-    // Reset to initial video and play
-    currentVideoIndex.value = 0;
-    nextTick(() => {
-      scrollToVideo(currentVideoIndex.value);
-      playCurrentVideo();
-    });
+    // When opening, video loading watcher will handle initial setup
   } else {
     pauseCurrentVideo();
     stopProgressTracking();
   }
 });
+
+// Watch for videoId changes in URL to handle video switching
+watch(
+  () => route.query.videoId,
+  (newVideoId, oldVideoId) => {
+    if (newVideoId && newVideoId !== oldVideoId && videos.value.length > 0) {
+      pauseCurrentVideo();
+      nextTick(() => {
+        scrollToVideo(currentVideoIndex.value);
+        nextTick(() => {
+          playCurrentVideo();
+        });
+      });
+    }
+  }
+);
 
 watch(currentVideoIndex, (newIndex) => {
   

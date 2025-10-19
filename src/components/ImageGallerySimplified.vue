@@ -442,9 +442,10 @@ const handleFloatingCardShowVideos = (problemId) => {
 
 // Video player event handlers
 const handleVideoPlayerClose = () => {
-  // Remove showVideosForProblem from URL
+  // Remove both showVideosForProblem and videoId from URL
   const query = { ...route.query };
   delete query.showVideosForProblem;
+  delete query.videoId;
   router.push({ query });
 };
 
