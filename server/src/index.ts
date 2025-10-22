@@ -5,6 +5,9 @@ import { getStorage } from "firebase-admin/storage";
 import { getAuth } from "firebase-admin/auth";
 import * as logger from "firebase-functions/logger";
 
+// Video transcoding functions
+export { transcodeVideo, onTranscodingComplete } from "./videoTranscoding";
+
 initializeApp();
 
 const db = getFirestore();
