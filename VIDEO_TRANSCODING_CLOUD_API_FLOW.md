@@ -49,8 +49,7 @@ This document describes the end-to-end flow of video processing from upload to v
 - Cloud Function calls Google Cloud Transcoder API
 - Creates a transcoding job with:
   - **Input**: Original high-quality video from Storage
-  - **Output**: Multiple versions for different quality levels
-  - **Preset**: `preset/web-hd` (or custom config)
+  - **Output**: Single SD quality version (480p)
   - **Location**: `europe-west1` (matches your Firebase region `eur3`)
   
 - Job configuration (POC - Ultra-Minimal SD-Only Approach):
@@ -110,7 +109,7 @@ This document describes the end-to-end flow of video processing from upload to v
 
 ### 4. **Background Transcoding** ⏳
 - Google Cloud's infrastructure processes the video
-- Multiple quality versions are generated simultaneously
+- Single SD quality version is generated
 - Progress cannot be directly monitored in real-time
 - Typical duration: 
   - 1-3 minutes for a 1-minute video
@@ -375,13 +374,14 @@ The video collection can optionally link to these:
 
 ## Benefits of This Approach
 
-✅ **Full Control** - Complete customization of transcoding parameters
-✅ **Multiple Qualities** - Serve different bitrates for different network conditions
-✅ **Cost Effective** - Pay only for actual transcoding time
-✅ **Scalable** - Google's infrastructure handles any volume
-✅ **Reliable** - No extension compatibility issues
-✅ **Monitoring** - Direct access to job status and errors
-✅ **Storage Optimization** - Can delete original raw video after transcoding
+✅ **Full Control** - Complete customization of transcoding parameters  
+✅ **Simple & Clean** - Single SD quality, no complexity  
+✅ **Cost Effective** - Pay only for actual transcoding time (~$0.015/min)  
+✅ **Scalable** - Google's infrastructure handles any volume  
+✅ **Reliable** - No extension compatibility issues  
+✅ **Monitoring** - Direct access to job status and errors  
+✅ **Storage Optimization** - Can delete original raw video after transcoding  
+✅ **Easy to Upgrade** - Add HD quality later if users request it
 
 ---
 
