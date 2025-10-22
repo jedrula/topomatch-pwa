@@ -79,6 +79,14 @@ service cloud.firestore {
       allow update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
+    // Climb videos with transcoding - users can manage their own videos
+    match /climbVideos/{videoId} {
+      allow read: if isAuthenticated(); // All authenticated users can view videos
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid; // Users can only create videos for themselves
+      allow update: if isOwner(resource.data.userId) || isAdmin(); // Users can update their own videos, admins can update all
+      allow delete: if isOwner(resource.data.userId) || isAdmin(); // Users can delete their own videos, admins can delete all
+    }
+
     // Admin-only collections
     match /adminSettings/{document} {
       allow read, write: if isAdmin();

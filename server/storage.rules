@@ -62,5 +62,19 @@ service firebase.storage {
         request.resource.size < 100 * 1024 * 1024 && // 100MB limit for videos
         request.resource.contentType.matches('video/.*');
     }
+    
+    // Raw videos for transcoding - users can upload their own
+    match /videos/raw/{userId}/{videoId} {
+      allow write: if isOwner(userId) && 
+        request.resource.size < 500 * 1024 * 1024 && // 500MB limit (will be transcoded)
+        request.resource.contentType.matches('video/.*');
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+    
+    // Transcoded videos - read-only for users, only Cloud Functions can write
+    match /videos/transcoded/{userId}/{videoId}/{filename} {
+      allow write: if false; // Only Cloud Functions can write transcoded videos
+      allow delete: if isOwner(userId) || isAdmin();
+    }
   }
 }

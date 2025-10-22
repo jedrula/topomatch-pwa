@@ -6,18 +6,20 @@ import {
   list,
   getMetadata,
 } from 'firebase/storage';
-import { storage } from './firebase';
+import { doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { storage, db } from './firebase';
 import { getCurrentUser } from './authService';
 
 export const videoService = {
   /**
    * Upload a beta video for a boulder problem ascent
+   * Videos are automatically transcoded for optimal playback
    * @param {string} locationId - The location ID
    * @param {string} problemId - The boulder problem ID
    * @param {string} ascentId - The ascent ID
    * @param {File} videoFile - The video file to upload
    * @param {Function} onProgress - Progress callback function
-   * @returns {Promise<{videoId: string, downloadUrl: string, metadata: Object}>}
+   * @returns {Promise<{videoId: string, downloadUrl: string, metadata: Object, firestoreDocPath: string}>}
    */
   async uploadBetaVideo(locationId, problemId, ascentId, videoFile, onProgress = null) {
     try {
@@ -31,36 +33,48 @@ export const videoService = {
         throw new Error('File must be a video');
       }
 
-      // Validate file size (limit to 100MB for beta videos)
-      const maxSize = 100 * 1024 * 1024; // 100MB
+      // Validate file size (limit to 500MB for videos with transcoding)
+      const maxSize = 500 * 1024 * 1024; // 500MB
       if (videoFile.size > maxSize) {
-        throw new Error('Video file size must be less than 100MB');
+        throw new Error('Video file size must be less than 500MB');
       }
 
       // Generate unique video ID
-      const videoId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const videoId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Determine file extension from the original file
+      const fileExtension = videoFile.name.split('.').pop() || 'mp4';
+      const fileName = `${videoId}.${fileExtension}`;
 
-      // Create storage path: locations/{locationId}/problems/{problemId}/videos/{videoId}
-      const videoPath = `locations/${locationId}/problems/${problemId}/videos/${videoId}`;
+      // NEW PATH: videos/raw/{userId}/{videoId}.ext - this triggers transcoding
+      const videoPath = `videos/raw/${user.uid}/${fileName}`;
       const storageRef = ref(storage, videoPath);
 
-      // Create metadata
-      const metadata = {
-        customMetadata: {
-          locationId,
-          problemId,
-          ascentId,
-          userId: user.uid,
-          uploadedBy: user.email || user.uid,
-          originalName: videoFile.name,
-          fileSize: videoFile.size.toString(),
-          uploadedAt: new Date().toISOString(),
-        },
-        contentType: videoFile.type,
+      // Create Firestore document first (with 'pending' status)
+      const videoDocRef = doc(db, 'climbVideos', videoId);
+      const videoData = {
+        videoId,
+        userId: user.uid,
+        status: 'pending',
+        originalPath: videoPath,
+        originalFileName: videoFile.name,
+        originalFileSize: videoFile.size,
+        mimeType: videoFile.type,
+        // Associated boulder problem metadata
+        locationId,
+        problemId,
+        ascentId,
+        uploadedBy: user.email || user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
 
+      await setDoc(videoDocRef, videoData);
+
       // Upload file with progress tracking
-      const uploadTask = uploadBytesResumable(storageRef, videoFile, metadata);
+      const uploadTask = uploadBytesResumable(storageRef, videoFile, {
+        contentType: videoFile.type,
+      });
 
       return new Promise((resolve, reject) => {
         uploadTask.on(
@@ -71,21 +85,54 @@ export const videoService = {
               onProgress(progress, snapshot.state);
             }
           },
-          (error) => {
+          async (error) => {
             console.error('Error uploading video:', error);
+            // Update Firestore with error status
+            try {
+              await setDoc(
+                videoDocRef,
+                { status: 'error', error: error.message, updatedAt: serverTimestamp() },
+                { merge: true }
+              );
+            } catch (e) {
+              console.error('Failed to update error status:', e);
+            }
             reject(error);
           },
           async () => {
             try {
               const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
 
+              // Update Firestore with upload completion
+              await setDoc(
+                videoDocRef,
+                {
+                  originalDownloadURL: downloadUrl,
+                  uploadedAt: serverTimestamp(),
+                  status: 'uploaded', // Cloud Function will change this to 'processing'
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+
               const result = {
                 videoId,
                 downloadUrl,
+                firestoreDocPath: `climbVideos/${videoId}`,
                 metadata: {
-                  ...metadata.customMetadata,
+                  locationId,
+                  problemId,
+                  ascentId,
+                  userId: user.uid,
+                  uploadedBy: user.email || user.uid,
+                  originalName: videoFile.name,
+                  fileSize: videoFile.size,
+                  uploadedAt: new Date().toISOString(),
                   contentType: videoFile.type,
                   path: videoPath,
+                  // Transcoding info
+                  transcodingEnabled: true,
+                  status: 'uploaded',
                 },
               };
 
@@ -125,6 +172,106 @@ export const videoService = {
       console.error('Error deleting video:', error);
       throw error;
     }
+  },
+
+  /**
+   * Load a climb video with automatic transcoding fallback
+   * Tries transcoded version first (SD quality, optimized), falls back to original
+   * @param {string} videoId - The video ID to load
+   * @param {Object} options - Loading options
+   * @param {string} options.quality - Preferred quality ('sd', 'hd'). Default: 'sd'
+   * @param {Function} options.onStatusChange - Callback for status changes
+   * @returns {Promise<{videoUrl: string, isTranscoded: boolean, status: string, videoData: Object}>}
+   */
+  async loadClimbVideo(videoId, options = {}) {
+    try {
+      const quality = options.quality || 'sd';
+
+      // Get video document from Firestore
+      const videoDocRef = doc(db, 'climbVideos', videoId);
+      const docSnapshot = await getDoc(videoDocRef);
+
+      if (!docSnapshot.exists()) {
+        throw new Error('Video not found');
+      }
+
+      const data = docSnapshot.data();
+
+      // Try to use transcoded version if ready
+      if (data.status === 'ready' && data.transcodedVersions?.length > 0) {
+        const transcodedVersion =
+          data.transcodedVersions.find((v) => v.quality === quality) ||
+          data.transcodedVersions[0]; // Fallback to first available quality
+
+        if (transcodedVersion?.path) {
+          try {
+            // Get download URL from Storage
+            const videoStorageRef = ref(storage, transcodedVersion.path);
+            const url = await getDownloadURL(videoStorageRef);
+
+            return {
+              videoUrl: url,
+              isTranscoded: true,
+              status: data.status,
+              videoData: data,
+            };
+          } catch (error) {
+            console.warn('Failed to load transcoded version, falling back to original:', error);
+          }
+        }
+      }
+
+      // Fallback to original video
+      if (data.originalDownloadURL) {
+        return {
+          videoUrl: data.originalDownloadURL,
+          isTranscoded: false,
+          status: data.status,
+          videoData: data,
+        };
+      } else if (data.originalPath) {
+        // If no download URL stored, fetch it from Storage
+        const videoStorageRef = ref(storage, data.originalPath);
+        const url = await getDownloadURL(videoStorageRef);
+
+        return {
+          videoUrl: url,
+          isTranscoded: false,
+          status: data.status,
+          videoData: data,
+        };
+      }
+
+      throw new Error('No video URL available');
+    } catch (error) {
+      console.error('Error loading climb video:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Watch a climb video for real-time transcoding status updates
+   * @param {string} videoId - The video ID to watch
+   * @param {Function} callback - Callback function (videoData) => void
+   * @returns {Function} Unsubscribe function
+   */
+  watchClimbVideo(videoId, callback) {
+    const videoDocRef = doc(db, 'climbVideos', videoId);
+
+    return onSnapshot(
+      videoDocRef,
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          callback(docSnapshot.data());
+        } else {
+          callback(null);
+        }
+      },
+      (error) => {
+        console.error('Error watching climb video:', error);
+        callback(null, error);
+      }
+    );
   },
 
   /**
@@ -262,17 +409,19 @@ export const videoService = {
       result.errors.push('File must be a video');
     }
 
-    // Check file size (100MB limit)
-    const maxSize = 100 * 1024 * 1024;
+    // Check file size (500MB limit - transcoding will optimize the file)
+    const maxSize = 500 * 1024 * 1024;
     if (file.size > maxSize) {
       result.isValid = false;
-      result.errors.push('Video file size must be less than 100MB');
+      result.errors.push('Video file size must be less than 500MB');
     }
 
-    // Check file size warning (50MB)
-    const warningSize = 50 * 1024 * 1024;
+    // Check file size warning (100MB)
+    const warningSize = 100 * 1024 * 1024;
     if (file.size > warningSize) {
-      result.warnings.push('Large video files may take longer to upload and process');
+      result.warnings.push(
+        'Large video files will be automatically transcoded for optimal playback'
+      );
     }
 
     // Check supported formats
@@ -292,39 +441,71 @@ export const videoService = {
    */
   async getProblemVideos(locationId, problemId) {
     try {
-      const videosPath = `locations/${locationId}/problems/${problemId}/videos/`;
-      const listRef = ref(storage, videosPath);
+      // Query /climbVideos collection for videos associated with this problem
+      const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
+      
+      const climbVideosRef = collection(db, 'climbVideos');
+      const q = query(
+        climbVideosRef,
+        where('problemId', '==', problemId),
+        where('locationId', '==', locationId),
+        orderBy('createdAt', 'desc')
+      );
 
-      const result = await list(listRef);
+      const querySnapshot = await getDocs(q);
       const videos = [];
 
-      for (const item of result.items) {
+      for (const docSnapshot of querySnapshot.docs) {
+        const data = docSnapshot.data();
+        
         try {
-          const metadata = await getMetadata(item);
-          const downloadUrl = await getDownloadURL(item);
-
+          // Load video URL using transcoding-aware function
+          const videoResult = await this.loadClimbVideo(docSnapshot.id);
+          
           const video = {
-            id: item.name,
-            name: metadata.customMetadata?.originalName || item.name,
-            downloadUrl,
-            size: metadata.size,
-            contentType: metadata.contentType,
-            uploadedAt: metadata.customMetadata?.uploadedAt || metadata.timeCreated,
-            uploadedBy: metadata.customMetadata?.uploadedBy || 'Unknown',
-            userId: metadata.customMetadata?.userId,
-            ascentId: metadata.customMetadata?.ascentId,
-            locationId: metadata.customMetadata?.locationId,
-            problemId: metadata.customMetadata?.problemId,
+            id: docSnapshot.id,
+            videoId: data.videoId,
+            name: data.originalFileName || 'Beta Video',
+            downloadUrl: videoResult.videoUrl,
+            isTranscoded: videoResult.isTranscoded,
+            status: data.status,
+            size: videoResult.isTranscoded 
+              ? (data.transcodedVersions?.[0]?.fileSize || data.originalFileSize)
+              : data.originalFileSize,
+            contentType: data.mimeType,
+            uploadedAt: data.createdAt?.toDate?.() || new Date(),
+            uploadedBy: data.uploadedBy || 'Unknown',
+            userId: data.userId,
+            ascentId: data.ascentId,
+            locationId: data.locationId,
+            problemId: data.problemId,
           };
 
           videos.push(video);
         } catch (error) {
-          console.warn(`Failed to get metadata for video ${item.name}:`, error);
+          console.warn(`Failed to load video ${docSnapshot.id}:`, error);
+          // Fallback to original URL if transcoded version fails
+          if (data.originalDownloadURL) {
+            const video = {
+              id: docSnapshot.id,
+              videoId: data.videoId,
+              name: data.originalFileName || 'Beta Video',
+              downloadUrl: data.originalDownloadURL,
+              isTranscoded: false,
+              status: data.status,
+              size: data.originalFileSize,
+              contentType: data.mimeType,
+              uploadedAt: data.createdAt?.toDate?.() || new Date(),
+              uploadedBy: data.uploadedBy || 'Unknown',
+              userId: data.userId,
+              ascentId: data.ascentId,
+              locationId: data.locationId,
+              problemId: data.problemId,
+            };
+            videos.push(video);
+          }
         }
       }
-
-      // Sort by upload date (newest first)
-      videos.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
 
       return videos;
     } catch (error) {
