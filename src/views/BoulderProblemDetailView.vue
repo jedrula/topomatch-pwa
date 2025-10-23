@@ -108,9 +108,10 @@
           <!-- Bottom Row: Beta Videos (full width) -->
           <LocationVideos 
             v-if="userStore.isLoggedIn"
-            :videos="ascentVideos" 
-            :loading="false"
+            :videos="betaVideos" 
+            :loading="videosLoading"
             @video-click="openVideoGallery"
+            @video-deleted="handleVideoDeleted"
           />
         </div>
       </div>
@@ -118,7 +119,7 @@
 
     <!-- Video Gallery Modal -->
     <VideoGallery
-      :videos="ascentVideos"
+      :videos="betaVideos"
       :initial-index="videoGalleryIndex"
       :is-open="isVideoGalleryOpen"
       @close="closeVideoGallery"
@@ -133,6 +134,7 @@ import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useAscentStore } from '@/stores/ascentStore';
 import { useUserStore } from '@/stores/userStore';
 import { locationService } from '@/services/locationService';
+import { videoService } from '@/services/videoService';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
 import LocationVideos from '@/components/LocationVideos.vue';
 import VideoGallery from '@/components/VideoGallery.vue';
@@ -149,28 +151,8 @@ const problem = ref(null);
 const image = ref(null);
 const isVideoGalleryOpen = ref(false);
 const videoGalleryIndex = ref(0);
-
-// Transform ascents with videos into format compatible with both LocationVideos and VideoGallery
-const ascentVideos = computed(() => {
-  return ascentStore.ascents
-    .filter(ascent => ascent.betaVideo) // Only ascents with videos
-    .slice(0, 12) // Limit to 12
-    .map(ascent => ({
-      id: ascent.id,
-      name: ascent.userName || 'Unknown User', // For VideoGallery
-      downloadUrl: ascent.betaVideo.downloadUrl,
-      uploadedBy: ascent.userEmail, // For VideoGallery
-      uploadedAt: ascent.timestamp, // For VideoGallery
-      problemName: problem.value?.name || 'Unknown Problem', // For VideoGallery
-      size: null, // Size not available from ascent data
-      metadata: {
-        // For LocationVideos overlay
-        problemName: ascent.userName,
-        uploadedBy: ascent.userEmail,
-        duration: null,
-      }
-    }));
-});
+const betaVideos = ref([]);
+const videosLoading = ref(false);
 
 // Video gallery handlers
 const openVideoGallery = (index = 0) => {
@@ -180,6 +162,46 @@ const openVideoGallery = (index = 0) => {
 
 const closeVideoGallery = () => {
   isVideoGalleryOpen.value = false;
+};
+
+// Load beta videos from the new /climbVideos collection
+const loadBetaVideos = async () => {
+  if (!route.params.locationId || !route.params.problemId) return;
+  
+  try {
+    videosLoading.value = true;
+    const videos = await videoService.getProblemVideos(
+      route.params.locationId,
+      route.params.problemId
+    );
+    
+    // Transform to match the expected format for LocationVideos and VideoGallery
+    betaVideos.value = videos.map(video => ({
+      id: video.videoId,
+      name: video.uploadedBy || 'Unknown User',
+      downloadUrl: video.downloadUrl, // Fixed: was video.url
+      uploadedBy: video.uploadedBy,
+      uploadedAt: video.uploadedAt, // Fixed: was video.createdAt
+      userId: video.userId, // Important for delete permissions
+      problemName: problem.value?.name || 'Unknown Problem',
+      size: video.size,
+      metadata: {
+        problemName: problem.value?.name || 'Unknown Problem',
+        uploadedBy: video.uploadedBy,
+        duration: null,
+      }
+    }));
+  } catch (err) {
+    console.error('Error loading beta videos:', err);
+  } finally {
+    videosLoading.value = false;
+  }
+};
+
+// Handle video deletion
+const handleVideoDeleted = async (videoId) => {
+  // Remove the deleted video from the list
+  betaVideos.value = betaVideos.value.filter(v => v.id !== videoId);
 };
 
 // Calculate cropped image style based on hold bounding boxes
@@ -291,6 +313,11 @@ const loadProblemData = async () => {
     // Initialize and load ascent data
     ascentStore.initializeForProblem(locationId, problemId);
     await ascentStore.loadAscents(locationId, problemId);
+
+    // Load beta videos from new /climbVideos collection
+    if (userStore.isLoggedIn) {
+      await loadBetaVideos();
+    }
 
     // Load the associated image
     const imageId = problem.value.imageId;

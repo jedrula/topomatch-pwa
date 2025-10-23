@@ -6,7 +6,7 @@ import {
   list,
   getMetadata,
 } from 'firebase/storage';
-import { doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { storage, db } from './firebase';
 import { getCurrentUser } from './authService';
 
@@ -596,5 +596,77 @@ export const videoService = {
     const seconds = Math.floor(duration % 60);
 
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  },
+
+  /**
+   * Delete a beta video (removes from Storage and Firestore)
+   * Deletes both original and transcoded versions
+   * @param {string} videoId - The video ID to delete
+   * @returns {Promise<void>}
+   */
+  async deleteVideo(videoId) {
+    try {
+      const user = getCurrentUser();
+      if (!user) {
+        throw new Error('User must be authenticated to delete videos');
+      }
+
+      // Get video metadata from Firestore
+      const videoDocRef = doc(db, 'climbVideos', videoId);
+      const videoDoc = await getDoc(videoDocRef);
+
+      if (!videoDoc.exists()) {
+        throw new Error('Video not found');
+      }
+
+      const videoData = videoDoc.data();
+
+      // Authorization check - only the owner can delete
+      if (videoData.userId !== user.uid) {
+        throw new Error('You can only delete your own videos');
+      }
+
+      // Delete files from Storage
+      const deletionPromises = [];
+
+      // Delete original video from videos/raw/{userId}/{videoId}.*
+      if (videoData.originalPath) {
+        const originalRef = ref(storage, videoData.originalPath);
+        deletionPromises.push(
+          deleteObject(originalRef).catch((error) => {
+            // Ignore "object not found" errors (file may already be deleted)
+            if (error.code !== 'storage/object-not-found') {
+              console.error('Error deleting original video:', error);
+              throw error;
+            }
+          })
+        );
+      }
+
+      // Delete transcoded video from videos/transcoded/{userId}/{videoId}/video.mp4
+      if (videoData.transcodedPath) {
+        const transcodedRef = ref(storage, videoData.transcodedPath);
+        deletionPromises.push(
+          deleteObject(transcodedRef).catch((error) => {
+            // Ignore "object not found" errors
+            if (error.code !== 'storage/object-not-found') {
+              console.error('Error deleting transcoded video:', error);
+              throw error;
+            }
+          })
+        );
+      }
+
+      // Wait for all Storage deletions
+      await Promise.all(deletionPromises);
+
+      // Delete Firestore document
+      await deleteDoc(videoDocRef);
+
+      console.log(`Successfully deleted video ${videoId}`);
+    } catch (error) {
+      console.error('Error deleting video:', error);
+      throw error;
+    }
   },
 };

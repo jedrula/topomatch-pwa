@@ -42,12 +42,14 @@ class ConfigService {
         }
         
       } else {
-        // Save defaults to Firestore
-        await this.saveConfig();
+        console.log('⚠️ Config document does not exist, using defaults');
+        // Don't try to save if we can't read (permission issue)
+        // Admins can manually create the config document
       }
     } catch (error) {
-      console.error('❌ Error loading configuration:', error);
-      this.error.value = error.message;
+      console.warn('⚠️ Could not load configuration, using defaults:', error.code || error.message);
+      // Don't set this.error - just use defaults silently
+      // This allows the app to continue working even if config is not accessible
     } finally {
       this.loading.value = false;
     }
