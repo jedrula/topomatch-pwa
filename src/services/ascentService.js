@@ -263,15 +263,9 @@ export const ascentService = {
         throw new Error('You can only delete your own ascents');
       }
 
-      // Delete associated beta video if it exists
-      if (ascentData.betaVideo && ascentData.betaVideo.videoId) {
-        try {
-          await videoService.deleteBetaVideo(locationId, problemId, ascentData.betaVideo.videoId);
-        } catch (videoError) {
-          console.warn('Error deleting beta video (continuing with ascent deletion):', videoError);
-          // Continue with ascent deletion even if video deletion fails
-        }
-      }
+      // Note: Videos are now separate entities in /climbVideos collection
+      // and are not automatically deleted when an ascent is deleted.
+      // Users can delete videos separately from the video management UI.
 
       await deleteDoc(ascentRef);
     } catch (error) {

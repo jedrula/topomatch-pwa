@@ -2,7 +2,6 @@ import {
   ref,
   uploadBytesResumable,
   getDownloadURL,
-  deleteObject,
   list,
   getMetadata,
 } from 'firebase/storage';
@@ -151,28 +150,7 @@ export const videoService = {
   },
 
   /**
-   * Delete a beta video
-   * @param {string} locationId - The location ID
-   * @param {string} problemId - The boulder problem ID
-   * @param {string} videoId - The video ID
-   * @returns {Promise<void>}
-   */
-  async deleteBetaVideo(locationId, problemId, videoId) {
-    try {
-      const user = getCurrentUser();
-      if (!user) {
-        throw new Error('User must be authenticated to delete videos');
-      }
-
-      const videoPath = `locations/${locationId}/problems/${problemId}/videos/${videoId}`;
-      const storageRef = ref(storage, videoPath);
-
-      await deleteObject(storageRef);
-    } catch (error) {
-      console.error('Error deleting video:', error);
-      throw error;
-    }
-  },
+   * Load a climb video with automatic transcoding fallback
 
   /**
    * Load a climb video with automatic transcoding fallback
@@ -521,32 +499,53 @@ export const videoService = {
    */
   async getLocationVideos(locationId) {
     try {
-      const locationPath = `locations/${locationId}/problems/`;
-      const listRef = ref(storage, locationPath);
+      // Query /climbVideos collection for all videos at this location
+      const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
+      
+      const climbVideosRef = collection(db, 'climbVideos');
+      const q = query(
+        climbVideosRef,
+        where('locationId', '==', locationId),
+        orderBy('createdAt', 'desc')
+      );
 
-      const result = await list(listRef, { delimiter: '/' });
-      const allVideos = [];
+      const querySnapshot = await getDocs(q);
+      const videos = [];
 
-      // Iterate through each problem folder
-      for (const folder of result.prefixes) {
-        const problemId = folder.name;
+      for (const docSnapshot of querySnapshot.docs) {
+        const data = docSnapshot.data();
+        
         try {
-          const problemVideos = await this.getProblemVideos(locationId, problemId);
-          // Add problem info to each video
-          const videosWithProblemInfo = problemVideos.map((video) => ({
-            ...video,
-            problemId,
-          }));
-          allVideos.push(...videosWithProblemInfo);
+          // Load video URL using transcoding-aware function
+          const videoResult = await this.loadClimbVideo(docSnapshot.id);
+          
+          const video = {
+            id: docSnapshot.id,
+            videoId: data.videoId,
+            name: data.originalFileName || 'Beta Video',
+            downloadUrl: videoResult.videoUrl,
+            isTranscoded: videoResult.isTranscoded,
+            status: data.status,
+            size: videoResult.isTranscoded 
+              ? (data.transcodedVersions?.[0]?.fileSize || data.originalFileSize)
+              : data.originalFileSize,
+            contentType: data.mimeType,
+            uploadedAt: data.createdAt?.toDate?.() || new Date(),
+            uploadedBy: data.uploadedBy || 'Unknown',
+            userId: data.userId,
+            ascentId: data.ascentId,
+            locationId: data.locationId,
+            problemId: data.problemId,
+          };
+
+          videos.push(video);
         } catch (error) {
-          console.warn(`Failed to get videos for problem ${problemId}:`, error);
+          console.warn(`Failed to load video ${docSnapshot.id}:`, error);
+          // Skip videos that fail to load
         }
       }
 
-      // Sort all videos by upload date (newest first)
-      allVideos.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-
-      return allVideos;
+      return videos;
     } catch (error) {
       console.error('Error fetching location videos:', error);
       throw error;
@@ -599,8 +598,8 @@ export const videoService = {
   },
 
   /**
-   * Delete a beta video (removes from Storage and Firestore)
-   * Deletes both original and transcoded versions
+   * Delete a beta video
+   * The Cloud Function onVideoDeleted will automatically clean up Storage files
    * @param {string} videoId - The video ID to delete
    * @returns {Promise<void>}
    */
@@ -626,44 +625,11 @@ export const videoService = {
         throw new Error('You can only delete your own videos');
       }
 
-      // Delete files from Storage
-      const deletionPromises = [];
-
-      // Delete original video from videos/raw/{userId}/{videoId}.*
-      if (videoData.originalPath) {
-        const originalRef = ref(storage, videoData.originalPath);
-        deletionPromises.push(
-          deleteObject(originalRef).catch((error) => {
-            // Ignore "object not found" errors (file may already be deleted)
-            if (error.code !== 'storage/object-not-found') {
-              console.error('Error deleting original video:', error);
-              throw error;
-            }
-          })
-        );
-      }
-
-      // Delete transcoded video from videos/transcoded/{userId}/{videoId}/video.mp4
-      if (videoData.transcodedPath) {
-        const transcodedRef = ref(storage, videoData.transcodedPath);
-        deletionPromises.push(
-          deleteObject(transcodedRef).catch((error) => {
-            // Ignore "object not found" errors
-            if (error.code !== 'storage/object-not-found') {
-              console.error('Error deleting transcoded video:', error);
-              throw error;
-            }
-          })
-        );
-      }
-
-      // Wait for all Storage deletions
-      await Promise.all(deletionPromises);
-
       // Delete Firestore document
+      // The onVideoDeleted Cloud Function will automatically clean up Storage files
       await deleteDoc(videoDocRef);
 
-      console.log(`Successfully deleted video ${videoId}`);
+      console.log(`Successfully deleted video ${videoId} (Storage cleanup handled by Cloud Function)`);
     } catch (error) {
       console.error('Error deleting video:', error);
       throw error;

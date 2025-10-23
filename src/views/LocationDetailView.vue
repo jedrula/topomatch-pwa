@@ -109,6 +109,7 @@
           :videos="videos"
           :loading="videosLoading"
           @video-click="openVideoGallery"
+          @video-deleted="handleVideoDeleted"
         />
 
         <!-- Boulder Problems Summary -->
@@ -389,6 +390,23 @@ const openVideoGallery = (index = 0) => {
 const closeVideoGallery = () => {
   isVideoGalleryOpen.value = false;
   currentVideoFilter.value = null; // Clear filter when closing
+};
+
+// Handle video deletion
+const handleVideoDeleted = async (videoId) => {
+  // Find the video to get its problemId before removing it
+  const deletedVideo = videos.value.find(v => v.id === videoId);
+  
+  // Remove the deleted video from the list
+  videos.value = videos.value.filter(v => v.id !== videoId);
+  
+  // Decrement the video count for this problem
+  if (deletedVideo?.problemId && problemVideoCounts.value[deletedVideo.problemId]) {
+    problemVideoCounts.value[deletedVideo.problemId] = Math.max(
+      0, 
+      problemVideoCounts.value[deletedVideo.problemId] - 1
+    );
+  }
 };
 
 // Method to get video count for a specific problem

@@ -1,17 +1,25 @@
-import { onCall } from "firebase-functions/v2/https";
-import { initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-import { getStorage } from "firebase-admin/storage";
-import { getAuth } from "firebase-admin/auth";
+import {onCall} from "firebase-functions/v2/https";
+import {initializeApp} from "firebase-admin/app";
+import {getFirestore} from "firebase-admin/firestore";
+import {getStorage} from "firebase-admin/storage";
+import {getAuth} from "firebase-admin/auth";
 import * as logger from "firebase-functions/logger";
 
 // Video transcoding functions
-export { transcodeVideo, onTranscodingComplete } from "./videoTranscoding";
+export {transcodeVideo, onTranscodingComplete} from "./videoTranscoding";
+
+// Video cleanup function
+export {onVideoDeleted} from "./videoCleanup";
+
+// Configure Storage emulator BEFORE initializing Firebase Admin
+// This must be set before any Storage client is created
+if (process.env.FUNCTIONS_EMULATOR === "true") {
+  process.env.FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199";
+}
 
 initializeApp();
 
 const db = getFirestore();
-const bucket = getStorage().bucket();
 const auth = getAuth();
 
 // Configure Firestore to use emulator if in development
@@ -22,7 +30,7 @@ if (process.env.FUNCTIONS_EMULATOR === "true") {
   });
 }
 
-// Admin management functions
+const bucket = getStorage().bucket();// Admin management functions
 export const setAdminRole = onCall(async (request) => {
   // Only allow existing admins to create new admins
   const callerUid = request.auth?.uid;

@@ -6,7 +6,6 @@ import * as logger from "firebase-functions/logger";
 // Configuration
 const PROJECT_ID = "topomatch-pwa";
 const LOCATION = "europe-west1"; // Matches Firebase region eur3
-const BUCKET_NAME = "topomatch-pwa.firebasestorage.app";
 
 /**
  * Triggered when a video is uploaded to videos/raw/{userId}/{videoId}.{ext}
@@ -79,9 +78,10 @@ export const transcodeVideo = onObjectFinalized(
       }
 
       // Prepare transcoding job configuration (SD-only)
+      const bucketName = event.bucket; // Get bucket name from event
       const outputPath = `videos/transcoded/${userId}/${videoId}/`;
-      const inputUri = `gs://${BUCKET_NAME}/${filePath}`;
-      const outputUri = `gs://${BUCKET_NAME}/${outputPath}`;
+      const inputUri = `gs://${bucketName}/${filePath}`;
+      const outputUri = `gs://${bucketName}/${outputPath}`;
 
       logger.info(`Input URI: ${inputUri}`);
       logger.info(`Output URI: ${outputUri}`);

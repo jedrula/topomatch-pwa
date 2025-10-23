@@ -14,11 +14,12 @@ const getFirebaseConfig = () => {
 
   if (useEmulators) {
     // Development/Emulator configuration
+    // Use the same bucket name as production for consistency
     return {
       apiKey: 'demo-api-key',
       authDomain: 'topomatch-pwa.firebaseapp.com',
       projectId: 'topomatch-pwa',
-      storageBucket: 'topomatch-pwa.appspot.com',
+      storageBucket: 'topomatch-pwa.firebasestorage.app',
       messagingSenderId: '123456789',
       appId: 'demo-app-id',
     };
