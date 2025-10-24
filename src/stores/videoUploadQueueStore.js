@@ -165,6 +165,18 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
     return activeUploads.value.length > 0;
   });
 
+  /**
+   * Get active uploads for a specific problem
+   * @param {string} problemId - The problem ID
+   * @returns {Array} Active uploads for this problem
+   */
+  const getActiveUploadsForProblem = (problemId) => {
+    return Object.values(uploads.value).filter(
+      record => record.problemId === problemId && 
+                (record.status === 'uploading' || record.status === 'pending')
+    );
+  };
+
   return {
     // State
     uploads,
@@ -179,6 +191,7 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
     waitForUpload,
     cancelUpload,
     getUpload,
+    getActiveUploadsForProblem,
     clearAll,
   };
 });

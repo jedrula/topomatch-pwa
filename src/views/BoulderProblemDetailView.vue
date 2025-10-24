@@ -108,7 +108,7 @@
           <!-- Bottom Row: Beta Videos (full width) -->
           <LocationVideos 
             v-if="userStore.isLoggedIn"
-            :videos="betaVideos" 
+            :videos="allVideos" 
             :loading="videosLoading"
             @video-click="openVideoGallery"
             @video-deleted="handleVideoDeleted"
@@ -119,7 +119,7 @@
 
     <!-- Video Gallery Modal -->
     <VideoGallery
-      :videos="betaVideos"
+      :videos="allVideos"
       :initial-index="videoGalleryIndex"
       :is-open="isVideoGalleryOpen"
       @close="closeVideoGallery"
@@ -133,6 +133,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useAscentStore } from '@/stores/ascentStore';
 import { useUserStore } from '@/stores/userStore';
+import { useVideoUploadQueueStore } from '@/stores/videoUploadQueueStore';
 import { locationService } from '@/services/locationService';
 import { videoService } from '@/services/videoService';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
@@ -144,6 +145,7 @@ const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
 const ascentStore = useAscentStore();
 const userStore = useUserStore();
+const videoUploadQueue = useVideoUploadQueueStore();
 
 const loading = ref(true);
 const error = ref(null);
@@ -163,6 +165,64 @@ const openVideoGallery = (index = 0) => {
 const closeVideoGallery = () => {
   isVideoGalleryOpen.value = false;
 };
+
+// Combine uploaded videos with actively uploading ones
+const allVideos = computed(() => {
+  const uploaded = betaVideos.value;
+  
+  // Get ALL uploads for this problem - access reactive state directly
+  const allUploads = videoUploadQueue.uploads;
+  const problemUploads = Object.values(allUploads).filter(
+    upload => upload.problemId === route.params.problemId
+  );
+  
+  console.log(`📹 Problem uploads:`, problemUploads.length);
+  
+  // Map uploads based on status
+  const uploadVideos = problemUploads.map(upload => {
+    // If completed, show as regular video with download URL
+    if (upload.status === 'completed') {
+      return {
+        id: upload.ascentId,
+        name: userStore.currentUser?.displayName || 'You',
+        downloadUrl: upload.videoData?.downloadUrl,
+        uploadedBy: userStore.currentUser?.displayName || 'You',
+        uploadedAt: new Date(),
+        userId: userStore.currentUser?.uid,
+        problemName: problem.value?.name || 'Unknown Problem',
+        size: upload.videoData?.metadata?.fileSize,
+        metadata: {
+          problemName: problem.value?.name || 'Unknown Problem',
+          uploadedBy: userStore.currentUser?.displayName || 'You',
+        }
+      };
+    }
+    
+    // If uploading/pending, show progress
+    return {
+      id: upload.ascentId,
+      name: 'Uploading...',
+      isUploading: true,
+      progress: upload.progress || 0,
+      status: upload.status,
+      uploadedBy: userStore.currentUser?.displayName || 'You',
+      problemName: problem.value?.name || 'Unknown Problem',
+      metadata: {
+        problemName: problem.value?.name || 'Unknown Problem',
+        uploadedBy: userStore.currentUser?.displayName || 'You',
+      }
+    };
+  });
+  
+  // Filter out uploads that are already in betaVideos (from Firestore)
+  const uploadedIds = new Set(uploaded.map(v => v.id));
+  const uniqueUploadVideos = uploadVideos.filter(v => !uploadedIds.has(v.id));
+  
+  console.log(`📹 Total videos: ${uniqueUploadVideos.length} uploads + ${uploaded.length} from Firestore`);
+  
+  // Combine: upload videos first (in progress or just completed), then Firestore videos
+  return [...uniqueUploadVideos, ...uploaded];
+});
 
 // Load beta videos (queries /ascents collection for videos)
 const loadBetaVideos = async () => {
