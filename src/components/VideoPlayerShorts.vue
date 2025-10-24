@@ -177,23 +177,9 @@
             </div>
           </div>
           
-          <!-- Video overlay info -->
-          <div class="absolute bottom-20 left-4 right-4 text-white pointer-events-none">
-            <div class="bg-black/50 rounded-lg p-3">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <p class="text-sm font-medium">{{ video.name || `Beta ${index + 1}` }}</p>
-                  <p v-if="video.description" class="text-xs text-gray-300 mt-1">{{ video.description }}</p>
-                </div>
-                <!-- Transcoded badge -->
-                <div v-if="video.isTranscoded" class="ml-2 flex items-center space-x-1 bg-green-500/20 text-green-300 px-2 py-1 rounded text-xs">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>HD</span>
-                </div>
-              </div>
-            </div>
+          <!-- Video metadata overlay -->
+          <div class="absolute bottom-20 right-4 max-w-xs pointer-events-none">
+            <VideoMetadata :video="video" />
           </div>
         </div>
       </div>
@@ -251,6 +237,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { videoService } from '@/services/videoService.js';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+import VideoMetadata from './VideoMetadata.vue';
 
 const route = useRoute();
 const router = useRouter();

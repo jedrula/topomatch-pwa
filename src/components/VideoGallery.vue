@@ -43,24 +43,16 @@
     <!-- Video info - Bottom right corner -->
     <div
       v-if="currentVideo"
-      class="absolute bottom-6 right-6 text-white text-right max-w-xs bg-black bg-opacity-50 p-3 rounded-lg text-sm"
+      class="absolute bottom-6 right-6 max-w-xs"
     >
-      <h3 class="font-medium mb-1 text-gray-200">{{ currentVideo.name }}</h3>
-      <div class="text-xs text-gray-400 space-y-0.5">
-        <p v-if="currentVideo.problemName" class="text-blue-300">
-          Problem: {{ currentVideo.problemName }}
-        </p>
-        <p v-if="currentVideo.uploadedBy">{{ currentVideo.uploadedBy }}</p>
-        <p v-if="currentVideo.uploadedAt">{{ formatDate(currentVideo.uploadedAt) }}</p>
-        <p v-if="currentVideo.size">{{ formatFileSize(currentVideo.size) }}</p>
-      </div>
+      <VideoMetadata :video="currentVideo" />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { videoService } from '../services/videoService.js';
+import VideoMetadata from './VideoMetadata.vue';
 
 const props = defineProps({
   videos: {
@@ -94,18 +86,6 @@ const closeOnBackdrop = (event) => {
   if (event.target === event.currentTarget) {
     closeGallery();
   }
-};
-
-const formatDate = (dateString) => {
-  try {
-    return new Date(dateString).toLocaleDateString();
-  } catch {
-    return dateString;
-  }
-};
-
-const formatFileSize = (bytes) => {
-  return videoService.formatFileSize(bytes);
 };
 
 // Watchers
