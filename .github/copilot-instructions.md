@@ -28,24 +28,28 @@
 - **`/ascents`** - Top-level ascent collection with embedded video data
   - Fields: userId, locationId, problemId, problemSnapshot, attemptType, userGrade, notes, date, video, userName
   - userName stored for display (avoids user lookups)
+  - **ascentId generated on client** using `crypto.randomUUID()`
 - **`/locations`** - Climbing locations
 - **`/locations/{id}/boulderProblems`** - Boulder problems (nested)
 - **`/locations/{id}/locationImages`** - Location images (nested)
 
+### Video Upload Flow (Client-Side IDs)
+1. **Client generates ascentId** using `crypto.randomUUID()`
+2. **Upload video** to `videos/raw/{userId}/{videoId}.ext` with ascentId in metadata
+3. **Create ascent** at `/ascents/{ascentId}` with same ID (uses `setDoc`)
+4. **transcodeVideo** triggers, reads ascentId from metadata, outputs to `videos/transcoded/{userId}/{ascentId}/`
+5. **onTranscodingComplete** updates `/ascents/{ascentId}/video.status = 'ready'`
+
 ### Video Architecture
-- Videos are **embedded objects** in ascent documents
-- NO separate `/climbVideos` collection
+- Videos are **embedded objects** in ascent documents (no separate collection)
 - Video structure: `AscentVideo` interface (see `src/types/ascent.ts`)
-- Transcoding flow:
-  1. Upload to `videos/raw/{userId}/{videoId}.ext` triggers `transcodeVideo`
-  2. Transcoding job processes video
-  3. Output written to `videos/transcoded/{userId}/{videoId}/video.mp4`
-  4. `onTranscodingComplete` updates `/ascents/{ascentId}/video.transcodedPath`
+- Storage paths use **ascentId** for consistency
+- **No temp IDs, no claiming** - one ID from start to finish
 
 ### Key Services
-- `ascentService.js` - Works with top-level `/ascents` collection
-- `videoService.js` - Upload videos to Storage, query videos from `/ascents`
-- `videoUploadQueueStore.js` - Manage upload queue, transform video data
+- `ascentService.js` - Works with `/ascents`, exports `generateAscentId()`
+- `videoService.js` - Upload videos to Storage with ascentId
+- `videoUploadQueueStore.js` - Track upload progress (simplified, no temp IDs)
 
 ## Tech Stack
 - Vue 3 (Composition API)

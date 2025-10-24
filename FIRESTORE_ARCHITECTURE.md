@@ -1,7 +1,7 @@
 # Firestore Architecture - High Level Overview
 
 **Project**: TopoMatch PWA  
-**Last Updated**: 2025-10-23  
+**Last Updated**: 2025-10-24  
 **Database**: Cloud Firestore
 
 ---
@@ -95,13 +95,15 @@ Location (e.g., "Brooklyn Boulders")
 ### 2️⃣ Logging a Climb with Video
 
 ```
-1. User uploads video while logging climb
-2. Create ascent document → ascents/{ascentId}
+1. Client generates ascentId using crypto.randomUUID()
+2. User uploads video while logging climb
+3. Upload video to Storage with ascentId in metadata
+4. Create ascent document → ascents/{ascentId}
    (contains: userId, locationId, problemId, attemptType, notes, date)
    (includes: problemSnapshot - name, grade, color)
    (includes: video object - paths, status, metadata)
-3. Video transcoding happens asynchronously
-4. Cloud Function updates ascent.video.status = 'ready' when done
+5. Video transcoding happens asynchronously
+6. Cloud Function updates ascent.video.status = 'ready' when done
 ```
 
 ### 3️⃣ Watching Beta Videos
@@ -133,14 +135,14 @@ Location (e.g., "Brooklyn Boulders")
 Firebase Storage paths mirror Firestore structure:
 
 ```
-/videos/raw/{userId}/{ascentId}.mp4              - Original video uploads
+/videos/raw/{userId}/{videoId}.ext              - Original video uploads
 /videos/transcoded/{userId}/{ascentId}/video.mp4  - Transcoded for web playback
 /locations/{locationId}/images/{imageId}.jpg     - Wall photos
 ```
 
 **Firestore stores paths** in ascent.video object or image downloadUrl field.
 
-**Note**: Videos use `ascentId` not separate `videoId` since video is embedded in ascent.
+**Note**: Storage uses ascentId (generated on client) for consistency across raw and transcoded paths.
 
 ---
 
@@ -228,16 +230,20 @@ Firestore requires composite indexes for queries with `WHERE` + `ORDER BY`:
 
 ### Get Videos for a Problem
 ```javascript
-query(collection(db, 'climbVideos'), 
+// Query ascents with videos for a specific problem
+query(collection(db, 'ascents'), 
   where('problemId', '==', problemId),
-  orderBy('createdAt', 'desc'))
+  where('video', '!=', null),
+  orderBy('video'),
+  orderBy('date', 'desc'))
 ```
 
 ### Get User's Climbs
 ```javascript
-query(collectionGroup(db, 'ascents'),
+// Query all ascents by a user
+query(collection(db, 'ascents'),
   where('userId', '==', userId),
-  orderBy('createdAt', 'desc'))
+  orderBy('date', 'desc'))
 ```
 
 ### Get Problems on Image
