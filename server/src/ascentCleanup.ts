@@ -22,7 +22,7 @@ export const onAscentDeleted = onDocumentDeleted(
     const {userId, video} = ascentData;
 
     // If there's no video, nothing to delete
-    if (!video || !video.videoId) {
+    if (!video || (!video.originalPath && !video.transcodedPath)) {
       logger.info(`No video attached to ascent ${ascentId}, skipping cleanup`);
       return null;
     }

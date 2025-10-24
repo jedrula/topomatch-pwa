@@ -301,23 +301,13 @@ export function useVideoAnalysis() {
           grade: problem.grade,
           color: problem.color,
         },
+        // NO video data - Cloud Function will add it when upload completes
       };
       
       console.log('📝 Creating ascent with pre-generated ID:', ascentId);
       
-      // Create the ascent with the same ID (uses setDoc internally)
+      // Create the ascent immediately (video uploads in background)
       await ascentStore.logAscent(ascentData, ascentId);
-      
-      // Wait for video upload to complete
-      try {
-        console.log('⏳ Waiting for video upload to complete...');
-        const videoData = await videoUploadQueue.waitForUpload(ascentId);
-        console.log('✅ Video upload completed:', videoData);
-      } catch (uploadError) {
-        console.error('❌ Video upload failed:', uploadError);
-        // Ascent was created but video upload failed
-        // Could update ascent to remove video reference or show error to user
-      }
       
       // Navigate to the problem page to show the logged ascent
       await router.push({

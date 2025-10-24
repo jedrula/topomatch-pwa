@@ -60,6 +60,32 @@ export const transcodeVideo = onObjectFinalized(
     logger.info(`Processing video for user ${userId}, videoId: ${videoId}, ascentId: ${ascentId}`);
 
     try {
+      // Initialize Firestore and create initial video object
+      const db = getFirestore();
+      const ascentRef = db.collection("ascents").doc(ascentId);
+      
+      // Get file metadata
+      const fileSize = event.data.size ? Number(event.data.size) : 0;
+      const mimeType = event.data.contentType || "video/mp4";
+      
+      // Create initial video object in ascent (client created ascent without video)
+      try {
+        await ascentRef.update({
+          "video.videoId": videoId,
+          "video.status": "transcoding",
+          "video.originalPath": filePath,
+          "video.mimeType": mimeType,
+          "video.originalFileSize": fileSize,
+          "video.uploadedAt": new Date(),
+          updatedAt: new Date(),
+        });
+        logger.info(`Created video object in ascent ${ascentId} (status: transcoding)`);
+      } catch (updateError) {
+        logger.error(`Could not create video object for ${ascentId}:`, updateError);
+        // Don't proceed with transcoding if we can't update Firestore
+        return null;
+      }
+      
       // Prepare transcoding job configuration (SD-only)
       const bucketName = event.bucket; // Get bucket name from event
       // Use ascentId from metadata (stable, set by client)
