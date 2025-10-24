@@ -79,11 +79,12 @@ export const useAscentStore = defineStore('ascent', () => {
       const allAscents = await ascentService.getBoulderAscents(locationId, problemId);
       ascents.value = allAscents;
 
-      // Load current user's ascents for this problem
+      // Filter current user's ascents from all ascents
       const userStore = useUserStore();
       if (userStore.isLoggedIn) {
-        const currentUserAscents = await ascentService.getUserBoulderAscents(locationId, problemId);
-        userAscents.value = currentUserAscents;
+        userAscents.value = allAscents.filter(ascent => ascent.userId === userStore.user.uid);
+      } else {
+        userAscents.value = [];
       }
 
       // Load statistics
@@ -97,7 +98,7 @@ export const useAscentStore = defineStore('ascent', () => {
     }
   };
 
-  const logAscent = async (ascentData) => {
+  const logAscent = async (ascentData, ascentId = null) => {
     if (!currentLocationId.value || !currentProblemId.value) {
       throw new Error('Location and problem must be set');
     }
@@ -106,16 +107,17 @@ export const useAscentStore = defineStore('ascent', () => {
     error.value = null;
 
     try {
-      const ascentId = await ascentService.logAscent(
+      const createdAscentId = await ascentService.logAscent(
         currentLocationId.value,
         currentProblemId.value,
-        ascentData
+        ascentData,
+        ascentId // Pass the optional pre-generated ID
       );
 
       // Reload ascents to get the updated data
       await loadAscents(currentLocationId.value, currentProblemId.value);
 
-      return ascentId;
+      return createdAscentId;
     } catch (err) {
       console.error('Error logging ascent:', err);
       error.value = err.message;
@@ -134,12 +136,8 @@ export const useAscentStore = defineStore('ascent', () => {
     error.value = null;
 
     try {
-      await ascentService.updateAscent(
-        currentLocationId.value,
-        currentProblemId.value,
-        ascentId,
-        updates
-      );
+      // Updated to use new ascentService signature (ascentId, updates)
+      await ascentService.updateAscent(ascentId, updates);
 
       // Reload ascents to get the updated data
       await loadAscents(currentLocationId.value, currentProblemId.value);
@@ -161,7 +159,8 @@ export const useAscentStore = defineStore('ascent', () => {
     error.value = null;
 
     try {
-      await ascentService.deleteAscent(currentLocationId.value, currentProblemId.value, ascentId);
+      // Updated to use new ascentService signature (ascentId only)
+      await ascentService.deleteAscent(ascentId);
 
       // Reload ascents to get the updated data
       await loadAscents(currentLocationId.value, currentProblemId.value);

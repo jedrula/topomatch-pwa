@@ -18,8 +18,7 @@ export const transcodeVideo = onObjectFinalized(
     timeoutSeconds: 60,
   },
   async (event) => {
-    // Initialize clients inside the function
-    const db = getFirestore();
+    // Initialize transcoder client inside the function
     const transcoderClient = new TranscoderServiceClient();
     
     const filePath = event.data.name;
@@ -50,36 +49,21 @@ export const transcodeVideo = onObjectFinalized(
     const userId = pathParts[2];
     const fileNameWithExt = pathParts[3];
     const videoId = fileNameWithExt.split(".")[0];
+    
+    // Get ascentId from custom metadata (required)
+    const ascentId = event.data.metadata?.ascentId;
+    if (!ascentId || typeof ascentId !== 'string') {
+      logger.error(`Missing or invalid ascentId in file metadata for ${filePath}`);
+      return null;
+    }
 
-    logger.info(`Processing video for user ${userId}, videoId: ${videoId}`);
+    logger.info(`Processing video for user ${userId}, videoId: ${videoId}, ascentId: ${ascentId}`);
 
     try {
-      // Create or update Firestore document
-      const videoRef = db.collection("climbVideos").doc(videoId);
-      const videoDoc = await videoRef.get();
-
-      if (!videoDoc.exists) {
-        // Create new document
-        await videoRef.set({
-          status: "processing",
-          userId: userId,
-          originalPath: filePath,
-          uploadedAt: new Date(),
-          processingStartedAt: new Date(),
-        });
-        logger.info(`Created Firestore document for video: ${videoId}`);
-      } else {
-        // Update existing document
-        await videoRef.update({
-          status: "processing",
-          processingStartedAt: new Date(),
-        });
-        logger.info(`Updated Firestore document for video: ${videoId}`);
-      }
-
       // Prepare transcoding job configuration (SD-only)
       const bucketName = event.bucket; // Get bucket name from event
-      const outputPath = `videos/transcoded/${userId}/${videoId}/`;
+      // Use ascentId from metadata (stable, set by client)
+      const outputPath = `videos/transcoded/${userId}/${ascentId}/`;
       const inputUri = `gs://${bucketName}/${filePath}`;
       const outputUri = `gs://${bucketName}/${outputPath}`;
 
@@ -129,27 +113,9 @@ export const transcodeVideo = onObjectFinalized(
       const [job] = await transcoderClient.createJob(request);
       logger.info(`Transcoding job created: ${job.name}`);
 
-      // Update Firestore with job ID
-      await videoRef.update({
-        transcodingJobId: job.name,
-        transcodingJobState: job.state,
-      });
-
       return { success: true, jobId: job.name };
     } catch (error) {
       logger.error(`Error creating transcoding job for ${videoId}:`, error);
-
-      // Update Firestore with error status
-      try {
-        await db.collection("climbVideos").doc(videoId).update({
-          status: "failed",
-          error: error instanceof Error ? error.message : "Unknown error",
-          failedAt: new Date(),
-        });
-      } catch (firestoreError) {
-        logger.error(`Failed to update Firestore with error status:`, firestoreError);
-      }
-
       throw error;
     }
   }
@@ -185,8 +151,8 @@ export const onTranscodingComplete = onObjectFinalized(
       return null;
     }
 
-    // Parse the file path to extract userId and videoId
-    // Expected format: videos/transcoded/{userId}/{videoId}/video.mp4
+    // Parse the file path to extract userId and ascentId
+    // Expected format: videos/transcoded/{userId}/{ascentId}/video.mp4
     const pathParts = filePath.split("/");
     if (pathParts.length !== 5) {
       logger.error(`Invalid transcoded file path format: ${filePath}`);
@@ -194,51 +160,48 @@ export const onTranscodingComplete = onObjectFinalized(
     }
 
     const userId = pathParts[2];
-    const videoId = pathParts[3];
+    const ascentId = pathParts[3];
 
-    logger.info(`Transcoding complete for user ${userId}, videoId: ${videoId}`);
+    logger.info(`Transcoding complete for user ${userId}, ascentId: ${ascentId}`);
 
+    // Declare early for error handling
     try {
-      const videoRef = db.collection("climbVideos").doc(videoId);
-      const videoDoc = await videoRef.get();
+      const ascentRef = db.collection("ascents").doc(ascentId);
+      const ascentDoc = await ascentRef.get();
 
-      if (!videoDoc.exists) {
-        logger.error(`Firestore document not found for video: ${videoId}`);
+      if (!ascentDoc.exists) {
+        logger.error(`Ascent document not found: ${ascentId}`);
         return null;
       }
 
       // Get file metadata
       const fileSize = event.data.size ? Number(event.data.size) : 0;
 
-      // Update Firestore with transcoded video information
-      await videoRef.update({
-        status: "ready",
-        processingCompletedAt: new Date(),
-        transcodedVersions: [
-          {
-            quality: "sd",
-            path: filePath,
-            size: fileSize,
-            bitrate: 1000000,
-            resolution: "480p",
-          },
-        ],
+      // Update the embedded video object in the ascent document
+      await ascentRef.update({
+        "video.status": "ready",
+        "video.transcodedPath": filePath,
+        "video.transcodedFileSize": fileSize,
+        "video.transcodedAt": new Date(),
+        updatedAt: new Date(),
       });
 
-      logger.info(`Successfully updated Firestore for video: ${videoId}`);
-      return { success: true, videoId: videoId };
+      logger.info(`Successfully updated ascent ${ascentId} with transcoded video info`);
+      return { success: true, ascentId: ascentId };
     } catch (error) {
-      logger.error(`Error updating Firestore for ${videoId}:`, error);
+      logger.error(`Error updating ascent ${ascentId}:`, error);
 
-      // Try to update with failed status
-      try {
-        await db.collection("climbVideos").doc(videoId).update({
-          status: "failed",
-          error: error instanceof Error ? error.message : "Failed to update after transcoding",
-          failedAt: new Date(),
-        });
-      } catch (firestoreError) {
-        logger.error(`Failed to update Firestore with error status:`, firestoreError);
+      // Try to update with failed status only if we have an ascentId
+      if (ascentId) {
+        try {
+          await db.collection("ascents").doc(ascentId).update({
+            "video.status": "error",
+            "video.error": error instanceof Error ? error.message : "Failed to update after transcoding",
+            updatedAt: new Date(),
+          });
+        } catch (firestoreError) {
+          logger.error(`Failed to update ascent with error status:`, firestoreError);
+        }
       }
 
       throw error;

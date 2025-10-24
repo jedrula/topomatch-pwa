@@ -164,7 +164,7 @@ const closeVideoGallery = () => {
   isVideoGalleryOpen.value = false;
 };
 
-// Load beta videos from the new /climbVideos collection
+// Load beta videos (queries /ascents collection for videos)
 const loadBetaVideos = async () => {
   if (!route.params.locationId || !route.params.problemId) return;
   
@@ -314,7 +314,7 @@ const loadProblemData = async () => {
     ascentStore.initializeForProblem(locationId, problemId);
     await ascentStore.loadAscents(locationId, problemId);
 
-    // Load beta videos from new /climbVideos collection
+    // Load beta videos (queries /ascents collection)
     if (userStore.isLoggedIn) {
       await loadBetaVideos();
     }

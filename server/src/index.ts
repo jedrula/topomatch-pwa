@@ -8,8 +8,11 @@ import * as logger from "firebase-functions/logger";
 // Video transcoding functions
 export {transcodeVideo, onTranscodingComplete} from "./videoTranscoding";
 
-// Video cleanup function
-export {onVideoDeleted} from "./videoCleanup";
+// Ascent cleanup function (handles /ascents collection with embedded video)
+export {onAscentDeleted} from "./ascentCleanup";
+
+// Location image deletion with cascade
+export {onLocationImageDeleted} from "./locationImageDeletion";
 
 // Configure Storage emulator BEFORE initializing Firebase Admin
 // This must be set before any Storage client is created

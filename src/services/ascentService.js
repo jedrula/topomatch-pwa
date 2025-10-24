@@ -10,20 +10,32 @@ import {
   orderBy,
   where,
   serverTimestamp,
+  collectionGroup,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { getCurrentUser } from './authService';
-import { videoService } from './videoService';
+
+/**
+ * Generate a unique ascent ID on the client
+ * Uses crypto.randomUUID() for proper UUID v4 generation
+ * @returns {string} A unique ascent ID
+ */
+export const generateAscentId = () => {
+  return crypto.randomUUID();
+};
 
 export const ascentService = {
   /**
    * Log a new ascent for a boulder problem
+   * Now uses top-level /ascents collection with embedded video data
    * @param {string} locationId - The location ID
    * @param {string} problemId - The boulder problem ID
-   * @param {Object} ascentData - The ascent data
+   * @param {Object} ascentData - The ascent data (includes problemSnapshot and optional video)
+   * @param {string} [ascentId] - Optional pre-generated ascent ID (for video upload coordination)
    * @returns {Promise<string>} The created ascent ID
    */
-  async logAscent(locationId, problemId, ascentData) {
+  async logAscent(locationId, problemId, ascentData, ascentId = null) {
     try {
       const user = getCurrentUser();
       if (!user) {
@@ -35,33 +47,52 @@ export const ascentService = {
         throw new Error('Attempt type is required');
       }
 
-      const ascentsRef = collection(
-        db,
-        'locations',
-        locationId,
-        'boulderProblems',
-        problemId,
-        'ascents'
-      );
+      if (!ascentData.problemSnapshot) {
+        throw new Error('Problem snapshot is required (name, grade, color)');
+      }
 
       const newAscent = {
+        // User & references
         userId: user.uid,
-        userName: user.displayName || user.email || 'Anonymous',
-        userEmail: user.email,
+        locationId,
+        problemId,
+        
+        // Problem snapshot (preserved even if problem deleted)
+        problemSnapshot: {
+          name: ascentData.problemSnapshot.name,
+          grade: ascentData.problemSnapshot.grade,
+          color: ascentData.problemSnapshot.color,
+        },
+        
+        // Ascent details
         attemptType: ascentData.attemptType, // 'flash', 'second', 'multiple'
-        userGrade: ascentData.userGrade || null, // User's opinion of the grade
+        userGrade: ascentData.userGrade || null,
         notes: ascentData.notes || '',
-        sessionId: ascentData.sessionId || null, // Optional session tracking
         date: ascentData.date || serverTimestamp(),
-        // Video metadata
-        betaVideo: ascentData.betaVideo || null, // { videoId, downloadUrl, metadata }
+        
+        // Optional embedded video data
+        video: ascentData.video || null,
+        
+        // Timestamps
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        
+        // User display name (for showing who climbed without user lookup)
+        userName: user.displayName || user.email || 'Anonymous',
       };
 
-      const docRef = await addDoc(ascentsRef, newAscent);
-
-      return docRef.id;
+      // Use provided ID or generate new one
+      if (ascentId) {
+        // Client provided ID - use setDoc
+        const docRef = doc(db, 'ascents', ascentId);
+        await setDoc(docRef, newAscent);
+        return ascentId;
+      } else {
+        // Server-generated ID - use addDoc
+        const ascentsRef = collection(db, 'ascents');
+        const docRef = await addDoc(ascentsRef, newAscent);
+        return docRef.id;
+      }
     } catch (error) {
       console.error('Error logging ascent:', error);
       throw error;
@@ -76,91 +107,11 @@ export const ascentService = {
    */
   async getBoulderAscents(locationId, problemId) {
     try {
-      const ascentsRef = collection(
-        db,
-        'locations',
-        locationId,
-        'boulderProblems',
-        problemId,
-        'ascents'
-      );
-      const q = query(ascentsRef, orderBy('createdAt', 'desc'));
-
-      const querySnapshot = await getDocs(q);
-      const ascents = [];
-
-      querySnapshot.forEach((doc) => {
-        const ascentData = {
-          id: doc.id,
-          ...doc.data(),
-        };
-        ascents.push(ascentData);
-      });
-
-      return ascents;
-    } catch (error) {
-      console.error('Error fetching boulder ascents:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get all ascents for a specific user
-   * @param {string} userId - The user ID (optional, defaults to current user)
-   * @returns {Promise<Array>} Array of ascent records with boulder problem info
-   */
-  async getUserAscents(userId = null) {
-    try {
-      const user = getCurrentUser();
-      const targetUserId = userId || user?.uid;
-
-      if (!targetUserId) {
-        throw new Error('User ID is required');
-      }
-
-      // Note: This requires a compound query across multiple collections
-      // For now, we'll implement a simpler version that fetches from a specific location
-      // In a production app, you might want to denormalize this data or use cloud functions
-
-      const ascents = [];
-      // This is a simplified implementation - in practice you'd need to query across all locations
-      // or maintain a separate user ascents collection for better performance
-
-      return ascents;
-    } catch (error) {
-      console.error('Error fetching user ascents:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get ascents by a specific user for a boulder problem
-   * @param {string} locationId - The location ID
-   * @param {string} problemId - The boulder problem ID
-   * @param {string} userId - The user ID (optional, defaults to current user)
-   * @returns {Promise<Array>} Array of user's ascent records for this problem
-   */
-  async getUserBoulderAscents(locationId, problemId, userId = null) {
-    try {
-      const user = getCurrentUser();
-      const targetUserId = userId || user?.uid;
-
-      if (!targetUserId) {
-        throw new Error('User ID is required');
-      }
-
-      const ascentsRef = collection(
-        db,
-        'locations',
-        locationId,
-        'boulderProblems',
-        problemId,
-        'ascents'
-      );
+      const ascentsRef = collection(db, 'ascents');
       const q = query(
         ascentsRef,
-        where('userId', '==', targetUserId),
-        orderBy('createdAt', 'desc')
+        where('problemId', '==', problemId),
+        orderBy('date', 'desc')
       );
 
       const querySnapshot = await getDocs(q);
@@ -175,35 +126,94 @@ export const ascentService = {
 
       return ascents;
     } catch (error) {
-      console.error('Error fetching user boulder ascents:', error);
+      console.error('Error fetching boulder ascents:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all ascents for a specific user (across all locations/problems)
+   * @param {string} userId - The user ID (optional, defaults to current user)
+   * @returns {Promise<Array>} Array of ascent records
+   */
+  async getUserAscents(userId = null) {
+    try {
+      const user = getCurrentUser();
+      const targetUserId = userId || user?.uid;
+
+      if (!targetUserId) {
+        throw new Error('User ID is required');
+      }
+
+      const ascentsRef = collection(db, 'ascents');
+      const q = query(
+        ascentsRef,
+        where('userId', '==', targetUserId),
+        orderBy('date', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const ascents = [];
+
+      querySnapshot.forEach((doc) => {
+        ascents.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      return ascents;
+    } catch (error) {
+      console.error('Error fetching user ascents:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all ascents at a location (across all problems)
+   * @param {string} locationId - The location ID
+   * @returns {Promise<Array>} Array of ascent records
+   */
+  async getLocationAscents(locationId) {
+    try {
+      const ascentsRef = collection(db, 'ascents');
+      const q = query(
+        ascentsRef,
+        where('locationId', '==', locationId),
+        orderBy('date', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const ascents = [];
+
+      querySnapshot.forEach((doc) => {
+        ascents.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+
+      return ascents;
+    } catch (error) {
+      console.error('Error fetching location ascents:', error);
       throw error;
     }
   },
 
   /**
    * Update an ascent record
-   * @param {string} locationId - The location ID
-   * @param {string} problemId - The boulder problem ID
    * @param {string} ascentId - The ascent ID
    * @param {Object} updates - The fields to update
    * @returns {Promise<void>}
    */
-  async updateAscent(locationId, problemId, ascentId, updates) {
+  async updateAscent(ascentId, updates) {
     try {
       const user = getCurrentUser();
       if (!user) {
         throw new Error('User must be authenticated to update ascents');
       }
 
-      const ascentRef = doc(
-        db,
-        'locations',
-        locationId,
-        'boulderProblems',
-        problemId,
-        'ascents',
-        ascentId
-      );
+      const ascentRef = doc(db, 'ascents', ascentId);
 
       // Check if the ascent exists and belongs to the current user
       const ascentSnap = await getDoc(ascentRef);
@@ -230,27 +240,18 @@ export const ascentService = {
 
   /**
    * Delete an ascent record
-   * @param {string} locationId - The location ID
-   * @param {string} problemId - The boulder problem ID
+   * Deletes the ascent and triggers Cloud Function to delete associated video files
    * @param {string} ascentId - The ascent ID
    * @returns {Promise<void>}
    */
-  async deleteAscent(locationId, problemId, ascentId) {
+  async deleteAscent(ascentId) {
     try {
       const user = getCurrentUser();
       if (!user) {
         throw new Error('User must be authenticated to delete ascents');
       }
 
-      const ascentRef = doc(
-        db,
-        'locations',
-        locationId,
-        'boulderProblems',
-        problemId,
-        'ascents',
-        ascentId
-      );
+      const ascentRef = doc(db, 'ascents', ascentId);
 
       // Check if the ascent exists and belongs to the current user
       const ascentSnap = await getDoc(ascentRef);
@@ -263,10 +264,8 @@ export const ascentService = {
         throw new Error('You can only delete your own ascents');
       }
 
-      // Note: Videos are now separate entities in /climbVideos collection
-      // and are not automatically deleted when an ascent is deleted.
-      // Users can delete videos separately from the video management UI.
-
+      // Delete the ascent document
+      // Cloud Function will handle cleanup of video files in Storage
       await deleteDoc(ascentRef);
     } catch (error) {
       console.error('Error deleting ascent:', error);
@@ -292,6 +291,7 @@ export const ascentService = {
           second: ascents.filter((a) => a.attemptType === 'second').length,
           multiple: ascents.filter((a) => a.attemptType === 'multiple').length,
         },
+        withVideos: ascents.filter((a) => a.video && a.video.status === 'ready').length,
         averageUserGrade: null,
         userGrades: ascents.filter((a) => a.userGrade).map((a) => a.userGrade),
       };

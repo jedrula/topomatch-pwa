@@ -661,6 +661,7 @@
       :visible="floatingCard.visible"
       :problem="floatingCard.problem"
       :position="floatingCard.position"
+      :location-id="locationId"
       @edit="handleFloatingCardEdit"
       @toggle-visibility="handleFloatingCardToggleVisibility"
       @mouse-enter="handleFloatingCardMouseEnter"
@@ -690,6 +691,12 @@ const router = useRouter();
 const serverStore = useHoldDetectionServerStore();
 const persistenceStore = useHoldDetectionPersistenceStore();
 const boulderProblemsStore = useBoulderProblemsStore();
+
+// Get locationId from route params
+const locationId = computed(() => {
+  const id = route.params.locationId;
+  return Array.isArray(id) ? id[0] : id;
+});
 
 // Reactive state
 // References

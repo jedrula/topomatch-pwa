@@ -266,17 +266,3 @@ export function filterProblemHoldsByRole(
 ): ProblemHold[] {
   return problemHolds.filter(ph => ph.role === role);
 }
-
-// ============================================================================
-// BACKWARD COMPATIBILITY
-// ============================================================================
-
-/**
- * @deprecated Use combineHolds instead
- */
-export const mergeholdsArrays = combineHolds;
-
-/**
- * @deprecated Use getHoldStatistics instead
- */
-export const getHoldCounts = getHoldStatistics;

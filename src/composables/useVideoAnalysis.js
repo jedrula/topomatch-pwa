@@ -268,62 +268,55 @@ export function useVideoAnalysis() {
       
       // Import required services
       const { useAscentStore } = await import('../stores/ascentStore.js');
+      const { generateAscentId } = await import('../services/ascentService.js');
       const ascentStore = useAscentStore();
       const locationId = route.params.locationId || route.params.id;
       
       // Initialize the ascent store for this problem
       ascentStore.initializeForProblem(locationId, problem.id);
       
-      // Start video upload immediately
+      // CRITICAL: Generate ascent ID on client FIRST
+      const ascentId = generateAscentId();
+      console.log('🆔 Generated ascent ID:', ascentId);
+      
+      // Start video upload with real ascent ID
       console.log('📤 Starting video upload...');
-      const tempId = videoUploadQueue.startUpload(
+      videoUploadQueue.startUpload(
         submitData.video,
         locationId,
-        problem.id
+        problem.id,
+        ascentId // Real ID, not temp!
       );
-      console.log(`Upload started with temp ID: ${tempId}`);
+      console.log(`✅ Upload started with ascent ID: ${ascentId}`);
       
-      // Convert date string to Date object
+      // Convert date string to Date object and add problem snapshot
       const ascentData = {
         attemptType: submitData.formData.attemptType,
         userGrade: submitData.formData.userGrade || undefined,
         notes: submitData.formData.notes || undefined,
         date: new Date(submitData.formData.date),
+        // Problem snapshot - preserved even if problem deleted
+        problemSnapshot: {
+          name: problem.name,
+          grade: problem.grade,
+          color: problem.color,
+        },
       };
       
-      console.log('📝 Creating ascent with data:', ascentData);
+      console.log('📝 Creating ascent with pre-generated ID:', ascentId);
       
-      // Create the ascent first (without video)
-      await ascentStore.logAscent(ascentData);
+      // Create the ascent with the same ID (uses setDoc internally)
+      await ascentStore.logAscent(ascentData, ascentId);
       
-      // Get the newly created ascent ID
-      const latestAscent = ascentStore.latestUserAscent;
-      
-      if (!latestAscent || !latestAscent.id) {
-        console.error('Failed to create ascent or get ascent ID');
-        // Still redirect but cancel the upload
-        videoUploadQueue.cancelUpload(tempId);
-        await router.push({
-          name: 'boulder-problem-detail',
-          params: {
-            locationId: locationId,
-            problemId: problem.id,
-          },
-        });
-        return;
-      }
-      
-      console.log('✅ Ascent created with ID:', latestAscent.id);
-      
-      // Now claim the video upload with the ascent ID
-      console.log('� Claiming video upload for ascent:', latestAscent.id);
-      const claimResult = await videoUploadQueue.claimUpload(tempId, latestAscent.id);
-      
-      if (claimResult.success) {
-        console.log('✅ Video successfully associated with ascent:', claimResult.uploadedUrl);
-      } else {
-        console.error('❌ Failed to associate video:', claimResult.error);
-        // Ascent was created but video association failed
+      // Wait for video upload to complete
+      try {
+        console.log('⏳ Waiting for video upload to complete...');
+        const videoData = await videoUploadQueue.waitForUpload(ascentId);
+        console.log('✅ Video upload completed:', videoData);
+      } catch (uploadError) {
+        console.error('❌ Video upload failed:', uploadError);
+        // Ascent was created but video upload failed
+        // Could update ascent to remove video reference or show error to user
       }
       
       // Navigate to the problem page to show the logged ascent
