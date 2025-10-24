@@ -2,10 +2,16 @@
   <div class="text-white text-right bg-black bg-opacity-50 p-3 rounded-lg text-sm">
     <h3 class="font-medium mb-1 text-gray-200">{{ video.name }}</h3>
     <div class="text-xs text-gray-400 space-y-0.5">
-      <p v-if="video.problemName" class="text-blue-300">
-        Problem: {{ video.problemName }}
+      <p v-if="video.uploadedBy && video.userId">
+        <router-link
+          :to="{ name: 'user-profile', params: { userId: video.userId } }"
+          class="text-blue-400 hover:text-blue-300 transition-colors pointer-events-auto cursor-pointer"
+          @click.stop
+        >
+          {{ video.uploadedBy }}
+        </router-link>
       </p>
-      <p v-if="video.uploadedBy">{{ video.uploadedBy }}</p>
+      <p v-else-if="video.uploadedBy">{{ video.uploadedBy }}</p>
       <p v-if="video.uploadedAt">{{ formatDate(video.uploadedAt) }}</p>
       <p v-if="video.size">{{ formatFileSize(video.size) }}</p>
       <div v-if="video.isTranscoded" class="flex items-center justify-end space-x-1 bg-green-500/20 text-green-300 px-2 py-1 rounded mt-1">
