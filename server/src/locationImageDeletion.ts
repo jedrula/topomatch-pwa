@@ -11,7 +11,10 @@ import {logger} from "firebase-functions";
  * 3. Storage file for the image
  */
 export const onLocationImageDeleted = onDocumentDeleted(
-  "locationImages/{imageId}",
+  {
+    document: "locationImages/{imageId}",
+    region: "europe-west1",
+  },
   async (event) => {
     // Initialize Firestore inside the function
     const db = getFirestore();

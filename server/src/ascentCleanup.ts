@@ -9,7 +9,10 @@ import {logger} from "firebase-functions";
  * - Transcoded video in videos/transcoded/{userId}/{ascentId}/
  */
 export const onAscentDeleted = onDocumentDeleted(
-  "ascents/{ascentId}",
+  {
+    document: "ascents/{ascentId}",
+    region: "europe-west1",
+  },
   async (event) => {
     const ascentId = event.params.ascentId;
     const ascentData = event.data?.data();

@@ -5,6 +5,9 @@ import {getStorage} from "firebase-admin/storage";
 import {getAuth} from "firebase-admin/auth";
 import * as logger from "firebase-functions/logger";
 
+// Region configuration - all functions deployed to europe-west1
+const REGION = "europe-west1";
+
 // Video transcoding functions
 export {transcodeVideo, onTranscodingComplete} from "./videoTranscoding";
 
@@ -33,8 +36,10 @@ if (process.env.FUNCTIONS_EMULATOR === "true") {
   });
 }
 
-const bucket = getStorage().bucket();// Admin management functions
-export const setAdminRole = onCall(async (request) => {
+const bucket = getStorage().bucket();
+
+// Admin management functions
+export const setAdminRole = onCall({region: REGION}, async (request) => {
   // Only allow existing admins to create new admins
   const callerUid = request.auth?.uid;
   if (!callerUid) {
@@ -76,7 +81,7 @@ export const setAdminRole = onCall(async (request) => {
 });
 
 // Initialize admin function - can be called once to set initial admin
-export const initializeAdmin = onCall(async (request) => {
+export const initializeAdmin = onCall({region: REGION}, async (request) => {
   const { email } = request.data;
 
   try {
@@ -161,7 +166,7 @@ interface LocationImage {
 }
 
 // Create a new location
-export const createLocation = onCall(async (request) => {
+export const createLocation = onCall({region: REGION}, async (request) => {
   try {
     const { name, description, heroImageUrl, gradingSystem } = request.data as Location;
 
@@ -201,7 +206,7 @@ export const createLocation = onCall(async (request) => {
 });
 
 // Get all locations
-export const getLocations = onCall(async (request) => {
+export const getLocations = onCall({region: REGION}, async (request) => {
   try {
     const snapshot = await db.collection("locations").get();
     const locations: Location[] = [];
@@ -221,7 +226,7 @@ export const getLocations = onCall(async (request) => {
 });
 
 // Get a specific location
-export const getLocation = onCall(async (request) => {
+export const getLocation = onCall({region: REGION}, async (request) => {
   try {
     const { locationId } = request.data;
 
@@ -248,7 +253,7 @@ export const getLocation = onCall(async (request) => {
 });
 
 // Update a location
-export const updateLocation = onCall(async (request) => {
+export const updateLocation = onCall({region: REGION}, async (request) => {
   try {
     const { locationId, name, description, heroImageUrl, gradingSystem } = request.data;
 
@@ -315,7 +320,7 @@ export const updateLocation = onCall(async (request) => {
 });
 
 // Delete a location and all its related files
-export const deleteLocation = onCall(async (request) => {
+export const deleteLocation = onCall({region: REGION}, async (request) => {
   try {
     const { locationId } = request.data;
 
@@ -385,7 +390,7 @@ export const deleteLocation = onCall(async (request) => {
 });
 
 // Add an image to a location
-export const addLocationImage = onCall(async (request) => {
+export const addLocationImage = onCall({region: REGION}, async (request) => {
   try {
     const { locationId, fileName, downloadUrl } = request.data as LocationImage;
 
@@ -415,7 +420,7 @@ export const addLocationImage = onCall(async (request) => {
 });
 
 // Get all images for a location
-export const getLocationImages = onCall(async (request) => {
+export const getLocationImages = onCall({region: REGION}, async (request) => {
   try {
     const { locationId } = request.data;
 
@@ -445,7 +450,7 @@ export const getLocationImages = onCall(async (request) => {
 });
 
 // Delete a location image
-export const deleteLocationImage = onCall(async (request) => {
+export const deleteLocationImage = onCall({region: REGION}, async (request) => {
   try {
     const { imageId } = request.data;
 
@@ -486,7 +491,7 @@ export const deleteLocationImage = onCall(async (request) => {
 });
 
 // Boulder Problems Functions
-export const createBoulderProblem = onCall(async (request) => {
+export const createBoulderProblem = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
@@ -529,7 +534,7 @@ export const createBoulderProblem = onCall(async (request) => {
   }
 });
 
-export const getBoulderProblems = onCall(async (request) => {
+export const getBoulderProblems = onCall({region: REGION}, async (request) => {
   const { locationId, imageId } = request.data;
 
   if (!locationId) {
@@ -590,7 +595,7 @@ export const getBoulderProblems = onCall(async (request) => {
   }
 });
 
-export const getBoulderProblem = onCall(async (request) => {
+export const getBoulderProblem = onCall({region: REGION}, async (request) => {
   const { locationId, problemId } = request.data;
 
   if (!locationId || !problemId) {
@@ -622,7 +627,7 @@ export const getBoulderProblem = onCall(async (request) => {
   }
 });
 
-export const updateBoulderProblem = onCall(async (request) => {
+export const updateBoulderProblem = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
@@ -661,7 +666,7 @@ export const updateBoulderProblem = onCall(async (request) => {
   }
 });
 
-export const deleteBoulderProblem = onCall(async (request) => {
+export const deleteBoulderProblem = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
@@ -695,7 +700,7 @@ export const deleteBoulderProblem = onCall(async (request) => {
   }
 });
 
-export const deleteAllBoulderProblems = onCall(async (request) => {
+export const deleteAllBoulderProblems = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
@@ -738,7 +743,7 @@ export const deleteAllBoulderProblems = onCall(async (request) => {
   }
 });
 
-export const addHoldToProblem = onCall(async (request) => {
+export const addHoldToProblem = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
@@ -821,7 +826,7 @@ export const addHoldToProblem = onCall(async (request) => {
   }
 });
 
-export const removeHoldFromProblem = onCall(async (request) => {
+export const removeHoldFromProblem = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
@@ -867,7 +872,7 @@ export const removeHoldFromProblem = onCall(async (request) => {
   }
 });
 
-export const updateProblemHolds = onCall(async (request) => {
+export const updateProblemHolds = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
