@@ -25,39 +25,23 @@
           >
             Locations
           </router-link>
-          <router-link
-            v-if="userStore.isAdmin"
-            to="/admin"
-            class="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-            :class="{ 'text-blue-600 font-semibold': route.name === 'admin' }"
-          >
-            Admin
-          </router-link>
         </nav>
 
         <!-- Auth Section (Desktop) -->
         <div class="hidden sm:flex items-center space-x-3">
           <!-- Signed In User -->
-          <div v-if="userStore.isLoggedIn" class="flex items-center space-x-3">
-            <div class="flex items-center space-x-2">
-              <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <span class="text-blue-600 font-medium text-sm">
-                  {{ userStore.userDisplayName.charAt(0).toUpperCase() }}
-                </span>
-              </div>
-              <span class="text-gray-700 font-medium">{{ userStore.userDisplayName }}</span>
-              <span
-                v-if="userStore.isAdmin"
-                class="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium"
-              >
-                Admin
-              </span>
-            </div>
+          <div v-if="userStore.isLoggedIn" class="flex items-center space-x-4">
+            <router-link
+              to="/profile"
+              class="text-gray-700 font-medium hover:text-gray-900 transition-colors"
+            >
+              {{ userStore.userDisplayName }}
+            </router-link>
             <button
               @click="handleSignOut"
-              class="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+              class="text-xs text-gray-400 hover:text-gray-600 transition-colors"
             >
-              Sign Out
+              sign out
             </button>
           </div>
 
@@ -103,37 +87,22 @@
         >
           Locations
         </router-link>
-        <router-link
-          v-if="userStore.isAdmin"
-          to="/admin"
-          @click="closeMobileMenu"
-          class="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium transition-colors rounded-lg"
-          :class="{ 'text-blue-600 bg-blue-50 font-semibold': route.name === 'admin' }"
-        >
-          Admin
-        </router-link>
 
         <!-- Mobile Auth Section -->
         <div class="border-t border-gray-200 pt-4 mt-4">
           <div v-if="userStore.isLoggedIn" class="space-y-2">
-            <div class="px-4 py-2">
-              <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span class="text-blue-600 font-medium text-sm">
-                    {{ userStore.userDisplayName.charAt(0).toUpperCase() }}
-                  </span>
-                </div>
-                <div>
-                  <div class="text-gray-900 font-medium">{{ userStore.userDisplayName }}</div>
-                  <div v-if="userStore.isAdmin" class="text-purple-600 text-sm">Admin</div>
-                </div>
-              </div>
-            </div>
+            <router-link
+              to="/profile"
+              @click="closeMobileMenu"
+              class="block px-4 py-2 text-gray-900 font-medium hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              {{ userStore.userDisplayName }}
+            </router-link>
             <button
               @click="handleSignOut"
-              class="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 font-medium transition-colors rounded-lg"
+              class="block w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors rounded-lg"
             >
-              Sign Out
+              sign out
             </button>
           </div>
 

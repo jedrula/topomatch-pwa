@@ -5,6 +5,7 @@ import AddLocationView from '../views/AddLocationView.vue';
 import LocationDetailView from '../views/LocationDetailView.vue';
 import EditLocationView from '../views/EditLocationView.vue';
 import BoulderProblemDetailView from '../views/BoulderProblemDetailView.vue';
+import UserProfileView from '../views/UserProfileView.vue';
 import AdminView from '../views/AdminView.vue';
 import { useUserStore } from '../stores/userStore.js';
 
@@ -55,6 +56,18 @@ const router = createRouter({
       path: '/location/:locationId/problem/:problemId',
       name: 'boulder-problem-detail',
       component: BoulderProblemDetailView,
+      props: true,
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: UserProfileView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/user/:userId',
+      name: 'user-profile',
+      component: UserProfileView,
       props: true,
     },
   ],

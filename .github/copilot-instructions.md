@@ -15,6 +15,8 @@
 - Delete unused code immediately
 - No "TODO: remove legacy code later" comments
 - If we need to change something, change it completely NOW
+- **YAGNI (You Ain't Gonna Need It)**: Don't add empty `<style scoped>` blocks or placeholder comments
+- Only add code/sections when actually needed, not "just in case"
 
 ### When Asked to Refactor
 1. Delete the old code

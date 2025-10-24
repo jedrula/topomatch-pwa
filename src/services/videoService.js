@@ -10,9 +10,151 @@ import { storage, db } from './firebase';
 import { getCurrentUser } from './authService';
 
 export const videoService = {
-    /**
+  /**
+   * Internal helper: Transform ascent document to video object with download URL
+   * @private
+   */
+  async _transformAscentToVideo(docSnapshot) {
+    const data = docSnapshot.data();
+    
+    // Skip if no video or video has error status
+    if (!data.video || data.video.status === 'error') {
+      return null;
+    }
+    
+    try {
+      // Get video URL
+      // Use transcoded path if ready, otherwise use original (for emulator)
+      const videoPath = data.video.status === 'ready'
+        ? (data.video.transcodedPath || data.video.originalPath)
+        : data.video.originalPath;
+      
+      if (!videoPath || videoPath.trim() === '') {
+        console.warn(`Ascent ${docSnapshot.id} has video object but no valid path:`, data.video);
+        return null;
+      }
+      
+      const videoStorageRef = ref(storage, videoPath);
+      const videoUrl = await getDownloadURL(videoStorageRef);
+      
+      return {
+        id: docSnapshot.id,
+        videoId: docSnapshot.id,
+        name: data.problemSnapshot?.name || 'Beta Video',
+        downloadUrl: videoUrl,
+        isTranscoded: !!data.video.transcodedPath,
+        status: data.video.status,
+        size: data.video.transcodedFileSize || data.video.fileSize,
+        contentType: 'video/mp4',
+        uploadedAt: data.video.uploadedAt?.toDate?.() || data.date?.toDate?.() || new Date(),
+        uploadedBy: data.userName || 'Unknown',
+        userId: data.userId,
+        ascentId: docSnapshot.id,
+        locationId: data.locationId,
+        problemId: data.problemId,
+        problemName: data.problemSnapshot?.name || 'Unknown Problem',
+        metadata: {
+          problemName: data.problemSnapshot?.name,
+          problemGrade: data.problemSnapshot?.grade,
+          attemptType: data.attemptType,
+        }
+      };
+    } catch (error) {
+      console.warn(`Failed to load video for ascent ${docSnapshot.id}:`, error);
+      return null;
+    }
+  },
+
+  /**
    * Upload a beta video to Firebase Storage
-   * Videos are uploaded to videos/raw/{userId}/{videoId}.ext which triggers transcoding
+   * Videos are uploaded to videos/raw/{userId}/{videoId}.      return videos;
+    } catch (error) {
+      console.error('Error fetching location videos:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all videos for a specific user
+   * @param {string} userId - The user ID
+   * @returns {Promise<Array>} Array of video objects with metadata
+   */
+  async getUserVideos(userId) {
+    try {
+      const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
+      
+      const ascentsRef = collection(db, 'ascents');
+      const q = query(
+        ascentsRef,
+        where('userId', '==', userId),
+        orderBy('date', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const videos = [];
+
+      for (const docSnapshot of querySnapshot.docs) {
+        const data = docSnapshot.data();
+        
+        // Skip if no video
+        // Show videos with status: 'transcoding' (emulator) or 'ready' (production)
+        if (!data.video || data.video.status === 'error') {
+          continue;
+        }
+        
+        try {
+          // Get video URL
+          // Use transcoded path if ready, otherwise use original (for emulator)
+          const videoPath = data.video.status === 'ready'
+            ? (data.video.transcodedPath || data.video.originalPath)
+            : data.video.originalPath;
+          
+          if (!videoPath || videoPath.trim() === '') {
+            console.warn(`Ascent ${docSnapshot.id} has video object but no valid path:`, data.video);
+            continue;
+          }
+          
+          const videoStorageRef = ref(storage, videoPath);
+          const videoUrl = await getDownloadURL(videoStorageRef);
+          
+          const video = {
+            id: docSnapshot.id,
+            videoId: docSnapshot.id,
+            name: data.problemSnapshot?.name || 'Beta Video',
+            downloadUrl: videoUrl,
+            isTranscoded: !!data.video.transcodedPath,
+            status: data.video.status,
+            size: data.video.transcodedFileSize || data.video.fileSize,
+            contentType: 'video/mp4',
+            uploadedAt: data.video.uploadedAt?.toDate?.() || data.date?.toDate?.() || new Date(),
+            uploadedBy: data.userName || 'Unknown',
+            userId: data.userId,
+            ascentId: docSnapshot.id,
+            locationId: data.locationId,
+            problemId: data.problemId,
+            problemName: data.problemSnapshot?.name || 'Unknown Problem',
+            metadata: {
+              problemName: data.problemSnapshot?.name,
+              problemGrade: data.problemSnapshot?.grade,
+              attemptType: data.attemptType,
+            }
+          };
+
+          videos.push(video);
+        } catch (error) {
+          console.warn(`Failed to load video for ascent ${docSnapshot.id}:`, error);
+        }
+      }
+
+      return videos;
+    } catch (error) {
+      console.error('Error fetching user videos:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get video count for a boulder problem triggers transcoding
    * @param {string} locationId - The location ID
    * @param {string} problemId - The boulder problem ID
    * @param {string} ascentId - The ascent ID (can be temp ID during upload)
@@ -269,15 +411,12 @@ export const videoService = {
 
   /**
    * Get all videos for a specific boulder problem
-   * Now queries /ascents collection with embedded video data
    * @param {string} locationId - The location ID
    * @param {string} problemId - The boulder problem ID
    * @returns {Promise<Array>} Array of video objects with metadata
    */
   async getProblemVideos(locationId, problemId) {
     try {
-      // Query /ascents collection for videos associated with this problem
-      // Filter videos in code to avoid complex index requirement
       const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
       
       const ascentsRef = collection(db, 'ascents');
@@ -288,57 +427,8 @@ export const videoService = {
       );
 
       const querySnapshot = await getDocs(q);
-      const videos = [];
-
-      for (const docSnapshot of querySnapshot.docs) {
-        const data = docSnapshot.data();
-        
-        // Skip if no video or video has error status
-        // Show videos with status: 'uploaded', 'processing', or 'ready'
-        if (!data.video || data.video.status === 'error') {
-          continue;
-        }
-        
-        try {
-          // Get video URL (prefer transcoded, fallback to original)
-          const videoPath = data.video.transcodedPath || data.video.originalPath;
-          
-          if (!videoPath || videoPath.trim() === '') {
-            console.warn(`Ascent ${docSnapshot.id} has video object but no valid path:`, data.video);
-            continue;
-          }
-          
-          const videoStorageRef = ref(storage, videoPath);
-          const videoUrl = await getDownloadURL(videoStorageRef);
-          
-          const video = {
-            id: docSnapshot.id, // ascentId
-            videoId: docSnapshot.id, // For compatibility
-            name: data.problemSnapshot?.name || 'Beta Video',
-            downloadUrl: videoUrl,
-            isTranscoded: !!data.video.transcodedPath,
-            status: data.video.status,
-            size: data.video.transcodedFileSize || data.video.fileSize,
-            contentType: 'video/mp4',
-            uploadedAt: data.video.uploadedAt?.toDate?.() || data.date?.toDate?.() || new Date(),
-            uploadedBy: data.userName || 'Unknown',
-            userId: data.userId,
-            ascentId: docSnapshot.id,
-            locationId: data.locationId,
-            problemId: data.problemId,
-            metadata: {
-              problemName: data.problemSnapshot?.name,
-              problemGrade: data.problemSnapshot?.grade,
-              attemptType: data.attemptType,
-            }
-          };
-
-          videos.push(video);
-        } catch (error) {
-          console.warn(`Failed to load video for ascent ${docSnapshot.id}:`, error);
-          // Skip videos that fail to load
-        }
-      }
+      const videoPromises = querySnapshot.docs.map(doc => this._transformAscentToVideo(doc));
+      const videos = (await Promise.all(videoPromises)).filter(v => v !== null);
 
       return videos;
     } catch (error) {
@@ -349,14 +439,11 @@ export const videoService = {
 
   /**
    * Get all videos for a location (across all problems)
-   * Now queries /ascents collection with embedded video data
    * @param {string} locationId - The location ID
-   * @returns {Promise<Array>} Array of video objects with metadata and problem info
+   * @returns {Promise<Array>} Array of video objects with metadata
    */
   async getLocationVideos(locationId) {
     try {
-      // Query /ascents collection for all ascents at this location
-      // Filter videos in code to avoid complex index requirement
       const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
       
       const ascentsRef = collection(db, 'ascents');
@@ -367,61 +454,39 @@ export const videoService = {
       );
 
       const querySnapshot = await getDocs(q);
-      const videos = [];
-
-      for (const docSnapshot of querySnapshot.docs) {
-        const data = docSnapshot.data();
-        
-        // Skip if no video or video has error status
-        // Show videos with status: 'uploaded', 'processing', or 'ready'
-        if (!data.video || data.video.status === 'error') {
-          continue;
-        }
-        
-        try {
-          // Get video URL (prefer transcoded, fallback to original)
-          const videoPath = data.video.transcodedPath || data.video.originalPath;
-          
-          if (!videoPath || videoPath.trim() === '') {
-            console.warn(`Ascent ${docSnapshot.id} has video object but no valid path:`, data.video);
-            continue;
-          }
-          
-          const videoStorageRef = ref(storage, videoPath);
-          const videoUrl = await getDownloadURL(videoStorageRef);
-          
-          const video = {
-            id: docSnapshot.id, // ascentId
-            videoId: docSnapshot.id, // For compatibility
-            name: data.problemSnapshot?.name || 'Beta Video',
-            downloadUrl: videoUrl,
-            isTranscoded: !!data.video.transcodedPath,
-            status: data.video.status,
-            size: data.video.transcodedFileSize || data.video.fileSize,
-            contentType: 'video/mp4',
-            uploadedAt: data.video.uploadedAt?.toDate?.() || data.date?.toDate?.() || new Date(),
-            uploadedBy: data.userName || 'Unknown',
-            userId: data.userId,
-            ascentId: docSnapshot.id,
-            locationId: data.locationId,
-            problemId: data.problemId,
-            metadata: {
-              problemName: data.problemSnapshot?.name,
-              problemGrade: data.problemSnapshot?.grade,
-              attemptType: data.attemptType,
-            }
-          };
-
-          videos.push(video);
-        } catch (error) {
-          console.warn(`Failed to load video for ascent ${docSnapshot.id}:`, error);
-          // Skip videos that fail to load
-        }
-      }
+      const videoPromises = querySnapshot.docs.map(doc => this._transformAscentToVideo(doc));
+      const videos = (await Promise.all(videoPromises)).filter(v => v !== null);
 
       return videos;
     } catch (error) {
       console.error('Error fetching location videos:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all videos for a specific user
+   * @param {string} userId - The user ID
+   * @returns {Promise<Array>} Array of video objects with metadata
+   */
+  async getUserVideos(userId) {
+    try {
+      const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
+      
+      const ascentsRef = collection(db, 'ascents');
+      const q = query(
+        ascentsRef,
+        where('userId', '==', userId),
+        orderBy('date', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const videoPromises = querySnapshot.docs.map(doc => this._transformAscentToVideo(doc));
+      const videos = (await Promise.all(videoPromises)).filter(v => v !== null);
+
+      return videos;
+    } catch (error) {
+      console.error('Error fetching user videos:', error);
       throw error;
     }
   },
