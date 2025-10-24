@@ -43,8 +43,8 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase Storage
 const storage = getStorage(app);
 
-// Initialize Firebase Functions
-const functions = getFunctions(app);
+// Initialize Firebase Functions with europe-west1 region
+const functions = getFunctions(app, 'europe-west1');
 
 // Initialize Firestore
 const db = getFirestore(app);
