@@ -117,6 +117,7 @@
                 :alt="`Photo of ${locationName || 'climbing location'}`"
                 class="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
                 @click="$emit('image-click', image)"
+                @error="(e) => e.target.src = image.url"
                 loading="lazy"
               />
             </picture>
