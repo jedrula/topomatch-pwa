@@ -849,9 +849,7 @@ const handleHoldHover = (index, isEntering, event) => {
 
 const handleManualHoldClick = (hold, manualIndex) => {
   if (serverStore.isDeleteMode) {
-    // For manual holds, we can delete them directly from the store
-    serverStore.removeManualHold(hold.id);
-    // Also emit for consistency
+    // Emit delete event - parent view will handle the actual deletion
     emit('delete-hold', { hold, index: manualIndex, type: 'manual' });
     return;
   }

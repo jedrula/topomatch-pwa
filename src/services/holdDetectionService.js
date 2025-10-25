@@ -158,8 +158,11 @@ export const holdDetectionService = {
     if (!docSnap.exists()) return
 
     const data = docSnap.data()
-    const updatedAIHolds = data.detectionResults.aiHolds.filter(hold => hold.id !== holdId)
-    const updatedManualHolds = data.detectionResults.manualHolds.filter(hold => hold.id !== holdId)
+    const aiHolds = data.detectionResults?.aiHolds || []
+    const manualHolds = data.detectionResults?.manualHolds || []
+    
+    const updatedAIHolds = aiHolds.filter(hold => hold.id !== holdId)
+    const updatedManualHolds = manualHolds.filter(hold => hold.id !== holdId)
 
     await updateDoc(docRef, {
       'detectionResults.aiHolds': updatedAIHolds,

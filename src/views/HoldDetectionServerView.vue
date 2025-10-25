@@ -1071,6 +1071,8 @@ const saveDetectionToFirestore = async () => {
     // Save to Firestore using unified system
     await persistenceStore.saveDetectionResults(currentImage.value.id, detectionData);
 
+    // Reload detection results to get the saved data with IDs
+    await serverStore.loadDetectionResults(route.params.locationId, currentImage.value.id);
     
     // Show success notification
     showSuccessNotification('Detection results saved successfully!');
@@ -1326,7 +1328,8 @@ const handleDeleteHold = async ({ hold, index, type }) => {
     // For AI holds, use the store method to remove them
     await serverStore.removeAIHold(index, route.params.locationId, route.query.imageId);
   } else if (type === 'manual') {
-    // Manual holds are already handled by the serverStore.removeManualHold call
+    // Remove manual hold from in-memory state (will be persisted when exiting delete mode)
+    serverStore.removeManualHold(hold.id);
   }
   
   // TODO: Also remove the hold from any boulder problems that might reference it

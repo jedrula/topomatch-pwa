@@ -296,9 +296,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
   
   const saveManualHolds = async (locationId, imageId, imageUrl = null) => {
     try {
-      if (manualHolds.value.length === 0) return
-      
-      // Use the dedicated manual holds saving method
+      // Always save, even if empty array (to clear holds from Firestore)
       await holdDetectionService.saveManualHolds(
         locationId, 
         imageId, 
