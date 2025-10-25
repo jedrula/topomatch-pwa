@@ -196,7 +196,7 @@ const isHeicFile = (filename) => {
   return filename?.toLowerCase().endsWith('.heic') || filename?.toLowerCase().endsWith('.heif');
 };
 
-// Simple check: is this image uploaded in the last 2 seconds?
+// Simple check: is this image uploaded in the last 5 seconds?
 const now = ref(Date.now());
 
 const isRecentUpload = (image) => {
@@ -206,7 +206,7 @@ const isRecentUpload = (image) => {
     ? image.uploadedAt 
     : image.uploadedAt.getTime?.() || 0;
   
-  return (now.value - uploadTime) < 2000; // Less than 2 seconds ago
+  return (now.value - uploadTime) < 5000; // Less than 5 seconds ago
 };
 
 // Update 'now' every 500ms to trigger re-renders
