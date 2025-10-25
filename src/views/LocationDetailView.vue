@@ -102,6 +102,7 @@
           @upload="showUploadModal = true"
           @image-click="openImageModal"
           @analyze-holds="openHoldDetection"
+          @delete-image="handleDeleteImage"
         />
 
         <!-- Videos/Betas section -->
@@ -483,6 +484,27 @@ const openHoldDetection = (image) => {
       imageName: image.name,
     },
   });
+};
+
+const handleDeleteImage = async (image) => {
+  const confirmMessage = `Delete this image?\n\nThis will permanently delete:\n• The image "${image.name}"\n• All boulder problems using this image\n• All hold detection data\n\nThis action cannot be undone.`;
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  try {
+    await locationService.deleteLocationImage(image.id);
+    
+    // Remove from local array
+    images.value = images.value.filter(img => img.id !== image.id);
+    
+    // Refresh boulder problems since some may have been deleted
+    await boulderProblemsStore.loadProblemsForLocation(locationId.value);
+  } catch (error) {
+    console.error('Error deleting image:', error);
+    alert('Failed to delete image. Please try again.');
+  }
 };
 
 const closeGallery = () => {

@@ -138,6 +138,24 @@
                 />
               </svg>
             </button>
+            
+            <!-- Delete button for admins -->
+            <button
+              v-if="canEditHolds"
+              @click.stop="$emit('delete-image', image)"
+              class="absolute top-2 left-2 p-2 bg-white bg-opacity-90 hover:bg-white text-gray-700 hover:text-red-600 rounded-full shadow-sm transition-all duration-200 opacity-0 group-hover:opacity-100"
+              title="Delete this image and all associated boulder problems"
+              :aria-label="`Delete ${image.name}`"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
           </template>
         </div>
       </div>
@@ -172,7 +190,7 @@ defineProps({
   }
 });
 
-defineEmits(['upload', 'image-click', 'analyze-holds']);
+defineEmits(['upload', 'image-click', 'analyze-holds', 'delete-image']);
 
 const isHeicFile = (filename) => {
   return filename?.toLowerCase().endsWith('.heic') || filename?.toLowerCase().endsWith('.heif');

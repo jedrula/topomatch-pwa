@@ -450,6 +450,7 @@ export const getLocationImages = onCall({region: REGION}, async (request) => {
 });
 
 // Delete a location image
+// Note: Cascade cleanup (Storage, boulder problems, hold detections) handled by onLocationImageDeleted trigger
 export const deleteLocationImage = onCall({region: REGION}, async (request) => {
   try {
     const { imageId } = request.data;
@@ -458,31 +459,17 @@ export const deleteLocationImage = onCall({region: REGION}, async (request) => {
       throw new Error("imageId is required");
     }
 
-    // Get the image document to retrieve the download URL
+    // Verify image exists
     const imageDoc = await db.collection("locationImages").doc(imageId).get();
 
     if (!imageDoc.exists) {
       throw new Error("Image not found");
     }
 
-    const imageData = imageDoc.data() as LocationImage;
-    const filePath = getFilePathFromUrl(imageData.downloadUrl);
-
-    // Delete file from Firebase Storage
-    if (filePath) {
-      try {
-        await bucket.file(filePath).delete();
-        logger.info("Deleted file from storage:", filePath);
-      } catch (error) {
-        logger.warn("Failed to delete file from storage:", filePath, error);
-        // Continue with document deletion even if file deletion fails
-      }
-    }
-
-    // Delete the Firestore document
+    // Delete the Firestore document - this triggers onLocationImageDeleted for cascade cleanup
     await db.collection("locationImages").doc(imageId).delete();
 
-    logger.info("Location image deleted:", imageId);
+    logger.info("Location image deleted, cascade cleanup triggered:", imageId);
     return { message: "Location image deleted successfully" };
   } catch (error) {
     logger.error("Error deleting location image:", error);
