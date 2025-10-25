@@ -384,11 +384,11 @@ const loadProblemData = async () => {
     if (imageId) {
       try {
         const imageRecords = await locationService.getLocationImages(locationId);
-        const imageRecord = imageRecords.find((img) => img.id === imageId);
+        const imageRecord = imageRecords.find((img) => img.imageId === imageId);
 
         if (imageRecord) {
           image.value = {
-            id: imageRecord.id,
+            id: imageRecord.imageId,
             url: imageRecord.downloadUrl,
             name: imageRecord.fileName,
             naturalWidth: 1920, // Default values - will be updated when image loads

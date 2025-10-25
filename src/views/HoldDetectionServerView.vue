@@ -1377,11 +1377,11 @@ const loadImageFromQuery = async () => {
       // Load image data from the location service
       const imageRecords = await locationService.getLocationImages(locationId);
       if (Array.isArray(imageRecords)) {
-        const imageRecord = imageRecords.find((record) => record.id === imageId);
+        const imageRecord = imageRecords.find((record) => record.imageId === imageId);
 
         if (imageRecord) {
           currentImage.value = {
-            id: imageRecord.id,
+            id: imageRecord.imageId,
             url: getResizedImageUrl(imageRecord.downloadUrl, '1920x1440', 'jpg'),
             name: imageRecord.fileName,
           }
