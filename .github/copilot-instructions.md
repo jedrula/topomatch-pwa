@@ -35,6 +35,20 @@
 - **`/locations/{id}/boulderProblems`** - Boulder problems (nested)
 - **`/locations/{id}/locationImages`** - Location images (nested)
 
+### Image Upload & Thumbnail Generation
+- **Firebase Extension**: `firebase/storage-resize-images@0.2.10`
+- **Generated sizes**: 300x300 (thumbnails), 800x600 (mobile), 1920x1440 (desktop)
+- **Naming pattern**: `image_300x300.webp`, `image_800x600.jpg`, etc.
+- **Extension behavior**: 
+  - ✅ **Works in emulator** (confirmed - NOT like video transcoding)
+  - ⚡ **Faster in emulator** than production (typically 2-5 seconds)
+  - 🌐 Production may be slower due to CDN propagation
+- **Smart loading**: See `LocationImages.vue` for time-based heuristic approach
+  - Shows loading state for recently uploaded images
+  - Waits before attempting thumbnail load (configurable delay)
+  - Falls back to original image if thumbnail not ready
+
+
 ### Video Upload Flow (Client-Side IDs)
 1. **Client generates ascentId** using `crypto.randomUUID()`
 2. **Upload video** to `videos/raw/{userId}/{videoId}.ext` with ascentId in metadata

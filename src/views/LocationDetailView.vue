@@ -538,10 +538,12 @@ const handleImageUploadComplete = async (uploadResult) => {
     );
 
     // Add the new image to the images array for immediate display
+    // Use Date.now() since we know it was just uploaded (Cloud Function timestamps get serialized)
     images.value.push({
       id: imageRecord.id,
       url: uploadResult.downloadUrl,
       name: uploadResult.fileName,
+      uploadedAt: Date.now(), // Use current timestamp - we just uploaded it!
     });
   } catch (error) {
     console.error('Error saving image metadata:', error);

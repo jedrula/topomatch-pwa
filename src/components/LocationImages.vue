@@ -91,7 +91,21 @@
 
           <!-- Regular image display -->
           <template v-else>
-            <picture>
+            <!-- Processing state for recently uploaded images -->
+            <div
+              v-if="isRecentUpload(image)"
+              class="w-full h-full bg-gray-200 animate-pulse flex items-center justify-center"
+            >
+              <div class="text-center">
+                <svg class="w-6 h-6 mx-auto mb-1 text-gray-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <p class="text-xs text-gray-500">Optimizing...</p>
+              </div>
+            </div>
+            
+            <!-- Show optimized thumbnail -->
+            <picture v-else>
               <!-- WebP format for modern browsers -->
               <source 
                 :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
@@ -106,7 +120,7 @@
                 loading="lazy"
               />
             </picture>
-
+            
             <!-- Hold detection button for admins -->
             <button
               v-if="canEditHolds"
@@ -132,6 +146,8 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue';
+
 defineProps({
   images: {
     type: Array,
@@ -161,4 +177,29 @@ defineEmits(['upload', 'image-click', 'analyze-holds']);
 const isHeicFile = (filename) => {
   return filename?.toLowerCase().endsWith('.heic') || filename?.toLowerCase().endsWith('.heif');
 };
+
+// Simple check: is this image uploaded in the last 2 seconds?
+const now = ref(Date.now());
+
+const isRecentUpload = (image) => {
+  if (!image.uploadedAt) return false;
+  
+  const uploadTime = typeof image.uploadedAt === 'number' 
+    ? image.uploadedAt 
+    : image.uploadedAt.getTime?.() || 0;
+  
+  return (now.value - uploadTime) < 2000; // Less than 2 seconds ago
+};
+
+// Update 'now' every 500ms to trigger re-renders
+let timer;
+onMounted(() => {
+  timer = setInterval(() => {
+    now.value = Date.now();
+  }, 500);
+});
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer);
+});
 </script>
