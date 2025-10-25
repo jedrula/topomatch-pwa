@@ -56,7 +56,7 @@
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <div
           v-for="image in images"
-          :key="image.id"
+          :key="image.imageId"
           class="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group hover:shadow-md transition-shadow"
         >
           <!-- HEIC file display -->

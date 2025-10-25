@@ -332,18 +332,25 @@ const uploadSingleFile = async (uploadItem) => {
     
     // Compress image before upload to reduce emulator issues
     let fileToUpload = uploadItem.file;
-    const originalSize = (fileToUpload.size / 1024 / 1024).toFixed(2);
     
     if (fileToUpload.size > 2 * 1024 * 1024) { // If larger than 2MB
       fileToUpload = await compressImage(uploadItem.file, { maxSizeMB: 2, quality: 0.85 });
-      const compressedSize = (fileToUpload.size / 1024 / 1024).toFixed(2);
       uploadItem.compressedSize = fileToUpload.size;
     } else {
       uploadItem.compressedSize = fileToUpload.size;
     }
 
-    const timestamp = Date.now();
-    const fileName = `location-images/${props.locationId}/${timestamp}-${uploadItem.file.name}`;
+    // Generate unique imageId using crypto (consistent with ascentId generation)
+    const imageId = crypto.randomUUID();
+    
+    // Store imageId in uploadItem for later use
+    uploadItem.imageId = imageId;
+    
+    // Get file extension
+    const fileExtension = uploadItem.file.name.split('.').pop();
+    
+    // New folder-based path: location-images/{locationId}/{imageId}/original.ext
+    const fileName = `location-images/${props.locationId}/${imageId}/original.${fileExtension}`;
     const imageRef = storageRef(storage, fileName);
     
     // Upload with timeout protection for emulator issues
@@ -402,6 +409,7 @@ const startUploads = async () => {
         
         // Emit uploaded event immediately after each upload completes
         emit('uploaded', {
+          imageId: item.imageId,
           fileName: item.file.name,
           downloadUrl: item.downloadUrl,
           locationId: props.locationId,
@@ -422,6 +430,7 @@ const startUploads = async () => {
         
         // Emit uploaded event with image info immediately after each upload completes
         emit('uploaded', {
+          imageId: item.imageId,
           fileName: item.file.name,
           downloadUrl: item.downloadUrl,
           locationId: props.locationId,

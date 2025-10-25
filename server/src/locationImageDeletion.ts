@@ -33,25 +33,32 @@ export const onLocationImageDeleted = onDocumentDeleted(
     logger.info(`🗑️ Cascading delete for image: ${imageId} at location: ${locationId}`);
 
     try {
-      // 1. Delete Storage file
+      // 1. Delete Storage folder (contains original + all resized versions)
       if (downloadUrl) {
         try {
           const storage = getStorage();
           const bucket = storage.bucket();
 
-          // Extract path from downloadUrl
+          // Extract folder path from downloadUrl
+          // URL format: .../o/location-images%2F{locationId}%2F{imageId}%2Foriginal.jpg?...
           const url = new URL(downloadUrl);
           const pathMatch = url.pathname.match(/\/o\/(.+?)(\?|$)/);
 
           if (pathMatch) {
             const filePath = decodeURIComponent(pathMatch[1]);
-            await bucket.file(filePath).delete();
-            logger.info(`✅ Deleted storage file: ${filePath}`);
+            // Extract folder path: location-images/{locationId}/{imageId}/
+            const folderPath = filePath.substring(0, filePath.lastIndexOf('/') + 1);
+            
+            // Delete all files in the folder (original + resized versions)
+            const [files] = await bucket.getFiles({ prefix: folderPath });
+            await Promise.all(files.map(file => file.delete()));
+            
+            logger.info(`✅ Deleted ${files.length} files from folder: ${folderPath}`);
           } else {
             logger.warn(`Could not extract file path from URL: ${downloadUrl}`);
           }
         } catch (storageError) {
-          logger.error(`Error deleting storage file:`, storageError);
+          logger.error(`Error deleting storage files:`, storageError);
           // Continue with Firestore cleanup even if Storage fails
         }
       }

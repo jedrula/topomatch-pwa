@@ -157,13 +157,18 @@ interface Location {
 }
 
 // Interface for LocationImage data
+// imageId is always present (matches Firestore doc ID)
+// uploadedAt is optional because it's added server-side
 interface LocationImage {
-  id?: string;
+  imageId: string;
   locationId: string;
   fileName: string;
   downloadUrl: string;
   uploadedAt?: Date;
 }
+
+// Input type for addLocationImage (omit uploadedAt which is added server-side)
+type AddLocationImageRequest = Omit<LocationImage, 'uploadedAt'>;
 
 // Create a new location
 export const createLocation = onCall({region: REGION}, async (request) => {
@@ -390,29 +395,38 @@ export const deleteLocation = onCall({region: REGION}, async (request) => {
 });
 
 // Add an image to a location
+// Client generates imageId (same as Storage folder name) for consistency
 export const addLocationImage = onCall({region: REGION}, async (request) => {
   try {
-    const { locationId, fileName, downloadUrl } = request.data as LocationImage;
+    // Input: imageId is the client-generated ID that becomes the Firestore doc ID
+    const { imageId, locationId, fileName, downloadUrl } = request.data as AddLocationImageRequest;
 
-    if (!locationId || !fileName || !downloadUrl) {
-      throw new Error("locationId, fileName, and downloadUrl are required");
+    if (!imageId || !locationId || !fileName || !downloadUrl) {
+      throw new Error("imageId, locationId, fileName, and downloadUrl are required");
     }
 
-    const imageData: LocationImage = {
+    // Data to store (imageId is included, uploadedAt added server-side)
+    const imageData: Omit<LocationImage, 'uploadedAt'> = {
+      imageId,
       locationId,
       fileName,
       downloadUrl,
+    };
+
+    // Use setDoc with client-provided imageId (matches Storage folder name)
+    await db.collection("locationImages").doc(imageId).set({
+      ...imageData,
+      uploadedAt: new Date(),
+    });
+    
+    // Return with uploadedAt field populated
+    const imageWithUploadedAt: LocationImage = {
+      ...imageData,
       uploadedAt: new Date(),
     };
 
-    const docRef = await db.collection("locationImages").add(imageData);
-    const imageWithId = {
-      id: docRef.id,
-      ...imageData,
-    };
-
-    logger.info("Location image added:", imageWithId);
-    return imageWithId;
+    logger.info("Location image added:", imageWithUploadedAt);
+    return imageWithUploadedAt;
   } catch (error) {
     logger.error("Error adding location image:", error);
     throw new Error("Failed to add location image");
@@ -437,7 +451,7 @@ export const getLocationImages = onCall({region: REGION}, async (request) => {
     const images: LocationImage[] = [];
     snapshot.forEach((doc) => {
       images.push({
-        id: doc.id,
+        imageId: doc.id,
         ...doc.data(),
       } as LocationImage);
     });

@@ -77,9 +77,10 @@ class LocationService {
   }
 
   // Add image metadata to a location
-  async addLocationImage(locationId, fileName, downloadUrl) {
+  async addLocationImage(imageId, locationId, fileName, downloadUrl) {
     try {
       const result = await addLocationImageFn({
+        imageId,
         locationId,
         fileName,
         downloadUrl,

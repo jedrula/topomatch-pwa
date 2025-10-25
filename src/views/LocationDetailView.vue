@@ -298,7 +298,7 @@ const isGalleryOpen = computed(() => {
 const initialImageIndex = computed(() => {
   if (!route.query.imageId || !images.value.length) return 0;
 
-  const index = images.value.findIndex((img) => img.id === route.query.imageId);
+  const index = images.value.findIndex((img) => img.imageId === route.query.imageId);
   return index !== -1 ? index : 0;
 });
 
@@ -331,7 +331,7 @@ const loadLocationImages = async () => {
 
     // Transform the records to the format expected by the template
     images.value = imageRecords.map((record) => ({
-      id: record.id,
+      imageId: record.imageId,
       url: record.downloadUrl,
       name: record.fileName,
     }));
@@ -471,7 +471,7 @@ const editLocation = () => {
 const openImageModal = (image) => {
   // Navigate to the image gallery with the specific imageId
   router.push({
-    query: { ...route.query, imageId: image.id },
+    query: { ...route.query, imageId: image.imageId },
   });
 };
 
@@ -480,7 +480,7 @@ const openHoldDetection = (image) => {
   router.push({
     path: `/location/${locationId.value}/holds-server`,
     query: {
-      imageId: image.id,
+      imageId: image.imageId,
       imageName: image.name,
     },
   });
@@ -494,10 +494,10 @@ const handleDeleteImage = async (image) => {
   }
 
   try {
-    await locationService.deleteLocationImage(image.id);
+    await locationService.deleteLocationImage(image.imageId);
     
     // Remove from local array
-    images.value = images.value.filter(img => img.id !== image.id);
+    images.value = images.value.filter(img => img.imageId !== image.imageId);
     
     // Refresh boulder problems since some may have been deleted
     await boulderProblemsStore.loadProblemsForLocation(locationId.value);
@@ -526,7 +526,7 @@ const navigateToImage = (direction) => {
     newIndex = currentIndex <= 0 ? images.value.length - 1 : currentIndex - 1;
   }
   
-  const newImageId = images.value[newIndex].id;
+  const newImageId = images.value[newIndex].imageId;
   router.push({
     query: { ...route.query, imageId: newImageId }
   });
@@ -553,7 +553,9 @@ const handleImageUploadComplete = async (uploadResult) => {
 
   try {
     // Save image metadata to Firestore via backend function
-    const imageRecord = await locationService.addLocationImage(
+    // Use client-generated imageId (same as Storage folder name)
+    await locationService.addLocationImage(
+      uploadResult.imageId,
       uploadResult.locationId,
       uploadResult.fileName,
       uploadResult.downloadUrl
@@ -562,7 +564,7 @@ const handleImageUploadComplete = async (uploadResult) => {
     // Add the new image to the images array for immediate display
     // Use Date.now() since we know it was just uploaded (Cloud Function timestamps get serialized)
     images.value.push({
-      id: imageRecord.id,
+      imageId: uploadResult.imageId, // Use same imageId from client
       url: uploadResult.downloadUrl,
       name: uploadResult.fileName,
       uploadedAt: Date.now(), // Use current timestamp - we just uploaded it!

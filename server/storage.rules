@@ -21,7 +21,9 @@ service firebase.storage {
     }
     
     // Location images - only admins can upload/delete
-    match /location-images/{locationId}/{imageId} {
+    // Folder structure: location-images/{locationId}/{imageId}/original.ext
+    // Extension creates resized versions in same folder: original_300x300.webp, etc.
+    match /location-images/{locationId}/{imageId}/{filename} {
       allow write, delete: if isAdmin() && 
         request.resource.size < 25 * 1024 * 1024 && // 25MB limit
         request.resource.contentType.matches('image/.*');

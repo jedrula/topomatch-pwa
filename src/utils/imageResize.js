@@ -2,9 +2,10 @@
  * Utility functions for working with Firebase Storage Resize Images extension
  * 
  * The extension generates images with the following naming pattern:
- * - Original: path/to/image.jpg
- * - Resized: path/to/image_300x300.jpg (webp versions: path/to/image_300x300.webp)
+ * - Original: location-images/{locationId}/{imageId}/original.jpg
+ * - Resized: location-images/{locationId}/{imageId}/original_300x300.webp
  * 
+ * All versions (original + resized) are grouped in the same {imageId} folder.
  * Our configured sizes: 300x300 (thumbnail), 800x600 (mobile), 1920x1440 (desktop)
  */
 
