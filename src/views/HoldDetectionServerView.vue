@@ -19,7 +19,7 @@
         <div class="flex items-center justify-between">
           <div>
             <div class="flex items-center space-x-4 mb-2">
-              <h1 class="text-3xl font-bold text-gray-900">Hold Detection (Server)</h1>
+              <h1 class="text-3xl font-bold text-gray-900">Detected Holds</h1>
               <!-- Back to Location Button -->
               <button
                 v-if="route.params.locationId"
@@ -38,7 +38,7 @@
               </button>
             </div>
             <p class="text-gray-600">
-              Server-powered climbing hold detection with precise SVG overlays
+              View and edit automatically detected climbing holds (AI-powered)
             </p>
           </div>
         </div>
@@ -129,7 +129,7 @@
                   :editing-problem="editingState.editingProblem"
                   :hovered-problem-id="hoveredProblemId"
                   :magic-wand-active="isAnyMagicWandActive"
-                  :magic-wand-selection="magicWandSelection.selectedIndices"
+                  :magic-wand-selection="magicWandSelection.selectedHoldIds"
                   :show-hold-overlay="false"
                   :is-showing-only-one-problem="boulderProblemsStore.isShowingOnlyOneProblem"
                   :isolated-problem="boulderProblemsStore.isolatedProblem"
@@ -206,30 +206,21 @@
 
               <!-- Action Buttons -->
               <div class="mt-6 flex flex-col sm:flex-row gap-3">
-                <button
+                <!-- Info: Detection is automatic -->
+                <div
                   v-if="!serverStore.hasResults"
-                  @click="processImage"
-                  :disabled="serverStore.isProcessing || !serverStore.canProcessImage(imageUrl)"
-                  class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+                  class="flex-1 px-6 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg flex items-center justify-center space-x-2"
                 >
-                  <div
-                    v-if="serverStore.isProcessing"
-                    class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
-                  ></div>
-                  <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  <span>{{
-                    serverStore.isProcessing
-                      ? "Processing..."
-                      : "Detect Holds (Server)"
-                  }}</span>
-                </button>
+                  <span class="text-sm">Detection happens automatically when image is uploaded. Refresh page if holds don't appear.</span>
+                </div>
 
                 <!-- Manual Hold Drawing Toggle -->
                 <button
@@ -302,7 +293,7 @@
                 </button>
               </div>
 
-              <!-- API Configuration -->
+              <!-- How It Works -->
               <div class="mt-6">
                 <details class="group">
                   <summary
@@ -321,41 +312,26 @@
                         d="M9 5l7 7-7 7"
                       />
                     </svg>
-                    <span>API Configuration</span>
-                    <span
-                      class="px-2 py-1 text-xs rounded"
-                      :class="
-                        serverStore.apiHealthy
-                          ? 'bg-green-100 text-green-600'
-                          : 'bg-red-100 text-red-600'
-                      "
-                    >
-                      {{ serverStore.apiHealthy ? "Connected" : "Disconnected" }}
+                    <span>How Automatic Detection Works</span>
+                    <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-600">
+                      Automatic
                     </span>
                   </summary>
 
                   <div class="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
-                    <!-- API URL -->
-                    <div>
-                      <label for="api-url" class="block text-sm font-medium text-gray-700 mb-1">
-                        API URL:
-                      </label>
-                      <div class="flex space-x-2">
-                        <input
-                          id="api-url"
-                          v-model="serverStore.apiUrl"
-                          type="text"
-                          placeholder="Enter API base URL"
-                          class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <button
-                          @click="testApiHealth"
-                          :disabled="!serverStore.apiUrl"
-                          class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-sm font-medium rounded-lg transition-colors"
-                        >
-                          Test
-                        </button>
-                      </div>
+                    <!-- Explanation -->
+                    <div class="text-sm text-gray-700 space-y-2">
+                      <p><strong>✨ Detection happens automatically when you upload a location image.</strong></p>
+                      <ol class="list-decimal list-inside space-y-1 ml-2">
+                        <li>Upload image → Saved to Firebase Storage</li>
+                        <li>Cloud Function triggers automatically</li>
+                        <li>Image sent to AI detection server</li>
+                        <li>Detected holds saved to Firestore</li>
+                        <li>Holds appear here (refresh if needed)</li>
+                      </ol>
+                      <p class="text-xs text-gray-500 mt-3">
+                        Detection server URL is configured in the Cloud Function backend. See <code class="bg-gray-200 px-1 rounded">HOLD_DETECTION_SERVER_CONFIG.md</code> for configuration.
+                      </p>
                     </div>
 
                     <!-- Compression Settings -->
@@ -452,19 +428,13 @@
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Processing Status</h3>
 
               <div class="space-y-4">
-                <!-- API Status -->
+                <!-- Detection Mode -->
                 <div class="flex items-center justify-between">
-                  <span class="text-gray-600">API Connection</span>
+                  <span class="text-gray-600">Detection Mode</span>
                   <div class="flex items-center space-x-2">
-                    <div
-                      class="w-2 h-2 rounded-full"
-                      :class="serverStore.apiHealthy ? 'bg-green-500' : 'bg-red-500'"
-                    ></div>
-                    <span
-                      class="text-sm font-medium"
-                      :class="serverStore.apiHealthy ? 'text-green-600' : 'text-red-600'"
-                    >
-                      {{ connectionDisplayText }}
+                    <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                    <span class="text-sm font-medium text-blue-600">
+                      Automatic (Cloud Function)
                     </span>
                   </div>
                 </div>
@@ -542,7 +512,7 @@
                 <div class="flex items-center justify-between">
                   <span class="text-purple-600">Total Selected:</span>
                   <span class="text-sm font-medium text-purple-900">
-                    {{ magicWandSelection.selectedIndices.length }} holds
+                    {{ magicWandSelection.selectedHoldIds.length }} holds
                   </span>
                 </div>
                 <!-- Color Similar -->
@@ -682,7 +652,7 @@ import BoulderProblemsManager from '@/components/BoulderProblemsManager.vue';
 import FloatingBoulderProblemCard from '@/components/FloatingBoulderProblemCard.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
-import { getResizedImageUrl } from '@/utils/imageResize.js';
+// Note: Not using getResizedImageUrl - we load original images to match detection coordinates
 
 // TypeScript component - basic type annotations without complex interface definitions
 
@@ -755,10 +725,11 @@ let tooltipHideTimeout = null;
 const boulderHoldSelectionTool = ref('single');
 
 // Magic Wand state (global magic wand for standalone use)
+// TODO: Refactor magic wand to use hold IDs throughout instead of indices
 const magicWandActive = ref(false);
 const magicWandSelection = ref({
-  selectedIndices: [],
-  targetHoldIndex: null,
+  selectedHoldIds: [], // Array of hold IDs (not indices) 
+  targetHoldIndex: null, // TODO: Rename to targetHoldId
   stats: null,
 });
 
@@ -772,15 +743,6 @@ const imageUrl = computed(() => {
 });
 
 // Debug: Reactive computed to track API health changes
-const apiHealthStatus = computed(() => {
-  const status = serverStore.apiHealthy;
-  return status;
-});
-
-const connectionDisplayText = computed(() => {
-  return apiHealthStatus.value ? 'Connected' : 'Disconnected';
-});
-
 // Check if any form of magic wand is active
 const isAnyMagicWandActive = computed(() => {
   // Standalone magic wand OR boulder creation/editing with magic wand tool
@@ -829,10 +791,13 @@ const toggleFullscreen = async () => {
   }
 }
 
+// Legacy function - kept for manual testing via console if needed
+// eslint-disable-next-line no-unused-vars
 const testApiHealth = async () => {
   const result = await serverStore.testApiHealth();
 
   if (result.success) {
+    console.log('✅ API health check passed');
   } else {
     console.error('❌ API health check failed:', result.error);
   }
@@ -859,14 +824,14 @@ const toggleMagicWand = () => {
   if (magicWandActive.value) {
     // Clear any previous selection when activating
     magicWandSelection.value = {
-      selectedIndices: [],
+      selectedHoldIds: [],
       targetHoldIndex: null,
       stats: null,
     };
   } else {
     // Clear selection when deactivating
     magicWandSelection.value = {
-      selectedIndices: [],
+      selectedHoldIds: [],
       targetHoldIndex: null,
       stats: null,
     };
@@ -908,6 +873,12 @@ const toggleDeleteMode = () => {
   }
 };
 
+// ============================================================================
+// LEGACY: Manual Detection Functions (kept for admin/testing - not used in normal flow)
+// Detection now happens automatically via Cloud Function when image is uploaded
+// ============================================================================
+
+// eslint-disable-next-line no-unused-vars
 const processImage = async () => {
   if (!imageUrl.value) {
     console.error('❌ No image URL available');
@@ -945,27 +916,27 @@ const saveDetectionToFirestore = async () => {
     persistenceStore.initializeForLocation(route.params.locationId);
 
     // Convert AI detection results to unified format
-    const aiHolds = (serverStore.results?.holds || []).map((hold, index) => {
-      const centerX = (hold.x || 0) + (hold.width || 0) / 2;
-      const centerY = (hold.y || 0) + (hold.height || 0) / 2;
-      
-      return {
-        id: `ai_hold_${index}`,
-        source: 'ai-detected',
-        svgMarkup: serverStore.results?.svg_markups?.[index] || '',
-        // COORDINATE SYSTEM: Server returns bbox in UNKNOWN coordinate space
-        // We calculate center and store it - this will be saved to Firestore
-        x: centerX,
-        y: centerY,
-        width: hold.width || 0,
-        height: hold.height || 0,
-        confidence: hold.confidence || 0,
-        holdType: hold.type || 'unknown',
-        detectionConfidence: hold.confidence || 0,
-        aiModel: 'server-detection',
-        addedAt: new Date()
-      };
-    });
+    // SimpleHold already has correct structure from holdDetectionUtils.ts
+    const aiHolds = (serverStore.results?.holds || []).map((hold, index) => ({
+      // KEEP server ID - critical for stable references
+      id: hold.id,
+      source: 'ai-detected',
+      // Top-left corner (from bbox)
+      x: hold.x,
+      y: hold.y,
+      // Center points (from server, already in SimpleHold)
+      centerX: hold.centerX,
+      centerY: hold.centerY,
+      // Dimensions
+      width: hold.width,
+      height: hold.height,
+      // Detection metadata
+      confidence: hold.confidence,
+      holdType: hold.type,
+      svgMarkup: serverStore.results?.svg_markups?.[index] || '',
+      // Timestamps
+      addedAt: new Date()
+    }));
 
     // Calculate viewBox from image dimensions
     const imageElement = climbingImage.value;
@@ -1137,7 +1108,7 @@ const handleHoldClick = (hold, holdIndex) => {
     if (result.success) {
 
       // Add all selected holds to the target problem
-        result.selectedIndices.forEach((selectedHoldIndex) => {
+        result.selectedHoldIds.forEach((selectedHoldIndex) => {
           const selectedHold = allHolds[selectedHoldIndex];
           if (selectedHold) {
             // Ensure hold has svgMarkup (converts from pathPoints if needed for manual holds)
@@ -1155,8 +1126,8 @@ const handleHoldClick = (hold, holdIndex) => {
             // Set detection source
             enhancedHold.detectionSource = selectedHold.pathPoints ? 'manual' : 'server';
 
-            // Add hold to the target problem (this will toggle - add if not present, remove if present)
-            boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, selectedHoldIndex);
+            // Add hold to the target problem (uses hold.id internally)
+            boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold);
           }
         });
     }
@@ -1182,7 +1153,7 @@ const handleHoldClick = (hold, holdIndex) => {
 
     if (result.success) {
       magicWandSelection.value = {
-        selectedIndices: result.selectedIndices,
+        selectedHoldIds: result.selectedHoldIds,
         targetHoldIndex: holdIndex,
         stats: result.stats,
       };
@@ -1195,9 +1166,9 @@ const handleHoldClick = (hold, holdIndex) => {
   if (isBoulderMode) {
     // Normal hold selection logic for boulder problems
 
-    // Check if hold is already assigned to another problem
+    // Check if hold is already assigned to another problem (using hold ID)
     const existingProblem = boulderProblemsStore.sortedProblems.find((problem) =>
-      problem.holds?.some((h) => h.holdIndex === holdIndex)
+      problem.holds?.some((h) => h.holdId === hold.id)
     );
 
     // Determine which problem we're working with
@@ -1244,8 +1215,8 @@ const handleHoldClick = (hold, holdIndex) => {
     // Set detection source
     enhancedHold.detectionSource = hold.pathPoints ? 'manual' : 'server';
 
-    // Add or remove hold from the target problem
-    boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold, holdIndex);
+    // Add or remove hold from the target problem (uses hold.id internally)
+    boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold);
 
     return; // Don't proceed with other logic when in boulder mode
   }
@@ -1254,9 +1225,9 @@ const handleHoldClick = (hold, holdIndex) => {
 };
 
 // Helper function to get problem ID for a hold
-const getHoldProblemId = (holdIndex) => {
+const getHoldProblemId = (hold) => {
   for (const problem of boulderProblemsStore.sortedProblems) {
-    const holdFound = problem.holds?.some((h) => h.holdIndex === holdIndex);
+    const holdFound = problem.holds?.some((h) => h.holdId === hold.id);
     if (holdFound) {
       return problem.id;
     }
@@ -1264,7 +1235,7 @@ const getHoldProblemId = (holdIndex) => {
   return null;
 };
 
-const handleHoldHover = (holdIndex, isEntering, event) => {
+const handleHoldHover = (hold, isEntering, event) => {
 
   // Clear any pending hide timeout
   if (tooltipHideTimeout) {
@@ -1274,7 +1245,7 @@ const handleHoldHover = (holdIndex, isEntering, event) => {
 
   if (isEntering && event) {
     // Find which problem this hold belongs to
-    const problemId = getHoldProblemId(holdIndex);
+    const problemId = getHoldProblemId(hold);
 
     if (problemId) {
       const problem = boulderProblemsStore.sortedProblems.find((p) => p.id === problemId);
@@ -1361,6 +1332,9 @@ const loadImageFromQuery = async () => {
 
   if (locationId && imageId) {
     try {
+      // Initialize persistence store for this location
+      persistenceStore.initializeForLocation(locationId);
+
       // Load existing boulder problems for this image
 
       // Load location data to get grading system
@@ -1385,9 +1359,12 @@ const loadImageFromQuery = async () => {
         if (imageRecord) {
           currentImage.value = {
             id: imageRecord.imageId,
-            url: getResizedImageUrl(imageRecord.downloadUrl, '1920x1440', 'jpg'),
+            url: imageRecord.downloadUrl, // Use ORIGINAL image (same as detection server analyzed)
             name: imageRecord.fileName,
           }
+
+          // Note: Detection results are loaded in onMounted via serverStore.loadDetectionResults()
+          // No need to load them here to avoid duplication
 
           // Load existing manual holds for this image
           await serverStore.loadManualHolds(locationId, imageId);
@@ -1456,14 +1433,8 @@ const loadExistingDetectionResults = async () => {
   }
 
   try {
-    
-    // Use the server store method to load detection results
-    const resultsLoaded = await serverStore.loadDetectionResults(locationId, imageId);
-    
-    if (resultsLoaded) {
-    } else {
-    }
-    
+    // Load detection results (AI + manual holds) from Firestore
+    await serverStore.loadDetectionResults(locationId, imageId);
   } catch (error) {
     console.error('❌ Error loading existing detection results:', error);
     // Don't throw - this is not a critical error, we can proceed without cached results
@@ -1495,8 +1466,8 @@ onMounted(async () => {
   // Load existing detection results from Firestore if available
   await loadExistingDetectionResults();
 
-  // Test API health on mount
-  await testApiHealth();
+  // Note: No API health check needed - detection is automatic via Cloud Function
+  // API health check only used for manual testing (available in "How It Works" section)
 
   // Add fullscreen event listeners
   const handleFullscreenChange = () => {

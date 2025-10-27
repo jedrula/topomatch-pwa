@@ -621,8 +621,6 @@ const handleAllUploadsComplete = (uploadStats) => {
     pendingMetadataSaves.value = 0;
     totalUploadsExpected.value = 0;
   }
-  
-  console.log(`Upload stats: total=${uploadStats.totalUploads}, completed=${uploadStats.completedUploads}, failed=${uploadStats.failedUploads}`);
 };
 
 onMounted(async () => {

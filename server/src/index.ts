@@ -17,6 +17,9 @@ export {onAscentDeleted} from "./ascentCleanup";
 // Location image deletion with cascade
 export {onLocationImageDeleted} from "./locationImageDeletion";
 
+// Automatic hold detection when images are uploaded
+export {onLocationImageUploaded} from "./holdDetection";
+
 // Configure Storage emulator BEFORE initializing Firebase Admin
 // This must be set before any Storage client is created
 if (process.env.FUNCTIONS_EMULATOR === "true") {
@@ -749,10 +752,10 @@ export const addHoldToProblem = onCall({region: REGION}, async (request) => {
     throw new Error("Authentication required");
   }
 
-  const { locationId, problemId, hold, holdIndex } = request.data;
+  const { locationId, problemId, hold, holdId } = request.data;
 
-  if (!locationId || !problemId || !hold || holdIndex === undefined) {
-    throw new Error("Missing required fields: locationId, problemId, hold, and holdIndex");
+  if (!locationId || !problemId || !hold || !holdId) {
+    throw new Error("Missing required fields: locationId, problemId, hold, and holdId");
   }
 
   try {
@@ -770,20 +773,18 @@ export const addHoldToProblem = onCall({region: REGION}, async (request) => {
     const problemData = problemSnap.data();
     const currentHolds = problemData?.holds || [];
 
-    // Check if hold is already in the problem (match by holdIndex or detectionIndex)
+    // Check if hold is already in the problem (match by holdId)
     const existingHoldIndex = currentHolds.findIndex(
-      (h: any) => h.holdIndex === holdIndex || h.detectionIndex === holdIndex
+      (h: any) => h.holdId === holdId
     );
 
     if (existingHoldIndex === -1) {
       // Add the hold with complete self-contained data
       const newHold = {
-        // Core identification
-        holdIndex,
-        detectionIndex: hold.detectionIndex || holdIndex,
+        // Core identification - use immutable holdId
+        holdId: holdId,
 
         // Complete hold data (self-contained)
-        id: hold.id || holdIndex,
         confidence: hold.confidence || 0,
         bbox: hold.bbox || [0, 0, 0, 0],
         coordinates: hold.coordinates || {
@@ -803,11 +804,11 @@ export const addHoldToProblem = onCall({region: REGION}, async (request) => {
       };
 
       currentHolds.push(newHold);
-      logger.info(`Hold ${holdIndex} added to problem ${problemId} with SVG markup`);
+      logger.info(`Hold ${holdId} added to problem ${problemId} with SVG markup`);
     } else {
       // Remove the hold if it already exists (toggle behavior)
       currentHolds.splice(existingHoldIndex, 1);
-      logger.info(`Hold ${holdIndex} removed from problem ${problemId}`);
+      logger.info(`Hold ${holdId} removed from problem ${problemId}`);
     }
 
     await problemRef.update({
@@ -816,7 +817,7 @@ export const addHoldToProblem = onCall({region: REGION}, async (request) => {
     });
 
     return {
-      message: `Hold ${holdIndex} ${
+      message: `Hold ${holdId} ${
         existingHoldIndex === -1 ? "added to" : "removed from"
       } problem successfully`,
       holds: currentHolds,
@@ -832,10 +833,10 @@ export const removeHoldFromProblem = onCall({region: REGION}, async (request) =>
     throw new Error("Authentication required");
   }
 
-  const { locationId, problemId, holdIndex } = request.data;
+  const { locationId, problemId, holdId } = request.data;
 
-  if (!locationId || !problemId || holdIndex === undefined) {
-    throw new Error("Missing required fields: locationId, problemId, and holdIndex");
+  if (!locationId || !problemId || !holdId) {
+    throw new Error("Missing required fields: locationId, problemId, and holdId");
   }
 
   try {
@@ -853,18 +854,18 @@ export const removeHoldFromProblem = onCall({region: REGION}, async (request) =>
     const problemData = problemSnap.data();
     const currentHolds = problemData?.holds || [];
 
-    // Remove the hold
-    const updatedHolds = currentHolds.filter((h: any) => h.holdIndex !== holdIndex);
+    // Remove the hold by holdId (immutable identifier)
+    const updatedHolds = currentHolds.filter((h: any) => h.holdId !== holdId);
 
     await problemRef.update({
       holds: updatedHolds,
       updatedAt: new Date(),
     });
 
-    logger.info(`Hold ${holdIndex} removed from problem ${problemId}`);
+    logger.info(`Hold ${holdId} removed from problem ${problemId}`);
 
     return {
-      message: `Hold ${holdIndex} removed from problem successfully`,
+      message: `Hold ${holdId} removed from problem successfully`,
       holds: updatedHolds,
     };
   } catch (error) {

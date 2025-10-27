@@ -121,19 +121,22 @@ export function convertApiResponseToFrontendFormat(
   
   // Convert processed holds to simple holds format
   const holds: SimpleHold[] = result.holds.map(hold => ({
+    // KEEP server ID - don't generate new ones!
     id: hold.id,
+    // Top-left corner from bbox
     x: hold.bbox.x,
     y: hold.bbox.y,
+    // Center points from server (explicit, no calculation)
+    centerX: hold.center_x,
+    centerY: hold.center_y,
+    // Dimensions from bbox
     width: hold.bbox.width,
     height: hold.bbox.height,
+    // Detection data
     confidence: hold.confidence,
-    type: hold.id.includes('start') ? HOLD_TYPES.START : 
-          hold.id.includes('finish') ? HOLD_TYPES.FINISH : 
-          HOLD_TYPES.HOLD,
-    bbox: [hold.bbox.x, hold.bbox.y, hold.bbox.width, hold.bbox.height],
-    svgMarkup: result.svg_markups?.[result.holds.indexOf(hold)],
-    detectionConfidence: hold.confidence,
-    holdType: hold.color_analysis?.color_category || 'unknown'
+    type: hold.color_analysis?.color_category || 'unknown',
+    // SVG markup from parallel array
+    svgMarkup: result.svg_markups?.[result.holds.indexOf(hold)]
   }));
 
   return {

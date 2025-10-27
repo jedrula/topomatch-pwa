@@ -303,19 +303,18 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     }
   };
 
-  /**
-   * Add or remove a hold from a boulder problem
-   * @param {string} problemId - The problem ID
-   * @param {Hold} hold - The hold data (AI or manual)
-   * @param {number} holdIndex - The index of the hold in the detection results
+    /**
+   * Add a hold to a boulder problem (toggle: add if not present, remove if present)
+   * @param {string} problemId - The ID of the boulder problem
+   * @param {Hold} hold - The hold object to add (MUST have hold.id)
    * @param {string} [role] - Optional role of the hold (start, intermediate, finish, optional)
    */
-  const addHoldToProblem = (problemId, hold, holdIndex, role = undefined) => {
+  const addHoldToProblem = (problemId, hold, role = undefined) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return;
 
     // Update local state only - no server call
-    const existingHoldIndex = problem.holds.findIndex((h) => h.holdIndex === holdIndex);
+    const existingHoldIndex = problem.holds.findIndex((h) => h.holdId === hold.id);
     if (existingHoldIndex !== -1) {
       // Remove hold if it's already added
       problem.holds.splice(existingHoldIndex, 1);
@@ -323,7 +322,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
       // Add hold to problem using the new ProblemHold structure
       /** @type {ProblemHold} */
       const problemHold = {
-        holdIndex,
+        holdId: hold.id,     // ✅ Use immutable ID, not array index
         hold: { ...hold },
         addedAt: new Date().toISOString(),
         role: role,
@@ -337,24 +336,18 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     }
   };
 
-  /**
+    /**
    * Remove a hold from a boulder problem
-   * @param {string} problemId - The problem ID
-   * @param {number} holdIndex - The index of the hold to remove
+   * @param {string} problemId - The ID of the boulder problem
+   * @param {string} holdId - The immutable ID of the hold to remove
    */
-  const removeHoldFromProblem = (problemId, holdIndex) => {
+  const removeHoldFromProblem = (problemId, holdId) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return;
 
-    const holdPosition = problem.holds.findIndex((h) => h.holdIndex === holdIndex);
-    if (holdPosition === -1) return;
-
-    // Update local state only - no server call
-    problem.holds.splice(holdPosition, 1);
-
-    // Mark problem as having unsaved changes (unless it's local only or being created)
-    if (!problem.isLocalOnly && !isCreatingProblem.value) {
-      problemsWithUnsavedChanges.value.add(problemId);
+    const holdPosition = problem.holds.findIndex((h) => h.holdId === holdId);
+    if (holdPosition !== -1) {
+      problem.holds.splice(holdPosition, 1);
     }
   };
 
@@ -547,15 +540,15 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     return problemsWithUnsavedChanges.value.size;
   };
 
-  const isHoldInProblem = (problemId, holdIndex) => {
+  const isHoldInProblem = (problemId, holdId) => {
     const problem = boulderProblems.value.find((p) => p.id === problemId);
     if (!problem) return false;
-    return problem.holds.some((h) => h.holdIndex === holdIndex);
+    return problem.holds.some((h) => h.holdId === holdId);
   };
 
-  const isHoldInActiveProblem = (holdIndex) => {
+  const isHoldInActiveProblem = (holdId) => {
     if (!activeProblem.value) return false;
-    return isHoldInProblem(activeProblem.value.id, holdIndex);
+    return isHoldInProblem(activeProblem.value.id, holdId);
   };
 
   const clearAllProblems = async () => {

@@ -548,8 +548,6 @@ export const videoService = {
       // Import ascentService dynamically to avoid circular dependency
       const { ascentService } = await import('./ascentService.js');
       await ascentService.deleteAscent(ascentId);
-      
-      console.log(`Successfully deleted ascent ${ascentId} (video cleanup handled by Cloud Function)`);
     } catch (error) {
       console.error('Error deleting video/ascent:', error);
       throw error;

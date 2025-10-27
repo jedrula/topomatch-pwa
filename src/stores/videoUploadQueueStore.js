@@ -77,8 +77,6 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
         uploads.value[ascentId].videoData = result;
         uploads.value[ascentId].uploadedAt = Date.now();
         uploads.value[ascentId].progress = 100;
-        
-        console.log(`✅ Video uploaded successfully for ascent: ${ascentId}`);
       }
     } catch (error) {
       console.error(`❌ Error uploading video for ascent ${ascentId}:`, error);
@@ -137,8 +135,6 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
     }
 
     delete uploads.value[ascentId];
-    
-    console.log(`🗑️ Upload ${ascentId} cancelled`);
   };
 
   /**

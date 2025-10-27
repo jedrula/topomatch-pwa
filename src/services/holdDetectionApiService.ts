@@ -21,13 +21,16 @@ import {
 } from '@/types/holdDetectionApi'
 
 import { convertApiResponseToFrontendFormat } from '@/types/holdDetectionUtils'
-import { configService } from './configService.js'
 
 /**
  * Get the configured API URL
+ * Note: Frontend no longer needs this for automatic detection (handled by Cloud Function)
+ * This is kept only for admin testing/debugging purposes
  */
 function getApiUrl(): string {
-  return configService.getHoldDetectionServerUrl()
+  // Hardcoded fallback - update this manually if needed for admin testing
+  // Production detection uses Cloud Function with HOLD_DETECTION_SERVER_URL config
+  return 'https://6d2401b5f155.ngrok-free.app'
 }
 
 /**

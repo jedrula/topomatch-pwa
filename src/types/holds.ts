@@ -75,10 +75,11 @@ export type Hold = AIDetectedHold | ManualHold;
 
 /**
  * Hold with role information for boulder problems
+ * References hold by immutable ID (not array index)
  */
 export interface ProblemHold {
-  holdIndex: number;
-  hold: Hold;
+  holdId: string;                // ✅ IMMUTABLE ID - stable across deletions
+  hold: Hold;                    // Full hold object (for display)
   addedAt: string;
   role: 'start' | 'finish' | 'intermediate' | null;
 }
@@ -129,9 +130,9 @@ export function createManualHold(holdData: Omit<ManualHold, 'timestamp' | 'confi
 /**
  * Add a hold to a boulder problem with role information
  */
-export function createProblemHold(hold: Hold, holdIndex: number, role: ProblemHold['role'] = null): ProblemHold {
+export function createProblemHold(hold: Hold, role: ProblemHold['role'] = null): ProblemHold {
   return {
-    holdIndex,
+    holdId: hold.id,             // Use immutable hold ID
     hold,
     addedAt: new Date().toISOString(),
     role,

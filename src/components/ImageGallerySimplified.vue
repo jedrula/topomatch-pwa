@@ -314,7 +314,7 @@ const currentImage = computed(() => {
 
   const imageId = route.query.imageId;
   if (imageId) {
-    const foundImage = props.images.find((img) => img.id === imageId);
+    const foundImage = props.images.find((img) => img.imageId === imageId);
     if (foundImage) return foundImage;
   }
 
@@ -330,7 +330,7 @@ const imageViewBox = computed(() => {
   const viewBox = imageMetadata.value.viewBox;
   
   if (!viewBox) {
-    console.warn(`⚠️ No viewBox found in metadata for image ${currentImage.value?.id}. Hold detection may not have been performed.`);
+    console.warn(`⚠️ No viewBox found in metadata for image ${currentImage.value?.imageId}. Hold detection may not have been performed.`);
     return null; // No default - must be explicit
   }
 
@@ -341,7 +341,7 @@ const imageViewBox = computed(() => {
 const currentImageProblems = computed(() => {
   if (!currentImage.value || !props.boulderProblems) return [];
   
-  return props.boulderProblems.filter(problem => problem.imageId === currentImage.value.id);
+  return props.boulderProblems.filter(problem => problem.imageId === currentImage.value.imageId);
 });
 
 // Get visible boulder problems (respecting store filters)
@@ -412,7 +412,7 @@ const handleFloatingCardEdit = (problem) => {
       locationId: props.locationId,
     },
     query: {
-      imageId: currentImage.value?.id,
+      imageId: currentImage.value?.imageId,
       imageName: currentImage.value?.name,
       editingProblemId: problem.id,
     },
@@ -504,11 +504,11 @@ watch(
     
     // Load metadata for the new image
     if (newImage && props.locationId) {
-      await loadImageMetadata(newImage.id);
+      await loadImageMetadata(newImage.imageId);
       
       // Also load hold detection data if needed
       try {
-        await holdDetectionPersistenceStore.loadStoredDetection(newImage.id);
+        await holdDetectionPersistenceStore.loadStoredDetection(newImage.imageId);
       } catch (error) {
         console.error('Failed to load hold detection:', error);
       }

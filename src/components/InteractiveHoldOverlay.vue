@@ -13,11 +13,11 @@
         v-for="(svgMarkup, index) in aiSvgMarkups"
         :key="`ai-hold-${aiHolds[index]?.id || index}`"
         :svg-markup="svgMarkup"
-        :interaction="getHoldInteraction(index)"
-        :interaction-allowed="getHoldInteractionAllowed(index)"
-        :color="getHoldColor(index)"
+        :interaction="getHoldInteraction(aiHolds[index])"
+        :interaction-allowed="getHoldInteractionAllowed(aiHolds[index])"
+        :color="getHoldColor(aiHolds[index])"
         @click="handleHoldClick(aiHolds[index], index)"
-        @hover="(isEntering, event) => handleHoldHover(index, isEntering, event)"
+        @hover="(isEntering, event) => handleHoldHover(aiHolds[index], isEntering, event)"
       />
 
       <!-- Manual holds -->
@@ -25,9 +25,9 @@
         v-for="(hold, index) in serverStore.manualHolds"
         :key="`manual-hold-${hold.id}`"
         :svg-markup="hold.svgMarkup"
-        :interaction="getManualHoldInteraction(hold, index)"
-        :interaction-allowed="getManualHoldInteractionAllowed(hold, index)"
-        :color="getManualHoldColor(hold, index)"
+        :interaction="getManualHoldInteraction(hold)"
+        :interaction-allowed="getManualHoldInteractionAllowed(hold)"
+        :color="getManualHoldColor(hold)"
         @click="handleManualHoldClick(hold, index)"
         @hover="(isEntering, event) => handleManualHoldHover(hold, index, isEntering, event)"
       />
@@ -211,13 +211,14 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  // Magic Wand props
   magicWandActive: {
     type: Boolean,
     default: false,
   },
   magicWandSelection: {
-    type: Array,
-    default: () => [],
+    type: Object,
+    default: () => ({ selectedHoldIds: [], targetHoldIndex: null, stats: null }),
   },
   showHoldOverlay: {
     type: Boolean,
@@ -561,19 +562,14 @@ const createHoldFromPath = async () => {
     if (isQuickDrawEnabled.value) {
       const activeProblem = props.activeProblem || props.editingProblem;
       if (activeProblem) {
-        // After persistence store reloads, get the updated manual holds count
-        const currentManualHolds = persistenceStore.getManualHoldsForImage(props.imageId) || [];
-        const aiHoldsCount = aiHolds.value.length;
-        
-        // The newly added hold will be the last one in the manual holds array
-        const manualHoldIndex = aiHoldsCount + currentManualHolds.length - 1;
+        // Save was successful - add the persistent hold to the problem
+        serverStore.addManualHold(hold);
 
         // Ensure the hold has svgMarkup for consistent display
         const enrichedHold = ensureHoldHasSvgMarkup(hold);
 
-        // Add to the active problem
-        boulderProblemsStore.addHoldToProblem(activeProblem.id, enrichedHold, manualHoldIndex);
-
+        // Add to the active problem (uses hold.id internally)
+        boulderProblemsStore.addHoldToProblem(activeProblem.id, enrichedHold);
       }
     }
   } catch (error) {
@@ -601,9 +597,11 @@ const hasActiveGradeFilter = computed(() => {
 });
 
 // Get which problem a hold belongs to (works with combined holds)
-const getHoldProblemId = (holdIndex) => {
+const getHoldProblemId = (hold) => {
+  if (!hold) return null;
+  
   for (const problem of props.boulderProblems) {
-    const holdFound = problem.holds?.some((h) => h.holdIndex === holdIndex);
+    const holdFound = problem.holds?.some((h) => h.holdId === hold.holdId);
     if (holdFound) {
       return problem.id;
     }
@@ -611,7 +609,7 @@ const getHoldProblemId = (holdIndex) => {
 
   // Check if it's in the active problem being created
   if (props.isCreatingProblem && props.activeProblem) {
-    const inActiveProblem = props.activeProblem.holds?.some((h) => h.holdIndex === holdIndex);
+    const inActiveProblem = props.activeProblem.holds?.some((h) => h.holdId === hold.holdId);
     if (inActiveProblem) {
       return props.activeProblem.id;
     }
@@ -619,7 +617,7 @@ const getHoldProblemId = (holdIndex) => {
 
   // Check if it's in the problem being edited
   if (props.isEditingProblem && props.editingProblem) {
-    const inEditingProblem = props.editingProblem.holds?.some((h) => h.holdIndex === holdIndex);
+    const inEditingProblem = props.editingProblem.holds?.some((h) => h.holdId === hold.holdId);
     if (inEditingProblem) {
       return props.editingProblem.id;
     }
@@ -629,10 +627,12 @@ const getHoldProblemId = (holdIndex) => {
 };
 
 // Get interaction state for hold based on its current state (from UnifiedHoldOverlay)
-const getHoldInteraction = (holdIndex) => {
+const getHoldInteraction = (hold) => {
+  if (!hold) return 'default';
+  
   // During delete mode, both AI and manual holds can be deleted
   if (serverStore.isDeleteMode) {
-    if (hoveredHoldIndex.value === holdIndex) {
+    if (hoveredHoldIndex.value === hold.id) {
       return 'delete-hover'; // Special hover state for delete mode
     } else {
       return 'delete-target'; // Show as deletable
@@ -641,7 +641,7 @@ const getHoldInteraction = (holdIndex) => {
 
   // During drawing mode, make existing holds visible with reduced opacity
   if (serverStore.isDrawingMode) {
-    if (hoveredHoldIndex.value === holdIndex) {
+    if (hoveredHoldIndex.value === hold.id) {
       return 'hover';
     } else {
       return 'drawing-background'; // Show existing holds with low opacity during drawing mode
@@ -649,20 +649,20 @@ const getHoldInteraction = (holdIndex) => {
   }
 
   // Magic Wand highlighting takes priority when active
-  if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
-    if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
+  if (props.magicWandActive && props.magicWandSelection.selectedHoldIds.length > 0) {
+    if (props.magicWandSelection.selectedHoldIds.includes(hold.id)) {
       return 'selected'; // Show magic wand selected holds as selected
     } else {
       return 'default'; // Other holds are invisible during magic wand
     }
   }
 
-  const problemId = getHoldProblemId(holdIndex);
+  const problemId = getHoldProblemId(hold);
 
   // "Show only one problem" mode - hide all holds except those belonging to the isolated problem
   if (props.isShowingOnlyOneProblem && props.isolatedProblem) {
     if (problemId === props.isolatedProblem.id) {
-      if (hoveredHoldIndex.value === holdIndex) {
+      if (hoveredHoldIndex.value === hold.id) {
         return 'hover';
       } else if (
         props.hoveredProblemId === problemId ||
@@ -698,10 +698,10 @@ const getHoldInteraction = (holdIndex) => {
     // Hold belongs to a problem
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
       // Hold is part of the problem being created
-      return hoveredHoldIndex.value === holdIndex ? 'hover' : 'selected';
+      return hoveredHoldIndex.value === hold.id ? 'hover' : 'selected';
     } else if (props.isEditingProblem && props.editingProblem?.id === problemId) {
       // Hold is part of the problem being edited
-      return hoveredHoldIndex.value === holdIndex ? 'hover' : 'selected';
+      return hoveredHoldIndex.value === hold.id ? 'hover' : 'selected';
     } else {
       // Check if the problem is hidden
       if (problem?.hidden) {
@@ -717,7 +717,7 @@ const getHoldInteraction = (holdIndex) => {
     }
   } else {
     // Hold is available for selection (unclassified)
-    if (hoveredHoldIndex.value === holdIndex) {
+    if (hoveredHoldIndex.value === hold.id) {
       return 'hover';
     } else {
       return props.showHoldOverlay ? 'default' : 'default';
@@ -726,18 +726,20 @@ const getHoldInteraction = (holdIndex) => {
 };
 
 // Get interaction allowed state for hold (from UnifiedHoldOverlay)
-const getHoldInteractionAllowed = (holdIndex) => {
+const getHoldInteractionAllowed = (hold) => {
+  if (!hold) return 'none';
+  
   // In delete mode, both AI and manual holds are selectable for deletion
   if (serverStore.isDeleteMode) {
     return 'selectable'; // All holds can be deleted
   }
 
   // Magic Wand mode - only selected holds are clickable
-  if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
-    return props.magicWandSelection.selectedIndices.includes(holdIndex) ? 'selectable' : 'none';
+  if (props.magicWandActive && props.magicWandSelection.selectedHoldIds.length > 0) {
+    return props.magicWandSelection.selectedHoldIds.includes(hold.id) ? 'selectable' : 'none';
   }
 
-  const problemId = getHoldProblemId(holdIndex);
+  const problemId = getHoldProblemId(hold);
 
   if (problemId) {
     const problem =
@@ -775,17 +777,19 @@ const getHoldInteractionAllowed = (holdIndex) => {
 };
 
 // Get color for hold based on its state (from UnifiedHoldOverlay)
-const getHoldColor = (holdIndex) => {
+const getHoldColor = (hold) => {
+  if (!hold) return '#6b7280';
+  
   // Magic Wand uses purple colors
-  if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
-    if (holdIndex === props.magicWandSelection.targetHoldIndex) {
+  if (props.magicWandActive && props.magicWandSelection.selectedHoldIds.length > 0) {
+    if (hold.id === props.magicWandSelection.targetHoldIndex) {
       return '#9333ea'; // purple-700 for target
-    } else if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
+    } else if (props.magicWandSelection.selectedHoldIds.includes(hold.id)) {
       return '#a855f7'; // purple-500 for proximity
     }
   }
 
-  const problemId = getHoldProblemId(holdIndex);
+  const problemId = getHoldProblemId(hold);
 
   if (problemId) {
     // Find the actual problem object
@@ -808,15 +812,15 @@ const getHoldColor = (holdIndex) => {
 // Helper to calculate combined index for manual holds (DRY principle)
 const getCombinedHoldIndex = (manualIndex) => aiHolds.value.length + manualIndex;
 
-// Manual hold interaction methods - simplified with helper
-const getManualHoldInteraction = (hold, manualIndex) =>
-  getHoldInteraction(getCombinedHoldIndex(manualIndex));
+// Manual hold interaction methods - use hold object directly
+const getManualHoldInteraction = (hold) =>
+  getHoldInteraction(hold);
 
-const getManualHoldInteractionAllowed = (hold, manualIndex) =>
-  getHoldInteractionAllowed(getCombinedHoldIndex(manualIndex));
+const getManualHoldInteractionAllowed = (hold) =>
+  getHoldInteractionAllowed(hold);
 
-const getManualHoldColor = (hold, manualIndex) => {
-  const baseColor = getHoldColor(getCombinedHoldIndex(manualIndex));
+const getManualHoldColor = (hold) => {
+  const baseColor = getHoldColor(hold);
   // Use green for manual holds instead of default blue
   return baseColor === '#3b82f6' ? '#059669' : baseColor;
 };
@@ -833,18 +837,18 @@ const handleHoldClick = (hold, index) => {
   emit('hold-click', hold, index);
 };
 
-const handleHoldHover = (index, isEntering, event) => {
-  hoveredHoldIndex.value = isEntering ? index : null;
+const handleHoldHover = (hold, isEntering, event) => {
+  hoveredHoldIndex.value = isEntering ? hold?.id : null;
 
-  if (isEntering) {
+  if (isEntering && hold) {
     // Find which problem this hold belongs to and highlight all holds in that problem
-    const problemId = getHoldProblemId(index);
+    const problemId = getHoldProblemId(hold);
     hoveredProblemIdLocal.value = problemId;
   } else {
     hoveredProblemIdLocal.value = null;
   }
 
-  emit('hold-hover', index, isEntering, event);
+  emit('hold-hover', hold, isEntering, event);
 };
 
 const handleManualHoldClick = (hold, manualIndex) => {
@@ -854,23 +858,23 @@ const handleManualHoldClick = (hold, manualIndex) => {
     return;
   }
 
+  // Note: index parameter kept for legacy magic wand functionality
+  // TODO: Refactor magic wand to use hold IDs instead of indices
   const combinedIndex = getCombinedHoldIndex(manualIndex);
   emit('hold-click', hold, combinedIndex);
 };
 
 const handleManualHoldHover = (hold, manualIndex, isEntering, event) => {
-  const combinedIndex = getCombinedHoldIndex(manualIndex);
-
-  hoveredHoldIndex.value = isEntering ? combinedIndex : null;
+  hoveredHoldIndex.value = isEntering ? hold.id : null;
 
   if (isEntering) {
-    const problemId = getHoldProblemId(combinedIndex);
+    const problemId = getHoldProblemId(hold);
     hoveredProblemIdLocal.value = problemId;
   } else {
     hoveredProblemIdLocal.value = null;
   }
 
-  emit('hold-hover', combinedIndex, isEntering, event);
+  emit('hold-hover', hold, isEntering, event);
 };
 
 const exitDrawingMode = () => {

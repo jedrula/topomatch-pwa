@@ -91,7 +91,7 @@ export const performMagicWandSelection = (
       success: false,
       targetHold: null,
       routeHolds: [],
-      selectedIndices: [],
+      selectedHoldIds: [], // Renamed from selectedIndices
     };
   }
 
@@ -105,7 +105,7 @@ export const performMagicWandSelection = (
       success: true,
       targetHold: { hold: targetHold, index: targetHoldIndex },
       routeHolds: [],
-      selectedIndices: [targetHoldIndex],
+      selectedHoldIds: [targetHoldIndex], // Renamed from selectedIndices
       stats: {
         totalHolds: allHolds.length,
         colorSimilar: 0,
@@ -126,7 +126,8 @@ export const performMagicWandSelection = (
     .filter(({ index }) => connectedIndices.has(index) && index !== targetHoldIndex)
     .map(({ hold, index }) => ({ hold, index }));
 
-  const selectedIndices = Array.from(connectedIndices);
+  // TODO: Refactor to use hold IDs instead of indices
+  const selectedHoldIds = Array.from(connectedIndices);
 
   const result = {
     success: true,
@@ -135,12 +136,12 @@ export const performMagicWandSelection = (
       index: targetHoldIndex,
     },
     routeHolds: routeHolds,
-    selectedIndices: selectedIndices,
+    selectedHoldIds: selectedHoldIds, // Renamed from selectedIndices for clarity
     stats: {
       totalHolds: allHolds.length,
       colorSimilar: colorSimilarHolds.length,
       connected: connectedIndices.size,
-      selected: selectedIndices.length,
+      selected: selectedHoldIds.length,
       maxColorDistance: maxColorDistance,
       maxReachDistance: maxReachDistance,
     },

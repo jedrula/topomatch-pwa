@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useHoldDetectionPersistenceStore } from './holdDetectionPersistenceStore'
-import { configService } from '../services/configService.js'
 import { holdDetectionService } from '../services/holdDetectionService.js'
 import { holdDetectionApiService } from '@/services/holdDetectionApiService'
 
@@ -23,8 +22,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
   const progressPercent = ref(0)
   const detailedProgress = ref(null)
   
-  // API settings - reactive to config service changes
-  const apiUrl = computed(() => configService.getHoldDetectionServerUrl())
+  // API settings
   const apiHealthy = ref(false)
   
   // Manual holds state (simplified)
@@ -327,32 +325,23 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
         const aiHolds = existingDetection.detectionResults.aiHolds || []
         const storedManualHolds = existingDetection.detectionResults.manualHolds || []
         
-        // Load AI holds into results format
+        // Load AI holds into results format (no more fallbacks - trust the schema!)
         if (aiHolds.length > 0) {
           const metadata = existingDetection.detectionResults.metadata || {}
           results.value = {
             holds: aiHolds.map(hold => ({
-              x: hold.bbox?.[0] || hold.x || 0,
-              y: hold.bbox?.[1] || hold.y || 0,
-              width: hold.bbox?.[2] || hold.width || 50,
-              height: hold.bbox?.[3] || hold.height || 50,
-              confidence: hold.detectionConfidence || hold.confidence || 0.5,
-              type: hold.holdType || hold.type || 'unknown',
-              id: hold.id
+              id: hold.id,
+              x: hold.x,
+              y: hold.y,
+              centerX: hold.centerX,
+              centerY: hold.centerY,
+              width: hold.width,
+              height: hold.height,
+              confidence: hold.confidence,
+              type: hold.holdType,
+              svgMarkup: hold.svgMarkup
             })),
-            svg_markups: aiHolds.map((hold, index) => {
-              // If SVG markup exists, use it; otherwise generate a fallback rectangle
-              if (hold.svgMarkup) {
-                return hold.svgMarkup
-              } else {
-                // Generate a simple rectangle SVG as fallback
-                const x = hold.bbox?.[0] || hold.x || 0
-                const y = hold.bbox?.[1] || hold.y || 0
-                const width = hold.bbox?.[2] || hold.width || 50
-                const height = hold.bbox?.[3] || hold.height || 50
-                return `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2"/>`
-              }
-            }),
+            svg_markups: aiHolds.map(hold => hold.svgMarkup || ''),
             // Include timing information from metadata
             processing_time: metadata.processingTime || 0,
             yolo_results: metadata.yoloInferenceTime ? { inference_time: metadata.yoloInferenceTime } : undefined,
@@ -390,7 +379,6 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     totalSteps,
     progressPercent,
     detailedProgress,
-    apiUrl,
     apiHealthy,
     manualHolds,
     isDrawingMode,

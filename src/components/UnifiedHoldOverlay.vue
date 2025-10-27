@@ -11,11 +11,11 @@
       v-for="(svgMarkup, index) in detectionResults.svg_markups"
       :key="`hold-${detectionResults.holds[index]?.id || index}`"
       :svg-markup="svgMarkup"
-      :interaction="getHoldInteraction(index)"
-      :interaction-allowed="getHoldInteractionAllowed(index)"
-      :color="getHoldColor(index)"
+      :interaction="getHoldInteraction(detectionResults.holds[index])"
+      :interaction-allowed="getHoldInteractionAllowed(detectionResults.holds[index])"
+      :color="getHoldColor(detectionResults.holds[index])"
       @click="handleHoldClick(detectionResults.holds[index], index)"
-      @hover="(isEntering, event) => handleHoldHover(index, isEntering, event)"
+      @hover="(isEntering, event) => handleHoldHover(detectionResults.holds[index], isEntering, event)"
     />
   </svg>
 </template>
@@ -68,7 +68,7 @@ const props = defineProps({
   },
   magicWandSelection: {
     type: Object,
-    default: () => ({ selectedIndices: [], targetHoldIndex: null, stats: null }),
+    default: () => ({ selectedHoldIds: [], targetHoldIndex: null, stats: null }),
   },
   // "Show only" visibility props
   isShowingOnlyOneProblem: {
@@ -117,9 +117,11 @@ const hasActiveGradeFilter = computed(() => {
 });
 
 // Get which problem a hold belongs to
-const getHoldProblemId = (holdIndex) => {
+const getHoldProblemId = (hold) => {
+  if (!hold) return null;
+  
   for (const problem of props.boulderProblems) {
-    const holdFound = problem.holds?.some((h) => h.holdIndex === holdIndex);
+    const holdFound = problem.holds?.some((h) => h.holdId === hold.holdId);
     if (holdFound) {
       return problem.id;
     }
@@ -127,7 +129,7 @@ const getHoldProblemId = (holdIndex) => {
 
   // Check if it's in the active problem being created
   if (props.isCreatingProblem && props.activeProblem) {
-    const inActiveProblem = props.activeProblem.holds?.some((h) => h.holdIndex === holdIndex);
+    const inActiveProblem = props.activeProblem.holds?.some((h) => h.holdId === hold.holdId);
     if (inActiveProblem) {
       return props.activeProblem.id;
     }
@@ -135,7 +137,7 @@ const getHoldProblemId = (holdIndex) => {
 
   // Check if it's in the problem being edited
   if (props.isEditingProblem && props.editingProblem) {
-    const inEditingProblem = props.editingProblem.holds?.some((h) => h.holdIndex === holdIndex);
+    const inEditingProblem = props.editingProblem.holds?.some((h) => h.holdId === hold.holdId);
     if (inEditingProblem) {
       return props.editingProblem.id;
     }
@@ -145,23 +147,25 @@ const getHoldProblemId = (holdIndex) => {
 };
 
 // Get interaction state for hold based on its current state
-const getHoldInteraction = (holdIndex) => {
+const getHoldInteraction = (hold) => {
+  if (!hold) return 'default';
+  
   // Magic Wand highlighting takes priority when active
-  if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
-    if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
+  if (props.magicWandActive && props.magicWandSelection.selectedHoldIds.length > 0) {
+    if (props.magicWandSelection.selectedHoldIds.includes(hold.id)) {
       return 'selected'; // Show magic wand selected holds as selected
     } else {
       return 'default'; // Other holds are invisible during magic wand
     }
   }
 
-  const problemId = getHoldProblemId(holdIndex);
+  const problemId = getHoldProblemId(hold);
 
   // "Show only one problem" mode - hide all holds except those belonging to the isolated problem
   if (props.isShowingOnlyOneProblem && props.isolatedProblem) {
     if (problemId === props.isolatedProblem.id) {
       // This hold belongs to the isolated problem - show it
-      if (hoveredHoldIndex.value === holdIndex) {
+      if (hoveredHoldIndex.value === hold.id) {
         return 'hover';
       } else if (
         props.hoveredProblemId === problemId ||
@@ -202,10 +206,10 @@ const getHoldInteraction = (holdIndex) => {
     // Hold belongs to a problem
     if (props.isCreatingProblem && props.activeProblem?.id === problemId) {
       // Hold is part of the problem being created
-      return hoveredHoldIndex.value === holdIndex ? 'hover' : 'selected';
+      return hoveredHoldIndex.value === hold.id ? 'hover' : 'selected';
     } else if (props.isEditingProblem && props.editingProblem?.id === problemId) {
       // Hold is part of the problem being edited
-      return hoveredHoldIndex.value === holdIndex ? 'hover' : 'selected';
+      return hoveredHoldIndex.value === hold.id ? 'hover' : 'selected';
     } else {
       // Check if the problem is hidden
       if (problem?.hidden) {
@@ -222,7 +226,7 @@ const getHoldInteraction = (holdIndex) => {
     }
   } else {
     // Hold is available for selection (unclassified)
-    if (hoveredHoldIndex.value === holdIndex) {
+    if (hoveredHoldIndex.value === hold.id) {
       return 'hovered';
     } else {
       return props.showHoldOverlay ? 'default' : 'default'; // Only visible when overlay enabled
@@ -231,13 +235,15 @@ const getHoldInteraction = (holdIndex) => {
 };
 
 // Get interaction allowed state for hold
-const getHoldInteractionAllowed = (holdIndex) => {
+const getHoldInteractionAllowed = (hold) => {
+  if (!hold) return 'none';
+  
   // Magic Wand mode - only selected holds are clickable
-  if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
-    return props.magicWandSelection.selectedIndices.includes(holdIndex) ? 'selectable' : 'none';
+  if (props.magicWandActive && props.magicWandSelection.selectedHoldIds.length > 0) {
+    return props.magicWandSelection.selectedHoldIds.includes(hold.id) ? 'selectable' : 'none';
   }
 
-  const problemId = getHoldProblemId(holdIndex);
+  const problemId = getHoldProblemId(hold);
 
   if (problemId) {
     const problem =
@@ -275,17 +281,19 @@ const getHoldInteractionAllowed = (holdIndex) => {
 };
 
 // Get color for hold based on its state
-const getHoldColor = (holdIndex) => {
+const getHoldColor = (hold) => {
+  if (!hold) return '#6b7280';
+  
   // Magic Wand uses purple colors
-  if (props.magicWandActive && props.magicWandSelection.selectedIndices.length > 0) {
-    if (holdIndex === props.magicWandSelection.targetHoldIndex) {
+  if (props.magicWandActive && props.magicWandSelection.selectedHoldIds.length > 0) {
+    if (hold.id === props.magicWandSelection.targetHoldIndex) {
       return '#9333ea'; // purple-700 for target
-    } else if (props.magicWandSelection.selectedIndices.includes(holdIndex)) {
+    } else if (props.magicWandSelection.selectedHoldIds.includes(hold.id)) {
       return '#a855f7'; // purple-500 for proximity
     }
   }
 
-  const problemId = getHoldProblemId(holdIndex);
+  const problemId = getHoldProblemId(hold);
 
   if (problemId) {
     // Find the problem to get its color
@@ -314,18 +322,18 @@ const handleHoldClick = (hold, index) => {
   emit('hold-click', hold, index);
 };
 
-const handleHoldHover = (index, isEntering, event) => {
-  hoveredHoldIndex.value = isEntering ? index : null;
+const handleHoldHover = (hold, isEntering, event) => {
+  hoveredHoldIndex.value = isEntering ? hold?.id : null;
 
-  if (isEntering) {
+  if (isEntering && hold) {
     // Find which problem this hold belongs to and highlight all holds in that problem
-    const problemId = getHoldProblemId(index);
+    const problemId = getHoldProblemId(hold);
     hoveredProblemIdLocal.value = problemId;
   } else {
     hoveredProblemIdLocal.value = null;
   }
 
-  emit('hold-hover', index, isEntering, event);
+  emit('hold-hover', hold, isEntering, event);
 };
 
 // Simplified overlay - no complex positioning needed

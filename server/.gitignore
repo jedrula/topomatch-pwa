@@ -9,5 +9,14 @@ typings/
 node_modules/
 *.local
 
+# Environment files (contain sensitive URLs)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Debug files from hold detection /Users/andrzejswaton/workdir/jedrula/offline-vue-pwa/server/detection-responses/response-2025-10-27T01-11-20-544Z.json
+# src/detection-responses
+
 # Extension configuration (generated from templates)
 extensions/storage-resize-images-x2dt.env

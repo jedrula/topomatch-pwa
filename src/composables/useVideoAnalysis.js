@@ -165,8 +165,6 @@ export function useVideoAnalysis() {
   // ✅ Handle table scores from VideoFrameMatcherEnhanced (CORRECT scoring)
   // This replaces the buggy holdAnalysis results with the table-based scores
   const handleTableScoresReady = (tableScoresData) => {
-    console.log('📊 TABLE SCORES RECEIVED in useVideoAnalysis:', tableScoresData);
-    
     if (!videoAnalysisResult.value || !tableScoresData.scores || tableScoresData.scores.length === 0) {
       return;
     }
@@ -208,8 +206,6 @@ export function useVideoAnalysis() {
         },
         problem: formattedScores[0].problem
       };
-      
-      console.log('✅ UPDATED WINNER from table scores:', formattedScores[0].problem.name);
     }
   };
 
@@ -241,8 +237,6 @@ export function useVideoAnalysis() {
 
   // Handle ascent form submission from the video upload flow
   const handleAscentFormSubmit = async (submitData) => {
-    console.log('🎯 Ascent form submitted:', submitData);
-    
     try {
       // The submitData contains:
       // - formData: { attemptType, userGrade, notes, date }
@@ -277,17 +271,14 @@ export function useVideoAnalysis() {
       
       // CRITICAL: Generate ascent ID on client FIRST
       const ascentId = generateAscentId();
-      console.log('🆔 Generated ascent ID:', ascentId);
       
       // Start video upload with real ascent ID
-      console.log('📤 Starting video upload...');
       videoUploadQueue.startUpload(
         submitData.video,
         locationId,
         problem.id,
         ascentId // Real ID, not temp!
       );
-      console.log(`✅ Upload started with ascent ID: ${ascentId}`);
       
       // Convert date string to Date object and add problem snapshot
       const ascentData = {
@@ -303,8 +294,6 @@ export function useVideoAnalysis() {
         },
         // NO video data - Cloud Function will add it when upload completes
       };
-      
-      console.log('📝 Creating ascent with pre-generated ID:', ascentId);
       
       // Create the ascent immediately (video uploads in background)
       await ascentStore.logAscent(ascentData, ascentId);

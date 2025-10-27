@@ -138,18 +138,18 @@ export type HoldDetectionApiResponse =
   | HoldDetectionHealthResponse
   | HoldDetectionErrorResponse;
 
-// Simplified hold type for frontend use (matching current store structure)
+// Simplified hold type for frontend use (clean schema, no fallbacks)
 export interface SimpleHold {
-  id: string;
-  x: number;
-  y: number;
+  id: string;           // Immutable ID from server (or UUID for manual)
+  x: number;            // Top-left corner (from bbox.x)
+  y: number;            // Top-left corner (from bbox.y)
+  centerX: number;      // Center point (from server center_x)
+  centerY: number;      // Center point (from server center_y)
   width: number;
   height: number;
   confidence: number;
   type: string;
-  bbox?: [number, number, number, number]; // Alternative format [x, y, width, height]
   svgMarkup?: string;
-  holdType?: string;
 }
 
 // Frontend store compatible results type

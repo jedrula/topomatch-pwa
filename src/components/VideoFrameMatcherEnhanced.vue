@@ -324,10 +324,13 @@ const boulderProblemsStore = useBoulderProblemsStore();
 
 // Get boulder problems for the matched image
 const matchedImageBoulderProblems = computed(() => {
-  if (!bestMatch.value?.id) return [];
+  const imageId = bestMatch.value?.imageId || bestMatch.value?.id;
+  
+  if (!imageId) return [];
+  
   // Use the same filtering logic as LocationDetailView that works
   return boulderProblemsStore.boulderProblems.filter(
-    (problem) => problem.imageId === bestMatch.value.id
+    (problem) => problem.imageId === imageId
   );
 });
 
@@ -351,12 +354,13 @@ const detectedProblemForForm = computed(() => {
 // 📊 Calculate problem scores using the shared utility (single source of truth)
 const aggregatedProblemScores = computed(() => {
   if (!transformedPoses.value || transformedPoses.value.length === 0) return [];
+  if (!matchedImageBoulderProblems.value || matchedImageBoulderProblems.value.length === 0) return [];
   
   // Use the canonical scoring function with local wrapper
   const scores = calculateProblemScores(transformedPoses.value, localGetKeypointRows);
   
   // Format for display compatibility
-  const results = scores.map(problemScore => ({
+  return scores.map(problemScore => ({
     id: problemScore.problem.id,
     name: problemScore.problem.name,
     totalScore: problemScore.score,
@@ -365,19 +369,11 @@ const aggregatedProblemScores = computed(() => {
     uniqueHoldsCount: problemScore.uniqueHoldsMatched,
     averageScore: problemScore.averageScorePerHold.toFixed(3)
   }));
-  
-  // Log for verification
-  console.log('📊 PROBLEM SCORES (from shared utility):', results);
-  
-  return results;
 });
 
 // Compute and display aggregated scores whenever they change
 watch(aggregatedProblemScores, (scores) => {
   if (scores.length > 0) {
-    console.log('🏆 TABLE WINNER:', scores[0].name, 'with score:', scores[0].displayScore);
-    console.log('🥈 TABLE 2ND:', scores[1]?.name || 'none', 'with score:', scores[1]?.displayScore || '0%');
-    
     // ✅ Emit table scores to parent components
     // This is the CORRECT scoring that should be displayed in the UI
     emit('table-scores-ready', {
@@ -754,7 +750,6 @@ const handleAnalysisComplete = async (bestMatchResult) => {
             width: img.naturalWidth,
             height: img.naturalHeight
           };
-          console.log('📏 Loaded reference image dimensions:', bestMatch.value.referenceImageDimensions);
           resolve();
         };
         img.onerror = reject;
@@ -767,15 +762,18 @@ const handleAnalysisComplete = async (bestMatchResult) => {
 
   // Fetch both the stored viewBox AND detection results from Firestore
   try {
-    if (bestMatchResult.id && props.locationId) {
+    // Use imageId for Firestore lookups (images have imageId, not id)
+    const imageId = bestMatchResult.imageId || bestMatchResult.id;
+    
+    if (imageId && props.locationId) {
       // Try to get viewBox from hold detection service using the correct locationId
-      const imageViewBox = await holdDetectionService.getViewBox(props.locationId, bestMatchResult.id);
+      const imageViewBox = await holdDetectionService.getViewBox(props.locationId, imageId);
       if (imageViewBox) {
         storedViewBox.value = imageViewBox;
       }
 
       // CRITICAL FIX: Also load AI detection results for this image
-      const holdDetectionData = await holdDetectionService.getHoldDetection(props.locationId, bestMatchResult.id);
+      const holdDetectionData = await holdDetectionService.getHoldDetection(props.locationId, imageId);
       if (holdDetectionData && holdDetectionData.detectionResults) {
         // Attach detection results to bestMatch so findClosestHolds can use them
         // Include BOTH results and metadata (which contains viewBox)
@@ -783,20 +781,7 @@ const handleAnalysisComplete = async (bestMatchResult) => {
           results: holdDetectionData.detectionResults.aiHolds || [],
           imageMetadata: holdDetectionData.detectionResults.metadata || {}
         };
-        
-        console.log('✅ Loaded AI detection results with metadata:', {
-          holdCount: holdDetectionData.detectionResults.aiHolds?.length || 0,
-          viewBox: holdDetectionData.detectionResults.metadata?.viewBox || 'not found',
-          imageDimensions: holdDetectionData.detectionResults.metadata?.imageDimensions
-        });
-      } else {
-        console.log('⚠️ No AI detection results found in Firestore for image:', bestMatchResult.id);
       }
-    } else {
-      console.log('⚠️ Missing parameters for detection results lookup:', { 
-        imageId: bestMatchResult.id, 
-        locationId: props.locationId 
-      });
     }
   } catch (error) {
     console.warn('❌ Failed to fetch stored data:', error);
@@ -865,12 +850,6 @@ const handleAnalysisComplete = async (bestMatchResult) => {
         // We need these to correctly scale transformed keypoints to match hold coordinate space
         bestMatchResult.referenceImageDimensions = topoImageDims;
         
-        console.log('🔍 Stored reference image dimensions for coordinate conversion:', {
-          width: topoImageDims.width,
-          height: topoImageDims.height,
-          storedIn: 'bestMatchResult.referenceImageDimensions'
-        });
-        
         // Store feature matches for visualization (limit to first 100 for performance)
         featureMatches.value = matches.slice(0, 100);
       } else {
@@ -903,9 +882,6 @@ const transformPosesToMatchedImage = async (matchResult) => {
     const { homographyMatrix } = matchResult;
     const transformedFrames = [];
 
-    // FOCUS ON FRAME 0 FOR DEBUGGING
-    const debugFrameIndex = 0;
-
     for (let i = 0; i < extractedFrames.value.length; i++) {
       const frame = extractedFrames.value[i];
       if (!frame.poseData) {
@@ -925,15 +901,6 @@ const transformPosesToMatchedImage = async (matchResult) => {
       // Transform points using homography
       const transformedPoints = transformPoints(sourcePoints, homographyMatrix);
 
-      // DEBUG: Log first frame's transformation for comparison with manual testing
-      if (i === 0) {
-        console.log('=== POSE TRANSFORMATION DEBUG (Frame 0) ===');
-        console.log('Original keypoints:', sourcePoints);
-        console.log('Homography matrix:', homographyMatrix);
-        console.log('Transformed points:', transformedPoints);
-        console.log('=== Compare these with your manual click results ===');
-      }
-
       // Find closest holds for each transformed keypoint
       const closestHolds = transformedPoints.map((point, pointIndex) => {
         // COORDINATE SYSTEM FIX: Scale projected points to match stored hold coordinates
@@ -949,32 +916,11 @@ const transformPosesToMatchedImage = async (matchResult) => {
           
           if (convertedPoints.length > 0) {
             searchPoint = convertedPoints[0];
-            
-            if (i === debugFrameIndex && pointIndex === 0) {
-              console.log(`Using DRY utility - projected point for hold search: (${point.x}, ${point.y}) → (${searchPoint.x.toFixed(1)}, ${searchPoint.y.toFixed(1)})`);
-            }
           }
         }
         
         const holdInfo = localFindClosestHolds(searchPoint.x, searchPoint.y);
         const coords = holdInfo.closest.hold ? extractHoldCoordinates(holdInfo.closest.hold) : null;
-        
-        // DEBUGGING: Focus on frame 0 only
-        if (i === debugFrameIndex) {
-          console.log('=== HOLD COORDINATE DEBUG (Frame 0) ===');
-          console.log(`Transformed point ${pointIndex}:`, point);
-          console.log(`Hold info for point ${pointIndex}:`, holdInfo);
-          
-          // Extra debugging for coordinate issues
-          if (coords) {
-            console.log(`Extracted coordinates for point ${pointIndex}:`, coords);
-            console.log(`Distance: ${holdInfo.closest.distance}px`);
-          } else {
-            if (holdInfo.closest.hold) {
-              console.log(`Failed to extract coordinates from hold:`, holdInfo.closest.hold);
-            }
-          }
-        }
         
         return {
           keypoint: ['leftWrist', 'rightWrist', 'leftAnkle', 'rightAnkle'][pointIndex],

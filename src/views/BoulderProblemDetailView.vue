@@ -176,8 +176,6 @@ const allVideos = computed(() => {
     upload => upload.problemId === route.params.problemId
   );
   
-  console.log(`📹 Problem uploads:`, problemUploads.length);
-  
   // Map uploads based on status
   const uploadVideos = problemUploads.map(upload => {
     // If completed, show as regular video with download URL
@@ -217,8 +215,6 @@ const allVideos = computed(() => {
   // Filter out uploads that are already in betaVideos (from Firestore)
   const uploadedIds = new Set(uploaded.map(v => v.id));
   const uniqueUploadVideos = uploadVideos.filter(v => !uploadedIds.has(v.id));
-  
-  console.log(`📹 Total videos: ${uniqueUploadVideos.length} uploads + ${uploaded.length} from Firestore`);
   
   // Combine: upload videos first (in progress or just completed), then Firestore videos
   return [...uniqueUploadVideos, ...uploaded];
