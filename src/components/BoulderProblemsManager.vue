@@ -545,6 +545,7 @@ import { ref, watch, computed, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore';
+import { useDraggable } from '@/composables/useDraggable.js';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
 import Slider from '@vueform/slider';
 
@@ -594,46 +595,13 @@ const initializeDefaultGrade = () => {
 const gradeRange = ref([0, boulderProblemsStore.grades.length - 1]);
 
 // Dragging functionality for fullscreen mode
-const isDragging = ref(false);
-const dragStartX = ref(0);
-const dragStartY = ref(0);
-const panelX = ref(20); // Initial X position
-const panelY = ref(20); // Initial Y position
-const panelElement = ref(null);
-
-const startDrag = (event) => {
-  if (!props.isFullscreen) return;
-
-  isDragging.value = true;
-  dragStartX.value = event.clientX - panelX.value;
-  dragStartY.value = event.clientY - panelY.value;
-
-  document.addEventListener('mousemove', onDrag);
-  document.addEventListener('mouseup', stopDrag);
-
-  // Prevent text selection during drag
-  event.preventDefault();
-};
-
-const onDrag = (event) => {
-  if (!isDragging.value) return;
-
-  const newX = event.clientX - dragStartX.value;
-  const newY = event.clientY - dragStartY.value;
-
-  // Keep panel within viewport bounds
-  const maxX = window.innerWidth - (panelElement.value?.offsetWidth || 300);
-  const maxY = window.innerHeight - (panelElement.value?.offsetHeight || 400);
-
-  panelX.value = Math.max(0, Math.min(newX, maxX));
-  panelY.value = Math.max(0, Math.min(newY, maxY));
-};
-
-const stopDrag = () => {
-  isDragging.value = false;
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', stopDrag);
-};
+const {
+  isDragging,
+  x: panelX,
+  y: panelY,
+  elementRef: panelElement,
+  startDrag,
+} = useDraggable(20, 20);
 
 // Computed properties for grade filtering
 const selectedMinGrade = computed(() => boulderProblemsStore.grades[gradeRange.value[0]]);
@@ -1050,10 +1018,6 @@ onUnmounted(() => {
   if (updateTimeout) {
     clearTimeout(updateTimeout);
   }
-
-  // Cleanup drag event listeners
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', stopDrag);
 });
 </script>
 

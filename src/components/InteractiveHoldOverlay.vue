@@ -85,10 +85,20 @@
         !serverStore.isDrawingMode &&
         !serverStore.isDeleteMode
       "
-      class="absolute top-4 left-4 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-40 pointer-events-auto hidden md:block"
+      ref="toolPanelElement"
+      class="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-40 pointer-events-auto hidden md:block cursor-move"
+      :class="{ 'shadow-2xl': isDraggingToolPanel }"
+      :style="{
+        left: `${toolPanelX}px`,
+        top: `${toolPanelY}px`,
+        opacity: isDraggingToolPanel ? '0.9' : '1',
+        transition: isDraggingToolPanel ? 'none' : 'opacity 0.2s ease',
+      }"
+      @mousedown="startDragToolPanel"
     >
       <div class="mb-2">
         <span class="text-sm font-medium text-gray-700">Hold Selection Mode</span>
+        <span class="text-xs text-gray-500 ml-2">(Drag to move)</span>
       </div>
 
       <div class="flex space-x-2">
@@ -175,6 +185,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
+import { useDraggable } from '@/composables/useDraggable.js';
 import HoldSvg from './HoldSvg.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 
@@ -271,6 +282,15 @@ const hoveredProblemIdLocal = ref(null);
 // Drawing state
 const isDrawing = ref(false);
 const drawingPath = ref([]); // Points that make up the free drawing path
+
+// Dragging functionality for Hold Selection Mode panel
+const {
+  isDragging: isDraggingToolPanel,
+  x: toolPanelX,
+  y: toolPanelY,
+  elementRef: toolPanelElement,
+  startDrag: startDragToolPanel,
+} = useDraggable(16, 16);
 
 // Boulder tool modes - unified computed properties
 const isCreatingOrEditing = computed(() => props.isCreatingProblem || props.isEditingProblem);
