@@ -322,16 +322,7 @@
                     <!-- Explanation -->
                     <div class="text-sm text-gray-700 space-y-2">
                       <p><strong>✨ Detection happens automatically when you upload a location image.</strong></p>
-                      <ol class="list-decimal list-inside space-y-1 ml-2">
-                        <li>Upload image → Saved to Firebase Storage</li>
-                        <li>Cloud Function triggers automatically</li>
-                        <li>Image sent to AI detection server</li>
-                        <li>Detected holds saved to Firestore</li>
-                        <li>Holds appear here (refresh if needed)</li>
-                      </ol>
-                      <p class="text-xs text-gray-500 mt-3">
-                        Detection server URL is configured in the Cloud Function backend. See <code class="bg-gray-200 px-1 rounded">HOLD_DETECTION_SERVER_CONFIG.md</code> for configuration.
-                      </p>
+                      <p class="text-sm">Just upload an image and holds will appear within a few seconds. If they don't show up, try refreshing the page.</p>
                     </div>
 
                     <!-- Compression Settings -->
