@@ -30,6 +30,7 @@
           :src="currentVideo.downloadUrl"
           controls
           autoplay
+          muted
           class="max-h-screen max-w-screen rounded-lg"
         />
 

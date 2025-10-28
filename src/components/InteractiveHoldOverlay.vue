@@ -600,8 +600,10 @@ const hasActiveGradeFilter = computed(() => {
 const getHoldProblemId = (hold) => {
   if (!hold) return null;
   
+  const holdIdentifier = hold.id;
+  
   for (const problem of props.boulderProblems) {
-    const holdFound = problem.holds?.some((h) => h.holdId === hold.holdId);
+    const holdFound = problem.holds?.some((h) => h.holdId === holdIdentifier);
     if (holdFound) {
       return problem.id;
     }
@@ -609,7 +611,7 @@ const getHoldProblemId = (hold) => {
 
   // Check if it's in the active problem being created
   if (props.isCreatingProblem && props.activeProblem) {
-    const inActiveProblem = props.activeProblem.holds?.some((h) => h.holdId === hold.holdId);
+    const inActiveProblem = props.activeProblem.holds?.some((h) => h.holdId === holdIdentifier);
     if (inActiveProblem) {
       return props.activeProblem.id;
     }
@@ -617,7 +619,7 @@ const getHoldProblemId = (hold) => {
 
   // Check if it's in the problem being edited
   if (props.isEditingProblem && props.editingProblem) {
-    const inEditingProblem = props.editingProblem.holds?.some((h) => h.holdId === hold.holdId);
+    const inEditingProblem = props.editingProblem.holds?.some((h) => h.holdId === holdIdentifier);
     if (inEditingProblem) {
       return props.editingProblem.id;
     }

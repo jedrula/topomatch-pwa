@@ -982,18 +982,18 @@ watch(
   }
 );
 
-// Watch editing state for internal component logic (no longer emits to parent)
+// Watch editing problem to populate form when problem loads or changes
 watch(
-  () => props.editingProblemId,
-  (newEditingProblemId, oldEditingProblemId) => {
+  editingProblem,
+  (newEditingProblem, oldEditingProblem) => {
     // When starting to edit a problem, populate the form
-    if (newEditingProblemId && editingProblem.value) {
-      problemName.value = editingProblem.value.name;
-      selectedGrade.value = getGradeLabel(editingProblem.value.grade);
+    if (newEditingProblem) {
+      problemName.value = newEditingProblem.name;
+      selectedGrade.value = getGradeLabel(newEditingProblem.grade);
     }
 
     // When stopping editing, clear the form
-    if (!newEditingProblemId && oldEditingProblemId) {
+    if (!newEditingProblem && oldEditingProblem) {
       problemName.value = '';
       initializeDefaultGrade();
     }

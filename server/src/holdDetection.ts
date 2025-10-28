@@ -47,7 +47,8 @@ interface DetectionResponse {
 
 // Firestore hold format (with generated IDs)
 interface FirestoreHold {
-  id: string;
+  id: string; // For hover tracking and UI interactions
+  holdId: string; // For boulder problem membership checks
   svgMarkup: string;
   bbox: [number, number, number, number];
   x: number;
@@ -265,8 +266,10 @@ export const onLocationImageUploaded = onObjectFinalized(
           logger.warn(`  ⚠️ No valid bbox found for hold ${index}`);
         }
         
+        const holdId = `ai_hold_${index}`;
         const mappedHold = {
-          id: `ai_hold_${index}`, // Generate ID in same format as frontend
+          id: holdId, // For hover tracking and UI interactions
+          holdId: holdId, // For boulder problem membership checks
           svgMarkup: (detectionResult as any).svg_markups?.[index] || hold.svgMarkup || "", // Get SVG from parallel array
           bbox: [x, y, width, height] as [number, number, number, number],
           x: x,
