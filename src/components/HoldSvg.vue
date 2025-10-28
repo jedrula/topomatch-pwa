@@ -99,9 +99,20 @@ const handleHover = (isEntering, event) => {
 
 .interaction-selected :deep(path) {
   stroke: var(--hold-color, #3b82f6);
-  stroke-width: 2;
   fill: transparent;
-  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6));
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 1));
+  animation: pulse-selected 1s ease-in-out infinite;
+}
+
+@keyframes pulse-selected {
+  0%, 100% {
+    stroke-width: 13;
+    stroke-opacity: 1;
+  }
+  50% {
+    stroke-width: 6;
+    stroke-opacity: 0.7;
+  }
 }
 
 /* Hidden: solid fill with scale to cover completely */
