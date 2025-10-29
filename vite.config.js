@@ -33,22 +33,13 @@ export default defineConfig({
     vueDevTools(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
-      manifest: {
-        name: 'Offline Vue PWA',
-        short_name: 'VuePWA',
-        description: 'A Progressive Web App built with Vue.js',
-        theme_color: '#ffffff',
-        icons: [
-          {
-            src: 'favicon.ico',
-            sizes: '64x64 32x32 24x24 16x16',
-            type: 'image/x-icon',
-          },
-        ],
-      },
+      registerType: 'autoUpdate', // Auto-update in background, users see changes after 1-2 refreshes
       workbox: {
         maximumFileSizeToCacheInBytes: 70 * 1024 * 1024,
+        navigateFallback: null, // Disable since we have rewrites in firebase.json
+        cleanupOutdatedCaches: true, // Auto-cleanup old caches on update
+        clientsClaim: true, // Take control immediately on activation
+        skipWaiting: true, // Activate new service worker immediately
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'document',
@@ -60,8 +51,31 @@ export default defineConfig({
             handler: 'StaleWhileRevalidate',
           },
           {
-            urlPattern: ({ request }) => request.destination === 'image',
+            // Cache images EXCEPT Firebase Storage URLs
+            urlPattern: ({ request, url }) => 
+              request.destination === 'image' && 
+              !url.hostname.includes('firebasestorage.googleapis.com'),
             handler: 'CacheFirst',
+          },
+          {
+            // Firebase Storage images - NetworkFirst with CORS
+            urlPattern: ({ url }) => 
+              url.hostname === 'firebasestorage.googleapis.com',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'firebase-storage-cache',
+              fetchOptions: {
+                mode: 'cors',
+                credentials: 'omit',
+              },
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
           },
           {
             urlPattern: /.*\.onnx$/,
@@ -76,6 +90,22 @@ export default defineConfig({
                 statuses: [200],
               },
             },
+          },
+        ],
+      },
+      manifest: {
+        name: 'TopoMatch',
+        short_name: 'TopoMatch',
+        description: 'Climbing route and boulder problem tracker',
+        theme_color: '#3b82f6',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          {
+            src: 'favicon.ico',
+            sizes: '64x64 32x32 24x24 16x16',
+            type: 'image/x-icon',
           },
         ],
       },

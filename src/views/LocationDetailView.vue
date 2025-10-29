@@ -27,6 +27,7 @@
                 :src="fixLocalhostUrl(location.heroImageUrl)"
                 :alt="location.name"
                 class="w-full h-full object-contain"
+                crossorigin="anonymous"
               />
             </div>
             

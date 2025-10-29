@@ -135,6 +135,7 @@
             @ended="onVideoEnded"
             playsinline
             preload="metadata"
+            crossorigin="anonymous"
           />
           
           <!-- Custom video controls overlay -->

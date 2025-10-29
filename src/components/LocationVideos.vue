@@ -76,6 +76,7 @@
               class="w-full h-full object-cover transition-transform group-hover:scale-105"
               muted
               preload="metadata"
+              crossorigin="anonymous"
               @loadedmetadata="handleVideoMetadata"
               @seeked="handleVideoSeeked"
               @error="handleVideoError"

@@ -5,6 +5,7 @@
         ref="sourceImage"
         :src="sourceImageUrl"
         alt="Video frame"
+        crossorigin="anonymous"
         @load="onSourceImageLoad"
       />
       <img
@@ -12,6 +13,7 @@
         ref="targetImage"
         :src="targetImageUrl"
         alt="Reference image"
+        crossorigin="anonymous"
         @load="onTargetImageLoad"
       />
 
@@ -294,6 +296,7 @@
               :src="sourceImageUrl"
               alt="Source for testing"
               class="max-w-full max-h-[300px] object-contain cursor-crosshair"
+              crossorigin="anonymous"
               @load="onDebugSourceImageLoad"
               @click="onSourceImageClick"
             />
@@ -365,6 +368,7 @@
               :src="targetImageUrl"
               alt="Target with projections"
               class="max-w-full max-h-[300px] object-contain"
+              crossorigin="anonymous"
               @load="onDebugTargetImageLoad"
             />
             <!-- Projected test points overlay on target -->

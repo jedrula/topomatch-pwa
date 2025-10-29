@@ -21,6 +21,7 @@
       :src="imageUrl"
       :alt="imageAlt"
       :class="imageClass"
+      crossorigin="anonymous"
       @load="onImageLoad"
     />
     

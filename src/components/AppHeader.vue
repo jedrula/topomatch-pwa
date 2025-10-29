@@ -9,7 +9,7 @@
           to="/" 
           class="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
         >
-          TopoMatch
+          TopoMatch(v1.3)
         </router-link>
       </div>
 

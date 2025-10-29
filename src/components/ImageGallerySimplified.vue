@@ -104,6 +104,7 @@
               :src="getOptimalImageUrl(currentImage.url)"
               :alt="currentImage.name || 'Climbing route'"
               class="w-full h-auto object-contain block max-h-full"
+              crossorigin="anonymous"
               @load="onImageLoad"
             />
           </template>
@@ -145,6 +146,7 @@
             :src="getOptimalImageUrl(currentImage.url)"
             :alt="currentImage.name || 'Climbing route'"
             class="w-full h-auto object-contain block max-h-full"
+            crossorigin="anonymous"
             @load="onImageLoad"
           />
         </div>

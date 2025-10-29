@@ -118,6 +118,7 @@
               :src="bestMatch.url"
               alt="Best match"
               class="w-24 h-24 object-cover rounded border"
+              crossorigin="anonymous"
             />
             <div>
               <h4 class="text-sm font-medium text-gray-900">{{ bestMatch.name }}</h4>

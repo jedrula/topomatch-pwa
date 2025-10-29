@@ -31,6 +31,7 @@
           controls
           autoplay
           muted
+          crossorigin="anonymous"
           class="max-h-screen max-w-screen rounded-lg"
         />
 

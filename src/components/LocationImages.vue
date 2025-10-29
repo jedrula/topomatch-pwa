@@ -110,6 +110,7 @@
               <source 
                 :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
                 type="image/webp"
+                crossorigin="anonymous"
               />
               <!-- JPEG fallback -->
               <img
@@ -119,6 +120,7 @@
                 @click="$emit('image-click', image)"
                 @error="(e) => e.target.src = image.url"
                 loading="lazy"
+                crossorigin="anonymous"
               />
             </picture>
             

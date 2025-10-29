@@ -66,18 +66,21 @@
             :srcset="getResponsiveImageSrcset(currentImage.url, 'webp')"
             sizes="(max-width: 768px) 800px, (max-width: 1920px) 1920px, 100vw"
             type="image/webp"
+            crossorigin="anonymous"
           />
           <!-- JPEG fallback for older browsers -->
           <source 
             :srcset="getResponsiveImageSrcset(currentImage.url, 'jpeg')"
             sizes="(max-width: 768px) 800px, (max-width: 1920px) 1920px, 100vw"
             type="image/jpeg"
+            crossorigin="anonymous"
           />
           <!-- Fallback img element -->
           <img
             :src="getOptimalImageUrl(currentImage.url, 1920)"
             :alt="currentImage.name"
             class="max-w-full max-h-full object-contain"
+            crossorigin="anonymous"
             @load="overlay.handleImageLoad"
             :ref="overlay.imageRef"
             loading="lazy"
@@ -139,6 +142,7 @@
           :src="getResizedImageUrl(image.url, '300x300', 'webp')" 
           :alt="image.name" 
           class="w-full h-full object-cover"
+          crossorigin="anonymous"
           loading="lazy"
         />
       </button>

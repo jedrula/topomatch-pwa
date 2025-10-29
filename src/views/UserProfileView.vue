@@ -65,6 +65,7 @@
               class="w-full h-full object-cover"
               muted
               preload="metadata"
+              crossorigin="anonymous"
             />
 
             <!-- Play button overlay -->

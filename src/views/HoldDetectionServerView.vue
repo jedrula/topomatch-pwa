@@ -116,6 +116,7 @@
                   alt="Climbing wall for hold detection"
                   class="w-full h-auto object-contain block"
                   @load="onImageLoad"
+                  crossorigin="anonymous"
                 />
                 <!-- Interactive Hold Overlay with Manual Drawing Support -->
                 <InteractiveHoldOverlay

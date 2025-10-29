@@ -37,6 +37,7 @@
                   :src="image.url" 
                   :alt="problem.name"
                   class="w-full h-full object-cover"
+                  crossorigin="anonymous"
                 />
               </div>
             </div>

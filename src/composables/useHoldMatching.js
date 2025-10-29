@@ -11,7 +11,7 @@
 export function extractHoldCoordinates(hold) {
   let holdX, holdY;
 
-  // PRIORITY 1: Check for explicit center coordinates (manual holds from ManualHoldCreator have these)
+  // PRIORITY 1: Check for explicit center coordinates
   if (hold.centerX !== undefined && hold.centerY !== undefined) {
     holdX = hold.centerX;
     holdY = hold.centerY;

@@ -33,7 +33,7 @@
       />
       <div v-if="isUploading" class="mt-2 text-blue-600">Uploading hero image...</div>
       <div v-if="form.heroImageUrl && !isUploading" class="mt-2">
-        <img :src="form.heroImageUrl" alt="Hero" class="h-24 rounded object-cover" />
+        <img :src="form.heroImageUrl" alt="Hero" class="h-24 rounded object-cover" crossorigin="anonymous" />
       </div>
     </div>
 
