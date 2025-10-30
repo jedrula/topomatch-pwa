@@ -531,17 +531,23 @@ const handleVideoSelected = async (file) => {
 };
 
 const processVideo = async () => {
+  const totalStartTime = performance.now();
+  console.log('🎬 Starting video processing pipeline...');
+  
   try {
     isProcessing.value = true;
     error.value = null;
 
     // Step 1: Extract frames
+    const extractStartTime = performance.now();
     processingStatus.value = 'Extracting video frames...';
     processingDetails.value = `Extracting frames at ${FRAME_TIMESTAMPS.map(
       (t) => t * 100 + '%'
     ).join(', ')}`;
 
     const frames = await extractVideoFrames(selectedVideo.value, FRAME_TIMESTAMPS);
+    const extractTime = performance.now() - extractStartTime;
+    console.log(`  ✅ Frame extraction: ${(extractTime / 1000).toFixed(2)}s`);
 
     // Convert frames to display format
     const processedFrames = [];
@@ -562,6 +568,7 @@ const processVideo = async () => {
     emit('frames-extracted', extractedFrames.value);
 
     // Step 2: Run pose detection on each frame
+    const poseStartTime = performance.now();
     processingStatus.value = 'Detecting poses...';
 
     for (let i = 0; i < extractedFrames.value.length; i++) {
@@ -618,12 +625,15 @@ const processVideo = async () => {
     // Check if we got any successful pose detections
     const successfulDetections = extractedFrames.value.filter(f => f.poseData).length;
     const totalFrames = extractedFrames.value.length;
+    const poseTime = performance.now() - poseStartTime;
+    console.log(`  ✅ Pose detection: ${(poseTime / 1000).toFixed(2)}s (${successfulDetections}/${totalFrames} frames)`);
 
     emit(
       'pose-detected',
       extractedFrames.value.map((f) => f.poseData)
     );
 
+    const totalTime = performance.now() - totalStartTime;
     processingStatus.value = 'Ready for image matching';
     if (successfulDetections === 0) {
       processingDetails.value = 'No poses detected in any frame - try better lighting or positioning';
@@ -632,6 +642,62 @@ const processVideo = async () => {
     } else {
       processingDetails.value = 'Frames extracted and poses detected successfully';
     }
+    
+    // Get memory usage
+    let memoryInfo = '';
+    try {
+      // Try new Memory API first (includes workers, requires Cross-Origin Isolation)
+      if (performance.measureUserAgentSpecificMemory) {
+        const memoryMeasurement = await performance.measureUserAgentSpecificMemory();
+        const totalBytes = memoryMeasurement.bytes;
+        const totalMB = (totalBytes / 1024 / 1024).toFixed(1);
+        
+        // Break down by attribution (main thread, workers, etc.)
+        const breakdown = memoryMeasurement.breakdown || [];
+        let workerMemory = 0;
+        let mainMemory = 0;
+        
+        breakdown.forEach(entry => {
+          const bytes = entry.bytes;
+          if (entry.types?.includes('Worker') || entry.attribution?.[0]?.scope === 'DedicatedWorkerGlobalScope') {
+            workerMemory += bytes;
+          } else {
+            mainMemory += bytes;
+          }
+        });
+        
+        const workerMB = (workerMemory / 1024 / 1024).toFixed(1);
+        const mainMB = (mainMemory / 1024 / 1024).toFixed(1);
+        
+        memoryInfo = `
+║  Memory Total:      ${totalMB} MB
+║  ├─ Main Thread:    ${mainMB} MB
+║  └─ Workers:        ${workerMB} MB`;
+      } else if (performance.memory) {
+        // Fallback to legacy API (Chrome-only, main thread only)
+        const usedMB = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
+        const totalMB = (performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(1);
+        const limitMB = (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(1);
+        memoryInfo = `
+║  Memory Used:       ${usedMB} MB / ${totalMB} MB (main thread only)
+║  Memory Limit:      ${limitMB} MB`;
+      }
+    } catch (err) {
+      console.warn('Could not measure memory:', err.message);
+    }
+    
+    console.log(`
+╔════════════════════════════════════════════════════════════╗
+║  📹 VIDEO PROCESSING COMPLETE                              ║
+╔════════════════════════════════════════════════════════════╗
+║  Total Time:        ${(totalTime / 1000).toFixed(2)}s
+║  Frame Extraction:  ${(extractTime / 1000).toFixed(2)}s
+║  Pose Detection:    ${(poseTime / 1000).toFixed(2)}s
+║  Frames Processed:  ${totalFrames}
+║  Poses Detected:    ${successfulDetections}/${totalFrames}${memoryInfo}
+║  Status:            Ready for image matching
+╚════════════════════════════════════════════════════════════╝
+    `);
   } catch (err) {
     console.error('Video processing error:', err);
     error.value = 'Failed to process video: ' + err.message;
@@ -729,6 +795,7 @@ const extractPoseKeypoints = async (imageData) => {
 };
 
 const handleMatchFound = async (matchedImage) => {
+  console.log('🎯 Match found:', matchedImage?.name || 'Unknown');
   // Just emit the match found event - homography will be calculated in handleAnalysisComplete
   emit('match-found', {
     video: selectedVideo.value,
@@ -738,6 +805,7 @@ const handleMatchFound = async (matchedImage) => {
 };
 
 const handleAnalysisComplete = async (bestMatchResult) => {
+  console.log('✅ Image analysis complete, processing results...');
   bestMatch.value = bestMatchResult;
 
   // Load the actual image to get its natural dimensions as a fallback
@@ -745,6 +813,7 @@ const handleAnalysisComplete = async (bestMatchResult) => {
   if (!bestMatchResult.referenceImageDimensions) {
     try {
       const img = new Image();
+      img.crossOrigin = 'anonymous'; // Enable CORS for Cross-Origin Isolation
       await new Promise((resolve, reject) => {
         img.onload = () => {
           bestMatch.value.referenceImageDimensions = {
@@ -758,6 +827,7 @@ const handleAnalysisComplete = async (bestMatchResult) => {
       });
     } catch (error) {
       console.warn('❌ Failed to load reference image dimensions:', error);
+      // Continue anyway - not critical for analysis
     }
   }
 

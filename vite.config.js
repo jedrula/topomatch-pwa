@@ -142,10 +142,41 @@ export default defineConfig({
       'application/wasm': ['wasm'],
     },
     headers: {
-      'Cross-Origin-Embedder-Policy': 'unsafe-none',
+      // Enable Cross-Origin Isolation in dev mode for multi-threading testing
+      // NOTE: This may cause CORS issues with Firebase Storage emulator
+      // If you see CORS errors, change 'require-corp' back to 'unsafe-none'
+      'Cross-Origin-Embedder-Policy': 'require-corp',
       'Cross-Origin-Opener-Policy': 'same-origin',
     },
     proxy: {
+      // Firebase Storage emulator with CORS headers
+      '/v0/b': {
+        target: 'http://localhost:9199',
+        changeOrigin: true,
+        configure: (proxy, options) => {
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            // Add CORS headers to Firebase Storage emulator responses
+            proxyRes.headers['access-control-allow-origin'] = '*';
+            proxyRes.headers['access-control-allow-methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+            proxyRes.headers['access-control-allow-headers'] = 'Content-Type, Authorization';
+            proxyRes.headers['cross-origin-resource-policy'] = 'cross-origin';
+          });
+        },
+      },
+      // Firestore emulator with CORS headers
+      '/google.firestore': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        ws: true,
+        configure: (proxy, options) => {
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            proxyRes.headers['access-control-allow-origin'] = '*';
+            proxyRes.headers['access-control-allow-methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+            proxyRes.headers['access-control-allow-headers'] = '*';
+            proxyRes.headers['cross-origin-resource-policy'] = 'cross-origin';
+          });
+        },
+      },
       '/api/storage': {
         target: 'http://localhost:9199',
         changeOrigin: true,

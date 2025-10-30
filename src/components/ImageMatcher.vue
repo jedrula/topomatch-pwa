@@ -40,10 +40,35 @@
             />
           </svg>
         </div>
-        <div>
+        <div class="flex-1">
           <h4 class="text-sm font-medium text-yellow-900">No Clear Match</h4>
           <p class="text-sm text-yellow-700 mt-1">
             No strong match found among the comparison images. You may need to select manually.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Match Found (Success) -->
+    <div
+      v-else-if="analysisComplete && bestMatch"
+      class="bg-green-50 border border-green-200 rounded-lg p-4"
+    >
+      <div class="flex items-start space-x-3">
+        <div class="flex-shrink-0">
+          <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h4 class="text-sm font-medium text-green-900">Match Found!</h4>
+          <p class="text-sm text-green-700 mt-1">
+            {{ bestMatch.name || 'Problem identified' }}
           </p>
         </div>
       </div>
@@ -105,7 +130,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['match-found', 'analysis-complete', 'analysis-error']);
+const emit = defineEmits(['match-found', 'analysis-complete', 'analysis-error', 'analysis-start']);
 
 // Get inference store for image analysis
 const inferenceStore = useInferenceStore();
@@ -113,6 +138,8 @@ const inferenceStore = useInferenceStore();
 // Reactive state
 const isAnalyzing = ref(false);
 const analysisComplete = ref(false);
+const analysisStartTime = ref(null);
+const analysisTotalTime = ref(null);
 const analysisStatus = ref('');
 const currentImageIndex = ref(0);
 const totalImages = ref(0);
@@ -130,6 +157,8 @@ const analysisProgress = computed(() => {
 const resetAnalysis = () => {
   isAnalyzing.value = false;
   analysisComplete.value = false;
+  analysisStartTime.value = null;
+  analysisTotalTime.value = null;
   analysisStatus.value = '';
   currentImageIndex.value = 0;
   totalImages.value = 0;
@@ -185,8 +214,14 @@ const waitForInferenceSession = async (maxWaitTime = 30000) => {
 };
 
 const startAnalysis = async () => {
+  console.log('🎬 ImageMatcher.startAnalysis() called');
+  
   if (!props.sourceImage || props.comparisonImages.length === 0) {
     error.value = 'Missing source image or comparison images';
+    console.warn('⚠️ Cannot start analysis:', { 
+      hasSource: !!props.sourceImage, 
+      comparisonCount: props.comparisonImages.length 
+    });
     return;
   }
 
@@ -211,6 +246,11 @@ const startAnalysis = async () => {
       resetAnalysis();
       isAnalyzing.value = true;
     }
+    
+    // Start timing AFTER reset (so it doesn't get cleared)
+    analysisStartTime.value = performance.now();
+    console.log(`⏱️ Analysis timer started at ${analysisStartTime.value.toFixed(2)}`);
+    
     analysisStatus.value = 'Preparing source image...';
 
     // Prepare source image
@@ -231,6 +271,8 @@ const startAnalysis = async () => {
       sourceImageFile,
       comparisonUrls,
       (bestMatchUrl) => {
+        console.log('📊 Analysis callback triggered with:', bestMatchUrl);
+        
         // Find the comparison image that matches the best result
         const matchedImage = props.comparisonImages.find((img) => img.url === bestMatchUrl);
 
@@ -248,6 +290,89 @@ const startAnalysis = async () => {
         analysisComplete.value = true;
         isAnalyzing.value = false;
 
+        console.log('⏰ Calculating timing...', {
+          hasStartTime: !!analysisStartTime.value,
+          startTime: analysisStartTime.value,
+          currentTime: performance.now(),
+          totalImages: totalImages.value
+        });
+
+        // Calculate total time
+        if (analysisStartTime.value) {
+          analysisTotalTime.value = performance.now() - analysisStartTime.value;
+          const totalTimeMs = analysisTotalTime.value;
+          const totalTimeSec = totalTimeMs / 1000;
+          const avgPerImage = totalTimeMs / totalImages.value;
+          
+          // Measure memory asynchronously without blocking
+          const measureMemory = async () => {
+            try {
+              // Try new Memory API first (includes workers, requires Cross-Origin Isolation)
+              if (performance.measureUserAgentSpecificMemory) {
+                const memoryMeasurement = await performance.measureUserAgentSpecificMemory();
+                const totalBytes = memoryMeasurement.bytes;
+                const totalMB = (totalBytes / 1024 / 1024).toFixed(1);
+                
+                // Break down by attribution (main thread, workers, etc.)
+                const breakdown = memoryMeasurement.breakdown || [];
+                let workerMemory = 0;
+                let mainMemory = 0;
+                
+                breakdown.forEach(entry => {
+                  const bytes = entry.bytes;
+                  if (entry.types?.includes('Worker') || entry.attribution?.[0]?.scope === 'DedicatedWorkerGlobalScope') {
+                    workerMemory += bytes;
+                  } else {
+                    mainMemory += bytes;
+                  }
+                });
+                
+                const workerMB = (workerMemory / 1024 / 1024).toFixed(1);
+                const mainMB = (mainMemory / 1024 / 1024).toFixed(1);
+                
+                return `
+║  Memory Total:      ${totalMB} MB
+║  ├─ Main Thread:    ${mainMB} MB
+║  └─ Workers:        ${workerMB} MB`;
+              } else if (performance.memory) {
+                // Fallback to legacy API (Chrome-only, main thread only)
+                const usedMB = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
+                const totalMB = (performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(1);
+                const limitMB = (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(1);
+                return `
+║  Memory Used:       ${usedMB} MB / ${totalMB} MB (main thread only)
+║  Memory Limit:      ${limitMB} MB`;
+              }
+            } catch (err) {
+              console.warn('Could not measure memory:', err.message);
+            }
+            return '';
+          };
+          
+          // Log performance with memory info
+          const logPerformance = (memInfo) => {
+            console.log(`
+╔════════════════════════════════════════════════════════════╗
+║  🔍 IMAGE MATCHING ANALYSIS COMPLETE                       ║
+╔════════════════════════════════════════════════════════════╗
+║  Total Time:        ${totalTimeSec.toFixed(2)}s
+║  Images Analyzed:   ${totalImages.value}
+║  Avg per Image:     ${avgPerImage.toFixed(0)}ms
+║  Match Found:       ${matchedImage ? '✅ Yes' : '❌ No'}${memInfo}
+║  Status:            Analysis ready
+╚════════════════════════════════════════════════════════════╝
+            `);
+          };
+          
+          // Measure memory and log (async, non-blocking)
+          measureMemory().then(logPerformance).catch(err => {
+            console.error('Memory measurement failed:', err);
+            logPerformance(''); // Log without memory info on error
+          });
+        } else {
+          console.warn('⚠️ No start time recorded - cannot calculate performance');
+        }
+
         // Emit completion event
         emit('analysis-complete', bestMatch.value);
       },
@@ -264,6 +389,19 @@ const startAnalysis = async () => {
     isAnalyzing.value = false;
     analysisComplete.value = true;
 
+    // Calculate total time even on error
+    if (analysisStartTime.value) {
+      analysisTotalTime.value = performance.now() - analysisStartTime.value;
+      console.log(`
+╔════════════════════════════════════════════════════════════╗
+║  ❌ IMAGE ANALYSIS FAILED                                  ║
+╔════════════════════════════════════════════════════════════╗
+║  Time Before Error: ${(analysisTotalTime.value / 1000).toFixed(2)}s (${analysisTotalTime.value.toFixed(0)}ms)
+║  Error:             ${err.message}
+╚════════════════════════════════════════════════════════════╝
+      `);
+    }
+
     // Emit error event
     emit('analysis-error', err);
   }
@@ -273,8 +411,14 @@ const startAnalysis = async () => {
 watch(
   () => [props.sourceImage, props.comparisonImages],
   async () => {
+    console.log('🔍 ImageMatcher watch triggered:', {
+      hasSourceImage: !!props.sourceImage,
+      comparisonCount: props.comparisonImages.length,
+      autoStart: props.autoStart
+    });
     resetAnalysis();
     if (props.autoStart && props.sourceImage && props.comparisonImages.length > 0) {
+      console.log('🚀 Auto-starting image analysis...');
       // Use setTimeout to avoid blocking the watcher
       setTimeout(() => {
         startAnalysis().catch((err) => {

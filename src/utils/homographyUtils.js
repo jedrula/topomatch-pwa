@@ -152,7 +152,7 @@ export async function extractVideoFrames(videoFile, timestamps) {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const frames = [];
     let currentTimestampIndex = 0;
 

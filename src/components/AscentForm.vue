@@ -110,7 +110,7 @@
         </div>
       </div>
 
-      <!-- Submit Button (disabled until problem is identified) -->
+      <!-- Submit Button -->
       <button
         type="submit"
         :disabled="!canSubmit || isSubmitting"
@@ -129,7 +129,6 @@
           ></path>
         </svg>
         <span v-if="isSubmitting">Logging ascent & uploading video...</span>
-        <span v-else-if="!detectedProblem">Waiting for problem identification...</span>
         <span v-else>Log Send</span>
       </button>
     </form>
@@ -197,9 +196,10 @@ const today = computed(() => {
   return new Date().toISOString().split('T')[0];
 });
 
-// Can submit when form is valid and problem is detected
+// Can submit when form is valid (problem detection not required)
 const canSubmit = computed(() => {
-  return formData.value.attemptType && formData.value.date && props.detectedProblem;
+  // Can submit when basic fields are filled
+  return formData.value.attemptType && formData.value.date;
 });
 
 // Expose formData for parent component to access
