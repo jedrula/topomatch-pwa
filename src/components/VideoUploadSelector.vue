@@ -46,8 +46,8 @@
           ></path>
         </svg>
         <div class="mb-4">
-          <h4 class="text-lg font-medium text-gray-900 mb-2">{{ title }}</h4>
-          <p class="text-sm text-gray-500">{{ subtitle }}</p>
+          <h4 class="text-lg font-medium text-gray-900 mb-1">{{ title }}</h4>
+          <p class="text-xs text-gray-500">{{ subtitle }}</p>
         </div>
 
         <!-- File Input -->

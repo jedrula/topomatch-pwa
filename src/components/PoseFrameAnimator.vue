@@ -1,7 +1,7 @@
 <template>
   <div class="pose-frame-animator">
     <!-- Frame Display -->
-    <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="max-height: 80vh;">
+    <div class="relative bg-gray-100 rounded-lg overflow-hidden">
       <img
         v-if="currentFrame"
         :src="currentFrame.url"

@@ -7,7 +7,7 @@
       <div class="flex items-center justify-between px-6 pb-4 flex-shrink-0">
         <div>
           <h3 class="text-lg font-semibold">Upload Beta Video</h3>
-          <p class="text-sm text-gray-600 mt-1">
+          <p class="text-xs text-gray-600">
             Upload a climbing video and we'll identify the problem automatically
           </p>
         </div>
@@ -43,7 +43,7 @@
 
         <!-- Analysis in Progress -->
         <div
-          v-if="isAnalyzing && !videoAnalysisResult"
+          v-if="isAnalyzing && !videoAnalysisResult && debugMode"
           class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4"
         >
           <div class="flex items-center space-x-3">

@@ -1,5 +1,16 @@
 <template>
   <div class="video-frame-matcher-component">
+    <!-- Fixed Debug Button (Bottom Right) -->
+    <button
+      v-if="selectedVideo"
+      @click="debugMode = !debugMode"
+      class="fixed bottom-4 right-4 z-50 text-lg px-3 py-2 rounded-lg shadow-lg transition-all hover:scale-105"
+      :class="debugMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400'"
+      title="Toggle debug information"
+    >
+      �
+    </button>
+
     <!-- Video Upload/Record Selector -->
     <VideoUploadSelector
       v-if="!selectedVideo"
@@ -12,7 +23,7 @@
     <!-- Video Selected and Processing -->
     <div v-else class="space-y-6">
       <!-- Video Info -->
-      <div class="bg-gray-50 rounded-lg p-4">
+      <div v-if="debugMode" class="bg-gray-50 rounded-lg p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
             <svg
@@ -33,19 +44,11 @@
               <p class="text-xs text-gray-500">{{ formatFileSize(selectedVideo.size) }}</p>
             </div>
           </div>
-          <button
-            @click="debugMode = !debugMode"
-            class="text-xs px-2 py-1 rounded transition-colors"
-            :class="debugMode ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-            title="Toggle debug information"
-          >
-            {{ debugMode ? '🔍 Debug ON' : '🔍 Debug' }}
-          </button>
         </div>
       </div>
 
       <!-- Processing Status -->
-      <div v-if="isProcessing" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div v-if="isProcessing && debugMode" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div class="flex items-center space-x-3">
           <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
           <div>
@@ -89,10 +92,25 @@
       </div>
 
       <!-- Video Frames Animator + Ascent Form (shown as soon as frames are extracted) -->
-      <div v-if="extractedFrames.length > 0 && !isProcessing" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Left: Animated GIF -->
-        <div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Left: Animated GIF / Skeleton -->
+        <div style="max-height: 80vh;">
+          <!-- Skeleton Loader -->
+          <div v-if="extractedFrames.length === 0" class="rounded-lg overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse relative" style="width: 50%; margin: 10% auto;">
+            <div class="aspect-[3/4]">
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="text-center text-gray-400">
+                  <svg class="w-16 h-16 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                  </svg>
+                  <p class="text-sm font-medium">Processing video...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Actual PoseFrameAnimator -->
           <PoseFrameAnimator 
+            v-else
             :frames="extractedFrames"
             :frame-rate="1"
             :auto-play="true"
