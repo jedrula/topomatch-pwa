@@ -1,5 +1,8 @@
 <template>
   <div class="min-h-screen bg-gray-50 px-3 sm:px-4 py-4 sm:py-8">
+    <!-- Toast Notification -->
+    <ToastNotification />
+
     <div class="max-w-4xl mx-auto">
       <!-- Loading state -->
       <div v-if="isLoading" class="flex items-center justify-center py-12">
@@ -203,10 +206,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
 import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
 import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
+import { useToast } from '../composables/useToast.js';
 import ImageUploadModal from '../components/ImageUploadModal.vue';
 import ImageGallerySimplified from '../components/ImageGallerySimplified.vue';
 import VideoGallery from '../components/VideoGallery.vue';
 import BetaVideoUploadModal from '../components/BetaVideoUploadModal.vue';
+import ToastNotification from '../components/ToastNotification.vue';
 import LocationImages from '../components/LocationImages.vue';
 import LocationVideos from '../components/LocationVideos.vue';
 import LocationBoulderProblems from '../components/LocationBoulderProblems.vue';
@@ -221,6 +226,7 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const boulderProblemsStore = useBoulderProblemsStore();
+const toast = useToast();
 
 // Video analysis composable
 const {
@@ -474,11 +480,13 @@ const handleAscentFormSubmitWrapper = async (submitData) => {
     await handleAscentFormSubmit(submitData);
     showBetaUploadModal.value = false;
     isBetaModalMinimized.value = false;
+    toast.success('✅ Ascent logged successfully!');
   } else {
     // No problem yet - store submission data and minimize modal (hide but keep mounted)
     console.log('📦 Storing submission data, waiting for detection to complete');
     pendingAscentSubmission.value = submitData;
     isBetaModalMinimized.value = true;
+    toast.loading('🔍 Detecting problem...'); // No auto-dismiss
   }
 };
 
@@ -497,6 +505,9 @@ const handleDetectionComplete = async (detectionData) => {
     
     // Clear pending data
     pendingAscentSubmission.value = null;
+    
+    // Update toast to show success
+    toast.success(`✅ Problem detected: ${detectionData.winner.name}`);
     
     // Create the ascent
     await handleAscentFormSubmit(completeSubmitData);
