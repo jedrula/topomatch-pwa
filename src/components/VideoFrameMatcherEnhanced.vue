@@ -92,33 +92,12 @@
       </div>
 
       <!-- Video Frames Animator + Ascent Form (shown as soon as frames are extracted) -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Left: Animated GIF / Skeleton -->
-        <div style="max-height: 80vh;">
-          <!-- Skeleton Loader -->
-          <div v-if="extractedFrames.length === 0" class="rounded-lg overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse relative" style="width: 50%; margin: 10% auto;">
-            <div class="aspect-[3/4]">
-              <div class="absolute inset-0 flex items-center justify-center">
-                <div class="text-center text-gray-400">
-                  <svg class="w-16 h-16 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                  </svg>
-                  <p class="text-sm font-medium">Processing video...</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Actual PoseFrameAnimator -->
-          <PoseFrameAnimator 
-            v-else
-            :frames="extractedFrames"
-            :frame-rate="1"
-            :auto-play="true"
-            :debug-mode="debugMode"
-          />
-        </div>
-
-        <!-- Right: Ascent Form -->
+      <div class="grid grid-cols-1 lg:grid-cols-1 gap-6">
+        <!-- 🎯 MEMORY OPTIMIZATION: Hide PoseFrameAnimator to save memory -->
+        <!-- Keeping 10 full-res frames in memory for animation is expensive (~80-100 MB) -->
+        <!-- We only need frames for pose detection, not display -->
+        
+        <!-- Just show the Ascent Form -->
         <div>
           <AscentForm
             :detected-problem="detectedProblemForForm"
@@ -216,8 +195,8 @@
 
       <!-- Image Matcher Component -->
       <ImageMatcher
-        v-if="extractedFrames.length > 0 && comparisonImages.length > 0 && isPoseDetectionComplete"
-        :source-image="extractedFrames[0]?.file"
+        v-if="bestFrameForMatching && comparisonImages.length > 0 && isPoseDetectionComplete"
+        :source-image="bestFrameForMatching.file"
         :comparison-images="comparisonImages"
         :auto-start="autoStartMatching"
         @match-found="handleMatchFound"
@@ -262,7 +241,7 @@ import { ref, computed, watch, onUnmounted } from 'vue';
 import ImageMatcher from './ImageMatcher.vue';
 import VideoUploadSelector from './VideoUploadSelector.vue';
 import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
-import PoseFrameAnimator from './PoseFrameAnimator.vue';
+// import PoseFrameAnimator from './PoseFrameAnimator.vue'; // Commented out - hidden for memory optimization
 import CollapsibleSection from './CollapsibleSection.vue';
 import AscentForm from './AscentForm.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
@@ -319,6 +298,10 @@ const emit = defineEmits([
   'ascent-form-submit', // New event for ascent form submission
 ]);
 
+// 🎯 MEMORY OPTIMIZATION: Feature flag for debugging vs production
+// Set to true in production to enable downscaling and aggressive memory cleanup
+const DOWNSCALE_IMAGES = true;
+
 // Reactive state
 const selectedVideo = ref(null);
 const extractedFrames = ref([]);
@@ -356,6 +339,36 @@ const matchedImageBoulderProblems = computed(() => {
 // Check if pose detection is complete and ready for image matching
 const isPoseDetectionComplete = computed(() => {
   return processingStatus.value === 'Ready for image matching';
+});
+
+// 🎯 MEMORY OPTIMIZATION: Select single best frame for image matching
+// We keep all 10 frames for pose detection/display, but only use ONE for expensive image matching
+const bestFrameForMatching = computed(() => {
+  if (extractedFrames.value.length === 0) return null;
+  
+  // Find frame with highest confidence pose detection
+  const framesWithPoses = extractedFrames.value.filter(f => f.poseData);
+  
+  if (framesWithPoses.length === 0) {
+    // No poses detected, use first frame as fallback
+    return extractedFrames.value[0];
+  }
+  
+  // Select frame with highest average keypoint confidence
+  const frameWithBestPose = framesWithPoses.reduce((best, current) => {
+    const currentConfidence = Object.values(current.poseData.keypoints || {})
+      .filter(kp => kp && typeof kp.confidence === 'number')
+      .reduce((sum, kp) => sum + kp.confidence, 0) / 17; // 17 keypoints
+    
+    const bestConfidence = Object.values(best.poseData.keypoints || {})
+      .filter(kp => kp && typeof kp.confidence === 'number')
+      .reduce((sum, kp) => sum + kp.confidence, 0) / 17;
+    
+    return currentConfidence > bestConfidence ? current : best;
+  });
+  
+  console.log(`🎯 Selected frame for image matching: Frame ${extractedFrames.value.indexOf(frameWithBestPose) + 1} (best pose confidence)`);
+  return frameWithBestPose;
 });
 
 // Detected problem for the ascent form (from top scoring problem)
@@ -438,7 +451,7 @@ watch(poseDetectionError, (newError) => {
 
 // Watch for pose visibility changes to debug checkbox behavior
 
-// Frame timestamps for extraction - configurable for debugging
+// Frame timestamps for extraction - keep all 10 for good pose detection coverage
 const FRAMES_FOR_ANALYSIS = 10;
 const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
   ? [0.2] // Just extract one frame for debugging
@@ -645,6 +658,27 @@ const processVideo = async () => {
     const totalFrames = extractedFrames.value.length;
     const poseTime = performance.now() - poseStartTime;
     console.log(`  ✅ Pose detection: ${(poseTime / 1000).toFixed(2)}s (${successfulDetections}/${totalFrames} frames)`);
+
+    // 🎯 MEMORY OPTIMIZATION: Free frame resources after pose detection
+    // When DOWNSCALE_IMAGES=false (debugging), keep all frames for homography visualization
+    // When DOWNSCALE_IMAGES=true (production), free frames to save memory
+    const bestFrameIndex = extractedFrames.value.findIndex(f => f === bestFrameForMatching.value);
+    
+    if (!DOWNSCALE_IMAGES) {
+      console.log(`🐛 Debug mode: keeping all ${extractedFrames.value.length} frames for homography debugging`);
+    } else {
+      console.log(`🧹 Production mode: freeing ${extractedFrames.value.length - 1} frames, keeping only frame ${bestFrameIndex + 1} for image matching`);
+      
+      extractedFrames.value.forEach((frame, index) => {
+        if (index !== bestFrameIndex) {
+          // Free the large resources, keep only pose data
+          revokeFrameUrl(frame);
+          // Note: We keep the frame objects for pose data, just clear heavy resources
+          delete frame.file;
+          delete frame.url;
+        }
+      });
+    }
 
     emit(
       'pose-detected',
@@ -1061,11 +1095,7 @@ const clearState = () => {
   featureMatches.value = [];
 
   // Clean up any object URLs
-  extractedFrames.value.forEach((frame) => {
-    if (frame.url) {
-      URL.revokeObjectURL(frame.url);
-    }
-  });
+  cleanupFrameUrls();
 };
 
 // Utility functions
@@ -1082,7 +1112,7 @@ const createFileFromImageData = async (imageData, fileName) => {
         resolve(new File([blob], fileName, { type: 'image/jpeg' }));
       },
       'image/jpeg',
-      0.8
+      0.85 // Balanced quality - good compression without sacrificing model accuracy
     );
   });
 };
@@ -1093,7 +1123,7 @@ const createImageUrlFromImageData = (imageData) => {
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   ctx.putImageData(imageData, 0, 0);
-  return canvas.toDataURL('image/jpeg', 0.8);
+  return canvas.toDataURL('image/jpeg', 0.85); // Balanced quality
 };
 
 const formatFileSize = (bytes) => {
@@ -1101,6 +1131,21 @@ const formatFileSize = (bytes) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// 🧹 DRY Helper: Revoke blob URL if it's a blob (not data URL)
+const revokeFrameUrl = (frame) => {
+  if (!frame.url) return;
+  
+  // Data URLs don't need cleanup, only blob URLs
+  if (frame.url.startsWith('blob:')) {
+    URL.revokeObjectURL(frame.url);
+  }
+};
+
+// 🧹 Memory cleanup: Revoke blob URLs to free memory
+const cleanupFrameUrls = () => {
+  extractedFrames.value.forEach(revokeFrameUrl);
 };
 
 // Handle ascent form submission
@@ -1123,6 +1168,7 @@ const handleAscentFormSubmit = (formData) => {
 
 // Cleanup on component unmount
 onUnmounted(() => {
+  cleanupFrameUrls(); // Release blob URLs before clearing state
   clearState();
 });
 

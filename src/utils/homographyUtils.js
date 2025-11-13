@@ -157,9 +157,27 @@ export async function extractVideoFrames(videoFile, timestamps) {
     let currentTimestampIndex = 0;
 
     video.addEventListener('loadedmetadata', () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // 🎯 MEMORY OPTIMIZATION: Configurable downscaling
+      const DOWNSCALE_IMAGES = true; // Set to true in production for memory savings
+      const MAX_DIMENSION = 640; // Optimal for YOLOv8 (trained on 640x640)
       
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+      
+      let targetWidth = videoWidth;
+      let targetHeight = videoHeight;
+      
+      if (DOWNSCALE_IMAGES && (videoWidth > MAX_DIMENSION || videoHeight > MAX_DIMENSION)) {
+        const scale = Math.min(MAX_DIMENSION / videoWidth, MAX_DIMENSION / videoHeight);
+        targetWidth = Math.floor(videoWidth * scale);
+        targetHeight = Math.floor(videoHeight * scale);
+        console.log(`📐 Downscaling video frames: ${videoWidth}×${videoHeight} → ${targetWidth}×${targetHeight}`);
+      } else {
+        console.log(`📐 Extracting frames at full resolution: ${videoWidth}×${videoHeight} (DOWNSCALE_IMAGES=${DOWNSCALE_IMAGES})`);
+      }
+      
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
       
       // Simple validation for MP4 videos
       if (isFinite(video.duration) && video.duration > 0) {
@@ -207,8 +225,8 @@ export async function extractVideoFrames(videoFile, timestamps) {
     }
 
     video.addEventListener('seeked', () => {
-      // Draw current frame to canvas
-      ctx.drawImage(video, 0, 0);
+      // Draw current frame to canvas (scaled to target dimensions)
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       
       frames.push({
