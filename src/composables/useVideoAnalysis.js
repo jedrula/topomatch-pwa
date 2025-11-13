@@ -241,12 +241,12 @@ export function useVideoAnalysis() {
       // The submitData contains:
       // - formData: { attemptType, userGrade, notes, date }
       // - video: the uploaded video file
-      // - detectedProblem: { id, name, grade }
+      // - detectedProblem: { id, name, grade } (required)
       // - analysisScores: array of all problem scores
       // - bestMatch: the matched image data
       
       if (!submitData.detectedProblem) {
-        console.error('No problem detected yet');
+        console.error('No problem detected - cannot create ascent');
         return;
       }
       
@@ -266,39 +266,37 @@ export function useVideoAnalysis() {
       const ascentStore = useAscentStore();
       const locationId = route.params.locationId || route.params.id;
       
-      // Initialize the ascent store for this problem
-      ascentStore.initializeForProblem(locationId, problem.id);
-      
       // CRITICAL: Generate ascent ID on client FIRST
       const ascentId = generateAscentId();
       
-      // Start video upload with real ascent ID
+      // Initialize ascent store
+      ascentStore.initializeForProblem(locationId, problem.id);
+      
+      // Start video upload
       videoUploadQueue.startUpload(
         submitData.video,
         locationId,
         problem.id,
-        ascentId // Real ID, not temp!
+        ascentId
       );
       
-      // Convert date string to Date object and add problem snapshot
+      // Prepare ascent data
       const ascentData = {
         attemptType: submitData.formData.attemptType,
         userGrade: submitData.formData.userGrade || undefined,
         notes: submitData.formData.notes || undefined,
         date: new Date(submitData.formData.date),
-        // Problem snapshot - preserved even if problem deleted
         problemSnapshot: {
           name: problem.name,
           grade: problem.grade,
           color: problem.color,
         },
-        // NO video data - Cloud Function will add it when upload completes
       };
       
-      // Create the ascent immediately (video uploads in background)
+      // Create the ascent immediately
       await ascentStore.logAscent(ascentData, ascentId);
       
-      // Navigate to the problem page to show the logged ascent
+      // Navigate to the problem page
       await router.push({
         name: 'boulder-problem-detail',
         params: {

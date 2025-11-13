@@ -154,6 +154,7 @@
     <!-- Beta Video Upload Modal -->
     <BetaVideoUploadModal
       :is-open="showBetaUploadModal"
+      :is-minimized="isBetaModalMinimized"
       :comparison-images="images"
       :location-id="route.params.locationId"
       :is-analyzing="isAnalyzing"
@@ -163,14 +164,14 @@
       :pending-redirect-data="pendingRedirectData"
       :get-grade-color="getGradeColor"
       :get-grade-label="getGradeLabel"
-      @close="showBetaUploadModal = false"
+      @close="showBetaUploadModal = false; isBetaModalMinimized = false"
       @video-selected="handleBetaVideoSelected"
       @analysis-complete="handleBetaAnalysisComplete"
-      @table-scores-ready="handleTableScoresReady"
+      @table-scores-ready="(data) => { handleTableScoresReady(data); handleDetectionComplete(data); }"
       @processing-error="handleBetaProcessingError"
       @try-another-video="handleTryAnotherVideo"
       @continue-to-upload="continueToUpload"
-      @ascent-form-submit="handleAscentFormSubmit"
+      @ascent-form-submit="handleAscentFormSubmitWrapper"
     />
 
     <!-- Image Gallery Modal -->
@@ -252,6 +253,8 @@ const isLoading = ref(true);
 const error = ref('');
 const showUploadModal = ref(false);
 const showBetaUploadModal = ref(false);
+const isBetaModalMinimized = ref(false); // Track if modal is minimized
+const pendingAscentSubmission = ref(null); // Store form data while waiting for detection
 
 // Upload tracking state
 const pendingMetadataSaves = ref(0);
@@ -463,6 +466,56 @@ const handleBetaUploadClick = () => {
   // User is authenticated, show the upload modal
   showBetaUploadModal.value = true;
 };
+
+// Wrapper to minimize modal instead of closing when detection needed
+const handleAscentFormSubmitWrapper = async (submitData) => {
+  if (submitData.detectedProblem) {
+    // Problem already detected - create ascent immediately
+    await handleAscentFormSubmit(submitData);
+    showBetaUploadModal.value = false;
+    isBetaModalMinimized.value = false;
+  } else {
+    // No problem yet - store submission data and minimize modal (hide but keep mounted)
+    console.log('📦 Storing submission data, waiting for detection to complete');
+    pendingAscentSubmission.value = submitData;
+    isBetaModalMinimized.value = true;
+  }
+};
+
+// Close modal when detection completes
+const handleDetectionComplete = async (detectionData) => {
+  // If we have pending submission data, create the ascent now with detected problem
+  if (pendingAscentSubmission.value && detectionData?.winner) {
+    console.log('🎯 Detection complete! Creating ascent with detected problem:', detectionData.winner);
+    
+    // Merge pending data with detected problem
+    const completeSubmitData = {
+      ...pendingAscentSubmission.value,
+      detectedProblem: detectionData.winner,
+      allProblems: detectionData.allProblems
+    };
+    
+    // Clear pending data
+    pendingAscentSubmission.value = null;
+    
+    // Create the ascent
+    await handleAscentFormSubmit(completeSubmitData);
+  }
+  
+  // Close modal
+  showBetaUploadModal.value = false;
+  isBetaModalMinimized.value = false;
+};
+
+// Maximize modal (can be called from toast)
+const maximizeBetaModal = () => {
+  isBetaModalMinimized.value = false;
+};
+
+// Expose globally for toast
+if (typeof window !== 'undefined') {
+  window.maximizeBetaModal = maximizeBetaModal;
+}
 
 const editLocation = () => {
   // Navigate to edit form (could be same AddLocationView in edit mode)

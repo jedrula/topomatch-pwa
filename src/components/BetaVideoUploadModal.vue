@@ -1,9 +1,13 @@
 <template>
   <div
     v-if="isOpen"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+    class="fixed inset-0 flex items-center justify-center p-4 z-50"
+    :class="isMinimized ? 'pointer-events-none' : 'bg-black bg-opacity-50'"
   >
-    <div class="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] flex flex-col py-4">
+    <div 
+      v-show="!isMinimized"
+      class="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] flex flex-col py-4 pointer-events-auto"
+    >
       <div class="flex items-center justify-between px-6 pb-4 flex-shrink-0">
         <div>
           <h3 class="text-lg font-semibold">Upload Beta Video</h3>
@@ -271,6 +275,10 @@ defineProps({
   isOpen: {
     type: Boolean,
     required: true
+  },
+  isMinimized: {
+    type: Boolean,
+    default: false
   },
   comparisonImages: {
     type: Array,
