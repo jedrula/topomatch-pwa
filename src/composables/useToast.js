@@ -4,6 +4,7 @@ import { ref } from 'vue';
 const showToast = ref(false);
 const toastMessage = ref('');
 const toastType = ref('info'); // 'info', 'success', 'error', 'warning', 'loading'
+const toastAction = ref(null); // { label: string, onClick: function }
 let toastTimeout = null;
 
 /**
@@ -18,8 +19,9 @@ export function useToast() {
    * @param {string} message - The message to display
    * @param {string} type - Toast type: 'info', 'success', 'error', 'warning', 'loading'
    * @param {number} duration - Duration in ms (0 = no auto-dismiss, useful for loading states)
+   * @param {Object} action - Optional action button: { label: string, onClick: function }
    */
-  const show = (message, type = 'info', duration = 3000) => {
+  const show = (message, type = 'info', duration = 3000, action = null) => {
     // Clear any existing timeout
     if (toastTimeout) {
       clearTimeout(toastTimeout);
@@ -28,12 +30,14 @@ export function useToast() {
 
     toastMessage.value = message;
     toastType.value = type;
+    toastAction.value = action;
     showToast.value = true;
 
     // Auto-dismiss if duration > 0
     if (duration > 0) {
       toastTimeout = setTimeout(() => {
         showToast.value = false;
+        toastAction.value = null;
       }, duration);
     }
   };
@@ -47,6 +51,7 @@ export function useToast() {
       toastTimeout = null;
     }
     showToast.value = false;
+    toastAction.value = null;
   };
 
   /**
@@ -63,6 +68,7 @@ export function useToast() {
     showToast,
     toastMessage,
     toastType,
+    toastAction,
     
     // Methods
     show,

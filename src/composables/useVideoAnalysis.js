@@ -296,18 +296,21 @@ export function useVideoAnalysis() {
       // Create the ascent immediately
       await ascentStore.logAscent(ascentData, ascentId);
       
-      // Navigate to the problem page
-      await router.push({
-        name: 'boulder-problem-detail',
-        params: {
-          locationId: locationId,
-          problemId: problem.id,
-        },
-      });
+      // Return problem info for parent to handle (toast, navigation, etc.)
+      return {
+        success: true,
+        problem,
+        locationId,
+        ascentId
+      };
       
     } catch (error) {
       console.error('Error handling ascent form submission:', error);
       // Show error to user (could emit an event here)
+      return {
+        success: false,
+        error
+      };
     }
   };
 

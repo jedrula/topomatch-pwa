@@ -477,10 +477,32 @@ const handleBetaUploadClick = () => {
 const handleAscentFormSubmitWrapper = async (submitData) => {
   if (submitData.detectedProblem) {
     // Problem already detected - create ascent immediately
-    await handleAscentFormSubmit(submitData);
+    const result = await handleAscentFormSubmit(submitData);
     showBetaUploadModal.value = false;
     isBetaModalMinimized.value = false;
-    toast.success('✅ Ascent logged successfully!');
+    
+    if (result?.success) {
+      // Show success toast with link to problem
+      toast.show(
+        `✅ Ascent logged for ${result.problem.name}!`,
+        'success',
+        5000,
+        {
+          label: 'View Problem',
+          onClick: () => {
+            router.push({
+              name: 'boulder-problem-detail',
+              params: {
+                locationId: result.locationId,
+                problemId: result.problem.id,
+              },
+            });
+          }
+        }
+      );
+    } else {
+      toast.error('❌ Failed to log ascent');
+    }
   } else {
     // No problem yet - store submission data and minimize modal (hide but keep mounted)
     console.log('📦 Storing submission data, waiting for detection to complete');
@@ -506,11 +528,31 @@ const handleDetectionComplete = async (detectionData) => {
     // Clear pending data
     pendingAscentSubmission.value = null;
     
-    // Update toast to show success
-    toast.success(`✅ Problem detected: ${detectionData.winner.name}`);
-    
     // Create the ascent
-    await handleAscentFormSubmit(completeSubmitData);
+    const result = await handleAscentFormSubmit(completeSubmitData);
+    
+    if (result?.success) {
+      // Show success toast with link to problem
+      toast.show(
+        `✅ Problem detected: ${result.problem.name} - Ascent logged!`,
+        'success',
+        6000, // Longer duration for background detection
+        {
+          label: 'View Problem',
+          onClick: () => {
+            router.push({
+              name: 'boulder-problem-detail',
+              params: {
+                locationId: result.locationId,
+                problemId: result.problem.id,
+              },
+            });
+          }
+        }
+      );
+    } else {
+      toast.error('❌ Failed to log ascent');
+    }
   }
   
   // Close modal
