@@ -121,88 +121,72 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
   }
 
   const proximityThreshold = 300;
-  const allHoldsWithDistances = [];
 
-  // DUAL SOURCE: Check both AI detection results AND manual holds from boulder problems
-  // Source 1: AI detection results from Firestore hold detection service
-  if (bestMatchImage.detectionResults && bestMatchImage.detectionResults.results) {
-    bestMatchImage.detectionResults.results.forEach((detectedHold, index) => {
-      const coords = extractHoldCoordinates(detectedHold);
-      if (!coords) {
-        console.warn(`⚠️ Could not extract coords from AI hold #${index}:`, detectedHold);
-        return;
-      }
-
-      const distance = Math.sqrt(Math.pow(scaledKeypointX - coords.x, 2) + Math.pow(scaledKeypointY - coords.y, 2));
-      const score = distance <= proximityThreshold ? 
-        Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
-
-      // Look up which boulder problem this hold belongs to using immutable ID
-      const holdId = detectedHold.id || `detected_hold_${index}`;
-      const associatedProblem = findBoulderProblemForHold(holdId, boulderProblems);
-
-      allHoldsWithDistances.push({
-        hold: {
-          ...detectedHold,
-          id: holdId,
-          source: 'ai-detection'
-        },
-        problem: associatedProblem,
-        distance: Math.round(distance),
-        score: score
-      });
+  // STEP 1: Collect ALL holds (AI + Manual) - no need to iterate boulder problems!
+  const allHolds = [];
+  
+  // Source 1: AI-detected holds
+  if (bestMatchImage.detectionResults?.results) {
+    bestMatchImage.detectionResults.results.forEach((hold, index) => {
+      const holdId = hold.id || `ai_hold_${index}`;
+      allHolds.push({ ...hold, id: holdId, source: 'ai-detected' });
     });
   }
   
-  // Source 2: Manual holds from boulder problems  
-  if (boulderProblems && boulderProblems.length > 0) {
-    boulderProblems.forEach((problem) => {
-      if (problem.holds && Array.isArray(problem.holds)) {
-        problem.holds.forEach((holdWrapper) => {
-          // Manual holds from boulder problems have structure: {holdIndex, hold: {...}, addedAt, role}
-          // The actual hold data is in the nested 'hold' property
-          const hold = holdWrapper.hold || holdWrapper;
-          
-          // SKIP AI-detected holds - they're already processed in Source 1 with problem association
-          // This prevents duplicates when an AI hold is added to a boulder problem
-          if (hold.source === 'ai-detected') {
-            return;
-          }
-          
-          const coords = extractHoldCoordinates(hold);
-          if (!coords) return;
-
-          const distance = Math.sqrt(Math.pow(scaledKeypointX - coords.x, 2) + Math.pow(scaledKeypointY - coords.y, 2));
-          const score = distance <= proximityThreshold ? 
-            Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
-
-          allHoldsWithDistances.push({
-            hold: {
-              ...hold,
-              id: hold.id || `manual_hold_${Date.now()}_${Math.random()}`,
-              source: 'manual'
-            },
-            problem: problem,
-            distance: Math.round(distance),
-            score: score
-          });
-        });
-      }
+  // Source 2: Manual holds
+  if (bestMatchImage.manualHolds?.length > 0) {
+    bestMatchImage.manualHolds.forEach((hold) => {
+      const holdId = hold.id || `manual_${Date.now()}_${Math.random()}`;
+      allHolds.push({ ...hold, id: holdId, source: 'manual' });
     });
   }
-
-  // Sort by distance and get top 3
-  allHoldsWithDistances.sort((a, b) => a.distance - b.distance);
   
-  const closest = allHoldsWithDistances[0] || { hold: null, problem: null, distance: Infinity, score: 0 };
-  const secondClosest = allHoldsWithDistances[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
-  const thirdClosest = allHoldsWithDistances[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
+  console.log(`🔍 Collected ${allHolds.length} holds (${bestMatchImage.detectionResults?.results?.length || 0} AI + ${bestMatchImage.manualHolds?.length || 0} manual)`);
+
+  // STEP 2: Calculate distances for all holds
+  const holdsWithDistances = allHolds.map((hold) => {
+    const coords = extractHoldCoordinates(hold);
+    if (!coords) {
+      console.warn(`⚠️ Could not extract coords from hold:`, hold);
+      return null;
+    }
+
+    const distance = Math.sqrt(
+      Math.pow(scaledKeypointX - coords.x, 2) + 
+      Math.pow(scaledKeypointY - coords.y, 2)
+    );
+    const score = distance <= proximityThreshold ? 
+      Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
+
+    return {
+      hold,
+      distance: Math.round(distance),
+      score,
+      problem: null // Will be assigned for top 3 only
+    };
+  }).filter(Boolean); // Remove nulls from failed coordinate extraction
+
+  // STEP 3: Sort and get top 3
+  holdsWithDistances.sort((a, b) => a.distance - b.distance);
+  const top3 = holdsWithDistances.slice(0, 3);
+  
+  // STEP 4: Find boulder problems ONLY for the top 3 winners
+  top3.forEach(item => {
+    if (boulderProblems && item.hold.id) {
+      item.problem = findBoulderProblemForHold(item.hold.id, boulderProblems);
+    }
+  });
+  
+  // Extract results
+  const closest = top3[0] || { hold: null, problem: null, distance: Infinity, score: 0 };
+  const secondClosest = top3[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
+  const thirdClosest = top3[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
 
   return { 
     closest, 
     secondClosest, 
     thirdClosest,
-    allHoldsCount: allHoldsWithDistances.length
+    allHoldsCount: allHolds.length
   };
 }
 

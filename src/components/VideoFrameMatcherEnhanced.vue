@@ -380,6 +380,7 @@ import { usePoseDetection } from '@/composables/usePoseDetection';
 import { useInferenceStore } from '@/stores/inferenceStore';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { holdDetectionService } from '@/services/holdDetectionService';
+import { manualHoldsService } from '@/services/manualHoldsService';
 import { calculateProblemScores, formatScore } from '@/utils/problemScoringUtils';
 import { 
   extractHoldCoordinates, 
@@ -1041,6 +1042,18 @@ const handleAnalysisComplete = async (bestMatchResult) => {
           results: holdDetectionData.detectionResults.aiHolds || [],
           imageMetadata: holdDetectionData.detectionResults.metadata || {}
         };
+      }
+
+      // CONSISTENCY FIX: Also load standalone manual holds for this image
+      // This ensures manual holds are treated the same as AI holds (all standalone holds considered)
+      try {
+        const manualHolds = await manualHoldsService.loadManualHolds(props.locationId, imageId);
+        if (manualHolds && manualHolds.length > 0) {
+          bestMatch.value.manualHolds = manualHolds;
+          console.log(`✅ Loaded ${manualHolds.length} standalone manual holds for matching`);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to load manual holds:', error);
       }
     }
   } catch (error) {

@@ -34,7 +34,7 @@ export function calculateProblemScores(transformedFrames, getKeypointRowsForFram
     const keypointRows = getKeypointRowsForFrame(frame);
     
     keypointRows.forEach(keypoint => {
-      // 🎯 PROPORTIONAL SCORING: Give credit to top 3 closest holds based on pure proximity
+      // 🎯 ONE SCORE PER KEYPOINT PER PROBLEM: Only count the closest hold for each problem
       // ✨ CONFIDENCE WEIGHTING: Multiply score by keypoint confidence (0.0 to 1.0)
       // - If model is 20% confident about ankle position, that keypoint contributes only 20% of its proximity score
       // - This prevents unreliable detections from skewing results
@@ -46,9 +46,23 @@ export function calculateProblemScores(transformedFrames, getKeypointRowsForFram
         { problem: keypoint.thirdClosestProblem, hold: keypoint.thirdClosestHold, score: keypoint.thirdClosestScore }
       ];
       
+      // Group candidates by problem to only count the best (closest) hold per problem
+      const bestByProblem = new Map(); // problemId -> { problem, hold, score }
+      
       candidates.forEach(({ problem, hold, score }) => {
         if (!problem || !hold || !score || score <= 0) return;
         
+        const problemId = problem.id;
+        const existing = bestByProblem.get(problemId);
+        
+        // Keep only the closest hold (highest score) for each problem
+        if (!existing || score > existing.score) {
+          bestByProblem.set(problemId, { problem, hold, score });
+        }
+      });
+      
+      // Now add scores - each problem gets credit for only its BEST hold per keypoint
+      bestByProblem.forEach(({ problem, hold, score }) => {
         // Apply confidence weighting: finalScore = proximityScore × confidence
         const confidenceWeightedScore = score * confidence;
         
