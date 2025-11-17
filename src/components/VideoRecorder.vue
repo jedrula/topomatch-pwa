@@ -276,8 +276,10 @@ const startRecording = async () => {
     isPreparingToRecord.value = true;
 
     // Get camera stream with optimized settings
+    // Use "environment" (back/rear) camera for filming climbers, not "user" (selfie) camera
     mediaStream.value = await navigator.mediaDevices.getUserMedia({
       video: {
+        facingMode: { ideal: 'environment' }, // Prefer back camera for filming others
         width: { ideal: 854 },  // 480p width
         height: { ideal: 480 }, // 480p height
         frameRate: { ideal: 30 }

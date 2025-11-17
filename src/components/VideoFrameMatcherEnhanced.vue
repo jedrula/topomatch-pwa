@@ -100,11 +100,11 @@
           </span>
         </h4>
         <div v-if="framesUsedForTransformation.length > 0" class="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded text-xs">
-          <span class="font-semibold text-blue-900">📊 Frames used for hold detection:</span>
+          <span class="font-semibold text-blue-900">📊 Frame used for hold detection:</span>
           <span class="text-blue-700 ml-2">
             {{ framesUsedForTransformation.map(i => `Frame ${i + 1}`).join(', ') }}
           </span>
-          <span class="text-blue-600 ml-2">({{ framesUsedForTransformation.length }} frames to minimize camera movement impact)</span>
+          <span class="text-blue-600 ml-2">(Single best frame - camera movement optimization)</span>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div
@@ -470,10 +470,9 @@ const isPoseDetectionComplete = computed(() => {
 const framesUsedForTransformation = computed(() => {
   if (!bestFrameForMatching.value || extractedFrames.value.length === 0) return [];
   
+  // 🎯 EXTREME OPTIMIZATION: Use ONLY the single best frame (camera movement mitigation)
   const bestIndex = extractedFrames.value.indexOf(bestFrameForMatching.value);
-  return [bestIndex - 1, bestIndex, bestIndex + 1]
-    .filter(idx => idx >= 0 && idx < extractedFrames.value.length)
-    .filter(idx => extractedFrames.value[idx]?.poseData); // Only include frames with pose data
+  return bestIndex >= 0 && extractedFrames.value[bestIndex]?.poseData ? [bestIndex] : [];
 });
 
 // 🎯 MEMORY OPTIMIZATION: Select single best frame for image matching
@@ -1161,19 +1160,17 @@ const transformPosesToMatchedImage = async (matchResult) => {
     const { homographyMatrix } = matchResult;
     const transformedFrames = [];
 
-    // 🎯 CAMERA MOVEMENT MITIGATION: Use only 3 consecutive frames (best ± 1)
-    // Find the best frame index (highest pose confidence)
+    // 🎯 EXTREME CAMERA MOVEMENT MITIGATION: Use ONLY the single best frame
+    // Camera movement between frames causes too many false matches - use only the peak moment
     const bestFrameIndex = extractedFrames.value.findIndex(f => f === bestFrameForMatching.value);
-    const framesToUse = [bestFrameIndex - 1, bestFrameIndex, bestFrameIndex + 1]
-      .filter(idx => idx >= 0 && idx < extractedFrames.value.length);
     
-    console.log(`🎯 Using frames [${framesToUse.map(i => i + 1).join(', ')}] for pose transformation (best frame: ${bestFrameIndex + 1})`);
+    console.log(`🎯 Using ONLY best frame ${bestFrameIndex + 1} for pose transformation (camera movement optimization)`);
 
     for (let i = 0; i < extractedFrames.value.length; i++) {
       const frame = extractedFrames.value[i];
       
-      // Skip frames without pose data OR frames outside our ±1 window
-      if (!frame.poseData || !framesToUse.includes(i)) {
+      // Skip frames without pose data OR skip all frames except the best one
+      if (!frame.poseData || i !== bestFrameIndex) {
         continue;
       }
 
