@@ -3,6 +3,7 @@
     :src="cachedSrc || src"
     :alt="alt"
     :class="imageClass"
+    crossorigin="anonymous"
     @load="onLoad"
     @error="onError"
     v-bind="$attrs"

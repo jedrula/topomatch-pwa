@@ -769,7 +769,7 @@ const extractPoseKeypoints = async (imageData) => {
 
     // Wait for pose detection session to be ready
     if (!sessionReady.value) {
-      const maxWait = 30000; // 30 seconds
+      const maxWait = 300000; // 5 minutes (13MB model download + WASM compilation can be slow on first load)
       const startTime = Date.now();
       
       // Wait a bit for session to initialize
@@ -780,7 +780,7 @@ const extractPoseKeypoints = async (imageData) => {
           } else if (poseDetectionError.value) {
             reject(new Error(`Pose detection initialization failed: ${poseDetectionError.value}`));
           } else if (Date.now() - startTime > maxWait) {
-            reject(new Error('Pose detection session initialization timed out'));
+            reject(new Error('Pose detection session initialization timed out after 5 minutes - check your internet connection (13MB model needs to download)'));
           } else {
             setTimeout(checkReady, 100);
           }

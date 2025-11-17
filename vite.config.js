@@ -143,9 +143,10 @@ export default defineConfig({
     },
     headers: {
       // Enable Cross-Origin Isolation in dev mode for multi-threading testing
-      // NOTE: This may cause CORS issues with Firebase Storage emulator
-      // If you see CORS errors, change 'require-corp' back to 'unsafe-none'
-      'Cross-Origin-Embedder-Policy': 'require-corp',
+      // Using 'credentialless' instead of 'require-corp' to allow Firebase emulators
+      // which don't send Cross-Origin-Resource-Policy headers
+      // This still enables SharedArrayBuffer but is more permissive
+      'Cross-Origin-Embedder-Policy': 'credentialless',
       'Cross-Origin-Opener-Policy': 'same-origin',
     },
     proxy: {

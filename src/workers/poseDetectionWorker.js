@@ -5,9 +5,11 @@
 
 // The ort object is available from the concatenated ONNX code
 if (typeof ort !== 'undefined' && ort.env) {
-  // 4 threads optimal for YOLOv8 (tested: diminishing returns beyond 4)
-  // Memory usage: ~502 MB total (234 MB workers) - safe for mobile
-  ort.env.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency || 1);
+  // Universal threading: Reserve 2 cores for browser UI
+  const hardwareCores = navigator.hardwareConcurrency || 4;
+  const threads = Math.max(1, Math.min(4, hardwareCores - 2));
+  ort.env.wasm.numThreads = threads;
+  console.log(`🧵 [PoseWorker] Using ${threads} threads (hardware: ${hardwareCores}, reserved: 2)`);
 } else {
   console.error('ONNX Runtime not available in worker');
 }
@@ -17,7 +19,7 @@ let yolov8Session = null;
 let nmsSession = null;
 
 // YOLOv8n-pose configuration
-const MODEL_PATH = '/yolov8n-pose.onnx';
+const MODEL_PATH = '/yolov8n-pose.int8.onnx'; // INT8 quantized model (73% smaller, testing compatibility)
 const NMS_PATH = '/modified-nms-yolov8-pose.onnx';
 const INPUT_SIZE = 640;
 const MODEL_INPUT_SHAPE = [1, 3, 640, 640];
@@ -35,36 +37,37 @@ self.onmessage = async (event) => {
     try {
       const startTime = performance.now();
 
-      // 4 threads optimal for YOLOv8 (tested: 6 threads slower, 1 thread 2.35x slower)
-      const optimalThreads = Math.min(4, navigator.hardwareConcurrency || 1);
+      // Universal optimized threading for all devices
+      // Leave 2 threads for browser UI and other tasks
+      const hardwareCores = navigator.hardwareConcurrency || 4;
+      const optimalThreads = Math.max(1, Math.min(4, hardwareCores - 2)); // Reserve 2 cores
 
-      console.log(`🧵 Pose detection: ${optimalThreads} threads (hardware: ${navigator.hardwareConcurrency})`);
+      console.log(`🧵 [PoseWorker] Creating sessions with ${optimalThreads} threads (hardware: ${hardwareCores}, reserved: 2)`);
 
-      // Create main YOLOv8 session with optimized threading
-      yolov8Session = await ort.InferenceSession.create(MODEL_PATH, {
+      // Universal optimized session config
+      const sessionConfig = {
         executionProviders: ['wasm'],
-        graphOptimizationLevel: 'all',  // Most aggressive optimization
-        enableMemPattern: true,  // 12% faster, 502 MB total memory - safe for mobile
-        enableCpuMemArena: true, // Faster allocations, tested safe on mobile
+        graphOptimizationLevel: 'basic', // Basic optimization saves memory on all devices
+        enableMemPattern: false,  // DISABLE to reduce memory usage
+        enableCpuMemArena: false, // DISABLE to reduce memory usage
         wasm: {
           numThreads: optimalThreads,
           simd: true,
           threads: optimalThreads > 1,
         },
+      };
+
+      console.log(`⚙️ [PoseWorker] Config:`, {
+        optimization: sessionConfig.graphOptimizationLevel,
+        memPattern: sessionConfig.enableMemPattern,
+        cpuArena: sessionConfig.enableCpuMemArena
       });
 
-      // Create NMS session with optimized threading
-      nmsSession = await ort.InferenceSession.create(NMS_PATH, {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: 'all',  // Most aggressive optimization
-        enableMemPattern: true,  // 12% faster, 502 MB total memory - safe for mobile
-        enableCpuMemArena: true, // Faster allocations, tested safe on mobile
-        wasm: {
-          numThreads: optimalThreads,
-          simd: true,
-          threads: optimalThreads > 1,
-        },
-      });
+      // Create main YOLOv8 session
+      yolov8Session = await ort.InferenceSession.create(MODEL_PATH, sessionConfig);
+
+      // Create NMS session
+      nmsSession = await ort.InferenceSession.create(NMS_PATH, sessionConfig);
 
       // Warmup the model
       const tensor = new ort.Tensor(

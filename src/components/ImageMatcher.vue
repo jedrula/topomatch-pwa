@@ -192,7 +192,7 @@ const prepareSourceImage = async () => {
 };
 
 // Helper function to wait for inference session to be ready
-const waitForInferenceSession = async (maxWaitTime = 30000) => {
+const waitForInferenceSession = async (maxWaitTime = 300000) => {
   const checkInterval = 100; // Check every 100ms
   const maxAttempts = maxWaitTime / checkInterval;
   let attempts = 0;
@@ -202,7 +202,7 @@ const waitForInferenceSession = async (maxWaitTime = 30000) => {
       if (inferenceStore.sessionReady) {
         resolve();
       } else if (attempts >= maxAttempts) {
-        reject(new Error('Timeout waiting for AI session to initialize (30s timeout)'));
+        reject(new Error('Timeout waiting for AI session to initialize (5 minute timeout - 13MB model download + initialization can be slow on first load)'));
       } else {
         attempts++;
         setTimeout(checkSession, checkInterval);
@@ -228,14 +228,51 @@ const startAnalysis = async () => {
   // Wait for inference session to be ready
   if (!inferenceStore.sessionReady) {
     try {
+      console.log('⏳ [ImageMatcher] Waiting for inference session to be ready...');
+      console.log('   sessionReady:', inferenceStore.sessionReady);
+      console.log('   isLoading:', inferenceStore.isLoading);
+      console.log('   errorString:', inferenceStore.errorString);
+      console.log('📊 Check browser console for worker logs (look for [InferenceWorker] messages)');
+      
       resetAnalysis();
       isAnalyzing.value = true;
-      analysisStatus.value = 'Initializing AI session...';
+      const initStartTime = Date.now();
+      analysisStatus.value = 'Initializing AI session (downloading model on first load)...';
 
-      // Wait for session to be ready with timeout
-      await waitForInferenceSession();
+      // Update status with elapsed time every second
+      const statusInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - initStartTime) / 1000);
+        analysisStatus.value = `Initializing AI session... ${elapsed}s elapsed (check console for details)`;
+        
+        // Log every 10 seconds to show we're still waiting
+        if (elapsed % 10 === 0) {
+          console.log(`⏳ [ImageMatcher] Still waiting for session... ${elapsed}s elapsed`);
+          console.log('   sessionReady:', inferenceStore.sessionReady);
+          console.log('   If you see no [InferenceWorker] logs, the worker may have failed silently');
+        }
+      }, 1000);
+
+      try {
+        // Wait for session to be ready with timeout
+        await waitForInferenceSession();
+        console.log('✅ [ImageMatcher] Session is ready!');
+      } finally {
+        clearInterval(statusInterval);
+      }
     } catch (sessionError) {
-      error.value = 'Failed to initialize AI session: ' + sessionError.message;
+      console.error('❌ [ImageMatcher] Session initialization failed:', sessionError);
+      
+      // Format error message based on type
+      let userMessage = sessionError.message;
+      if (sessionError.message.includes('Insufficient memory') || sessionError.message.includes('GB RAM')) {
+        userMessage = '❌ ' + sessionError.message + '\n\n💡 Suggestions:\n• Close all other browser tabs\n• Close background apps\n• Restart your browser\n• Try on a device with more RAM';
+      } else if (sessionError.message.includes('Out of memory')) {
+        userMessage = '❌ Device ran out of memory.\n\n💡 To fix:\n• Close other tabs and apps\n• Restart browser\n• If problem persists, device may not support this feature';
+      } else {
+        userMessage = 'Failed to initialize AI session: ' + sessionError.message;
+      }
+      
+      error.value = userMessage;
       isAnalyzing.value = false;
       return;
     }

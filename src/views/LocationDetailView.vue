@@ -512,7 +512,7 @@ const handleAscentFormSubmitWrapper = async (submitData) => {
   }
 };
 
-// Close modal when detection completes
+// Close modal when detection completes (ONLY if user already clicked "Log Send")
 const handleDetectionComplete = async (detectionData) => {
   // If we have pending submission data, create the ascent now with detected problem
   if (pendingAscentSubmission.value && detectionData?.winner) {
@@ -550,14 +550,16 @@ const handleDetectionComplete = async (detectionData) => {
           }
         }
       );
+      
+      // ✅ Only close modal if user clicked "Log Send" (we have pendingAscentSubmission)
+      showBetaUploadModal.value = false;
+      isBetaModalMinimized.value = false;
     } else {
       toast.error('❌ Failed to log ascent');
+      // Keep modal open on error so user can retry
     }
   }
-  
-  // Close modal
-  showBetaUploadModal.value = false;
-  isBetaModalMinimized.value = false;
+  // ✅ If no pending submission, keep modal open for user to review and click "Log Send"
 };
 
 // Maximize modal (can be called from toast)
