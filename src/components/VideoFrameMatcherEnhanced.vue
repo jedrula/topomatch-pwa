@@ -91,6 +91,129 @@
         </span>
       </div>
 
+      <!-- Extracted Frames Debug Section -->
+      <div v-if="debugMode && extractedFrames.length > 0" class="bg-gray-50 rounded-lg p-4">
+        <h4 class="text-sm font-semibold text-gray-700 mb-3">
+          Extracted Frames ({{ extractedFrames.length }})
+          <span v-if="bestFrameForMatching" class="text-xs text-blue-600 ml-2">
+            ⭐ Frame {{ extractedFrames.indexOf(bestFrameForMatching) + 1 }} selected for matching
+          </span>
+        </h4>
+        <div v-if="framesUsedForTransformation.length > 0" class="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded text-xs">
+          <span class="font-semibold text-blue-900">📊 Frames used for hold detection:</span>
+          <span class="text-blue-700 ml-2">
+            {{ framesUsedForTransformation.map(i => `Frame ${i + 1}`).join(', ') }}
+          </span>
+          <span class="text-blue-600 ml-2">({{ framesUsedForTransformation.length }} frames to minimize camera movement impact)</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div
+            v-for="(frame, index) in extractedFrames"
+            :key="index"
+            class="relative group"
+          >
+            <div
+              :class="[
+                'border-2 rounded overflow-hidden transition-all relative',
+                frame === bestFrameForMatching ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'
+              ]"
+            >
+              <!-- Base image -->
+              <img
+                v-if="frame.url"
+                :src="frame.url"
+                :alt="`Frame ${index + 1}`"
+                class="w-full h-auto object-cover"
+                crossorigin="anonymous"
+              />
+              <div v-else class="w-full h-24 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                No preview
+              </div>
+              
+              <!-- Pose keypoints overlay -->
+              <svg
+                v-if="frame.url && frame.poseData && frame.imageData"
+                class="absolute inset-0 pointer-events-none"
+                :viewBox="`0 0 ${frame.imageData.width} ${frame.imageData.height}`"
+                preserveAspectRatio="none"
+              >
+                <!-- Left Wrist (Red) -->
+                <circle
+                  v-if="frame.poseData.keypoints.leftWrist"
+                  :cx="frame.poseData.keypoints.leftWrist.x"
+                  :cy="frame.poseData.keypoints.leftWrist.y"
+                  r="8"
+                  fill="#ef4444"
+                  stroke="white"
+                  stroke-width="2"
+                  :opacity="frame.poseData.keypoints.leftWrist.confidence"
+                />
+                <!-- Right Wrist (Blue) -->
+                <circle
+                  v-if="frame.poseData.keypoints.rightWrist"
+                  :cx="frame.poseData.keypoints.rightWrist.x"
+                  :cy="frame.poseData.keypoints.rightWrist.y"
+                  r="8"
+                  fill="#3b82f6"
+                  stroke="white"
+                  stroke-width="2"
+                  :opacity="frame.poseData.keypoints.rightWrist.confidence"
+                />
+                <!-- Left Ankle (Green) -->
+                <circle
+                  v-if="frame.poseData.keypoints.leftAnkle"
+                  :cx="frame.poseData.keypoints.leftAnkle.x"
+                  :cy="frame.poseData.keypoints.leftAnkle.y"
+                  r="8"
+                  fill="#22c55e"
+                  stroke="white"
+                  stroke-width="2"
+                  :opacity="frame.poseData.keypoints.leftAnkle.confidence"
+                />
+                <!-- Right Ankle (Amber) -->
+                <circle
+                  v-if="frame.poseData.keypoints.rightAnkle"
+                  :cx="frame.poseData.keypoints.rightAnkle.x"
+                  :cy="frame.poseData.keypoints.rightAnkle.y"
+                  r="8"
+                  fill="#f59e0b"
+                  stroke="white"
+                  stroke-width="2"
+                  :opacity="frame.poseData.keypoints.rightAnkle.confidence"
+                />
+              </svg>
+            </div>
+            <div class="mt-1 text-xs text-center">
+              <div class="font-medium text-gray-700">Frame {{ index + 1 }}</div>
+              <div v-if="frame.poseData" class="text-green-600">✓ Pose detected</div>
+              <div v-else-if="frame.poseError" class="text-red-600">✗ {{ frame.poseError }}</div>
+              <div v-if="frame === bestFrameForMatching" class="text-blue-600 font-semibold">⭐ Best</div>
+              <div v-if="framesUsedForTransformation.includes(index)" class="text-purple-600 font-semibold">📊 Used</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="mt-3 flex items-center justify-center gap-4 text-xs text-gray-600">
+          <div class="flex items-center gap-1">
+            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+            <span>Left Wrist</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+            <span>Right Wrist</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+            <span>Left Ankle</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+            <span>Right Ankle</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Video Frames Animator + Ascent Form (shown as soon as frames are extracted) -->
       <div class="grid grid-cols-1 lg:grid-cols-1 gap-6">
         <!-- 🎯 MEMORY OPTIMIZATION: Hide PoseFrameAnimator to save memory -->
@@ -101,6 +224,7 @@
         <div>
           <AscentForm
             :detected-problem="detectedProblemForForm"
+            :top3-scores="top3Scores"
             :is-submitting="isSubmittingAscent"
             @submit="handleAscentFormSubmit"
           />
@@ -175,7 +299,7 @@
             <!-- Feature Match Visualization -->
             <FeatureMatchVisualization
               v-if="featureMatches.length > 0 && debugMode"
-              :source-image-url="extractedFrames[0]?.url"
+              :source-image-url="bestFrameForMatching?.url"
               :target-image-url="bestMatch.url"
               :feature-matches="featureMatches"
               :homography-inliers="bestMatch.homographyInliers || 0"
@@ -298,9 +422,9 @@ const emit = defineEmits([
   'ascent-form-submit', // New event for ascent form submission
 ]);
 
-// 🎯 MEMORY OPTIMIZATION: Feature flag for debugging vs production
-// Set to true in production to enable downscaling and aggressive memory cleanup
-const DOWNSCALE_IMAGES = true;
+// 🎯 MEMORY STRATEGY: Keep all frames in memory until cleanup
+// Frames are kept so users can toggle debug mode AFTER analysis completes
+// Cleanup happens only when: starting new video OR component unmount
 
 // Reactive state
 const selectedVideo = ref(null);
@@ -341,6 +465,16 @@ const isPoseDetectionComplete = computed(() => {
   return processingStatus.value === 'Ready for image matching';
 });
 
+// Get frames used for pose transformation (best ± 1)
+const framesUsedForTransformation = computed(() => {
+  if (!bestFrameForMatching.value || extractedFrames.value.length === 0) return [];
+  
+  const bestIndex = extractedFrames.value.indexOf(bestFrameForMatching.value);
+  return [bestIndex - 1, bestIndex, bestIndex + 1]
+    .filter(idx => idx >= 0 && idx < extractedFrames.value.length)
+    .filter(idx => extractedFrames.value[idx]?.poseData); // Only include frames with pose data
+});
+
 // 🎯 MEMORY OPTIMIZATION: Select single best frame for image matching
 // We keep all 10 frames for pose detection/display, but only use ONE for expensive image matching
 const bestFrameForMatching = computed(() => {
@@ -379,8 +513,19 @@ const detectedProblemForForm = computed(() => {
   return {
     id: topScore.id,
     name: topScore.name,
-    grade: topScore.name.match(/\((.*?)\)/)?.[1] || '' // Extract grade from name if present
+    grade: topScore.name.match(/\((.*?)\)/)?.[1] || '', // Extract grade from name if present
+    score: topScore.totalScore,
+    displayScore: topScore.displayScore
   };
+});
+
+// Top 3 scores for ranking display
+const top3Scores = computed(() => {
+  return aggregatedProblemScores.value.slice(0, 3).map(score => ({
+    name: score.name,
+    score: score.totalScore,
+    displayScore: score.displayScore
+  }));
 });
 
 // 📊 Calculate problem scores using the shared utility (single source of truth)
@@ -569,6 +714,11 @@ const processVideo = async () => {
     isProcessing.value = true;
     error.value = null;
 
+    // 🧹 Clean up old frame URLs before extracting new frames
+    // This prevents memory leaks while keeping URLs accessible after analysis completes
+    cleanupFrameUrls();
+    extractedFrames.value = [];
+
     // Step 1: Extract frames
     const extractStartTime = performance.now();
     processingStatus.value = 'Extracting video frames...';
@@ -659,26 +809,13 @@ const processVideo = async () => {
     const poseTime = performance.now() - poseStartTime;
     console.log(`  ✅ Pose detection: ${(poseTime / 1000).toFixed(2)}s (${successfulDetections}/${totalFrames} frames)`);
 
-    // 🎯 MEMORY OPTIMIZATION: Free frame resources after pose detection
-    // When DOWNSCALE_IMAGES=false (debugging), keep all frames for homography visualization
-    // When DOWNSCALE_IMAGES=true (production), free frames to save memory
-    const bestFrameIndex = extractedFrames.value.findIndex(f => f === bestFrameForMatching.value);
-    
-    if (!DOWNSCALE_IMAGES) {
-      console.log(`🐛 Debug mode: keeping all ${extractedFrames.value.length} frames for homography debugging`);
-    } else {
-      console.log(`🧹 Production mode: freeing ${extractedFrames.value.length - 1} frames, keeping only frame ${bestFrameIndex + 1} for image matching`);
-      
-      extractedFrames.value.forEach((frame, index) => {
-        if (index !== bestFrameIndex) {
-          // Free the large resources, keep only pose data
-          revokeFrameUrl(frame);
-          // Note: We keep the frame objects for pose data, just clear heavy resources
-          delete frame.file;
-          delete frame.url;
-        }
-      });
-    }
+    // 🖼️ KEEP ALL FRAMES after pose detection
+    // Frames remain in memory for potential debug viewing via "Toggle debug information"
+    // They will be cleaned up when:
+    // 1. User starts processing a new video (processVideo function)
+    // 2. Component unmounts (onUnmounted hook)
+    // This allows users to toggle debug mode AFTER analysis completes and still see frames
+    console.log(`🖼️ Keeping all ${extractedFrames.value.length} frames in memory for potential debug viewing`);
 
     emit(
       'pose-detected',
@@ -991,6 +1128,12 @@ const handleAnalysisComplete = async (bestMatchResult) => {
     match: bestMatchResult,
   });
 
+  // 🖼️ KEEP ALL FRAMES for debug UI display
+  // Frame URLs will be cleaned up later:
+  // 1. When starting new video processing (processVideo)
+  // 2. When component unmounts (onUnmounted)
+  // This allows the "Extracted Frames" debug section to display all frames
+
   // Transform poses to matched image coordinates
   if (bestMatchResult.homographyMatrix) {
     await transformPosesToMatchedImage(bestMatchResult);
@@ -1005,9 +1148,19 @@ const transformPosesToMatchedImage = async (matchResult) => {
     const { homographyMatrix } = matchResult;
     const transformedFrames = [];
 
+    // 🎯 CAMERA MOVEMENT MITIGATION: Use only 3 consecutive frames (best ± 1)
+    // Find the best frame index (highest pose confidence)
+    const bestFrameIndex = extractedFrames.value.findIndex(f => f === bestFrameForMatching.value);
+    const framesToUse = [bestFrameIndex - 1, bestFrameIndex, bestFrameIndex + 1]
+      .filter(idx => idx >= 0 && idx < extractedFrames.value.length);
+    
+    console.log(`🎯 Using frames [${framesToUse.map(i => i + 1).join(', ')}] for pose transformation (best frame: ${bestFrameIndex + 1})`);
+
     for (let i = 0; i < extractedFrames.value.length; i++) {
       const frame = extractedFrames.value[i];
-      if (!frame.poseData) {
+      
+      // Skip frames without pose data OR frames outside our ±1 window
+      if (!frame.poseData || !framesToUse.includes(i)) {
         continue;
       }
 
@@ -1083,9 +1236,14 @@ const handleAnalysisError = (analysisError) => {
 
 
 
-const clearState = () => {
+const clearState = (clearFrames = false) => {
   selectedVideo.value = null;
-  extractedFrames.value = [];
+  
+  // Clear extracted frames only when explicitly requested (e.g., on unmount or new video)
+  if (clearFrames) {
+    extractedFrames.value = [];
+  }
+  
   isProcessing.value = false;
   processingStatus.value = '';
   processingDetails.value = '';
@@ -1094,8 +1252,9 @@ const clearState = () => {
   transformedPoses.value = [];
   featureMatches.value = [];
 
-  // Clean up any object URLs
-  cleanupFrameUrls();
+  // Note: Frame URLs are cleaned up separately:
+  // 1. Non-best-match frames: After analysis completes (handleAnalysisComplete)
+  // 2. All frames: When component unmounts (onUnmounted) or when starting new video (processVideo)
 };
 
 // Utility functions
@@ -1168,8 +1327,9 @@ const handleAscentFormSubmit = (formData) => {
 
 // Cleanup on component unmount
 onUnmounted(() => {
-  cleanupFrameUrls(); // Release blob URLs before clearing state
-  clearState();
+  console.log('🧹 Component unmounting: cleaning up all frames');
+  cleanupFrameUrls(); // Release blob URLs
+  clearState(true); // Clear all state including frames
 });
 
 // Expose methods for parent component

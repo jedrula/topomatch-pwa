@@ -86,7 +86,7 @@
         v-if="detectedProblem"
         class="p-3 bg-green-50 border border-green-200 rounded-lg"
       >
-        <div class="flex items-center space-x-2 mb-1">
+        <div class="flex items-center space-x-2 mb-2">
           <svg
             class="w-4 h-4 text-green-600"
             fill="none"
@@ -102,11 +102,27 @@
           </svg>
           <span class="text-sm font-medium text-green-800">Problem Identified!</span>
         </div>
-        <div class="text-sm text-green-700">
+        <div class="text-sm text-green-700 mb-2">
           <strong>{{ detectedProblem.name }}</strong>
           <span v-if="detectedProblem.grade" class="ml-2 text-xs">
             {{ detectedProblem.grade }}
           </span>
+          <span v-if="detectedProblem.displayScore" class="ml-2 text-xs font-semibold">
+            {{ detectedProblem.displayScore }}
+          </span>
+        </div>
+        
+        <!-- Top 3 Scores -->
+        <div v-if="top3Scores.length > 1" class="text-xs text-gray-600 space-y-1 pt-2 border-t border-green-200">
+          <div class="font-medium text-gray-700 mb-1">Top Matches:</div>
+          <div v-for="(score, index) in top3Scores" :key="index" class="flex items-center justify-between">
+            <span :class="index === 0 ? 'font-semibold text-green-700' : ''">
+              {{ index + 1 }}. {{ score.name }}
+            </span>
+            <span :class="index === 0 ? 'font-semibold text-green-700' : 'text-gray-500'">
+              {{ score.displayScore }}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -142,6 +158,10 @@ const props = defineProps({
   detectedProblem: {
     type: Object,
     default: null
+  },
+  top3Scores: {
+    type: Array,
+    default: () => []
   },
   isSubmitting: {
     type: Boolean,

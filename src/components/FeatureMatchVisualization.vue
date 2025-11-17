@@ -146,7 +146,7 @@
                           : 'bg-gray-500'
                       }`"
                     ></div>
-                    Frame {{ frameIndex + 1 }} ({{ Math.round(extractedFrames[frame.frameIndex]?.percentage * 100) || 50 }}%)
+                    Frame {{ frame.frameIndex + 1 }} ({{ Math.round(extractedFrames[frame.frameIndex]?.percentage * 100) || 50 }}%)
                   </div>
                 </td>
                 <td class="px-2 py-1 font-medium">{{ keypoint.name }}</td>

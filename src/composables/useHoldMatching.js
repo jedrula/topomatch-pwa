@@ -61,15 +61,15 @@ export function extractHoldCoordinates(hold) {
 
 /**
  * Find which boulder problem a hold belongs to
- * @param {number} holdIndex - The hold index to search for
+ * @param {string} holdId - The hold ID to search for
  * @param {Array} boulderProblems - Array of boulder problem objects
  * @returns {Object|null} - The boulder problem or null if not found
  */
-export function findBoulderProblemForHold(holdIndex, boulderProblems) {
-  if (!boulderProblems) return null;
+export function findBoulderProblemForHold(holdId, boulderProblems) {
+  if (!boulderProblems || !holdId) return null;
   
   for (const problem of boulderProblems) {
-    if (problem.holds && problem.holds.some(h => h.holdIndex === holdIndex)) {
+    if (problem.holds && problem.holds.some(h => h.holdId === holdId)) {
       return problem;
     }
   }
@@ -137,15 +137,14 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
       const score = distance <= proximityThreshold ? 
         Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
 
-      // Look up which boulder problem this hold belongs to
-      const holdIndex = detectedHold.holdIndex ?? index;
-      const associatedProblem = findBoulderProblemForHold(holdIndex, boulderProblems);
+      // Look up which boulder problem this hold belongs to using immutable ID
+      const holdId = detectedHold.id || `detected_hold_${index}`;
+      const associatedProblem = findBoulderProblemForHold(holdId, boulderProblems);
 
       allHoldsWithDistances.push({
         hold: {
           ...detectedHold,
-          id: detectedHold.id || `detected_hold_${index}`,
-          holdIndex: holdIndex,
+          id: holdId,
           source: 'ai-detection'
         },
         problem: associatedProblem,
@@ -163,6 +162,13 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
           // Manual holds from boulder problems have structure: {holdIndex, hold: {...}, addedAt, role}
           // The actual hold data is in the nested 'hold' property
           const hold = holdWrapper.hold || holdWrapper;
+          
+          // SKIP AI-detected holds - they're already processed in Source 1 with problem association
+          // This prevents duplicates when an AI hold is added to a boulder problem
+          if (hold.source === 'ai-detected') {
+            return;
+          }
+          
           const coords = extractHoldCoordinates(hold);
           if (!coords) return;
 
@@ -173,8 +179,7 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
           allHoldsWithDistances.push({
             hold: {
               ...hold,
-              id: hold.id || `manual_hold_${holdWrapper.holdIndex || hold.holdIndex}`,
-              holdIndex: holdWrapper.holdIndex || hold.holdIndex,
+              id: hold.id || `manual_hold_${Date.now()}_${Math.random()}`,
               source: 'manual'
             },
             problem: problem,
