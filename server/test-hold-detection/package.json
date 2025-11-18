@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "name": "hold-detection-tests",
+  "version": "1.0.0",
+  "description": "Test scripts for hold detection server",
+  "scripts": {
+    "test:single": "node test-hold-detection.js ../../test-data/compressed-test-image.jpg",
+    "test:parallel": "node test-hold-detection-parallel.js ../../test-data/compressed-test-image.jpg 4",
+    "test:parallel:8": "node test-hold-detection-parallel.js ../../test-data/compressed-test-image.jpg 8",
+    "test:parallel:10": "node test-hold-detection-parallel.js ../../test-data/compressed-test-image.jpg 10"
+  }
+}

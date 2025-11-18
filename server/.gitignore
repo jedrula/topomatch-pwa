@@ -20,3 +20,6 @@ node_modules/
 
 # Extension configuration (generated from templates)
 extensions/storage-resize-images-x2dt.env
+
+# Firebase emulator temporary export directories
+firebase-export-*/

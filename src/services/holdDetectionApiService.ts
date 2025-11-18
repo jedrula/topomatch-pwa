@@ -30,7 +30,7 @@ import { convertApiResponseToFrontendFormat } from '@/types/holdDetectionUtils'
 function getApiUrl(): string {
   // Hardcoded fallback - update this manually if needed for admin testing
   // Production detection uses Cloud Function with HOLD_DETECTION_SERVER_URL config
-  return 'https://6d2401b5f155.ngrok-free.app'
+  return 'https://49ba466c7e78.ngrok-free.app'
 }
 
 /**

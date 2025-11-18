@@ -3,8 +3,6 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { defineString } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
-import * as fs from "fs";
-import * as path from "path";
 
 // Configuration - detection server URL from environment
 // No default - forces explicit configuration in .env.local or .env.production
@@ -83,8 +81,7 @@ export const onLocationImageUploaded = onObjectFinalized(
     const filePath = event.data.name;
     const contentType = event.data.contentType;
 
-    logger.info(`🖼️ Storage trigger fired for file: ${filePath}`);
-    logger.info(`📥 Detection server URL: ${DETECTION_SERVER_URL.value()}`);
+    logger.info(`🖼️ Storage trigger fired for file: ${filePath}, 📥 Detection server URL: ${DETECTION_SERVER_URL.value()}`);
 
     // Only process original images in location-images path
     // Path format: location-images/{locationId}/{imageId}/original.{ext}
@@ -139,22 +136,42 @@ export const onLocationImageUploaded = onObjectFinalized(
       logger.info(`📥 Downloading image from Storage: ${filePath}`);
       const [fileBuffer] = await file.download();
       
-      // Convert Buffer to Blob for FormData (Buffer.buffer gives us the underlying ArrayBuffer)
-      const imageBlob = new Blob([fileBuffer.buffer as unknown as ArrayBuffer], { type: contentType || 'image/jpeg' });
-      
       logger.info(`📤 Uploading to detection server: ${DETECTION_SERVER_URL.value()}/api/v1/process`);
 
-      // 3. Upload image to detection server (same endpoint as frontend)
+      // 3. Upload image to detection server using Buffer directly
+      // Note: Using Buffer instead of Blob because form-data package (used by fetch in Node.js)
+      // expects objects with Stream interface (.on() method), which Blob doesn't have
+      const FormData = require('form-data');
       const formData = new FormData();
-      formData.append('file', imageBlob, 'climbing_wall.jpg');
-      
-      const uploadResponse = await fetch(`${DETECTION_SERVER_URL.value()}/api/v1/process`, {
-        method: "POST",
-        headers: {
-          "ngrok-skip-browser-warning": "true", // For ngrok URLs
-        },
-        body: formData as any, // FormData works in Node.js with undici fetch
+      formData.append('file', fileBuffer, {
+        filename: 'climbing_wall.jpg',
+        contentType: contentType || 'image/jpeg'
       });
+      
+      // Create AbortController for 2-minute timeout (model initialization can take time)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
+      
+      let uploadResponse;
+      try {
+        uploadResponse = await fetch(`${DETECTION_SERVER_URL.value()}/api/v1/process`, {
+          method: "POST",
+          headers: {
+            "ngrok-skip-browser-warning": "true", // For ngrok URLs
+            ...formData.getHeaders() // Adds Content-Type with multipart boundary
+          },
+          body: formData as any,
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('Upload to detection server timed out after 2 minutes');
+        }
+        throw error;
+      }
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
@@ -170,9 +187,11 @@ export const onLocationImageUploaded = onObjectFinalized(
       
       logger.info(`⏳ Polling for results, job_id: ${jobId}`);
 
-      // 4. Poll for results (same as frontend)
+      // 4. Poll for results
       let attempts = 0;
-      const maxAttempts = 60; // 2 minutes max (2s * 60)
+      const maxMinutes = 3;
+      const pollingIntervalMs = 10000; // 10 seconds
+      const maxAttempts = Math.floor(maxMinutes * 60 * 1000 / pollingIntervalMs);
       let detectionResult: DetectionResponse | null = null;
       
       while (attempts < maxAttempts) {
@@ -198,8 +217,8 @@ export const onLocationImageUploaded = onObjectFinalized(
           throw new Error(`Detection failed: ${statusData.result?.error_message || 'Unknown error'}`);
         }
 
-        // Wait 2 seconds before next poll
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Wait  before next poll
+        await new Promise(resolve => setTimeout(resolve, pollingIntervalMs));
         attempts++;
       }
 
@@ -209,59 +228,25 @@ export const onLocationImageUploaded = onObjectFinalized(
 
       logger.info(`✅ Detection completed: ${detectionResult.holds?.length || 0} holds found`);
       
-      // 📝 SAVE RAW RESPONSE TO FILE FOR INSPECTION - DO THIS FIRST!
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const debugFilePath = path.join(__dirname, '..', 'detection-responses', `response-${timestamp}.json`);
       
-      const debugData = {
-        timestamp: new Date().toISOString(),
-        imageId,
-        locationId,
-        rawResponse: detectionResult,
-        holdsCount: detectionResult.holds?.length || 0,
-        sampleHold: detectionResult.holds?.[0] || null,
-        allHolds: detectionResult.holds || [],
-      };
-      
-      try {
-        const debugDir = path.dirname(debugFilePath);
-        if (!fs.existsSync(debugDir)) {
-          fs.mkdirSync(debugDir, { recursive: true });
-        }
-        fs.writeFileSync(debugFilePath, JSON.stringify(debugData, null, 2));
-        logger.info(`📝 Saved raw detection response to: ${debugFilePath}`);
-      } catch (err) {
-        logger.warn(`⚠️ Failed to save debug file:`, err);
-      }
-      
-      // Log the structure to console as well
-      logger.info(`📊 Full detection result:`, JSON.stringify(detectionResult, null, 2));
-
       // IMPORTANT: Detection server structure:
       // - holds[]: Array of hold objects with bbox, confidence, etc.
       // - svg_markups[]: Separate array with actual SVG path markup (parallel to holds)
       // We need to map them together by index!
       
-      logger.info(`🔍 About to map ${detectionResult.holds?.length || 0} holds...`);
-      logger.info(`🔍 SVG markups available: ${(detectionResult as any).svg_markups?.length || 0}`);
-      
       const holdsWithIds: FirestoreHold[] = (detectionResult.holds || []).map((hold, index) => {
         // Log each hold BEFORE mapping
-        logger.info(`🔍 Mapping hold ${index}:`, JSON.stringify(hold, null, 2));
-        
         // Handle different bbox formats: array [x,y,w,h] or object {x,y,width,height}
         let x = 0, y = 0, width = 0, height = 0;
         
         if (Array.isArray(hold.bbox)) {
           [x, y, width, height] = hold.bbox;
-          logger.info(`  ✓ Parsed array bbox: [${x}, ${y}, ${width}, ${height}]`);
         } else if (hold.bbox && typeof hold.bbox === 'object') {
           const bboxObj = hold.bbox as any; // Type assertion for flexibility
           x = bboxObj.x || 0;
           y = bboxObj.y || 0;
           width = bboxObj.width || 0;
           height = bboxObj.height || 0;
-          logger.info(`  ✓ Parsed object bbox: {x: ${x}, y: ${y}, width: ${width}, height: ${height}}`);
         } else {
           logger.warn(`  ⚠️ No valid bbox found for hold ${index}`);
         }
@@ -282,12 +267,9 @@ export const onLocationImageUploaded = onObjectFinalized(
           holdType: hold.type || "hold",
         };
         
-        logger.info(`  ✓ Mapped to:`, JSON.stringify(mappedHold, null, 2));
         return mappedHold;
       });
       
-      logger.info(`✅ Successfully mapped ${holdsWithIds.length} holds`);
-
       // Extract viewBox and dimensions from server response
       // The detection server returns coordinates in the ORIGINAL image space
       // So viewBox MUST match image_info dimensions for coordinates to align
@@ -299,10 +281,6 @@ export const onLocationImageUploaded = onObjectFinalized(
         ? `0 0 ${imageInfo.width} ${imageInfo.height}`
         : "0 0 1920 1080";
       
-      logger.info(`📐 Image Info:`, JSON.stringify(imageInfo, null, 2));
-      logger.info(`📐 ViewBox: ${viewBox}`);
-      logger.info(`📐 Dimensions: ${imageDimensions.width}x${imageDimensions.height}`);
-
       // 4. Store results in Firestore (with generated IDs)
       await holdDetectionRef.set({
         status: "completed",
@@ -323,7 +301,7 @@ export const onLocationImageUploaded = onObjectFinalized(
         updatedAt: FieldValue.serverTimestamp(),
       });
 
-      logger.info(`💾 Saved ${holdsWithIds.length} holds (with generated IDs) to Firestore`);
+      logger.info(`💾 Saved ${holdsWithIds.length} holds to Firestore for location id ${locationId}`);
 
       return {
         success: true,
