@@ -3,9 +3,23 @@ import { ref, computed } from 'vue';
 import { imageCacheService } from '@/services/imageCacheService';
 
 export const useInferenceStore = defineStore('inference', () => {
-  const inferenceWorker = new Worker(new URL('/inferenceWorker.combined.js', import.meta.url), {
-    type: 'module',
-  });
+  let inferenceWorker;
+  
+  try {
+    inferenceWorker = new Worker(new URL('/inferenceWorker.combined.js', import.meta.url), {
+      type: 'module',
+    });
+  } catch (error) {
+    console.error('❌ Failed to create inference worker:', error);
+    // Fallback: try relative path for mobile compatibility
+    try {
+      inferenceWorker = new Worker('/inferenceWorker.combined.js', {
+        type: 'module',
+      });
+    } catch (fallbackError) {
+      console.error('❌ Fallback worker creation also failed:', fallbackError);
+    }
+  }
 
   const sessionTime = ref(null);
   const isLoading = ref(true); // Start loading immediately
@@ -17,30 +31,55 @@ export const useInferenceStore = defineStore('inference', () => {
   const errorString = ref(null);
   const sessionReady = ref(false);
 
-  inferenceWorker.onmessage = (event) => {
-    const { type, data } = event.data;
-    if (type === 'inferenceComplete') {
-    } else if (type === 'sessionCreated') {
-      sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
-      sessionReady.value = true;
+  // Add error handler for worker failures
+  if (inferenceWorker) {
+    inferenceWorker.onerror = (error) => {
+      console.error('❌ Inference worker error:', error);
+      errorString.value = `Worker failed: ${error.message || 'Unknown error'}`;
       isLoading.value = false;
-      loadingMessage.value = '';
-    } else if (type === 'error') {
-      errorString.value = data.message;
-      isLoading.value = false;
-      loadingMessage.value = '';
-      console.error('Inference worker error:', data.message);
-    } else if (type === 'workerMemoryInfo') {
-    }
-  };
+      sessionReady.value = false;
+    };
+  }
+
+  if (!inferenceWorker) {
+    console.error('❌ Could not create inference worker - feature matching disabled');
+    errorString.value = 'Failed to initialize inference worker';
+    isLoading.value = false;
+    sessionReady.value = false;
+  }
+
+  if (inferenceWorker) {
+    inferenceWorker.onmessage = (event) => {
+      const { type, data } = event.data;
+      if (type === 'inferenceComplete') {
+        // Handled by Promise-based listeners in runInference()
+      } else if (type === 'sessionCreated') {
+        sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
+        sessionReady.value = true;
+        isLoading.value = false;
+        loadingMessage.value = '';
+      } else if (type === 'error') {
+        errorString.value = data.message;
+        isLoading.value = false;
+        loadingMessage.value = '';
+        console.error('Inference worker error:', data.message);
+      } else if (type === 'workerMemoryInfo') {
+        // Memory info logging (optional)
+      }
+    };
+  }
 
   // Create session immediately when store is initialized
   const initializeSession = () => {
-    inferenceWorker.postMessage({ type: 'createSession' });
+    if (inferenceWorker) {
+      inferenceWorker.postMessage({ type: 'createSession' });
+    }
   };
 
-  // Start session creation immediately
-  initializeSession();
+  // Start session creation immediately (if worker loaded successfully)
+  if (inferenceWorker) {
+    initializeSession();
+  }
 
   // Computed property to get match counts sorted by value (descending)
   const sortedMatchCounts = computed(() => {
@@ -131,15 +170,20 @@ export const useInferenceStore = defineStore('inference', () => {
           }
         };
 
-        inferenceWorker.addEventListener('message', handler);
-        inferenceWorker.postMessage(
-          {
-            type: 'runInference',
-            userImageBuffer: userArrayBufferCopy,
-            topoImageBuffer: topoArrayBuffer,
-          },
-          [userArrayBufferCopy, topoArrayBuffer]
-        );
+        if (inferenceWorker) {
+          inferenceWorker.addEventListener('message', handler);
+          inferenceWorker.postMessage(
+            {
+              type: 'runInference',
+              userImageBuffer: userArrayBufferCopy,
+              topoImageBuffer: topoArrayBuffer,
+            },
+            [userArrayBufferCopy, topoArrayBuffer]
+          );
+        } else {
+          console.error('❌ Inference worker not available');
+          resolve(); // Resolve anyway to avoid hanging
+        }
       });
     }
 
