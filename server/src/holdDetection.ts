@@ -3,6 +3,7 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { defineString } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
+import fetch from "node-fetch";
 
 // Configuration - detection server URL from environment
 // No default - forces explicit configuration in .env.local or .env.production
@@ -178,7 +179,7 @@ export const onLocationImageUploaded = onObjectFinalized(
         throw new Error(`Upload failed: ${uploadResponse.status}: ${errorText}`);
       }
 
-      const uploadResult = await uploadResponse.json();
+      const uploadResult = await uploadResponse.json() as any;
       const jobId = uploadResult.job_id;
       
       if (!jobId) {
@@ -205,7 +206,7 @@ export const onLocationImageUploaded = onObjectFinalized(
           throw new Error(`Status check failed: ${statusResponse.status}`);
         }
 
-        const statusData = await statusResponse.json();
+        const statusData = await statusResponse.json() as any;
         logger.info(`📊 Job status: ${statusData.status}, progress: ${statusData.progress || 'N/A'}`);
 
         if (statusData.status === 'completed') {
