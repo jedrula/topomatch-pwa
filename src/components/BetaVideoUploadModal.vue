@@ -43,6 +43,7 @@
           @table-scores-ready="$emit('table-scores-ready', $event)"
           @processing-error="$emit('processing-error', $event)"
           @ascent-form-submit="$emit('ascent-form-submit', $event)"
+          @ascent-created="handleAscentCreated"
         />
 
         <!-- Analysis in Progress -->
@@ -269,7 +270,32 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import VideoFrameMatcherEnhanced from './VideoFrameMatcherEnhanced.vue';
+import { useVideoAnalysisQueueStore } from '@/stores/videoAnalysisQueueStore';
+
+// Access the analysis queue store
+const analysisQueue = useVideoAnalysisQueueStore();
+
+// Derive analysis state from store (getActiveJob is already a computed ref)
+const isAnalyzing = computed(() => {
+  const job = analysisQueue.getActiveJob;
+  return job && (job.status === 'processing' || job.status === 'matching');
+});
+
+const analysisPhase = computed(() => {
+  const job = analysisQueue.getActiveJob;
+  if (!job) return '';
+  
+  // Map store status to phase names
+  if (job.status === 'processing') {
+    if (job.progress < 33) return 'extracting-frames';
+    if (job.progress < 66) return 'detecting-poses';
+    return 'analyzing-holds';
+  }
+  if (job.status === 'matching') return 'matching';
+  return '';
+});
 
 defineProps({
   isOpen: {
@@ -288,14 +314,7 @@ defineProps({
     type: String,
     required: true
   },
-  isAnalyzing: {
-    type: Boolean,
-    default: false
-  },
-  analysisPhase: {
-    type: String,
-    default: ''
-  },
+  // Legacy props - kept for backward compatibility but not actively used
   videoAnalysisResult: {
     type: Object,
     default: null
@@ -332,4 +351,12 @@ defineEmits([
   'continue-to-upload',
   'ascent-form-submit'
 ]);
+
+/**
+ * Handle ascent creation - already minimized, just log
+ * Upload and analysis continue in background while user browses
+ */
+const handleAscentCreated = ({ ascentId }) => {
+  console.log(`🎉 Ascent created: ${ascentId} - processing in background`);
+};
 </script>

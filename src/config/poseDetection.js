@@ -34,6 +34,8 @@ export const PoseModel = {
  * Active pose detection model
  * 
  * 🎯 CHANGE THIS LINE to switch models:
+ * 
+ * TODO: MediaPipe models currently broken - stick with YOLO for now
  */
 export const ACTIVE_POSE_MODEL = PoseModel.YOLO11S;
 

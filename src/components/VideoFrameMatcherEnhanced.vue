@@ -387,6 +387,10 @@ import {
   findClosestHolds,
   getKeypointRows
 } from '@/composables/useHoldMatching';
+import { ascentService, generateAscentId } from '@/services/ascentService';
+import { getCurrentUser } from '@/services/authService';
+import { useVideoUploadQueueStore } from '@/stores/videoUploadQueueStore';
+import { useVideoAnalysisQueueStore } from '@/stores/videoAnalysisQueueStore';
 
 // Props
 const props = defineProps({
@@ -421,6 +425,7 @@ const emit = defineEmits([
   'table-scores-ready', // New event for table-based problem scores
   'processing-error',
   'ascent-form-submit', // New event for ascent form submission
+  'ascent-created', // Emitted immediately after ascent is created - use to close modal
 ]);
 
 // 🎯 MEMORY STRATEGY: Keep all frames in memory until cleanup
@@ -429,6 +434,8 @@ const emit = defineEmits([
 
 // Reactive state
 const selectedVideo = ref(null);
+const createdAscentId = ref(null); // Store ascent ID created immediately on video selection
+const ascentAnalysisUpdated = ref(false); // Flag to prevent duplicate updates
 const extractedFrames = ref([]);
 const isProcessing = ref(false);
 const processingStatus = ref('');
@@ -655,7 +662,7 @@ const aggregatedProblemScores = computed(() => {
 });
 
 // Compute and display aggregated scores whenever they change
-watch(aggregatedProblemScores, (scores) => {
+watch(aggregatedProblemScores, async (scores) => {
   if (scores.length > 0) {
     // ✅ Emit table scores to parent components
     // This is the CORRECT scoring that should be displayed in the UI
@@ -664,6 +671,13 @@ watch(aggregatedProblemScores, (scores) => {
       winner: scores[0], // Best match
       allProblems: matchedImageBoulderProblems.value // All problems for context
     });
+
+    // ✨ NEW: Complete analysis in store (only once)
+    if (!ascentAnalysisUpdated.value && createdAscentId.value) {
+      ascentAnalysisUpdated.value = true;
+      const analysisQueue = useVideoAnalysisQueueStore();
+      await analysisQueue.completeAnalysis(createdAscentId.value, scores);
+    }
   }
 });
 
@@ -780,6 +794,94 @@ const localGetKeypointRows = (frame) => {
   return getKeypointRows(frame, extractedFrames.value, bestMatch.value, matchedImageBoulderProblems.value);
 };
 
+/**
+ * Create ascent record and start video upload immediately
+ * This makes the experience snappier - user doesn't have to wait for analysis
+ */
+const createAscentAndStartUpload = async (videoFile) => {
+  try {
+    const user = getCurrentUser();
+    if (!user) {
+      console.warn('⚠️ No user logged in, skipping ascent creation');
+      return;
+    }
+
+    if (!props.locationId) {
+      console.warn('⚠️ No locationId provided, skipping ascent creation');
+      return;
+    }
+
+    // Generate ascent ID on client (same pattern as existing code)
+    const ascentId = generateAscentId();
+    createdAscentId.value = ascentId;
+
+    console.log(`✨ Creating ascent immediately: ${ascentId}`);
+    console.log(`📤 Starting video upload in background...`);
+
+    // Create minimal ascent record with status='uploading'
+    const minimalAscent = {
+      userId: user.uid,
+      userName: user.displayName || user.email || 'Anonymous',
+      locationId: props.locationId,
+      date: new Date(),
+      notes: '', // User can add later
+      video: {
+        status: 'uploading', // ⏳ Uploading
+        fileName: videoFile.name,
+        fileSize: videoFile.size,
+        uploadedAt: new Date()
+      },
+      // These will be filled in later after analysis:
+      problemId: null,
+      problemSnapshot: null,
+      attemptType: null, // User can set later
+      userGrade: null // User can set later
+    };
+
+    // Create ascent document in Firestore using setDoc with pre-generated ID
+    await ascentService.logAscent(
+      props.locationId,
+      null, // No problemId yet
+      minimalAscent,
+      ascentId // Pre-generated ID
+    );
+
+    console.log(`✅ Ascent created: /ascents/${ascentId}`);
+    console.log(`   Status: uploading`);
+    console.log(`   Location: ${props.locationId}`);
+
+    // Start video upload in background using upload queue
+    const uploadQueue = useVideoUploadQueueStore();
+    uploadQueue.startUpload(
+      videoFile,
+      props.locationId,
+      null, // No problemId yet
+      ascentId
+    );
+
+    console.log(`📤 Video upload queued successfully`);
+    
+    // Queue analysis job in analysis store
+    const analysisQueue = useVideoAnalysisQueueStore();
+    analysisQueue.addJob(
+      ascentId,
+      videoFile,
+      props.locationId,
+      props.comparisonImages
+    );
+
+    console.log(`📊 Analysis job queued successfully`);
+    
+    // ✨ Emit event to close modal immediately - snappy UX!
+    emit('ascent-created', { ascentId });
+    console.log(`🎉 Ascent created event emitted - modal should close now`);
+
+  } catch (error) {
+    console.error('❌ Failed to create ascent and start upload:', error);
+    // Don't throw - let analysis continue even if upload fails
+  }
+};
+
 // Handle video selection from VideoUploadSelector component
 const handleVideoSelected = async (file) => {
   if (!file) return;
@@ -797,6 +899,10 @@ const handleVideoSelected = async (file) => {
   // Set selected video
   selectedVideo.value = file;
   
+  // Reset ascent tracking for new video
+  createdAscentId.value = null;
+  ascentAnalysisUpdated.value = false;
+  
   // Reset processing status to prevent early image matching
   processingStatus.value = '';
   bestMatch.value = null;
@@ -805,7 +911,10 @@ const handleVideoSelected = async (file) => {
   
   emit('video-selected', file);
 
-  // Start processing pipeline
+  // ✨ NEW: Create ascent and start upload immediately
+  await createAscentAndStartUpload(file);
+
+  // Start processing pipeline (analysis happens in background)
   await processVideo();
 };
 
@@ -852,6 +961,13 @@ const processVideo = async () => {
     extractedFrames.value = processedFrames;
 
     emit('frames-extracted', extractedFrames.value);
+
+    // Push frames to analysis queue for processing
+    if (createdAscentId.value) {
+      const analysisQueue = useVideoAnalysisQueueStore();
+      await analysisQueue.setFrames(createdAscentId.value, processedFrames);
+      console.log(`📊 Frames pushed to analysis queue`);
+    }
 
     // Step 2: Run pose detection on each frame
     const poseStartTime = performance.now();

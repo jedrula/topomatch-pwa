@@ -160,17 +160,13 @@
       :is-minimized="isBetaModalMinimized"
       :comparison-images="images"
       :location-id="route.params.locationId"
-      :is-analyzing="isAnalyzing"
-      :analysis-phase="analysisPhase"
-      :video-analysis-result="videoAnalysisResult"
-      :extracted-frame="extractedFrame"
       :pending-redirect-data="pendingRedirectData"
       :get-grade-color="getGradeColor"
       :get-grade-label="getGradeLabel"
       @close="showBetaUploadModal = false; isBetaModalMinimized = false"
-      @video-selected="handleBetaVideoSelected"
+      @video-selected="(event) => { handleBetaVideoSelected(event); isBetaModalMinimized = true; }"
       @analysis-complete="handleBetaAnalysisComplete"
-      @table-scores-ready="(data) => { handleTableScoresReady(data); handleDetectionComplete(data); }"
+      @table-scores-ready="handleTableScoresReady"
       @processing-error="handleBetaProcessingError"
       @try-another-video="handleTryAnotherVideo"
       @continue-to-upload="continueToUpload"
@@ -197,6 +193,63 @@
       :is-open="isVideoGalleryOpen"
       @close="closeVideoGallery"
     />
+
+    <!-- Minimized Beta Upload Indicator -->
+    <div
+      v-if="showBetaUploadModal && isBetaModalMinimized"
+      class="fixed bottom-4 right-4 z-40 animate-fade-in"
+    >
+      <button
+        @click="isBetaModalMinimized = false"
+        class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-3 group"
+      >
+        <!-- Animated spinner for active analysis -->
+        <div
+          v-if="analysisQueue.hasActiveJobs"
+          class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"
+        ></div>
+        <!-- Checkmark for completed -->
+        <svg
+          v-else
+          class="w-5 h-5 text-green-300"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+        
+        <!-- Status text -->
+        <div class="text-left">
+          <div class="text-sm font-semibold">
+            {{ analysisQueue.hasActiveJobs ? 'Analyzing Video' : 'Analysis Complete' }}
+          </div>
+          <div class="text-xs opacity-90">
+            {{ analysisQueue.hasActiveJobs ? 'Click to view details' : 'Click to review' }}
+          </div>
+        </div>
+
+        <!-- Expand icon -->
+        <svg
+          class="w-4 h-4 opacity-75 group-hover:opacity-100 transition-opacity"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+          />
+        </svg>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -205,6 +258,7 @@ import { ref, onMounted, computed, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
 import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
+import { useVideoAnalysisQueueStore } from '../stores/videoAnalysisQueueStore.js';
 import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
 import { useToast } from '../composables/useToast.js';
 import ImageUploadModal from '../components/ImageUploadModal.vue';
@@ -226,21 +280,18 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const boulderProblemsStore = useBoulderProblemsStore();
+const analysisQueue = useVideoAnalysisQueueStore();
 const toast = useToast();
 
 // Video analysis composable
 const {
-  videoAnalysisResult,
-  extractedFrame,
-  isAnalyzing,
-  analysisPhase,
   pendingRedirectData,
   handleBetaVideoSelected,
   handleBetaAnalysisComplete,
-  handleTableScoresReady, // ✅ NEW: Table-based scoring handler
+  handleTableScoresReady,
   handleBetaProcessingError,
   handleTryAnotherVideo,
-  handleAscentFormSubmit, // ✅ NEW: Ascent form submission handler
+  handleAscentFormSubmit,
   continueToUpload
 } = useVideoAnalysis();
 
@@ -260,7 +311,6 @@ const error = ref('');
 const showUploadModal = ref(false);
 const showBetaUploadModal = ref(false);
 const isBetaModalMinimized = ref(false); // Track if modal is minimized
-const pendingAscentSubmission = ref(null); // Store form data while waiting for detection
 
 // Upload tracking state
 const pendingMetadataSaves = ref(0);
@@ -469,8 +519,9 @@ const handleBetaUploadClick = () => {
     return;
   }
 
-  // User is authenticated, show the upload modal
+  // User is authenticated, show the upload modal (NOT minimized yet)
   showBetaUploadModal.value = true;
+  isBetaModalMinimized.value = false; // Start expanded - minimize after video selected
 };
 
 // Wrapper to minimize modal instead of closing when detection needed
@@ -503,63 +554,7 @@ const handleAscentFormSubmitWrapper = async (submitData) => {
     } else {
       toast.error('❌ Failed to log ascent');
     }
-  } else {
-    // No problem yet - store submission data and minimize modal (hide but keep mounted)
-    console.log('📦 Storing submission data, waiting for detection to complete');
-    pendingAscentSubmission.value = submitData;
-    isBetaModalMinimized.value = true;
-    toast.loading('🔍 Detecting problem...'); // No auto-dismiss
   }
-};
-
-// Close modal when detection completes (ONLY if user already clicked "Log Send")
-const handleDetectionComplete = async (detectionData) => {
-  // If we have pending submission data, create the ascent now with detected problem
-  if (pendingAscentSubmission.value && detectionData?.winner) {
-    console.log('🎯 Detection complete! Creating ascent with detected problem:', detectionData.winner);
-    
-    // Merge pending data with detected problem
-    const completeSubmitData = {
-      ...pendingAscentSubmission.value,
-      detectedProblem: detectionData.winner,
-      allProblems: detectionData.allProblems
-    };
-    
-    // Clear pending data
-    pendingAscentSubmission.value = null;
-    
-    // Create the ascent
-    const result = await handleAscentFormSubmit(completeSubmitData);
-    
-    if (result?.success) {
-      // Show success toast with link to problem
-      toast.show(
-        `✅ Problem detected: ${result.problem.name} - Ascent logged!`,
-        'success',
-        6000, // Longer duration for background detection
-        {
-          label: 'View Problem',
-          onClick: () => {
-            router.push({
-              name: 'boulder-problem-detail',
-              params: {
-                locationId: result.locationId,
-                problemId: result.problem.id,
-              },
-            });
-          }
-        }
-      );
-      
-      // ✅ Only close modal if user clicked "Log Send" (we have pendingAscentSubmission)
-      showBetaUploadModal.value = false;
-      isBetaModalMinimized.value = false;
-    } else {
-      toast.error('❌ Failed to log ascent');
-      // Keep modal open on error so user can retry
-    }
-  }
-  // ✅ If no pending submission, keep modal open for user to review and click "Log Send"
 };
 
 // Maximize modal (can be called from toast)
@@ -748,6 +743,22 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Fade-in animation for minimized indicator */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
 /* Mobile layout - Stack vertically */
 .location-grid {
   grid-template-areas:

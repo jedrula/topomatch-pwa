@@ -42,7 +42,10 @@ function createPoseService(modelId) {
  */
 export function getPoseDetectionService() {
   if (!activeService) {
+    const config = getActiveModelConfig();
     console.log(`🎯 Creating pose detection service: ${ACTIVE_POSE_MODEL}`);
+    console.log(`   Provider: ${config.provider}`);
+    console.log(`   Keypoints: ${config.keypoints} (${config.keypointCount} total)`);
     activeService = createPoseService(ACTIVE_POSE_MODEL);
   }
   return activeService;

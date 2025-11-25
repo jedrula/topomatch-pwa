@@ -42,30 +42,24 @@ export const ascentService = {
         throw new Error('User must be authenticated to log ascents');
       }
 
-      // Validate required fields
-      if (!ascentData.attemptType) {
-        throw new Error('Attempt type is required');
-      }
-
-      if (!ascentData.problemSnapshot) {
-        throw new Error('Problem snapshot is required (name, grade, color)');
-      }
+      // Relaxed validation for optimistic uploads
+      // Only locationId is truly required - everything else can be added later
 
       const newAscent = {
         // User & references
         userId: user.uid,
         locationId,
-        problemId,
+        problemId: problemId || null,
         
-        // Problem snapshot (preserved even if problem deleted)
-        problemSnapshot: {
+        // Problem snapshot (optional for optimistic uploads, added later by analysis)
+        problemSnapshot: ascentData.problemSnapshot ? {
           name: ascentData.problemSnapshot.name,
           grade: ascentData.problemSnapshot.grade,
           color: ascentData.problemSnapshot.color,
-        },
+        } : null,
         
-        // Ascent details
-        attemptType: ascentData.attemptType, // 'flash', 'second', 'multiple'
+        // Ascent details (all optional for optimistic uploads)
+        attemptType: ascentData.attemptType || null, // 'flash', 'second', 'multiple'
         userGrade: ascentData.userGrade || null,
         notes: ascentData.notes || '',
         date: ascentData.date || serverTimestamp(),
