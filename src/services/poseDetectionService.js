@@ -55,38 +55,34 @@ class PoseDetectionService {
         return;
       }
 
-      // Convert ImageData to buffer
-      const canvas = new OffscreenCanvas(imageData.width, imageData.height);
-      const ctx = canvas.getContext('2d');
-      ctx.putImageData(imageData, 0, 0);
-      
-      canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 }).then(blob => {
-        return blob.arrayBuffer();
-      }).then(buffer => {
-        const handleMessage = (event) => {
-          const { type, data } = event.data;
-          
-          if (type === 'poseDetectionComplete') {
-            this.worker.removeEventListener('message', handleMessage);
-            resolve(this.formatPoseResults(data.results.poses));
-          } else if (type === 'error') {
-            this.worker.removeEventListener('message', handleMessage);
-            reject(new Error(data.message));
-          }
-        };
-
-        this.worker.addEventListener('message', handleMessage);
+      // Send raw ImageData buffer directly - NO COMPRESSION! 🎯
+      // This eliminates JPEG quality loss and improves pose detection accuracy
+      const handleMessage = (event) => {
+        const { type, data } = event.data;
         
-        // Send detection request
-        this.worker.postMessage({
-          type: 'runPoseDetection',
-          imageBuffer: buffer,
-          imageInfo: {
-            width: imageData.width,
-            height: imageData.height
-          }
-        });
-      }).catch(reject);
+        if (type === 'poseDetectionComplete') {
+          this.worker.removeEventListener('message', handleMessage);
+          resolve(this.formatPoseResults(data.results.poses));
+        } else if (type === 'error') {
+          this.worker.removeEventListener('message', handleMessage);
+          reject(new Error(data.message));
+        }
+      };
+
+      this.worker.addEventListener('message', handleMessage);
+      
+      // Clone the buffer before sending to avoid detaching the original
+      const dataClone = new Uint8ClampedArray(imageData.data);
+      
+      // Send raw pixel data directly to worker (no JPEG compression)
+      this.worker.postMessage({
+        type: 'runPoseDetection',
+        imageData: {
+          data: dataClone.buffer, // ArrayBuffer of raw RGBA pixels
+          width: imageData.width,
+          height: imageData.height
+        }
+      }, [dataClone.buffer]); // Transfer ownership for better performance
     });
   }
 

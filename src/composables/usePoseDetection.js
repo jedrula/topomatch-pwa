@@ -1,9 +1,9 @@
 import { ref, onUnmounted } from 'vue';
-import poseDetectionService from '@/services/poseDetectionService';
+import { getPoseDetectionService, getActiveModelInfo } from '@/services/poseDetectionFactory';
 
 /**
- * Composable for pose detection using singleton service
- * This ensures only one ONNX session exists across the entire app
+ * Composable for pose detection using configurable model factory
+ * Model is selected in src/config/poseDetection.js (ACTIVE_POSE_MODEL)
  */
 export function usePoseDetection() {
   const isAnalyzing = ref(false);
@@ -12,14 +12,22 @@ export function usePoseDetection() {
   const poseResults = ref(null);
   const confidenceThreshold = ref(0.1);
   const sessionReady = ref(false);
+  const currentModel = ref(null);
+
+  // Get service from factory
+  const service = getPoseDetectionService();
 
   // Initialize service and track ready state
   const initializeService = async () => {
     try {
-      await poseDetectionService.initialize();
+      const modelInfo = getActiveModelInfo();
+      currentModel.value = modelInfo;
+      console.log(`🎯 Initializing ${modelInfo.name}...`);
+      
+      await service.initialize();
       sessionReady.value = true;
       error.value = null;
-      analysisStatus.value = 'Pose detection model ready';
+      analysisStatus.value = `${modelInfo.name} ready`;
     } catch (err) {
       console.error('Failed to initialize pose detection service:', err);
       error.value = 'Failed to initialize pose detection. Please refresh the page.';
@@ -43,14 +51,18 @@ export function usePoseDetection() {
     }
 
     let actualImageElement = imageInput;
+    let imageData;
 
     try {
       isAnalyzing.value = true;
       error.value = null;
       analysisStatus.value = 'Analyzing poses...';
 
-      // Handle different input types and convert to HTMLImageElement
-      if (imageInput instanceof File) {
+      // Handle different input types and convert to ImageData
+      if (imageInput instanceof ImageData) {
+        // NEW: Direct ImageData input - no conversion needed! 🎯
+        imageData = imageInput;
+      } else if (imageInput instanceof File) {
         // If it's a File, create an Image element
         actualImageElement = new Image();
         await new Promise((resolve, reject) => {
@@ -58,6 +70,14 @@ export function usePoseDetection() {
           actualImageElement.onerror = reject;
           actualImageElement.src = URL.createObjectURL(imageInput);
         });
+        
+        // Convert to ImageData
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = actualImageElement.naturalWidth || actualImageElement.width;
+        canvas.height = actualImageElement.naturalHeight || actualImageElement.height;
+        ctx.drawImage(actualImageElement, 0, 0);
+        imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       } else if (typeof imageInput === 'string') {
         // If it's a URL string, create an Image element
         actualImageElement = new Image();
@@ -66,39 +86,60 @@ export function usePoseDetection() {
           actualImageElement.onerror = reject;
           actualImageElement.src = imageInput;
         });
+        
+        // Convert to ImageData
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = actualImageElement.naturalWidth || actualImageElement.width;
+        canvas.height = actualImageElement.naturalHeight || actualImageElement.height;
+        ctx.drawImage(actualImageElement, 0, 0);
+        imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       } else if (imageInput instanceof HTMLImageElement) {
-        // Already an image element, use as-is
+        // Already an image element, convert to ImageData
         actualImageElement = imageInput;
-      } else if (!imageInput || typeof imageInput.naturalWidth === 'undefined') {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = actualImageElement.naturalWidth || actualImageElement.width;
+        canvas.height = actualImageElement.naturalHeight || actualImageElement.height;
+        ctx.drawImage(actualImageElement, 0, 0);
+        imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      } else {
         console.error('Invalid image input:', imageInput, 'Type:', typeof imageInput, 'Constructor:', imageInput?.constructor?.name);
-        throw new Error(`Invalid image input provided. Expected HTMLImageElement, File, or image URL string. Got: ${typeof imageInput} (${imageInput?.constructor?.name})`);
+        throw new Error(`Invalid image input provided. Expected ImageData, HTMLImageElement, File, or image URL string. Got: ${typeof imageInput} (${imageInput?.constructor?.name})`);
       }
 
-      // Convert image element to ImageData
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = actualImageElement.naturalWidth || actualImageElement.width;
-      canvas.height = actualImageElement.naturalHeight || actualImageElement.height;
-      ctx.drawImage(actualImageElement, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-      // Use the correct service method
-      const results = await poseDetectionService.detectPoses(imageData);
+      // Use the unified interface (detectPose returns PoseDetectionResult)
+      console.log('🎯 Calling service.detectPose with imageData:', imageData.width, 'x', imageData.height);
+      const result = await service.detectPose(imageData);
+      console.log('📦 Got result from service:', result);
+      console.log('  result.detected:', result.detected);
+      console.log('  result.keypoints:', result.keypoints);
+      console.log('  result.metadata:', result.metadata);
       
-      // Results should be an array of poses now
-      if (!Array.isArray(results)) {
-        console.error('Expected array from detectPoses, got:', typeof results, results);
-        throw new Error('Invalid results format from pose detection service');
+      if (result.detected) {
+        // Return unified format directly (leftHand/rightHand/leftFoot/rightFoot)
+        // Coordinates are already normalized 0-1 from the service
+        poseResults.value = [{
+          keypoints: result.keypoints, // Keep as object with leftHand/rightHand/leftFoot/rightFoot
+          confidence: Math.max(
+            result.keypoints.leftHand?.confidence || 0,
+            result.keypoints.rightHand?.confidence || 0,
+            result.keypoints.leftFoot?.confidence || 0,
+            result.keypoints.rightFoot?.confidence || 0
+          ),
+          bbox: [0, 0, imageData.width, imageData.height], // Full image bbox
+          metadata: result.metadata,
+          detected: result.detected,
+          id: crypto.randomUUID(),
+        }];
+        
+        // Count detected keypoints for status
+        const detectedCount = Object.values(result.keypoints).filter(kp => kp !== null).length;
+        analysisStatus.value = `Detection complete! Found ${detectedCount}/4 keypoints (${result.metadata.model})`;
+      } else {
+        poseResults.value = [];
+        analysisStatus.value = 'No pose detected';
       }
-      
-      // Filter and process results
-      const filteredResults = filterResultsByConfidence(results);
-      poseResults.value = filteredResults.map(pose => ({
-        ...pose,
-        id: Math.random().toString(36).substr(2, 9)
-      }));
-      
-      analysisStatus.value = `Detection complete! Found ${filteredResults.length} person(s)`;
       
       // Cleanup object URLs if we created them
       if (imageInput instanceof File && actualImageElement.src && actualImageElement.src.startsWith('blob:')) {
@@ -119,9 +160,31 @@ export function usePoseDetection() {
     }
   };
 
-  // Filter results by confidence threshold
-  const filterResultsByConfidence = (results) => {
-    return results.filter(pose => pose.confidence >= confidenceThreshold.value);
+  // Convert unified format to legacy YOLO format
+  // Legacy format: flat array of [x1, y1, conf1, x2, y2, conf2, ...]
+  const convertToLegacyFormat = (result, width, height) => {
+    const keypoints = new Array(17 * 3).fill(0); // 17 YOLO keypoints * 3 values
+    
+    // Map unified keypoints to YOLO indices
+    // YOLO: 9=left wrist, 10=right wrist, 15=left ankle, 16=right ankle
+    const mapping = {
+      leftHand: 9,
+      rightHand: 10,
+      leftFoot: 15,
+      rightFoot: 16,
+    };
+    
+    for (const [key, yoloIndex] of Object.entries(mapping)) {
+      const kp = result.keypoints[key];
+      if (kp) {
+        const baseIndex = yoloIndex * 3;
+        keypoints[baseIndex] = kp.x;
+        keypoints[baseIndex + 1] = kp.y;
+        keypoints[baseIndex + 2] = kp.confidence;
+      }
+    }
+    
+    return keypoints;
   };
 
   // Clear results
@@ -144,6 +207,7 @@ export function usePoseDetection() {
     poseResults,
     sessionReady,
     confidenceThreshold,
+    currentModel,
     
     // Methods
     runPoseDetection,

@@ -382,6 +382,33 @@
             >
               <!-- Test points from clicking -->
               <g v-for="(point, index) in validTestProjections" :key="`test-target-${index}`">
+                <!-- Closest hold square (if exists) -->
+                <rect
+                  v-if="point.closestHold"
+                  :x="getScaledHoldCoords(point.closestHold.hold).x - 20"
+                  :y="getScaledHoldCoords(point.closestHold.hold).y - 20"
+                  width="40"
+                  height="40"
+                  fill="none"
+                  stroke="#f59e0b"
+                  stroke-width="3"
+                  opacity="0.8"
+                />
+                
+                <!-- Line connecting projected point to hold -->
+                <line
+                  v-if="point.closestHold"
+                  :x1="point.projected.x"
+                  :y1="point.projected.y"
+                  :x2="getScaledHoldCoords(point.closestHold.hold).x"
+                  :y2="getScaledHoldCoords(point.closestHold.hold).y"
+                  stroke="#f59e0b"
+                  stroke-width="2"
+                  stroke-dasharray="4,2"
+                  opacity="0.6"
+                />
+                
+                <!-- Projected point -->
                 <circle
                   :cx="point.projected.x"
                   :cy="point.projected.y"
@@ -406,11 +433,11 @@
               <g v-if="selectedKeypoint">
                 <!-- Line connecting keypoint to hold -->
                 <line
-                  v-if="selectedKeypointHoldCoords"
+                  v-if="selectedKeypoint.closestHold"
                   :x1="selectedKeypoint.transformed.x"
                   :y1="selectedKeypoint.transformed.y"
-                  :x2="selectedKeypointHoldCoords.x"
-                  :y2="selectedKeypointHoldCoords.y"
+                  :x2="getScaledHoldCoords(selectedKeypoint.closestHold).x"
+                  :y2="getScaledHoldCoords(selectedKeypoint.closestHold).y"
                   stroke="yellow"
                   stroke-width="3"
                   opacity="0.8"
@@ -437,10 +464,10 @@
                 >{{ selectedKeypoint.name }}</text>
                 
                 <!-- Closest hold -->
-                <g v-if="selectedKeypointHoldCoords">
+                <g v-if="selectedKeypoint.closestHold">
                   <circle
-                    :cx="selectedKeypointHoldCoords.x"
-                    :cy="selectedKeypointHoldCoords.y"
+                    :cx="getScaledHoldCoords(selectedKeypoint.closestHold).x"
+                    :cy="getScaledHoldCoords(selectedKeypoint.closestHold).y"
                     r="10"
                     fill="#22c55e"
                     stroke="yellow"
@@ -448,8 +475,8 @@
                     opacity="0.9"
                   />
                   <text
-                    :x="selectedKeypointHoldCoords.x + 14"
-                    :y="selectedKeypointHoldCoords.y + 5"
+                    :x="getScaledHoldCoords(selectedKeypoint.closestHold).x + 14"
+                    :y="getScaledHoldCoords(selectedKeypoint.closestHold).y + 5"
                     font-size="12"
                     fill="#16a34a"
                     font-weight="bold"
@@ -473,6 +500,7 @@
                 <th class="px-2 py-1 text-left font-medium text-gray-500">#</th>
                 <th class="px-2 py-1 text-left font-medium text-gray-500">Source (x, y)</th>
                 <th class="px-2 py-1 text-left font-medium text-gray-500">Projected (x, y)</th>
+                <th class="px-2 py-1 text-left font-medium text-gray-500">Closest Hold</th>
                 <th class="px-2 py-1 text-left font-medium text-gray-500">Status</th>
                 <th class="px-2 py-1 text-left font-medium text-gray-500">Action</th>
               </tr>
@@ -488,6 +516,15 @@
                     ({{ Math.round(point.projected.x) }}, {{ Math.round(point.projected.y) }})
                   </span>
                   <span v-else class="text-red-500">Invalid</span>
+                </td>
+                <td class="px-2 py-1">
+                  <div v-if="point.closestHold" class="text-xs">
+                    <div class="text-gray-600 font-mono">
+                      ({{ Math.round(point.closestHold.coords.x) }}, {{ Math.round(point.closestHold.coords.y) }})
+                    </div>
+                    <div class="text-gray-400">{{ Math.round(point.closestHold.distance) }}px away</div>
+                  </div>
+                  <div v-else class="text-xs text-gray-400">-</div>
                 </td>
                 <td class="px-2 py-1">
                   <span v-if="isValidProjection(point.projected)" class="text-green-600">✓ Valid</span>
@@ -640,88 +677,6 @@ const processedMatches = computed(() => {
   }))
 })
 
-// Extract hold coordinates for selected keypoint
-const selectedKeypointHoldCoords = computed(() => {
-  console.log('🔍 selectedKeypointHoldCoords computed called:', {
-    hasSelectedKeypoint: !!selectedKeypoint.value,
-    hasClosestHold: !!selectedKeypoint.value?.closestHold,
-    selectedKeypoint: selectedKeypoint.value
-  });
-  
-  if (!selectedKeypoint.value || !selectedKeypoint.value.closestHold) return null
-  
-  const hold = selectedKeypoint.value.closestHold
-  const coords = extractHoldCoordinates(hold)
-  
-  if (!coords) return null
-  
-  let holdX = coords.x
-  let holdY = coords.y
-  
-  // Check if this hold comes from server detection and needs coordinate space conversion
-  const isFromServerDetection = 
-    hold.source === 'ai-detected' || 
-    hold.aiModel === 'server-detection' ||
-    hold.detectionSource === 'server' ||
-    hold.source === 'manual'; // Manual holds drawn on server view are also in detection space
-  
-  if (isFromServerDetection && (hold.x !== undefined && hold.y !== undefined)) {
-    // CRITICAL FIX: These coordinates are stored in detection space (1080×1440)
-    // but the visualization canvas shows the reference image
-    // Scale UP from detection space to SVG viewBox space for correct display
-    
-    // FAIL LOUDLY if dimensions are missing - no silent fallbacks!
-    if (!props.detectionSpaceDimensions || !props.referenceImageDimensions) {
-      console.error('❌ MISSING COORDINATE DIMENSIONS:', {
-        detectionSpaceDimensions: props.detectionSpaceDimensions,
-        referenceImageDimensions: props.referenceImageDimensions,
-        hold: hold
-      });
-      return null; // Don't render with wrong coordinates
-    }
-    
-    const detectionWidth = props.detectionSpaceDimensions.width
-    const detectionHeight = props.detectionSpaceDimensions.height
-    const referenceWidth = props.referenceImageDimensions.width
-    const referenceHeight = props.referenceImageDimensions.height
-    
-    // CRITICAL QUESTION: Does referenceImageDimensions match the SVG viewBox dimensions?
-    const svgWidth = debugTargetImageDimensions.value.naturalWidth
-    const svgHeight = debugTargetImageDimensions.value.naturalHeight
-    
-    const dimensionsMatch = (referenceWidth === svgWidth && referenceHeight === svgHeight)
-    
-    console.log('🔍 COORDINATE SPACE DIAGNOSTIC:', {
-      holdSource: hold.source,
-      holdDetectionSource: hold.detectionSource,
-      referenceImageDimensions: `${referenceWidth}×${referenceHeight}`,
-      svgViewBoxDimensions: `${svgWidth}×${svgHeight}`,
-      dimensionsMatch: dimensionsMatch ? '✅ SAME' : '⚠️ DIFFERENT!',
-      detectionSpace: `${detectionWidth}×${detectionHeight}`
-    })
-    
-    // Scale from detection space to the CORRECT target space
-    // The SVG viewBox uses naturalWidth/Height
-    // The keypoints are in referenceImageDimensions space (from homography)
-    // For visualization, we need to use SVG viewBox space
-    const scaleX = svgWidth / detectionWidth
-    const scaleY = svgHeight / detectionHeight
-    
-    holdX = hold.x * scaleX
-    holdY = hold.y * scaleY
-    
-    console.log('🎯 HOLD VISUALIZATION SCALING:', {
-      holdInDetectionSpace: `(${hold.x}, ${hold.y})`,
-      scaledHold: `(${holdX.toFixed(1)}, ${holdY.toFixed(1)})`,
-      scaleFactors: `${scaleX.toFixed(3)}×${scaleY.toFixed(3)}`,
-      targetSpace: 'SVG viewBox (for rendering)',
-      holdType: hold.source || 'unknown'
-    });
-  }
-  
-  return { x: holdX, y: holdY }
-})
-
 // Check if we can render the combined view
 const canRenderCombinedView = computed(() => {
   return (
@@ -833,13 +788,70 @@ const onSourceImageClick = (event) => {
   // Project the point using homography
   const projectedPoint = transformPointWithHomography(clickX, clickY, props.homographyMatrix)
   
+  // Find closest hold to the projected point
+  const closestHold = findClosestHoldToPoint(projectedPoint.x, projectedPoint.y)
+  
   const testPoint = {
     source: { x: clickX, y: clickY },
     projected: projectedPoint,
+    closestHold: closestHold,
     timestamp: Date.now()
   }
   
   testPoints.value.push(testPoint)
+}
+
+// Find closest hold to a projected point
+const findClosestHoldToPoint = (x, y) => {
+  console.log('🔍 Finding closest hold to point:', { x, y });
+  
+  // detectionResults.results contains the array of detected holds
+  const holds = props.bestMatchImage?.detectionResults?.results || 
+                props.bestMatchImage?.holds ||
+                [];
+  
+  console.log('   holds count:', holds.length);
+  
+  if (holds.length === 0) {
+    console.log('   ❌ No holds available');
+    return null
+  }
+  
+  let closestHold = null
+  let minDistance = Infinity
+  
+  holds.forEach((hold, index) => {
+    const coords = extractHoldCoordinates(hold)
+    if (coords) {
+      const dx = coords.x - x
+      const dy = coords.y - y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      if (index < 3) {
+        console.log(`   Hold ${index}: (${coords.x.toFixed(0)}, ${coords.y.toFixed(0)}) distance: ${distance.toFixed(0)}px`);
+      }
+      
+      if (distance < minDistance) {
+        minDistance = distance
+        closestHold = {
+          hold: hold,
+          coords: coords,
+          distance: distance
+        }
+      }
+    }
+  })
+  
+  if (closestHold) {
+    console.log('   ✅ Found closest hold:', {
+      coords: `(${closestHold.coords.x.toFixed(0)}, ${closestHold.coords.y.toFixed(0)})`,
+      distance: `${closestHold.distance.toFixed(0)}px`
+    });
+  } else {
+    console.log('   ❌ No closest hold found');
+  }
+  
+  return closestHold
 }
 
 // Validate that a projection is reasonable for debug testing
@@ -881,6 +893,71 @@ const getKeypointRows = (frame) => {
 // Handle keypoint row click
 const handleKeypointRowClick = (keypoint) => {
   selectedKeypoint.value = keypoint;
+};
+
+// Scale hold coordinates from detection space to SVG viewBox space
+const getScaledHoldCoords = (hold) => {
+  if (!hold) return { x: 0, y: 0 };
+  
+  const coords = extractHoldCoordinates(hold);
+  if (!coords) return { x: 0, y: 0 };
+  
+  let holdX = coords.x;
+  let holdY = coords.y;
+  
+  console.log('📍 getScaledHoldCoords called:', {
+    holdSource: hold.source,
+    extractedCoords: `(${coords.x.toFixed(0)}, ${coords.y.toFixed(0)})`,
+    holdXY: hold.x !== undefined ? `(${hold.x.toFixed(0)}, ${hold.y.toFixed(0)})` : 'undefined',
+    hasCenterX: hold.centerX !== undefined,
+    hasBbox: hold.bbox !== undefined,
+    holdId: hold.id || hold.holdIndex || '?'
+  });
+  
+  // Check if this hold comes from server detection and needs coordinate space conversion
+  const isFromServerDetection = 
+    hold.source === 'ai-detected' || 
+    hold.aiModel === 'server-detection' ||
+    hold.detectionSource === 'server' ||
+    hold.source === 'manual';
+  
+  // IMPORTANT: extractHoldCoordinates() already returns the correct center coordinates
+  // If those coordinates are in detection space, we need to scale them
+  // We check if ANY coordinates exist (not just hold.x/y) because extractHoldCoordinates
+  // might have used centerX/centerY or calculated from bbox
+  if (isFromServerDetection) {
+    // These coordinates are stored in detection space (1080×1440)
+    // Scale UP from detection space to SVG viewBox space for correct display
+    
+    if (!props.detectionSpaceDimensions || !props.referenceImageDimensions) {
+      console.error('❌ MISSING COORDINATE DIMENSIONS for scaling hold:', hold);
+      return { x: holdX, y: holdY }; // Return unscaled as fallback
+    }
+    
+    const svgWidth = debugTargetImageDimensions.value.naturalWidth;
+    const svgHeight = debugTargetImageDimensions.value.naturalHeight;
+    const detectionWidth = props.detectionSpaceDimensions.width;
+    const detectionHeight = props.detectionSpaceDimensions.height;
+    
+    // Scale from detection space to SVG viewBox space
+    const scaleX = svgWidth / detectionWidth;
+    const scaleY = svgHeight / detectionHeight;
+    
+    const scaledX = coords.x * scaleX;
+    const scaledY = coords.y * scaleY;
+    
+    console.log('   🎯 SCALED:', {
+      from: `(${coords.x.toFixed(0)}, ${coords.y.toFixed(0)})`,
+      to: `(${scaledX.toFixed(0)}, ${scaledY.toFixed(0)})`,
+      scaleFactors: `${scaleX.toFixed(3)}×${scaleY.toFixed(3)}`
+    });
+    
+    return { x: scaledX, y: scaledY };
+  } else {
+    console.log('   ✅ NO SCALING NEEDED');
+  }
+  
+  return { x: holdX, y: holdY };
 };
 </script>
 

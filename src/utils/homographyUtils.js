@@ -132,14 +132,19 @@ export function transformPoint(x, y, homographyMatrix, inverse = false) {
 
 /**
  * Transform multiple points using homography matrix
- * @param {Array} points - Array of {x, y} points
+ * @param {Array} points - Array of {x, y, ...} points (additional properties preserved)
  * @param {Array} homographyMatrix - 3x3 homography matrix as flat array
  * @param {boolean} inverse - Whether to apply inverse transformation
- * @returns {Array} Array of transformed {x, y} points
+ * @returns {Array} Array of transformed points with preserved properties
  */
 export function transformPoints(points, homographyMatrix, inverse = false) {
-  return points.map(point => transformPoint(point.x, point.y, homographyMatrix, inverse))
-    .filter(point => point !== null);
+  return points.map(point => {
+    const transformed = transformPoint(point.x, point.y, homographyMatrix, inverse);
+    if (transformed === null) return null;
+    
+    // Preserve all additional properties (like confidence, name, etc.)
+    return { ...point, x: transformed.x, y: transformed.y };
+  }).filter(point => point !== null);
 }
 
 /**
@@ -158,7 +163,7 @@ export async function extractVideoFrames(videoFile, timestamps) {
 
     video.addEventListener('loadedmetadata', () => {
       // 🎯 MEMORY OPTIMIZATION: Configurable downscaling
-      const DOWNSCALE_IMAGES = true; // Set to true in production for memory savings
+      const DOWNSCALE_IMAGES = false; // Set to true in production for memory savings
       const MAX_DIMENSION = 640; // Optimal for YOLOv8 (trained on 640x640)
       
       const videoWidth = video.videoWidth;

@@ -199,63 +199,49 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
  * @returns {Array} - Array of keypoint data with hold matching info
  */
 export function getKeypointRows(frame, extractedFrames, bestMatchImage, boulderProblems) {
-  const keypointNames = ['Left Wrist', 'Right Wrist', 'Left Ankle', 'Right Ankle'];
   const keypointData = [];
 
-  // Get confidence values from the original pose data
-  const originalFrame = extractedFrames[frame.frameIndex];
-  const poseKeypoints = originalFrame?.poseData?.keypoints;
-
+  // Simplified: The transformed points already have all the data we need!
+  // Each point has: {name, x, y, confidence, ...}
   if (frame.originalPoints && frame.transformedPoints) {
-    frame.originalPoints.forEach((originalPoint, index) => {
-      if (index < keypointNames.length) {
-        // Get confidence for this specific keypoint
-        let confidence = 0.5; // default
-        if (poseKeypoints) {
-          switch (index) {
-            case 0:
-              confidence = poseKeypoints.leftWrist?.confidence || 0;
-              break;
-            case 1:
-              confidence = poseKeypoints.rightWrist?.confidence || 0;
-              break;
-            case 2:
-              confidence = poseKeypoints.leftAnkle?.confidence || 0;
-              break;
-            case 3:
-              confidence = poseKeypoints.rightAnkle?.confidence || 0;
-              break;
-          }
-        }
+    frame.transformedPoints.forEach((transformedPoint, index) => {
+      const originalPoint = frame.originalPoints[index];
+      
+      // Find the closest holds - no contextual filtering, just pure distance
+      const holdsInfo = findClosestHolds(
+        transformedPoint.x,
+        transformedPoint.y,
+        bestMatchImage,
+        boulderProblems
+      );
 
-        // Find the closest holds - no contextual filtering, just pure distance
-        const holdsInfo = findClosestHolds(
-          frame.transformedPoints[index].x,
-          frame.transformedPoints[index].y,
-          bestMatchImage,
-          boulderProblems
-        );
+      // Map technical names to display names
+      const displayNames = {
+        'leftHand': 'Left Wrist',
+        'rightHand': 'Right Wrist',
+        'leftFoot': 'Left Ankle',
+        'rightFoot': 'Right Ankle'
+      };
 
-        keypointData.push({
-          name: keypointNames[index],
-          original: originalPoint,
-          transformed: frame.transformedPoints[index],
-          confidence: confidence,
-          closestHold: holdsInfo.closest.hold,
-          closestProblem: holdsInfo.closest.problem,
-          distanceToHold: holdsInfo.closest.distance,
-          closestScore: holdsInfo.closest.score,
-          // Add second and third closest data
-          secondClosestHold: holdsInfo.secondClosest.hold,
-          secondClosestProblem: holdsInfo.secondClosest.problem,
-          secondClosestDistance: holdsInfo.secondClosest.distance,
-          secondClosestScore: holdsInfo.secondClosest.score,
-          thirdClosestHold: holdsInfo.thirdClosest.hold,
-          thirdClosestProblem: holdsInfo.thirdClosest.problem,
-          thirdClosestDistance: holdsInfo.thirdClosest.distance,
-          thirdClosestScore: holdsInfo.thirdClosest.score,
-        });
-      }
+      keypointData.push({
+        name: displayNames[transformedPoint.name] || transformedPoint.name,
+        original: originalPoint,
+        transformed: transformedPoint,
+        confidence: transformedPoint.confidence || 0,
+        closestHold: holdsInfo.closest.hold,
+        closestProblem: holdsInfo.closest.problem,
+        distanceToHold: holdsInfo.closest.distance,
+        closestScore: holdsInfo.closest.score,
+        // Add second and third closest data
+        secondClosestHold: holdsInfo.secondClosest.hold,
+        secondClosestProblem: holdsInfo.secondClosest.problem,
+        secondClosestDistance: holdsInfo.secondClosest.distance,
+        secondClosestScore: holdsInfo.secondClosest.score,
+        thirdClosestHold: holdsInfo.thirdClosest.hold,
+        thirdClosestProblem: holdsInfo.thirdClosest.problem,
+        thirdClosestDistance: holdsInfo.thirdClosest.distance,
+        thirdClosestScore: holdsInfo.thirdClosest.score,
+      });
     });
   }
 

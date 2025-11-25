@@ -137,49 +137,49 @@
                 :viewBox="`0 0 ${frame.imageData.width} ${frame.imageData.height}`"
                 preserveAspectRatio="none"
               >
-                <!-- Left Wrist (Red) -->
+                <!-- Left Hand (Red) - wrist for YOLO, index finger for MediaPipe -->
                 <circle
-                  v-if="frame.poseData.keypoints.leftWrist"
-                  :cx="frame.poseData.keypoints.leftWrist.x"
-                  :cy="frame.poseData.keypoints.leftWrist.y"
+                  v-if="frame.poseData.keypoints.leftHand"
+                  :cx="frame.poseData.keypoints.leftHand.x"
+                  :cy="frame.poseData.keypoints.leftHand.y"
                   r="8"
                   fill="#ef4444"
                   stroke="white"
                   stroke-width="2"
-                  :opacity="frame.poseData.keypoints.leftWrist.confidence"
+                  :opacity="frame.poseData.keypoints.leftHand.confidence"
                 />
-                <!-- Right Wrist (Blue) -->
+                <!-- Right Hand (Blue) - wrist for YOLO, index finger for MediaPipe -->
                 <circle
-                  v-if="frame.poseData.keypoints.rightWrist"
-                  :cx="frame.poseData.keypoints.rightWrist.x"
-                  :cy="frame.poseData.keypoints.rightWrist.y"
+                  v-if="frame.poseData.keypoints.rightHand"
+                  :cx="frame.poseData.keypoints.rightHand.x"
+                  :cy="frame.poseData.keypoints.rightHand.y"
                   r="8"
                   fill="#3b82f6"
                   stroke="white"
                   stroke-width="2"
-                  :opacity="frame.poseData.keypoints.rightWrist.confidence"
+                  :opacity="frame.poseData.keypoints.rightHand.confidence"
                 />
-                <!-- Left Ankle (Green) -->
+                <!-- Left Foot (Green) - ankle for YOLO, toe for MediaPipe -->
                 <circle
-                  v-if="frame.poseData.keypoints.leftAnkle"
-                  :cx="frame.poseData.keypoints.leftAnkle.x"
-                  :cy="frame.poseData.keypoints.leftAnkle.y"
+                  v-if="frame.poseData.keypoints.leftFoot"
+                  :cx="frame.poseData.keypoints.leftFoot.x"
+                  :cy="frame.poseData.keypoints.leftFoot.y"
                   r="8"
                   fill="#22c55e"
                   stroke="white"
                   stroke-width="2"
-                  :opacity="frame.poseData.keypoints.leftAnkle.confidence"
+                  :opacity="frame.poseData.keypoints.leftFoot.confidence"
                 />
-                <!-- Right Ankle (Amber) -->
+                <!-- Right Foot (Amber) - ankle for YOLO, toe for MediaPipe -->
                 <circle
-                  v-if="frame.poseData.keypoints.rightAnkle"
-                  :cx="frame.poseData.keypoints.rightAnkle.x"
-                  :cy="frame.poseData.keypoints.rightAnkle.y"
+                  v-if="frame.poseData.keypoints.rightFoot"
+                  :cx="frame.poseData.keypoints.rightFoot.x"
+                  :cy="frame.poseData.keypoints.rightFoot.y"
                   r="8"
                   fill="#f59e0b"
                   stroke="white"
                   stroke-width="2"
-                  :opacity="frame.poseData.keypoints.rightAnkle.confidence"
+                  :opacity="frame.poseData.keypoints.rightFoot.confidence"
                 />
               </svg>
             </div>
@@ -197,19 +197,19 @@
         <div class="mt-3 flex items-center justify-center gap-4 text-xs text-gray-600">
           <div class="flex items-center gap-1">
             <div class="w-3 h-3 rounded-full bg-red-500"></div>
-            <span>Left Wrist</span>
+            <span>Left Hand</span>
           </div>
           <div class="flex items-center gap-1">
             <div class="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span>Right Wrist</span>
+            <span>Right Hand</span>
           </div>
           <div class="flex items-center gap-1">
             <div class="w-3 h-3 rounded-full bg-green-500"></div>
-            <span>Left Ankle</span>
+            <span>Left Foot</span>
           </div>
           <div class="flex items-center gap-1">
             <div class="w-3 h-3 rounded-full bg-amber-500"></div>
-            <span>Right Ankle</span>
+            <span>Right Foot</span>
           </div>
         </div>
       </div>
@@ -488,22 +488,129 @@ const bestFrameForMatching = computed(() => {
     return extractedFrames.value[0];
   }
   
-  // Select frame with highest average keypoint confidence
-  const frameWithBestPose = framesWithPoses.reduce((best, current) => {
-    const currentConfidence = Object.values(current.poseData.keypoints || {})
-      .filter(kp => kp && typeof kp.confidence === 'number')
-      .reduce((sum, kp) => sum + kp.confidence, 0) / 17; // 17 keypoints
+  // 📊 MULTI-FACTOR FRAME SELECTION for better image matching
+  // Consider: sharpness, keypoint spread, pose confidence, temporal stability
+  const scoredFrames = framesWithPoses.map((frame) => {
+    const keypoints = frame.poseData.keypoints;
     
-    const bestConfidence = Object.values(best.poseData.keypoints || {})
-      .filter(kp => kp && typeof kp.confidence === 'number')
-      .reduce((sum, kp) => sum + kp.confidence, 0) / 17;
+    // 1️⃣ Pose Confidence (20%) - How confident are we about the pose?
+    const validKeypoints = Object.values(keypoints).filter(kp => kp && typeof kp.confidence === 'number');
+    const poseConfidence = validKeypoints.length > 0
+      ? validKeypoints.reduce((sum, kp) => sum + kp.confidence, 0) / validKeypoints.length
+      : 0;
     
-    return currentConfidence > bestConfidence ? current : best;
+    // 2️⃣ Keypoint Spread (30%) - How spread out are the limbs?
+    // More spread = more wall visible = better for image matching
+    const keypointPositions = validKeypoints.map(kp => ({ x: kp.x, y: kp.y }));
+    let spread = 0;
+    if (keypointPositions.length >= 2) {
+      // Calculate average distance between all keypoint pairs
+      let totalDistance = 0;
+      let pairs = 0;
+      for (let i = 0; i < keypointPositions.length; i++) {
+        for (let j = i + 1; j < keypointPositions.length; j++) {
+          const dx = keypointPositions[i].x - keypointPositions[j].x;
+          const dy = keypointPositions[i].y - keypointPositions[j].y;
+          totalDistance += Math.sqrt(dx * dx + dy * dy);
+          pairs++;
+        }
+      }
+      spread = pairs > 0 ? totalDistance / pairs : 0;
+    }
+    // Normalize spread to 0-1 range (assume max spread is ~1.4 diagonal)
+    const normalizedSpread = Math.min(spread / 1.4, 1.0);
+    
+    // 3️⃣ Image Sharpness (30%) - Detect blur using Laplacian variance
+    const sharpness = calculateImageSharpness(frame.imageData);
+    
+    // 4️⃣ Temporal Stability (20%) - Prefer middle frames over edges
+    const framePosition = extractedFrames.value.indexOf(frame) / (extractedFrames.value.length - 1);
+    // Bell curve: peaks at 0.5 (middle), lower at 0 and 1 (edges)
+    const temporalScore = 1.0 - Math.abs(framePosition - 0.5) * 2;
+    
+    // Weighted composite score
+    const compositeScore = 
+      poseConfidence * 0.20 +
+      normalizedSpread * 0.30 +
+      sharpness * 0.30 +
+      temporalScore * 0.20;
+    
+    return {
+      frame,
+      index: extractedFrames.value.indexOf(frame),
+      poseConfidence,
+      spread: normalizedSpread,
+      sharpness,
+      temporalScore,
+      compositeScore
+    };
   });
   
-  console.log(`🎯 Selected frame for image matching: Frame ${extractedFrames.value.indexOf(frameWithBestPose) + 1} (best pose confidence)`);
-  return frameWithBestPose;
+  // Sort by composite score and select best
+  scoredFrames.sort((a, b) => b.compositeScore - a.compositeScore);
+  const best = scoredFrames[0];
+  
+  console.log(`🎯 Frame Selection Scores (sorted by composite):`);
+  scoredFrames.forEach((scored, rank) => {
+    console.log(`  ${rank + 1}. Frame ${scored.index + 1}: ${(scored.compositeScore * 100).toFixed(1)}% ` +
+      `(pose: ${(scored.poseConfidence * 100).toFixed(0)}%, ` +
+      `spread: ${(scored.spread * 100).toFixed(0)}%, ` +
+      `sharp: ${(scored.sharpness * 100).toFixed(0)}%, ` +
+      `tempo: ${(scored.temporalScore * 100).toFixed(0)}%)`);
+  });
+  console.log(`� Selected Frame ${best.index + 1} for image matching (composite score: ${(best.compositeScore * 100).toFixed(1)}%)`);
+  
+  return best.frame;
 });
+
+/**
+ * Calculate image sharpness using Laplacian variance
+ * Higher values = sharper image = better for feature detection
+ */
+const calculateImageSharpness = (imageData) => {
+  if (!imageData || !imageData.data) return 0;
+  
+  const width = imageData.width;
+  const height = imageData.height;
+  const data = imageData.data;
+  
+  // Convert to grayscale and calculate Laplacian
+  let sum = 0;
+  let count = 0;
+  
+  // Sample every 4th pixel for performance (good enough for sharpness estimate)
+  for (let y = 1; y < height - 1; y += 4) {
+    for (let x = 1; x < width - 1; x += 4) {
+      const idx = (y * width + x) * 4;
+      
+      // Grayscale value
+      const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+      
+      // Laplacian kernel (approximation using 4-neighbors)
+      const top = ((data[(y - 1) * width * 4 + x * 4] + 
+                    data[(y - 1) * width * 4 + x * 4 + 1] + 
+                    data[(y - 1) * width * 4 + x * 4 + 2]) / 3);
+      const bottom = ((data[(y + 1) * width * 4 + x * 4] + 
+                       data[(y + 1) * width * 4 + x * 4 + 1] + 
+                       data[(y + 1) * width * 4 + x * 4 + 2]) / 3);
+      const left = ((data[y * width * 4 + (x - 1) * 4] + 
+                     data[y * width * 4 + (x - 1) * 4 + 1] + 
+                     data[y * width * 4 + (x - 1) * 4 + 2]) / 3);
+      const right = ((data[y * width * 4 + (x + 1) * 4] + 
+                      data[y * width * 4 + (x + 1) * 4 + 1] + 
+                      data[y * width * 4 + (x + 1) * 4 + 2]) / 3);
+      
+      const laplacian = Math.abs(4 * gray - top - bottom - left - right);
+      sum += laplacian * laplacian; // Variance
+      count++;
+    }
+  }
+  
+  const variance = count > 0 ? sum / count : 0;
+  
+  // Normalize to 0-1 range (empirically, sharp images have variance > 1000)
+  return Math.min(variance / 1000, 1.0);
+};
 
 // Detected problem for the ascent form (from top scoring problem)
 const detectedProblemForForm = computed(() => {
@@ -596,11 +703,8 @@ watch(poseDetectionError, (newError) => {
 
 // Watch for pose visibility changes to debug checkbox behavior
 
-// Frame timestamps for extraction - keep all 10 for good pose detection coverage
-const FRAMES_FOR_ANALYSIS = 10;
-const FRAME_TIMESTAMPS = FRAMES_FOR_ANALYSIS === 1 
-  ? [0.2] // Just extract one frame for debugging
-  : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]; // 10 samples evenly distributed
+// Frame timestamps for extraction - DEBUG: only frame 6 (60% through video)
+const FRAME_TIMESTAMPS = [0.6]; // Only extract frame 6 for debugging
 
 // Colors for different frames - 10 distinct colors for better visualization
 const FRAME_COLORS = [
@@ -737,11 +841,13 @@ const processVideo = async () => {
       const file = await createFileFromImageData(frame.imageData, `frame_${i + 1}.jpg`);
       const url = createImageUrlFromImageData(frame.imageData);
 
-      processedFrames.push({
+      const processedFrame = {
         ...frame,
         file,
         url,
-      });
+      };
+
+      processedFrames.push(processedFrame);
     }
 
     extractedFrames.value = processedFrames;
@@ -926,19 +1032,9 @@ const extractPoseKeypoints = async (imageData) => {
       });
     }
 
-    // Convert ImageData to File (which is what runPoseDetection expects)
-    const canvas = document.createElement('canvas');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    const ctx = canvas.getContext('2d');
-    ctx.putImageData(imageData, 0, 0);
-
-    // Convert canvas to blob then to file
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    const imageFile = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
-
-    // Run pose detection using the working composable
-    await runPoseDetection(imageFile);
+    // Pass ImageData directly to pose detection - NO JPEG COMPRESSION! 🎯
+    // This eliminates quality loss and improves keypoint detection accuracy
+    await runPoseDetection(imageData);
 
     // Wait for results
     while (isAnalyzing.value) {
@@ -948,25 +1044,18 @@ const extractPoseKeypoints = async (imageData) => {
     if (poseResults.value && poseResults.value.length > 0) {
       const firstPose = poseResults.value[0];
 
-      // Helper function to safely extract keypoint or return default
-      const getKeypoint = (index) => {
-        const kp = firstPose.keypoints[index];
-        return kp && kp.x !== undefined && kp.y !== undefined && kp.confidence !== undefined
-          ? kp
-          : { x: 0, y: 0, confidence: 0 };
-      };
-
-      // Convert to the format expected by the UI
+      // The composable now returns unified format with leftHand/rightHand/leftFoot/rightFoot
+      // These are already in normalized 0-1 coordinates, ready to use
       return {
         keypoints: {
-          leftWrist: getKeypoint(9), // left wrist
-          rightWrist: getKeypoint(10), // right wrist
-          leftAnkle: getKeypoint(15), // left ankle
-          rightAnkle: getKeypoint(16), // right ankle
+          leftHand: firstPose.keypoints.leftHand || { x: 0, y: 0, confidence: 0 },
+          rightHand: firstPose.keypoints.rightHand || { x: 0, y: 0, confidence: 0 },
+          leftFoot: firstPose.keypoints.leftFoot || { x: 0, y: 0, confidence: 0 },
+          rightFoot: firstPose.keypoints.rightFoot || { x: 0, y: 0, confidence: 0 },
         },
-        // Add full keypoints array for debugging
-        allKeypoints: firstPose.keypoints || [],
-        confidence: firstPose.confidence || 0,
+        // Keep metadata for debugging
+        metadata: firstPose.metadata || {},
+        detected: firstPose.detected !== undefined ? firstPose.detected : true,
       };
     } else {
       // Return null instead of throwing - let the caller handle this gracefully
@@ -1176,19 +1265,28 @@ const transformPosesToMatchedImage = async (matchResult) => {
 
       const pose = frame.poseData.keypoints;
 
-      // Extract wrist and ankle points
-      const sourcePoints = [
-        { x: pose.leftWrist.x, y: pose.leftWrist.y },
-        { x: pose.rightWrist.x, y: pose.rightWrist.y },
-        { x: pose.leftAnkle.x, y: pose.leftAnkle.y },
-        { x: pose.rightAnkle.x, y: pose.rightAnkle.y },
-      ];
+      // Extract hand and foot points (unified format: leftHand/rightHand/leftFoot/rightFoot)
+      // IMPORTANT: Keep confidence values with each point
+      // Filter out null/invalid keypoints (confidence 0) to avoid false matches
+      // DEBUG: Only process left hand
+      const keypointNames = ['leftHand'];
+      const sourcePoints = keypointNames
+        .map((name, index) => ({
+          name,
+          index,
+          x: pose[name].x,
+          y: pose[name].y,
+          confidence: pose[name].confidence
+        }))
+        .filter(kp => kp.confidence > 0); // Only include detected keypoints
+      
+      console.log(`🎯 Frame ${i + 1}: ${sourcePoints.length}/4 keypoints detected`);
 
-      // Transform points using homography
+      // Transform points using homography (confidence passes through unchanged)
       const transformedPoints = transformPoints(sourcePoints, homographyMatrix);
 
       // Find closest holds for each transformed keypoint
-      const closestHolds = transformedPoints.map((point, pointIndex) => {
+      const closestHolds = transformedPoints.map((point) => {
         // COORDINATE SYSTEM FIX: Scale projected points to match stored hold coordinates
         let searchPoint = point;
         
@@ -1209,12 +1307,12 @@ const transformPosesToMatchedImage = async (matchResult) => {
         const coords = holdInfo.closest.hold ? extractHoldCoordinates(holdInfo.closest.hold) : null;
         
         return {
-          keypoint: ['leftWrist', 'rightWrist', 'leftAnkle', 'rightAnkle'][pointIndex],
+          keypoint: point.name, // Use the name from the point object
           hold: holdInfo.closest.hold,
           problem: holdInfo.closest.problem,
           distance: holdInfo.closest.distance,
-        score: holdInfo.closest.score,
-        coordinates: coords
+          score: holdInfo.closest.score,
+          coordinates: coords
       };
     });
 

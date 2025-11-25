@@ -19,7 +19,7 @@ let yolov8Session = null;
 let nmsSession = null;
 
 // YOLOv8n-pose configuration
-const MODEL_PATH = '/yolov8n-pose.int8.onnx'; // INT8 quantized model (73% smaller, testing compatibility)
+const MODEL_PATH = '/yolov8n-pose.onnx';
 const NMS_PATH = '/modified-nms-yolov8-pose.onnx';
 const INPUT_SIZE = 640;
 const MODEL_INPUT_SHAPE = [1, 3, 640, 640];
@@ -31,7 +31,7 @@ const scoreThreshold = 0.25;
 
 // Message handler
 self.onmessage = async (event) => {
-  const { type, imageBuffer, imageInfo } = event.data;
+  const { type, imageData } = event.data;
 
   if (type === 'createSession') {
     try {
@@ -131,20 +131,28 @@ self.onmessage = async (event) => {
     }
 
     let imageBitmap = null;
-    let imageBlob = null;
 
     try {
-      if (!imageBuffer || !imageInfo) {
+      if (!imageData || !imageData.data) {
         self.postMessage({
           type: 'error',
-          data: { message: 'Image buffer and info must be provided.' },
+          data: { message: 'Image data must be provided.' },
         });
         return;
       }
 
-      // Create bitmap from buffer
-      imageBlob = new Blob([imageBuffer]);
-      imageBitmap = await createImageBitmap(imageBlob);
+      // Raw ImageData - no JPEG compression! 🎯
+      const { data, width, height } = imageData;
+      
+      // Create ImageData from raw buffer
+      const rawImageData = new ImageData(
+        new Uint8ClampedArray(data),
+        width,
+        height
+      );
+      
+      // Create bitmap directly from ImageData (no quality loss!)
+      imageBitmap = await createImageBitmap(rawImageData);
 
       const startTime = performance.now();
 
@@ -192,7 +200,6 @@ self.onmessage = async (event) => {
           inferenceTime: endTime - startTime,
           results: { poses },
           imageInfo: {
-            ...imageInfo,
             originalWidth: imageBitmap.width,
             originalHeight: imageBitmap.height,
             xRatio,
@@ -226,7 +233,6 @@ self.onmessage = async (event) => {
         imageBitmap.close();
       }
       imageBitmap = null;
-      imageBlob = null;
     }
   }
 };
