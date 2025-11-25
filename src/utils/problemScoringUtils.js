@@ -27,11 +27,15 @@ export function calculateProblemScores(transformedFrames, getKeypointRowsForFram
     return [];
   }
   
-  const problemScoresMap = new Map(); // problemId -> {name, totalScore, matchCount, uniqueHolds}
+  const problemScoresMap = new Map(); // problemId -> {name, totalScore, matchCount, keypointContributions}
+  
+  console.log('🎯 === PROBLEM SCORING CALCULATION START ===');
+  console.log(`Processing ${transformedFrames.length} frame(s)`);
   
   // Process all frames and keypoints
-  transformedFrames.forEach(frame => {
+  transformedFrames.forEach((frame, frameIndex) => {
     const keypointRows = getKeypointRowsForFrame(frame);
+    console.log(`\n📊 Frame ${frameIndex + 1}: ${keypointRows.length} keypoints`);
     
     keypointRows.forEach(keypoint => {
       // 🎯 ONE SCORE PER KEYPOINT PER PROBLEM: Only count the closest hold for each problem
@@ -77,37 +81,55 @@ export function calculateProblemScores(transformedFrames, getKeypointRowsForFram
             problem: problem, // Keep full problem reference
             totalScore: 0,
             matchCount: 0,
-            uniqueHolds: new Map() // holdId -> best score
+            keypointContributions: [] // Track each keypoint's contribution
           });
         }
         
         const problemData = problemScoresMap.get(problemId);
+        
+        // 🔥 NEW: Count EVERY keypoint match, even if same hold
+        // If both hands are on the same hold, that's STRONG evidence!
+        problemData.totalScore += confidenceWeightedScore;
         problemData.matchCount++;
         
-        // Track unique holds with their best scores (avoid double-counting)
-        const currentBestScore = problemData.uniqueHolds.get(holdId) || 0;
-        if (confidenceWeightedScore > currentBestScore) {
-          const scoreDiff = confidenceWeightedScore - currentBestScore;
-          problemData.totalScore += scoreDiff;
-          problemData.uniqueHolds.set(holdId, confidenceWeightedScore);
-        }
+        // Log the contribution
+        problemData.keypointContributions.push({
+          keypoint: keypoint.name,
+          hold: holdId,
+          proximityScore: score.toFixed(3),
+          confidence: confidence.toFixed(2),
+          finalScore: confidenceWeightedScore.toFixed(3)
+        });
+        
+        console.log(`  ✅ ${keypoint.name} → ${problem.name} (${holdId}): ${score.toFixed(3)} × ${confidence.toFixed(2)} = ${confidenceWeightedScore.toFixed(3)}`);
       });
     });
   });
   
   // Convert to array and sort by total score (highest first)
   const results = Array.from(problemScoresMap.values())
-    .map(problem => ({
-      problem: problem.problem,
-      score: problem.totalScore,
-      confidence: Math.min(problem.totalScore, 1.0), // Legacy compatibility
-      // Debug/display info
-      uniqueHoldsMatched: problem.uniqueHolds.size,
-      matchCount: problem.matchCount,
-      averageScorePerHold: problem.uniqueHolds.size > 0 ? 
-        problem.totalScore / problem.uniqueHolds.size : 0
-    }))
+    .map(problem => {
+      // Count unique holds
+      const uniqueHolds = new Set(problem.keypointContributions.map(c => c.hold));
+      
+      return {
+        problem: problem.problem,
+        score: problem.totalScore,
+        confidence: Math.min(problem.totalScore, 1.0), // Legacy compatibility
+        // Debug/display info
+        uniqueHoldsMatched: uniqueHolds.size,
+        matchCount: problem.matchCount,
+        averageScorePerMatch: problem.matchCount > 0 ? 
+          problem.totalScore / problem.matchCount : 0
+      };
+    })
     .sort((a, b) => b.score - a.score);
+  
+  console.log('\n🏆 === FINAL RANKINGS ===');
+  results.forEach((result, index) => {
+    console.log(`${index + 1}. ${result.problem.name}: ${(result.score * 100).toFixed(1)}% (${result.matchCount} matches, ${result.uniqueHoldsMatched} unique holds)`);
+  });
+  console.log('🎯 === SCORING CALCULATION END ===\n');
   
   return results;
 }

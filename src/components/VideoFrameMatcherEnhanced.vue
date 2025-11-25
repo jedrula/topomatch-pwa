@@ -489,18 +489,20 @@ const bestFrameForMatching = computed(() => {
   }
   
   // 📊 MULTI-FACTOR FRAME SELECTION for better image matching
-  // Consider: sharpness, keypoint spread, pose confidence, temporal stability
+  // Consider: pose confidence, keypoint spread, temporal stability
   const scoredFrames = framesWithPoses.map((frame) => {
     const keypoints = frame.poseData.keypoints;
     
-    // 1️⃣ Pose Confidence (20%) - How confident are we about the pose?
+    // 1️⃣ Pose Confidence (50%) - How confident are we about the pose?
+    // This is the most important factor - accurate keypoint detection is critical
     const validKeypoints = Object.values(keypoints).filter(kp => kp && typeof kp.confidence === 'number');
     const poseConfidence = validKeypoints.length > 0
       ? validKeypoints.reduce((sum, kp) => sum + kp.confidence, 0) / validKeypoints.length
       : 0;
     
-    // 2️⃣ Keypoint Spread (30%) - How spread out are the limbs?
+    // 2️⃣ Keypoint Spread (20%) - How spread out are the limbs?
     // More spread = more wall visible = better for image matching
+    // NOTE: Lower weight because it's fine to hold one big hold with both hands
     const keypointPositions = validKeypoints.map(kp => ({ x: kp.x, y: kp.y }));
     let spread = 0;
     if (keypointPositions.length >= 2) {
@@ -520,27 +522,23 @@ const bestFrameForMatching = computed(() => {
     // Normalize spread to 0-1 range (assume max spread is ~1.4 diagonal)
     const normalizedSpread = Math.min(spread / 1.4, 1.0);
     
-    // 3️⃣ Image Sharpness (30%) - Detect blur using Laplacian variance
-    const sharpness = calculateImageSharpness(frame.imageData);
-    
-    // 4️⃣ Temporal Stability (20%) - Prefer middle frames over edges
+    // 3️⃣ Temporal Stability (30%) - Prefer middle frames over edges
+    // Avoid start/end where climber may be entering/exiting or in transition
     const framePosition = extractedFrames.value.indexOf(frame) / (extractedFrames.value.length - 1);
     // Bell curve: peaks at 0.5 (middle), lower at 0 and 1 (edges)
     const temporalScore = 1.0 - Math.abs(framePosition - 0.5) * 2;
     
-    // Weighted composite score
+    // Weighted composite score (total: 100%)
     const compositeScore = 
-      poseConfidence * 0.20 +
-      normalizedSpread * 0.30 +
-      sharpness * 0.30 +
-      temporalScore * 0.20;
+      poseConfidence * 0.50 +
+      normalizedSpread * 0.20 +
+      temporalScore * 0.30;
     
     return {
       frame,
       index: extractedFrames.value.indexOf(frame),
       poseConfidence,
       spread: normalizedSpread,
-      sharpness,
       temporalScore,
       compositeScore
     };
@@ -555,10 +553,9 @@ const bestFrameForMatching = computed(() => {
     console.log(`  ${rank + 1}. Frame ${scored.index + 1}: ${(scored.compositeScore * 100).toFixed(1)}% ` +
       `(pose: ${(scored.poseConfidence * 100).toFixed(0)}%, ` +
       `spread: ${(scored.spread * 100).toFixed(0)}%, ` +
-      `sharp: ${(scored.sharpness * 100).toFixed(0)}%, ` +
       `tempo: ${(scored.temporalScore * 100).toFixed(0)}%)`);
   });
-  console.log(`� Selected Frame ${best.index + 1} for image matching (composite score: ${(best.compositeScore * 100).toFixed(1)}%)`);
+  console.log(`✅ Selected Frame ${best.index + 1} for image matching (composite score: ${(best.compositeScore * 100).toFixed(1)}%)`);
   
   return best.frame;
 });
@@ -566,7 +563,9 @@ const bestFrameForMatching = computed(() => {
 /**
  * Calculate image sharpness using Laplacian variance
  * Higher values = sharper image = better for feature detection
+ * NOTE: Currently unused - removed from frame selection scoring
  */
+// eslint-disable-next-line no-unused-vars
 const calculateImageSharpness = (imageData) => {
   if (!imageData || !imageData.data) return 0;
   
@@ -651,7 +650,7 @@ const aggregatedProblemScores = computed(() => {
     displayScore: formatScore(problemScore.score, 'percentage'),
     matchCount: problemScore.matchCount,
     uniqueHoldsCount: problemScore.uniqueHoldsMatched,
-    averageScore: problemScore.averageScorePerHold.toFixed(3)
+    averageScore: problemScore.averageScorePerMatch?.toFixed(3) || '0.000'
   }));
 });
 
@@ -703,8 +702,8 @@ watch(poseDetectionError, (newError) => {
 
 // Watch for pose visibility changes to debug checkbox behavior
 
-// Frame timestamps for extraction - DEBUG: only frame 6 (60% through video)
-const FRAME_TIMESTAMPS = [0.6]; // Only extract frame 6 for debugging
+// Frame timestamps for extraction (10 frames evenly distributed)
+const FRAME_TIMESTAMPS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 
 // Colors for different frames - 10 distinct colors for better visualization
 const FRAME_COLORS = [
@@ -1268,8 +1267,7 @@ const transformPosesToMatchedImage = async (matchResult) => {
       // Extract hand and foot points (unified format: leftHand/rightHand/leftFoot/rightFoot)
       // IMPORTANT: Keep confidence values with each point
       // Filter out null/invalid keypoints (confidence 0) to avoid false matches
-      // DEBUG: Only process left hand
-      const keypointNames = ['leftHand'];
+      const keypointNames = ['leftHand', 'rightHand', 'leftFoot', 'rightFoot'];
       const sourcePoints = keypointNames
         .map((name, index) => ({
           name,
