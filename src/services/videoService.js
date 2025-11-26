@@ -29,7 +29,8 @@ export const videoService = {
         ? (data.video.transcodedPath || data.video.originalPath)
         : data.video.originalPath;
       
-      if (!videoPath || videoPath.trim() === '') {
+      // Handle corrupted data: video object exists but no path (use optional chaining)
+      if (!videoPath?.trim()) {
         console.warn(`Ascent ${docSnapshot.id} has video object but no valid path:`, data.video);
         return null;
       }

@@ -4,6 +4,7 @@ import { RouterView } from 'vue-router';
 import { useUserStore } from './stores/userStore.js';
 import AppHeader from './components/AppHeader.vue';
 import AuthModal from './components/AuthModal.vue';
+import VideoAnalysisIndicator from './components/VideoAnalysisIndicator.vue';
 
 const userStore = useUserStore();
 const showAuthModal = ref(false);
@@ -48,6 +49,9 @@ provide('authModal', {
       @close="closeAuthModal" 
       @success="onAuthSuccess"
     />
+
+    <!-- Global Video Analysis Indicator - persists across routes -->
+    <VideoAnalysisIndicator />
   </div>
 </template>
 

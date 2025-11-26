@@ -23,6 +23,7 @@ export function useVideoAnalysis() {
 
   // Handle beta video selection
   const handleBetaVideoSelected = (videoFile) => {
+    console.log('🔥 useVideoAnalysis.handleBetaVideoSelected called with:', videoFile);
     // Reset previous results and start matching phase
     videoAnalysisResult.value = null;
     extractedFrame.value = null;
@@ -31,6 +32,7 @@ export function useVideoAnalysis() {
     poseResults.value = [];
     isAnalyzing.value = true;
     analysisPhase.value = 'matching';
+    console.log('✅ useVideoAnalysis state updated, isAnalyzing:', isAnalyzing.value);
   };
 
   // Handle complete beta analysis

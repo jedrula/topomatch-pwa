@@ -193,72 +193,14 @@
       :is-open="isVideoGalleryOpen"
       @close="closeVideoGallery"
     />
-
-    <!-- Minimized Beta Upload Indicator -->
-    <div
-      v-if="showBetaUploadModal && isBetaModalMinimized"
-      class="fixed bottom-4 right-4 z-40 animate-fade-in"
-    >
-      <button
-        @click="isBetaModalMinimized = false"
-        class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-3 group"
-      >
-        <!-- Animated spinner for active analysis -->
-        <div
-          v-if="analysisQueue.hasActiveJobs"
-          class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"
-        ></div>
-        <!-- Checkmark for completed -->
-        <svg
-          v-else
-          class="w-5 h-5 text-green-300"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-        
-        <!-- Status text -->
-        <div class="text-left">
-          <div class="text-sm font-semibold">
-            {{ analysisQueue.hasActiveJobs ? 'Analyzing Video' : 'Analysis Complete' }}
-          </div>
-          <div class="text-xs opacity-90">
-            {{ analysisQueue.hasActiveJobs ? 'Click to view details' : 'Click to review' }}
-          </div>
-        </div>
-
-        <!-- Expand icon -->
-        <svg
-          class="w-4 h-4 opacity-75 group-hover:opacity-100 transition-opacity"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-          />
-        </svg>
-      </button>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, inject } from 'vue';
+import { ref, onMounted, onUnmounted, computed, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
 import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
-import { useVideoAnalysisQueueStore } from '../stores/videoAnalysisQueueStore.js';
 import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
 import { useToast } from '../composables/useToast.js';
 import ImageUploadModal from '../components/ImageUploadModal.vue';
@@ -280,7 +222,6 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const boulderProblemsStore = useBoulderProblemsStore();
-const analysisQueue = useVideoAnalysisQueueStore();
 const toast = useToast();
 
 // Video analysis composable
@@ -727,6 +668,17 @@ const handleAllUploadsComplete = (uploadStats) => {
   }
 };
 
+// Listen for global maximize event from VideoAnalysisIndicator
+const handleMaximizeModal = () => {
+  if (showBetaUploadModal.value && isBetaModalMinimized.value) {
+    isBetaModalMinimized.value = false;
+  } else if (!showBetaUploadModal.value) {
+    // If modal isn't open, open it
+    showBetaUploadModal.value = true;
+    isBetaModalMinimized.value = false;
+  }
+};
+
 onMounted(async () => {
   try {
     // Import OpenCV.js - required for homography matrix calculation
@@ -739,26 +691,18 @@ onMounted(async () => {
 
   loadLocation();
   loadLocationVideos();
+
+  // Listen for maximize event from global indicator
+  window.addEventListener('maximize-analysis-modal', handleMaximizeModal);
+});
+
+onUnmounted(() => {
+  // Clean up event listener
+  window.removeEventListener('maximize-analysis-modal', handleMaximizeModal);
 });
 </script>
 
 <style scoped>
-/* Fade-in animation for minimized indicator */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
 /* Mobile layout - Stack vertically */
 .location-grid {
   grid-template-areas:
