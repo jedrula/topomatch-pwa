@@ -31,6 +31,9 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
   // Analysis queue: { [ascentId]: analysisJob }
   const jobs = ref({});
 
+  // Completion callbacks: Map<locationId, callback>
+  const completionCallbacks = new Map();
+
   /**
    * Analysis job structure:
    * {
@@ -174,6 +177,16 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       console.log(`   Duration: ${((job.completedAt - job.createdAt) / 1000).toFixed(2)}s`);
       console.log(`   Detected: ${job.scores?.[0]?.name || 'No match'}`);
       console.log(`   Score: ${job.scores?.[0]?.totalScore ? (job.scores[0].totalScore * 100).toFixed(1) + '%' : 'N/A'}\n`);
+
+      // Trigger completion callback if registered for this location
+      if (job.locationId && completionCallbacks.has(job.locationId)) {
+        const callback = completionCallbacks.get(job.locationId);
+        try {
+          callback(job.ascentId, job);
+        } catch (error) {
+          console.error('Error in completion callback:', error);
+        }
+      }
 
     } catch (error) {
       console.error(`❌ Error in analysis pipeline:`, error);
@@ -792,6 +805,28 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     jobs.value = {};
   };
 
+  /**
+   * Register a callback for when jobs complete at a specific location
+   * @param {string} locationId - Location to watch
+   * @param {Function} callback - Called with (ascentId, job) when job completes
+   * @returns {Function} Unregister function
+   */
+  const onJobComplete = (locationId, callback) => {
+    if (!locationId || typeof callback !== 'function') {
+      console.warn('onJobComplete: invalid locationId or callback');
+      return () => {};
+    }
+
+    completionCallbacks.set(locationId, callback);
+    console.log(`📡 Registered completion callback for location ${locationId}`);
+
+    // Return unregister function
+    return () => {
+      completionCallbacks.delete(locationId);
+      console.log(`📡 Unregistered completion callback for location ${locationId}`);
+    };
+  };
+
   // Computed properties
   const activeJobs = computed(() => {
     return Object.values(jobs.value).filter(
@@ -831,5 +866,6 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     getJob,         // Get job status
     cancelJob,      // Cancel job
     clearAll,       // Clear all jobs (testing)
+    onJobComplete,  // Register completion callback (returns unregister function)
   };
 });

@@ -120,7 +120,7 @@
 
         <!-- Videos/Betas section -->
         <LocationVideos
-          :videos="videos"
+          :videos="displayVideos"
           :loading="videosLoading"
           @video-click="openVideoGallery"
           @video-deleted="handleVideoDeleted"
@@ -223,6 +223,7 @@ import LocationBoulderProblems from '../components/LocationBoulderProblems.vue';
 import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
+import { useVideoAnalysisQueueStore } from '../stores/videoAnalysisQueueStore.js';
 import { videoService } from '../services/videoService.js';
 import { fixLocalhostUrl } from '../services/storageUtils.js';
 import { getResizedImageUrl } from '../utils/imageResize.js';
@@ -231,6 +232,7 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const boulderProblemsStore = useBoulderProblemsStore();
+const analysisStore = useVideoAnalysisQueueStore();
 const toast = useToast();
 
 // Video analysis composable
@@ -267,6 +269,65 @@ const pendingMetadataSaves = ref(0);
 const totalUploadsExpected = ref(0);
 
 const locationId = computed(() => route.params.locationId);
+
+// Track which completed ascents we've already loaded from Firestore
+const loadedAscentIds = ref(new Set());
+
+// Merge active analysis jobs with loaded videos
+const displayVideos = computed(() => {
+  // Get active jobs for this location (not complete)
+  const activeJobs = Object.values(analysisStore.jobs)
+    .filter(job => 
+      job.locationId === locationId.value && 
+      job.status !== 'complete' &&
+      job.status !== 'error'
+    );
+  
+  // Convert active jobs to placeholder video objects
+  const uploadingVideos = activeJobs.map(job => ({
+    id: job.ascentId,
+    ascentId: job.ascentId,
+    isUploading: true,
+    progress: job.progress || 0,
+    status: job.status,
+    metadata: {
+      duration: null,
+      problemName: null
+    }
+  }));
+  
+  // Get completed jobs that we should keep visible until video loads
+  const completedJobs = Object.values(analysisStore.jobs)
+    .filter(job => 
+      job.locationId === locationId.value && 
+      job.status === 'complete' &&
+      !loadedAscentIds.value.has(job.ascentId)
+    );
+  
+  // Convert completed jobs to placeholder video objects (show as 100% complete)
+  const completedPlaceholders = completedJobs.map(job => ({
+    id: job.ascentId,
+    ascentId: job.ascentId,
+    isUploading: true,
+    progress: 100,
+    status: 'complete',
+    metadata: {
+      duration: null,
+      problemName: job.detectedProblemId ? 
+        boulderProblemsStore.boulderProblems.find(p => p.id === job.detectedProblemId)?.name : null
+    }
+  }));
+  
+  // Mark all loaded videos as loaded (so we can hide their placeholders)
+  videos.value.forEach(video => {
+    if (video.ascentId) {
+      loadedAscentIds.value.add(video.ascentId);
+    }
+  });
+  
+  // Merge: uploading jobs first, then completed placeholders, then actual videos
+  return [...uploadingVideos, ...completedPlaceholders, ...videos.value];
+});
 
 // Boulder problems summary grouped by grade
 const boulderProblemsSummary = computed(() => {
@@ -688,6 +749,36 @@ const handleMaximizeModal = () => {
   }
 };
 
+// Handle job completion - load the video when analysis finishes
+const handleJobComplete = async (ascentId) => {
+  console.log(`🎬 Job completed for ascent ${ascentId}, loading video...`);
+  
+  // Load just this specific video
+  const video = await videoService.getVideoByAscentId(ascentId);
+  
+  if (video) {
+    // Add to videos list if not already there
+    const existingIndex = videos.value.findIndex(v => v.ascentId === ascentId);
+    if (existingIndex === -1) {
+      // Prepend to list (most recent first)
+      videos.value.unshift(video);
+      console.log(`✅ Added video for ascent ${ascentId} to list`);
+    } else {
+      // Update existing entry
+      videos.value[existingIndex] = video;
+      console.log(`✅ Updated video for ascent ${ascentId}`);
+    }
+    
+    // Mark as loaded so placeholder disappears
+    loadedAscentIds.value.add(ascentId);
+  } else {
+    console.warn(`⚠️ Could not load video for ascent ${ascentId}`);
+  }
+};
+
+// Store unregister function for cleanup
+let unregisterJobCallback = null;
+
 onMounted(async () => {
   try {
     // Import OpenCV.js - required for homography matrix calculation
@@ -701,11 +792,19 @@ onMounted(async () => {
   loadLocation();
   loadLocationVideos();
 
+  // Register callback for job completions at this location
+  unregisterJobCallback = analysisStore.onJobComplete(locationId.value, handleJobComplete);
+
   // Listen for maximize event from global indicator
   window.addEventListener('maximize-analysis-modal', handleMaximizeModal);
 });
 
 onUnmounted(() => {
+  // Unregister job completion callback
+  if (unregisterJobCallback) {
+    unregisterJobCallback();
+  }
+
   // Clean up event listener
   window.removeEventListener('maximize-analysis-modal', handleMaximizeModal);
 });

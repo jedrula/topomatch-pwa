@@ -466,6 +466,30 @@ export const videoService = {
   },
 
   /**
+   * Get a single video by ascent ID
+   * @param {string} ascentId - The ascent ID
+   * @returns {Promise<Object|null>} Video object with metadata or null
+   */
+  async getVideoByAscentId(ascentId) {
+    try {
+      const { doc, getDoc } = await import('firebase/firestore');
+      
+      const ascentRef = doc(db, 'ascents', ascentId);
+      const docSnapshot = await getDoc(ascentRef);
+      
+      if (!docSnapshot.exists()) {
+        console.warn(`Ascent ${ascentId} not found`);
+        return null;
+      }
+      
+      return await this._transformAscentToVideo(docSnapshot);
+    } catch (error) {
+      console.error(`Error fetching video for ascent ${ascentId}:`, error);
+      return null;
+    }
+  },
+
+  /**
    * Get all videos for a specific user
    * @param {string} userId - The user ID
    * @returns {Promise<Array>} Array of video objects with metadata
