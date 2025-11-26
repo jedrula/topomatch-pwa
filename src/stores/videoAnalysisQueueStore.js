@@ -54,16 +54,17 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
    */
 
   /**
-   * Set frames and comparison problems, then start autonomous pipeline
+   * Set frames, images, and problems, then start autonomous pipeline
    * Called by component after frame extraction (DOM work)
    * Auto-creates job if it doesn't exist (simplified flow)
    * 
    * @param {string} ascentId - Pre-generated ascent ID
    * @param {Array} frames - Extracted frames with imageData
-   * @param {Array} comparisonProblems - Boulder problems with {id, name, grade, imageId, imageUrl, locationId, holds}
+   * @param {Array} comparisonImages - Location images with {id, url} (for Step 2 matching)
+   * @param {Array} boulderProblems - Boulder problems with {id, name, grade, imageId, holds} (for Step 4 scoring)
    * @param {string} locationId - Location ID (for hold loading)
    */
-  const setFrames = async (ascentId, frames, comparisonProblems = [], locationId = null) => {
+  const setFrames = async (ascentId, frames, comparisonImages = [], boulderProblems = [], locationId = null) => {
     let job = jobs.value[ascentId];
     
     // Auto-create job if it doesn't exist (simplified component flow)
@@ -71,15 +72,13 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       console.log(`📊 Creating analysis job for ascent ${ascentId}`);
       const jobId = crypto.randomUUID();
       
-      // Extract locationId from first problem if not provided
-      const finalLocationId = locationId || comparisonProblems[0]?.locationId || null;
-      
       job = {
         id: jobId,
         ascentId,
-        locationId: finalLocationId,
+        locationId,
         videoFile: null,   // Not needed for analysis
-        comparisonProblems: comparisonProblems || [],
+        comparisonImages: comparisonImages || [],   // For image matching (Step 2)
+        boulderProblems: boulderProblems || [],     // For scoring (Step 4)
         
         status: 'queued',
         progress: 0,
@@ -101,11 +100,15 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     job.extractedFrames = frames;
     job.status = 'extracting-complete';
     
-    if (comparisonProblems && comparisonProblems.length > 0) {
-      job.comparisonProblems = comparisonProblems;
-      console.log(`📊 Frames + problems received for ascent ${ascentId}`);
-      console.log(`   Frames: ${frames.length}, Problems: ${comparisonProblems.length}`);
+    if (comparisonImages && comparisonImages.length > 0) {
+      job.comparisonImages = comparisonImages;
     }
+    if (boulderProblems && boulderProblems.length > 0) {
+      job.boulderProblems = boulderProblems;
+    }
+    
+    console.log(`📊 Frames + data received for ascent ${ascentId}`);
+    console.log(`   Frames: ${frames.length}, Images: ${comparisonImages.length}, Problems: ${boulderProblems.length}`);
     
     // Start autonomous pipeline
     await _processJob(ascentId);
@@ -138,7 +141,8 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       console.log(`╚════════════════════════════════════════════════════════════╝`);
       console.log(`   Ascent: ${ascentId}`);
       console.log(`   Frames: ${job.extractedFrames.length}`);
-      console.log(`   Problems: ${job.comparisonProblems.length}`);
+      console.log(`   Images: ${job.comparisonImages.length}`);
+      console.log(`   Problems: ${job.boulderProblems.length}`);
 
       // Step 1: Pose Detection (0-20%)
       await _detectPoses(job);
@@ -228,16 +232,16 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
   const _matchImagesToFrames = async (job) => {
     console.log(`\n🖼️ Starting image matching (SuperPoint + LightGlue)...`);
     console.log(`   Frames: ${job.extractedFrames.length}`);
-    console.log(`   Problems: ${job.comparisonProblems.length}`);
+    console.log(`   Images: ${job.comparisonImages.length}`);
     
     job.status = 'matching';
     job.progress = 20;
     
-    // Extract image URLs from comparison problems
-    const imageUrls = job.comparisonProblems.map(problem => problem.imageUrl).filter(Boolean);
+    // Extract image URLs from comparison images
+    const imageUrls = job.comparisonImages.map(img => img.url).filter(Boolean);
     
     if (imageUrls.length === 0) {
-      throw new Error('No valid image URLs in comparison problems');
+      throw new Error('No valid image URLs in comparison images');
     }
     
     console.log(`   Comparing against ${imageUrls.length} location images...`);
@@ -255,39 +259,56 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     const bestFrame = framesWithPoses[0];
     console.log(`   Using frame for matching (has pose data)`);
     
-    // Run SuperPoint feature matching on all location images
+    // Run SuperPoint feature matching using batch inference
+    console.log(`   Running batch inference...`);
+    
+    // Convert video frame to blob for inference
+    const frameBlob = await fetch(bestFrame.url).then(r => r.blob());
+    const frameFile = new File([frameBlob], 'frame.jpg', { type: 'image/jpeg' });
+    
+    // Run inference batch and wait for results
+    await new Promise((resolve) => {
+      inferenceStore.runInferenceBatch(
+        frameFile,
+        imageUrls,
+        resolve,  // onComplete callback
+        (progress) => {
+          job.progress = 20 + Math.round(progress * 20);
+        }
+      );
+    });
+    
+    // Get results from store
+    const results = inferenceStore.inferenceResults;
+    const matchCounts = inferenceStore.matchCounts;
     const matchResults = [];
     
     for (let i = 0; i < imageUrls.length; i++) {
       const imageUrl = imageUrls[i];
+      const result = results[imageUrl];
+      const matchCount = matchCounts[imageUrl] || 0;
       
-      try {
-        // Match features using SuperPoint + LightGlue
-        const result = await inferenceStore.matchImages(
-          bestFrame.url,  // Video frame
-          imageUrl        // Location image
-        );
+      if (result && matchCount > 0) {
+        // Extract match data from raw results
+        const rawData = result.rawData;
+        const matches = rawData?.matches;
+        const keypoints0 = rawData?.keypoints0;
+        const keypoints1 = rawData?.keypoints1;
         
-        if (result && result.matchCount > 0) {
-          matchResults.push({
-            imageId: job.comparisonProblems[i].imageId,
-            imageUrl,
-            matchCount: result.matchCount,
-            confidence: result.confidence || result.matchCount,
-            keypoints0: result.keypoints0,
-            keypoints1: result.keypoints1,
-            matches: result.matches,
-          });
-          
-          console.log(`   ✓ Image ${i + 1}/${imageUrls.length}: ${result.matchCount} matches`);
-        } else {
-          console.log(`   ✗ Image ${i + 1}/${imageUrls.length}: No matches`);
-        }
-      } catch (err) {
-        console.error(`   ✗ Image ${i + 1}/${imageUrls.length}: Error - ${err.message}`);
+        matchResults.push({
+          imageId: job.comparisonImages[i].id,
+          imageUrl,
+          matchCount,
+          confidence: matchCount,
+          keypoints0,
+          keypoints1,
+          matches,
+        });
+        
+        console.log(`   ✓ Image ${i + 1}/${imageUrls.length}: ${matchCount} matches`);
+      } else {
+        console.log(`   ✗ Image ${i + 1}/${imageUrls.length}: No matches`);
       }
-      
-      job.progress = 20 + Math.round((i / imageUrls.length) * 20);
     }
     
     if (matchResults.length === 0) {
@@ -383,7 +404,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
    */
   const _scoreProblems = async (job) => {
     console.log(`\n🎯 Starting problem scoring...`);
-    console.log(`   Problems to score: ${job.comparisonProblems.length}`);
+    console.log(`   Problems to score: ${job.boulderProblems.length}`);
     console.log(`   Frames with poses: ${job.extractedFrames.filter(f => f.poseData).length}`);
     console.log(`   Available holds: ${job.holds.length}`);
     
@@ -439,7 +460,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     
     // Build problem-to-hold mapping
     const problemHoldMap = {};
-    for (const problem of job.comparisonProblems) {
+    for (const problem of job.boulderProblems) {
       if (problem.holds && Array.isArray(problem.holds)) {
         problemHoldMap[problem.id] = problem.holds;
       }
@@ -448,7 +469,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     // Score problems
     const scores = calculateProblemScores(
       transformedFrames,
-      job.comparisonProblems,
+      job.boulderProblems,
       job.holds,
       problemHoldMap
     );

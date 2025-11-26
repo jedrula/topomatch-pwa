@@ -419,19 +419,17 @@ const processVideo = async (videoFile) => {
     if (createdAscentId.value) {
       const analysisQueue = useVideoAnalysisQueueStore();
       
-      // Enhance boulder problems with image URLs from comparisonImages
-      // Boulder problems have imageId, but store needs imageUrl for matching
-      const imageUrlMap = new Map(props.comparisonImages.map(img => [img.id, img.url]));
-      
-      const problemsWithImageUrls = boulderProblemsStore.boulderProblems.map(problem => ({
-        ...problem,
-        imageUrl: imageUrlMap.get(problem.imageId) || null,
-        locationId: props.locationId  // Add locationId for hold loading
-      }));
-      
-      console.log(`📊 Pushing ${processedFrames.length} frames + ${problemsWithImageUrls.length} problems to analysis queue`);
-      console.log(`   Store will handle full pipeline in background`);
-      await analysisQueue.setFrames(createdAscentId.value, processedFrames, problemsWithImageUrls, props.locationId);
+      // Pass images and problems separately (cleaner separation of concerns)
+      // - comparisonImages: for Step 2 image matching (SuperPoint)
+      // - boulderProblems: for Step 4 problem scoring
+      console.log(`Frames: ${processedFrames.length}, Images: ${props.comparisonImages.length}, Problems: ${boulderProblemsStore.boulderProblems.length}`);
+      await analysisQueue.setFrames(
+        createdAscentId.value,
+        processedFrames,
+        props.comparisonImages,
+        boulderProblemsStore.boulderProblems,
+        props.locationId
+      );
     }
 
     const totalTime = performance.now() - totalStartTime;
