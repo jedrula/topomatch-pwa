@@ -287,28 +287,4 @@ export async function extractVideoFrames(videoFile, timestamps) {
   });
 }
 
-/**
- * Extract pose keypoints from an image using pose detection model
- * @param {ImageData} imageData - Image data from canvas
- * @returns {Promise<Object>} Pose keypoints with confidence scores
- */
-export async function extractPoseKeypoints(imageData) {
-  // This will need to integrate with your pose detection worker
-  // For now, returning a placeholder structure
-  return new Promise((resolve) => {
-    // TODO: Integrate with pose detection worker
-    // This should extract wrist and ankle positions
-    const mockPose = {
-      keypoints: {
-        leftWrist: { x: 100, y: 200, confidence: 0.8 },
-        rightWrist: { x: 150, y: 190, confidence: 0.9 },
-        leftAnkle: { x: 110, y: 400, confidence: 0.7 },
-        rightAnkle: { x: 140, y: 410, confidence: 0.8 }
-      },
-      confidence: 0.85
-    };
-    
-    // Simulate async processing
-    setTimeout(() => resolve(mockPose), 100);
-  });
-}
+// Mock function removed - now using real pose detection service from poseDetectionFactory.js

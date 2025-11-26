@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { ascentService } from '../services/ascentService.js';
-import { extractPoseKeypoints } from '../utils/homographyUtils.js';
+import { getPoseDetectionService } from '../services/poseDetectionFactory.js';
 import { calculateHomographyMatrix, transformPoints } from '../utils/homographyUtils.js';
 import { useInferenceStore } from './inferenceStore.js';
 import { holdDetectionService } from '../services/holdDetectionService.js';
@@ -67,6 +67,10 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
   const setFrames = async (ascentId, frames, comparisonImages = [], boulderProblems = [], locationId = null) => {
     let job = jobs.value[ascentId];
     
+    // Convert to plain arrays (unwrap Pinia reactive refs if passed)
+    const plainComparisonImages = Array.isArray(comparisonImages) ? [...comparisonImages] : [];
+    const plainBoulderProblems = Array.isArray(boulderProblems) ? [...boulderProblems] : [];
+    
     // Auto-create job if it doesn't exist (simplified component flow)
     if (!job) {
       console.log(`📊 Creating analysis job for ascent ${ascentId}`);
@@ -77,8 +81,8 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         ascentId,
         locationId,
         videoFile: null,   // Not needed for analysis
-        comparisonImages: comparisonImages || [],   // For image matching (Step 2)
-        boulderProblems: boulderProblems || [],     // For scoring (Step 4)
+        comparisonImages: plainComparisonImages,   // For image matching (Step 2)
+        boulderProblems: plainBoulderProblems,     // For scoring (Step 4)
         
         status: 'queued',
         progress: 0,
@@ -100,15 +104,15 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     job.extractedFrames = frames;
     job.status = 'extracting-complete';
     
-    if (comparisonImages && comparisonImages.length > 0) {
-      job.comparisonImages = comparisonImages;
+    if (plainComparisonImages && plainComparisonImages.length > 0) {
+      job.comparisonImages = plainComparisonImages;
     }
-    if (boulderProblems && boulderProblems.length > 0) {
-      job.boulderProblems = boulderProblems;
+    if (plainBoulderProblems && plainBoulderProblems.length > 0) {
+      job.boulderProblems = plainBoulderProblems;
     }
     
     console.log(`📊 Frames + data received for ascent ${ascentId}`);
-    console.log(`   Frames: ${frames.length}, Images: ${comparisonImages.length}, Problems: ${boulderProblems.length}`);
+    console.log(`   Frames: ${frames.length}, Images: ${plainComparisonImages.length}, Problems: ${plainBoulderProblems.length}`);
     
     // Start autonomous pipeline
     await _processJob(ascentId);
@@ -187,11 +191,16 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     
     job.status = 'detecting';
     
+    // Get pose detection service (uses factory to get YOLO or other configured model)
+    const poseService = getPoseDetectionService();
+    await poseService.initialize();
+    
     for (let i = 0; i < job.extractedFrames.length; i++) {
       const frame = job.extractedFrames[i];
       
       try {
-        const poseResult = await extractPoseKeypoints(frame.imageData);
+        // Use real pose detection service (goes through YOLO adapter)
+        const poseResult = await poseService.detectPose(frame.imageData);
         
         if (poseResult && poseResult.error) {
           frame.poseData = null;
@@ -224,6 +233,76 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     if (successfulDetections === 0) {
       throw new Error('No poses detected in any frames');
     }
+    
+    // Select best frame for image matching using multi-factor scoring
+    job.bestFrameIndex = _selectBestFrame(job.extractedFrames);
+    console.log(`🎯 Selected frame ${job.bestFrameIndex + 1} as best for image matching`);
+  };
+
+  /**
+   * Helper: Select best frame for image matching
+   * Uses multi-factor scoring: pose confidence (50%), temporal position (30%), keypoint spread (20%)
+   */
+  const _selectBestFrame = (frames) => {
+    const framesWithPoses = frames.map((frame, index) => ({ frame, index }))
+      .filter(({ frame }) => frame.poseData);
+    
+    if (framesWithPoses.length === 0) return 0;
+    
+    console.log(`\n🎯 Selecting best frame from ${framesWithPoses.length} frames with poses...`);
+    
+    const scoredFrames = framesWithPoses.map(({ frame, index }) => {
+      const keypoints = frame.poseData.keypoints;
+      
+      // 1️⃣ Pose Confidence (50%) - How confident are we about the pose?
+      const validKeypoints = Object.values(keypoints).filter(kp => kp && typeof kp.confidence === 'number');
+      const poseConfidence = validKeypoints.length > 0
+        ? validKeypoints.reduce((sum, kp) => sum + kp.confidence, 0) / validKeypoints.length
+        : 0;
+      
+      // 2️⃣ Keypoint Spread (20%) - How spread out are the limbs?
+      const keypointPositions = validKeypoints.map(kp => ({ x: kp.x, y: kp.y }));
+      let spread = 0;
+      if (keypointPositions.length >= 2) {
+        let totalDistance = 0;
+        let pairs = 0;
+        for (let i = 0; i < keypointPositions.length; i++) {
+          for (let j = i + 1; j < keypointPositions.length; j++) {
+            const dx = keypointPositions[i].x - keypointPositions[j].x;
+            const dy = keypointPositions[i].y - keypointPositions[j].y;
+            totalDistance += Math.sqrt(dx * dx + dy * dy);
+            pairs++;
+          }
+        }
+        spread = pairs > 0 ? totalDistance / pairs : 0;
+      }
+      const normalizedSpread = Math.min(spread / 1.4, 1.0);
+      
+      // 3️⃣ Temporal Stability (30%) - Prefer middle frames (around frame 5)
+      const framePosition = index / (frames.length - 1);
+      const temporalScore = 1.0 - Math.abs(framePosition - 0.5) * 2;
+      
+      // Weighted composite score
+      const compositeScore = 
+        poseConfidence * 0.50 +
+        normalizedSpread * 0.20 +
+        temporalScore * 0.30;
+      
+      return { index, poseConfidence, normalizedSpread, temporalScore, compositeScore };
+    });
+    
+    scoredFrames.sort((a, b) => b.compositeScore - a.compositeScore);
+    const best = scoredFrames[0];
+    
+    console.log(`   Frame Selection Scores:`);
+    scoredFrames.slice(0, 3).forEach((scored, rank) => {
+      console.log(`   ${rank + 1}. Frame ${scored.index + 1}: ${(scored.compositeScore * 100).toFixed(1)}% ` +
+        `(pose: ${(scored.poseConfidence * 100).toFixed(0)}%, ` +
+        `spread: ${(scored.normalizedSpread * 100).toFixed(0)}%, ` +
+        `tempo: ${(scored.temporalScore * 100).toFixed(0)}%)`);
+    });
+    
+    return best.index;
   };
 
   /**
@@ -249,15 +328,13 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     // Get the inference store for SuperPoint
     const inferenceStore = useInferenceStore();
     
-    // Find frame with best pose (most confident keypoints)
-    const framesWithPoses = job.extractedFrames.filter(f => f.poseData);
-    if (framesWithPoses.length === 0) {
-      throw new Error('No frames with pose data for matching');
+    // Use the best frame selected in Step 1
+    if (job.bestFrameIndex === undefined || !job.extractedFrames[job.bestFrameIndex]) {
+      throw new Error('Best frame not found - pose detection may have failed');
     }
     
-    // Use first frame with pose for now (could pick best based on pose confidence)
-    const bestFrame = framesWithPoses[0];
-    console.log(`   Using frame for matching (has pose data)`);
+    const bestFrame = job.extractedFrames[job.bestFrameIndex];
+    console.log(`   Using frame ${job.bestFrameIndex + 1} (best frame from pose detection)`);
     
     // Run SuperPoint feature matching using batch inference
     console.log(`   Running batch inference...`);
@@ -322,21 +399,58 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`✅ Best match found: ${bestMatch.matchCount} feature matches`);
     console.log(`   Image ID: ${bestMatch.imageId}`);
     
-    // Calculate homography matrix
-    const homographyMatrix = calculateHomographyMatrix(
-      bestMatch.keypoints0,
-      bestMatch.keypoints1,
-      bestMatch.matches
-    );
+    // Convert raw ONNX data to match objects for homography calculation
+    // SuperPoint/LightGlue uses 256x256 inference size - scale keypoints back to original dimensions
+    const result = results[bestMatch.imageUrl];
+    const rawData = result.rawData;
+    const inferenceSize = 256;
+    const userImageDims = result.userImageDims || { width: inferenceSize, height: inferenceSize };
+    const topoImageDims = result.topoImageDims || { width: inferenceSize, height: inferenceSize };
     
-    if (!homographyMatrix) {
+    // Calculate scaling factors
+    const userScaleX = userImageDims.width / inferenceSize;
+    const userScaleY = userImageDims.height / inferenceSize;
+    const topoScaleX = topoImageDims.width / inferenceSize;
+    const topoScaleY = topoImageDims.height / inferenceSize;
+    
+    // Build match array in format expected by calculateHomographyMatrix
+    const matches = [];
+    const maxMatches = rawData.matches.dims[0];
+    
+    for (let i = 0; i < maxMatches; i++) {
+      const matchBaseIndex = i * rawData.matches.dims[1];
+      const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
+      const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
+      
+      // Scale keypoints back to original image coordinates
+      const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]) * userScaleX;
+      const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]) * userScaleY;
+      const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) * topoScaleX;
+      const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]) * topoScaleY;
+      
+      matches.push({
+        point1: { x: x0, y: y0 },
+        point2: { x: x1, y: y1 },
+      });
+    }
+    
+    console.log(`   ✓ Converted ${matches.length} matches for homography calculation`);
+    
+    if (matches.length < 4) {
+      throw new Error(`Not enough matches for homography (${matches.length} < 4)`);
+    }
+    
+    // Calculate homography matrix
+    const homographyResult = await calculateHomographyMatrix(matches);
+    
+    if (!homographyResult || !homographyResult.matrix) {
       throw new Error('Failed to calculate homography matrix');
     }
     
-    console.log(`✅ Homography matrix calculated`);
+    console.log(`✅ Homography matrix calculated (${homographyResult.inliers}/${matches.length} inliers)`);
     
     job.matchedImageId = bestMatch.imageId;
-    job.homographyMatrix = homographyMatrix;
+    job.homographyMatrix = homographyResult.matrix;
     job.progress = 40;
   };
 
@@ -357,38 +471,49 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     job.status = 'loading-holds';
     job.progress = 40;
     
-    // Load AI holds
-    let aiHolds = [];
+    // Load FULL hold detection document (not just holds array)
+    // We need the full structure with metadata for findClosestHolds
+    let holdDetection = null;
+    let allHolds = [];
     try {
-      const holdData = await holdDetectionService.getHoldDetection(
+      console.log(`   Loading hold detection for: location=${job.locationId}, image=${job.matchedImageId}`);
+      holdDetection = await holdDetectionService.getHoldDetection(
         job.locationId,
         job.matchedImageId
       );
       
-      if (holdData && holdData.holds) {
-        aiHolds = holdData.holds;
-        console.log(`   ✓ Loaded ${aiHolds.length} AI-detected holds`);
+      if (holdDetection) {
+        allHolds = await holdDetectionService.getAllHolds(
+          job.locationId,
+          job.matchedImageId
+        );
+        console.log(`   ✓ Loaded ${allHolds.length} holds (AI + manual combined)`);
+        console.log(`   ✓ Detection metadata:`, holdDetection.detectionResults?.metadata);
+      } else {
+        console.log(`   ⚠ No hold detection document found`);
       }
     } catch (err) {
-      console.warn(`   ⚠ Failed to load AI holds:`, err.message);
+      console.warn(`   ⚠ Failed to load hold detection:`, err);
     }
     
-    // Load manual holds
-    let manualHolds = [];
+    // Also check standalone manual holds collection (legacy/fallback)
+    let standaloneManualHolds = [];
     try {
-      manualHolds = await manualHoldsService.loadManualHolds(
+      standaloneManualHolds = await manualHoldsService.loadManualHolds(
         job.locationId,
         job.matchedImageId
       );
       
-      if (manualHolds && manualHolds.length > 0) {
-        console.log(`   ✓ Loaded ${manualHolds.length} manual holds`);
+      if (standaloneManualHolds && standaloneManualHolds.length > 0) {
+        console.log(`   ✓ Loaded ${standaloneManualHolds.length} standalone manual holds`);
       }
     } catch (err) {
-      console.warn(`   ⚠ Failed to load manual holds:`, err.message);
+      console.warn(`   ⚠ Failed to load standalone manual holds:`, err);
     }
     
-    job.holds = [...aiHolds, ...manualHolds];
+    // Combine all holds (deduplicate by holdId if needed)
+    job.holds = [...allHolds, ...standaloneManualHolds];
+    job.holdDetection = holdDetection; // Store full detection document
     
     console.log(`✅ Total holds loaded: ${job.holds.length}`);
     
@@ -415,75 +540,156 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       throw new Error('No homography matrix - cannot transform coordinates');
     }
     
+    console.log(`✓ Homography matrix exists`);
+    console.log(`📊 Frame poseData structure check:`, job.extractedFrames[0]?.poseData);
+    
     // Transform poses to image coordinates
     const transformedFrames = [];
     
-    for (const frame of job.extractedFrames) {
-      if (!frame.poseData) continue;
+    console.log(`\n🔄 Transforming keypoints for ${job.extractedFrames.length} frames...`);
+    
+    for (let i = 0; i < job.extractedFrames.length; i++) {
+      const frame = job.extractedFrames[i];
+      console.log(`\n   📍 Frame ${i + 1}:`);
+      
+      if (!frame.poseData) {
+        console.log(`      ❌ No pose data`);
+        continue;
+      }
+      
+      console.log(`      ✓ Has pose data, checking keypoints...`);
+      console.log(`      Available keys:`, Object.keys(frame.poseData.keypoints || {}));
       
       const videoKeypoints = [];
+      // Use generic keypoint names (already converted by pose detection adapter)
       const keypointTypes = ['leftHand', 'rightHand', 'leftFoot', 'rightFoot'];
       
       for (const type of keypointTypes) {
         const kp = frame.poseData.keypoints[type];
-        if (kp && kp.confidence > 0.3) {
-          videoKeypoints.push([kp.x, kp.y]);
+        if (kp) {
+          console.log(`      ${type}: confidence=${kp.confidence?.toFixed(2)}`);
+          if (kp.confidence > 0.3) {
+            videoKeypoints.push({ x: kp.x, y: kp.y, type, confidence: kp.confidence });
+            console.log(`      ✓ ${type} added (conf > 0.3)`);
+          } else {
+            console.log(`      ✗ ${type} skipped (conf <= 0.3)`);
+          }
+        } else {
+          console.log(`      ✗ ${type} not found`);
         }
       }
       
-      if (videoKeypoints.length === 0) continue;
+      console.log(`      Result: ${videoKeypoints.length} keypoints collected`);
       
+      if (videoKeypoints.length === 0) {
+        console.log(`      ⏭️  Skipping frame (no valid keypoints)`);
+        continue;
+      }
+      
+      // transformPoints expects {x, y} objects, returns {x, y} objects
       const imageKeypoints = transformPoints(videoKeypoints, job.homographyMatrix);
       
-      const transformedPose = {
-        keypoints: {},
-        confidence: frame.poseData.confidence
-      };
-      
-      let kpIndex = 0;
-      for (const type of keypointTypes) {
-        const kp = frame.poseData.keypoints[type];
-        if (kp && kp.confidence > 0.3 && kpIndex < imageKeypoints.length) {
-          const [x, y] = imageKeypoints[kpIndex];
-          transformedPose.keypoints[type] = { x, y, confidence: kp.confidence };
-          kpIndex++;
-        }
+      // Check if transformation succeeded
+      if (!imageKeypoints || !Array.isArray(imageKeypoints) || imageKeypoints.length === 0) {
+        console.warn(`   Frame ${i + 1}: Transformation failed, skipping`);
+        continue;
       }
+      
+      // Build originalPoints and transformedPoints arrays for getKeypointRows compatibility
+      const originalPoints = videoKeypoints.map(kp => ({
+        name: kp.type,
+        x: kp.x,
+        y: kp.y,
+        confidence: kp.confidence
+      }));
+      
+      const transformedPoints = imageKeypoints.map(kp => ({
+        name: kp.type,
+        x: kp.x,
+        y: kp.y,
+        confidence: kp.confidence
+      }));
       
       transformedFrames.push({
         ...frame,
-        poseData: transformedPose
+        originalPoints,
+        transformedPoints,
+        // Keep poseData for backward compatibility
+        poseData: {
+          keypoints: imageKeypoints.reduce((acc, kp) => {
+            acc[kp.type] = { x: kp.x, y: kp.y, confidence: kp.confidence };
+            return acc;
+          }, {}),
+          confidence: frame.poseData.confidence
+        }
       });
     }
     
     console.log(`   ✓ Transformed ${transformedFrames.length} frames to image coordinates`);
     
-    // Build problem-to-hold mapping
-    const problemHoldMap = {};
-    for (const problem of job.boulderProblems) {
-      if (problem.holds && Array.isArray(problem.holds)) {
-        problemHoldMap[problem.id] = problem.holds;
-      }
+    // Validate boulder problems is an array
+    if (!Array.isArray(job.boulderProblems)) {
+      console.error(`   ❌ boulderProblems is not an array:`, typeof job.boulderProblems, job.boulderProblems);
+      throw new Error(`Invalid boulderProblems: expected array, got ${typeof job.boulderProblems}`);
     }
     
-    // Score problems
+    // Create bestMatchImage object for hold matching
+    // findClosestHolds needs: name, detectionResults with results + metadata
+    const bestMatchImage = {
+      name: 'matched-image', // Required by findClosestHolds
+      detectionResults: {
+        results: job.holds,  // All holds (AI + manual combined)
+        imageMetadata: job.holdDetection?.detectionResults?.metadata || {}
+      }
+    };
+    
+    console.log(`\n📦 bestMatchImage structure:`, {
+      name: bestMatchImage.name,
+      holdsCount: job.holds.length,
+      hasMetadata: !!job.holdDetection?.detectionResults?.metadata,
+      imageDimensions: job.holdDetection?.detectionResults?.metadata?.imageDimensions,
+      firstHold: job.holds[0]
+    });
+    
+    // Create the getKeypointRowsForFrame function that calculateProblemScores expects
+    const getKeypointRowsForFrame = (frame) => {
+      const rows = getKeypointRows(frame, transformedFrames, bestMatchImage, job.boulderProblems);
+      console.log(`   🔍 getKeypointRows returned ${rows.length} rows for frame`);
+      if (rows.length > 0) {
+        console.log(`      First row:`, rows[0]);
+      }
+      return rows;
+    };
+    
+    // Score problems using the shared utility
+    console.log(`\n🎲 Calling calculateProblemScores...`);
+    console.log(`   transformedFrames.length: ${transformedFrames.length}`);
+    console.log(`   boulderProblems.length: ${job.boulderProblems.length}`);
+    console.log(`   holds.length: ${job.holds.length}`);
+    
     const scores = calculateProblemScores(
       transformedFrames,
-      job.boulderProblems,
-      job.holds,
-      problemHoldMap
+      getKeypointRowsForFrame
     );
     
-    scores.sort((a, b) => b.totalScore - a.totalScore);
+    console.log(`\n📈 Raw scores returned:`, scores);
+    console.log(`   Scores array length: ${scores ? scores.length : 'null/undefined'}`);
     
-    console.log(`✅ Scoring complete!`);
-    console.log(`   Top 3 matches:`);
-    for (let i = 0; i < Math.min(3, scores.length); i++) {
-      const s = scores[i];
-      console.log(`   ${i + 1}. ${s.name}: ${(s.totalScore * 100).toFixed(1)}%`);
+    if (!scores || scores.length === 0) {
+      console.warn(`   ⚠ calculateProblemScores returned no scores!`);
+      job.scores = [];
+    } else {
+      scores.sort((a, b) => b.totalScore - a.totalScore);
+      
+      console.log(`✅ Scoring complete!`);
+      console.log(`   Top 3 matches:`);
+      for (let i = 0; i < Math.min(3, scores.length); i++) {
+        const s = scores[i];
+        console.log(`   ${i + 1}. ${s.name}: ${(s.totalScore * 100).toFixed(1)}%`);
+      }
+      
+      job.scores = scores;
     }
-    
-    job.scores = scores;
     job.progress = 90;
   };
 
