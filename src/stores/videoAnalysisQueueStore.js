@@ -451,6 +451,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     
     job.matchedImageId = bestMatch.imageId;
     job.homographyMatrix = homographyResult.matrix;
+    job.matchedImageDimensions = topoImageDims; // Store the actual location image dimensions
     job.progress = 40;
   };
 
@@ -543,87 +544,69 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`✓ Homography matrix exists`);
     console.log(`📊 Frame poseData structure check:`, job.extractedFrames[0]?.poseData);
     
-    // Transform poses to image coordinates
+    // Transform ONLY the best frame (not all frames)
     const transformedFrames = [];
+    const bestFrame = job.extractedFrames[job.bestFrameIndex];
     
-    console.log(`\n🔄 Transforming keypoints for ${job.extractedFrames.length} frames...`);
+    console.log(`\n🔄 Transforming keypoints for BEST frame (${job.bestFrameIndex + 1})...`);
     
-    for (let i = 0; i < job.extractedFrames.length; i++) {
-      const frame = job.extractedFrames[i];
-      console.log(`\n   📍 Frame ${i + 1}:`);
-      
-      if (!frame.poseData) {
-        console.log(`      ❌ No pose data`);
-        continue;
-      }
-      
-      console.log(`      ✓ Has pose data, checking keypoints...`);
-      console.log(`      Available keys:`, Object.keys(frame.poseData.keypoints || {}));
-      
-      const videoKeypoints = [];
-      // Use generic keypoint names (already converted by pose detection adapter)
-      const keypointTypes = ['leftHand', 'rightHand', 'leftFoot', 'rightFoot'];
-      
-      for (const type of keypointTypes) {
-        const kp = frame.poseData.keypoints[type];
-        if (kp) {
-          console.log(`      ${type}: confidence=${kp.confidence?.toFixed(2)}`);
-          if (kp.confidence > 0.3) {
-            videoKeypoints.push({ x: kp.x, y: kp.y, type, confidence: kp.confidence });
-            console.log(`      ✓ ${type} added (conf > 0.3)`);
-          } else {
-            console.log(`      ✗ ${type} skipped (conf <= 0.3)`);
-          }
-        } else {
-          console.log(`      ✗ ${type} not found`);
-        }
-      }
-      
-      console.log(`      Result: ${videoKeypoints.length} keypoints collected`);
-      
-      if (videoKeypoints.length === 0) {
-        console.log(`      ⏭️  Skipping frame (no valid keypoints)`);
-        continue;
-      }
-      
-      // transformPoints expects {x, y} objects, returns {x, y} objects
-      const imageKeypoints = transformPoints(videoKeypoints, job.homographyMatrix);
-      
-      // Check if transformation succeeded
-      if (!imageKeypoints || !Array.isArray(imageKeypoints) || imageKeypoints.length === 0) {
-        console.warn(`   Frame ${i + 1}: Transformation failed, skipping`);
-        continue;
-      }
-      
-      // Build originalPoints and transformedPoints arrays for getKeypointRows compatibility
-      const originalPoints = videoKeypoints.map(kp => ({
-        name: kp.type,
-        x: kp.x,
-        y: kp.y,
-        confidence: kp.confidence
-      }));
-      
-      const transformedPoints = imageKeypoints.map(kp => ({
-        name: kp.type,
-        x: kp.x,
-        y: kp.y,
-        confidence: kp.confidence
-      }));
-      
-      transformedFrames.push({
-        ...frame,
-        originalPoints,
-        transformedPoints,
-        // Keep poseData for backward compatibility
-        poseData: {
-          keypoints: imageKeypoints.reduce((acc, kp) => {
-            acc[kp.type] = { x: kp.x, y: kp.y, confidence: kp.confidence };
-            return acc;
-          }, {}),
-          confidence: frame.poseData.confidence
-        }
-      });
+    if (!bestFrame.poseData) {
+      throw new Error('Best frame has no pose data');
     }
+      
+    console.log(`   ✓ Has pose data, extracting keypoints...`);
+    
+    const videoKeypoints = [];
+    const keypointTypes = ['leftHand', 'rightHand', 'leftFoot', 'rightFoot'];
+    
+    for (const type of keypointTypes) {
+      const kp = bestFrame.poseData.keypoints[type];
+      if (kp && kp.confidence > 0.3) {
+        videoKeypoints.push({ x: kp.x, y: kp.y, type, confidence: kp.confidence });
+        console.log(`   ✓ ${type}: confidence=${kp.confidence.toFixed(2)}`);
+      }
+    }
+    
+    if (videoKeypoints.length === 0) {
+      throw new Error('Best frame has no valid keypoints');
+    }
+    
+    console.log(`   Collected ${videoKeypoints.length} keypoints`);
+    
+    // Transform keypoints from video coordinates to image coordinates
+    const imageKeypoints = transformPoints(videoKeypoints, job.homographyMatrix);
+    
+    if (!imageKeypoints || !Array.isArray(imageKeypoints) || imageKeypoints.length === 0) {
+      throw new Error('Keypoint transformation failed');
+    }
+    
+    // Build originalPoints and transformedPoints arrays for getKeypointRows
+    const originalPoints = videoKeypoints.map(kp => ({
+      name: kp.type,
+      x: kp.x,
+      y: kp.y,
+      confidence: kp.confidence
+    }));
+    
+    const transformedPoints = imageKeypoints.map(kp => ({
+      name: kp.type,
+      x: kp.x,
+      y: kp.y,
+      confidence: kp.confidence
+    }));
+    
+    transformedFrames.push({
+      ...bestFrame,
+      originalPoints,
+      transformedPoints,
+      poseData: {
+        keypoints: imageKeypoints.reduce((acc, kp) => {
+          acc[kp.type] = { x: kp.x, y: kp.y, confidence: kp.confidence };
+          return acc;
+        }, {}),
+        confidence: bestFrame.poseData.confidence
+      }
+    });
     
     console.log(`   ✓ Transformed ${transformedFrames.length} frames to image coordinates`);
     
@@ -634,9 +617,15 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     }
     
     // Create bestMatchImage object for hold matching
-    // findClosestHolds needs: name, detectionResults with results + metadata
+    // findClosestHolds needs: name, referenceImageDimensions, detectionResults with results + metadata
+    // CRITICAL: referenceImageDimensions must be the LOCATION IMAGE dimensions (from topoImageDims),
+    // NOT the video frame dimensions. The homography transforms video coords → location image coords.
     const bestMatchImage = {
       name: 'matched-image', // Required by findClosestHolds
+      referenceImageDimensions: job.matchedImageDimensions || {
+        width: 640, // Fallback if dimensions not available
+        height: 480
+      },
       detectionResults: {
         results: job.holds,  // All holds (AI + manual combined)
         imageMetadata: job.holdDetection?.detectionResults?.metadata || {}
@@ -645,18 +634,25 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     
     console.log(`\n📦 bestMatchImage structure:`, {
       name: bestMatchImage.name,
+      referenceImageDims: bestMatchImage.referenceImageDimensions,
+      detectionImageDims: job.holdDetection?.detectionResults?.metadata?.imageDimensions,
       holdsCount: job.holds.length,
-      hasMetadata: !!job.holdDetection?.detectionResults?.metadata,
-      imageDimensions: job.holdDetection?.detectionResults?.metadata?.imageDimensions,
-      firstHold: job.holds[0]
+      hasMetadata: !!job.holdDetection?.detectionResults?.metadata
     });
+    console.log(`   📐 Coordinate spaces:`);
+    console.log(`      Video frame: ${bestFrame.imageData?.width}×${bestFrame.imageData?.height}`);
+    console.log(`      Location image (topo): ${bestMatchImage.referenceImageDimensions.width}×${bestMatchImage.referenceImageDimensions.height}`);
+    console.log(`      Detection image (AI): ${job.holdDetection?.detectionResults?.metadata?.imageDimensions?.width}×${job.holdDetection?.detectionResults?.metadata?.imageDimensions?.height}`);
     
     // Create the getKeypointRowsForFrame function that calculateProblemScores expects
     const getKeypointRowsForFrame = (frame) => {
       const rows = getKeypointRows(frame, transformedFrames, bestMatchImage, job.boulderProblems);
       console.log(`   🔍 getKeypointRows returned ${rows.length} rows for frame`);
       if (rows.length > 0) {
-        console.log(`      First row:`, rows[0]);
+        console.log(`      First keypoint's 3 closest holds:`);
+        console.log(`        1st: ${rows[0].closestHold?.id} (problem: ${rows[0].closestProblem?.name || 'none'})`);
+        console.log(`        2nd: ${rows[0].secondClosestHold?.id} (problem: ${rows[0].secondClosestProblem?.name || 'none'})`);
+        console.log(`        3rd: ${rows[0].thirdClosestHold?.id} (problem: ${rows[0].thirdClosestProblem?.name || 'none'})`);
       }
       return rows;
     };
@@ -679,16 +675,29 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       console.warn(`   ⚠ calculateProblemScores returned no scores!`);
       job.scores = [];
     } else {
-      scores.sort((a, b) => b.totalScore - a.totalScore);
+      // Map score structure: calculateProblemScores returns {problem, score, confidence}
+      // But we need {id, name, grade, totalScore} for Firestore
+      const mappedScores = scores.map(s => ({
+        id: s.problem.id,
+        name: s.problem.name,
+        grade: s.problem.grade,
+        color: s.problem.color,
+        totalScore: s.score,
+        confidence: s.confidence,
+        matchCount: s.matchCount,
+        uniqueHoldsMatched: s.uniqueHoldsMatched
+      }));
+      
+      mappedScores.sort((a, b) => b.totalScore - a.totalScore);
       
       console.log(`✅ Scoring complete!`);
       console.log(`   Top 3 matches:`);
-      for (let i = 0; i < Math.min(3, scores.length); i++) {
-        const s = scores[i];
+      for (let i = 0; i < Math.min(3, mappedScores.length); i++) {
+        const s = mappedScores[i];
         console.log(`   ${i + 1}. ${s.name}: ${(s.totalScore * 100).toFixed(1)}%`);
       }
       
-      job.scores = scores;
+      job.scores = mappedScores;
     }
     job.progress = 90;
   };
