@@ -296,7 +296,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         const keypoints1 = rawData?.keypoints1;
         
         matchResults.push({
-          imageId: job.comparisonImages[i].id,
+          imageId: job.comparisonImages[i].imageId || job.comparisonImages[i].id,  // Support both field names
           imageUrl,
           matchCount,
           confidence: matchCount,
