@@ -39,14 +39,23 @@
               {{ location.name }}
             </h1>
             
-            <!-- Edit button - only show for admins -->
-            <button
-              v-if="userStore.canEditLocations"
-              @click="editLocation"
-              class="edit-button px-3 py-1.5 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors self-start"
-            >
-              Edit
-            </button>
+            <!-- Action buttons -->
+            <div class="action-buttons flex gap-2">
+              <button
+                v-if="userStore.canEditLocations"
+                @click="editLocation"
+                class="px-3 py-1.5 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors"
+              >
+                Edit
+              </button>
+              <router-link
+                :to="`/location/${locationId}/jobs`"
+                class="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors inline-block text-center"
+                title="View background analysis jobs"
+              >
+                Jobs
+              </router-link>
+            </div>
             
             <!-- Description -->
             <div class="description">
@@ -733,7 +742,7 @@ onUnmounted(() => {
   grid-area: locationname;
 }
 
-.edit-button {
+.action-buttons {
   grid-area: editbutton;
   justify-self: end;
 }

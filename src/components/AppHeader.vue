@@ -25,6 +25,14 @@
           >
             Locations
           </router-link>
+          <router-link
+            v-if="currentLocationId"
+            :to="`/location/${currentLocationId}/jobs`"
+            class="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            :class="{ 'text-blue-600 font-semibold': isJobsRoute }"
+          >
+            Jobs
+          </router-link>
         </nav>
 
         <!-- Auth Section (Desktop) -->
@@ -87,6 +95,15 @@
         >
           Locations
         </router-link>
+        <router-link
+          v-if="currentLocationId"
+          :to="`/location/${currentLocationId}/jobs`"
+          @click="closeMobileMenu"
+          class="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium transition-colors rounded-lg"
+          :class="{ 'text-blue-600 bg-blue-50 font-semibold': isJobsRoute }"
+        >
+          Jobs
+        </router-link>
 
         <!-- Mobile Auth Section -->
         <div class="border-t border-gray-200 pt-4 mt-4">
@@ -138,6 +155,16 @@ const isLocationRoute = computed(
     route.name === 'location-edit' ||
     route.name === 'add-location'
 );
+
+const isJobsRoute = computed(() => route.name === 'location-jobs');
+
+const currentLocationId = computed(() => {
+  // Show Jobs link when viewing a location or its jobs
+  if (route.params.locationId) {
+    return route.params.locationId;
+  }
+  return null;
+});
 
 const toggleMobileMenu = () => {
   showMobileMenu.value = !showMobileMenu.value;

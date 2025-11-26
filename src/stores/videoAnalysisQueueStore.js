@@ -218,8 +218,8 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         frame.poseError = `Detection failed: ${err.message}`;
       }
 
-      // Update progress (0-20%)
-      job.progress = Math.round((i / job.extractedFrames.length) * 20);
+      // Update progress (0-15%)
+      job.progress = Math.round((i / job.extractedFrames.length) * 15);
 
       // Small delay between frames for mobile devices
       if (i < job.extractedFrames.length - 1) {
@@ -314,7 +314,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`   Images: ${job.comparisonImages.length}`);
     
     job.status = 'matching';
-    job.progress = 20;
+    job.progress = 15;
     
     // Extract image URLs from comparison images
     const imageUrls = job.comparisonImages.map(img => img.url).filter(Boolean);
@@ -349,8 +349,11 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         frameFile,
         imageUrls,
         resolve,  // onComplete callback
-        (progress) => {
-          job.progress = 20 + Math.round(progress * 20);
+        (currentIndex, totalImages) => {
+          // Image matching takes longest: 15% → 70% (55% of total)
+          // progressCallback receives (currentIndex, totalImages), convert to 0-1 range
+          const progressRatio = currentIndex / totalImages;
+          job.progress = 15 + Math.round(progressRatio * 55);
         }
       );
     });
@@ -452,7 +455,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     job.matchedImageId = bestMatch.imageId;
     job.homographyMatrix = homographyResult.matrix;
     job.matchedImageDimensions = topoImageDims; // Store the actual location image dimensions
-    job.progress = 40;
+    job.progress = 70;  // Image matching complete (70%)
   };
 
   /**
@@ -470,7 +473,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     }
     
     job.status = 'loading-holds';
-    job.progress = 40;
+    job.progress = 70;
     
     // Load FULL hold detection document (not just holds array)
     // We need the full structure with metadata for findClosestHolds
@@ -522,7 +525,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       console.warn(`   ⚠ No holds found for image ${job.matchedImageId}`);
     }
     
-    job.progress = 60;
+    job.progress = 80;  // Hold loading complete (80%)
   };
 
   /**
@@ -535,7 +538,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`   Available holds: ${job.holds.length}`);
     
     job.status = 'scoring';
-    job.progress = 60;
+    job.progress = 80;
     
     if (!job.homographyMatrix) {
       throw new Error('No homography matrix - cannot transform coordinates');
@@ -698,8 +701,13 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       }
       
       job.scores = mappedScores;
+      
+      // Set detected problem ID (for UI display)
+      if (mappedScores.length > 0) {
+        job.detectedProblemId = mappedScores[0].id;
+      }
     }
-    job.progress = 90;
+    job.progress = 95;  // Scoring complete (95%)
   };
 
   /**

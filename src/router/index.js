@@ -53,6 +53,12 @@ const router = createRouter({
       props: true,
     },
     {
+      path: '/location/:locationId/jobs',
+      name: 'location-jobs',
+      component: () => import('../views/LocationJobsView.vue'),
+      props: true,
+    },
+    {
       path: '/location/:locationId/problem/:problemId',
       name: 'boulder-problem-detail',
       component: BoulderProblemDetailView,
