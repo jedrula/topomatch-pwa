@@ -270,18 +270,10 @@ const totalUploadsExpected = ref(0);
 
 const locationId = computed(() => route.params.locationId);
 
-// Track which completed ascents we've already loaded from Firestore
-const loadedAscentIds = ref(new Set());
-
 // Merge active analysis jobs with loaded videos
 const displayVideos = computed(() => {
   // Get active jobs for this location (not complete)
-  const activeJobs = Object.values(analysisStore.jobs)
-    .filter(job => 
-      job.locationId === locationId.value && 
-      job.status !== 'complete' &&
-      job.status !== 'error'
-    );
+  const activeJobs = analysisStore.getActiveJobsForLocation(locationId.value);
   
   // Convert active jobs to placeholder video objects
   const uploadingVideos = activeJobs.map(job => ({
@@ -297,12 +289,7 @@ const displayVideos = computed(() => {
   }));
   
   // Get completed jobs that we should keep visible until video loads
-  const completedJobs = Object.values(analysisStore.jobs)
-    .filter(job => 
-      job.locationId === locationId.value && 
-      job.status === 'complete' &&
-      !loadedAscentIds.value.has(job.ascentId)
-    );
+  const completedJobs = analysisStore.getCompletedJobsForLocation(locationId.value);
   
   // Convert completed jobs to placeholder video objects (show as 100% complete)
   const completedPlaceholders = completedJobs.map(job => ({
@@ -318,10 +305,10 @@ const displayVideos = computed(() => {
     }
   }));
   
-  // Mark all loaded videos as loaded (so we can hide their placeholders)
+  // Mark all loaded videos as loaded in store (so we can hide their placeholders)
   videos.value.forEach(video => {
     if (video.ascentId) {
-      loadedAscentIds.value.add(video.ascentId);
+      analysisStore.markAscentLoaded(locationId.value, video.ascentId);
     }
   });
   
@@ -769,8 +756,8 @@ const handleJobComplete = async (ascentId) => {
       console.log(`✅ Updated video for ascent ${ascentId}`);
     }
     
-    // Mark as loaded so placeholder disappears
-    loadedAscentIds.value.add(ascentId);
+    // Mark as loaded in store so placeholder disappears
+    analysisStore.markAscentLoaded(locationId.value, ascentId);
   } else {
     console.warn(`⚠️ Could not load video for ascent ${ascentId}`);
   }
