@@ -31,6 +31,10 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
   // Analysis queue: { [ascentId]: analysisJob }
   const jobs = ref({});
 
+  // Track which ascents have been loaded as videos (to avoid showing placeholders)
+  // Map<locationId, Set<ascentId>>
+  const loadedAscentsByLocation = ref(new Map());
+
   // Completion callbacks: Map<locationId, callback>
   const completionCallbacks = new Map();
 
@@ -851,6 +855,45 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     return activeJobs.value[0] || null;
   });
 
+  /**
+   * Mark ascent as loaded (video exists in UI)
+   */
+  const markAscentLoaded = (locationId, ascentId) => {
+    if (!loadedAscentsByLocation.value.has(locationId)) {
+      loadedAscentsByLocation.value.set(locationId, new Set());
+    }
+    loadedAscentsByLocation.value.get(locationId).add(ascentId);
+  };
+
+  /**
+   * Check if ascent is already loaded
+   */
+  const isAscentLoaded = (locationId, ascentId) => {
+    return loadedAscentsByLocation.value.get(locationId)?.has(ascentId) || false;
+  };
+
+  /**
+   * Get active jobs for a location (not loaded yet)
+   */
+  const getActiveJobsForLocation = (locationId) => {
+    return Object.values(jobs.value).filter(job => 
+      job.locationId === locationId && 
+      job.status !== 'complete' &&
+      job.status !== 'error'
+    );
+  };
+
+  /**
+   * Get completed jobs for a location (that haven't been loaded as videos yet)
+   */
+  const getCompletedJobsForLocation = (locationId) => {
+    return Object.values(jobs.value).filter(job => 
+      job.locationId === locationId && 
+      job.status === 'complete' &&
+      !isAscentLoaded(locationId, job.ascentId)
+    );
+  };
+
   return {
     // State
     jobs,
@@ -864,6 +907,10 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     // Actions
     setFrames,      // Main entry point - component calls this after frame extraction
     getJob,         // Get job status
+    markAscentLoaded,  // Mark ascent as loaded in UI
+    isAscentLoaded,    // Check if ascent is loaded
+    getActiveJobsForLocation,     // Get active jobs for location
+    getCompletedJobsForLocation,  // Get completed jobs not yet loaded
     cancelJob,      // Cancel job
     clearAll,       // Clear all jobs (testing)
     onJobComplete,  // Register completion callback (returns unregister function)
