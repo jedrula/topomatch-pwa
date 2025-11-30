@@ -57,8 +57,18 @@ test('generate pose detection baseline', async ({ page }) => {
   console.log(`📁 Saved to: ${BASELINE_FILE}`);
   console.log(`🖼️  Visual artifact: ${visualArtifactPath}`);
   console.log(`📋 Model: ${baseline.model}`);
+  console.log(`⏱️  Initialization: ${baseline.initializationTime}ms`);
   console.log(`⏱️  Inference time: ${baseline.inferenceTime}ms`);
   console.log(`📸 Image size: ${baseline.imageSize.width}x${baseline.imageSize.height}`);
+  
+  if (baseline.memory) {
+    console.log(`\n💾 Memory Usage:`);
+    console.log(`   Initialization: ${baseline.memory.initializationMemoryMB} MB`);
+    console.log(`   Inference: ${baseline.memory.inferenceMemoryMB} MB`);
+    console.log(`   Total Heap Used: ${baseline.memory.totalUsedMB} MB`);
+    console.log(`   Heap Limit: ${baseline.memory.heapLimitMB} MB`);
+  }
+  
   console.log(`\n🔑 Keypoints saved:`);
   
   for (const [name, kp] of Object.entries(baseline.keypoints)) {

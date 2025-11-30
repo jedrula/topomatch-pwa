@@ -57,19 +57,44 @@
        */
       async run() {
         try {
+          // Measure memory before initialization
+          const memoryBefore = performance.memory ? {
+            usedJSHeapSize: performance.memory.usedJSHeapSize,
+            totalJSHeapSize: performance.memory.totalJSHeapSize,
+            jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
+          } : null;
+
           updateStatus('Loading pose detection service...');
           const service = new YoloPoseService(MODEL_PATH);
           
           updateStatus('Initializing ONNX Runtime...');
+          const initStartTime = performance.now();
           await service.initialize();
+          const initTime = performance.now() - initStartTime;
+          
+          // Measure memory after initialization
+          const memoryAfterInit = performance.memory ? {
+            usedJSHeapSize: performance.memory.usedJSHeapSize,
+            totalJSHeapSize: performance.memory.totalJSHeapSize,
+          } : null;
           
           updateStatus('Loading test image...');
           const imageData = await loadTestImage(TEST_IMAGE_PATH);
+          
+          // Measure memory before inference
+          const memoryBeforeInference = performance.memory ? {
+            usedJSHeapSize: performance.memory.usedJSHeapSize,
+          } : null;
           
           updateStatus('Running pose detection...');
           const startTime = performance.now();
           const result = await service.detectPose(imageData);
           const inferenceTime = performance.now() - startTime;
+          
+          // Measure memory after inference
+          const memoryAfterInference = performance.memory ? {
+            usedJSHeapSize: performance.memory.usedJSHeapSize,
+          } : null;
           
           console.log('Pose detection result:', result);
           
@@ -85,11 +110,21 @@
             rightFoot: result.keypoints.rightFoot,
           };
 
+          // Calculate memory usage
+          const memoryUsage = memoryBefore && memoryAfterInit && memoryAfterInference ? {
+            initializationMemoryMB: ((memoryAfterInit.usedJSHeapSize - memoryBefore.usedJSHeapSize) / 1024 / 1024).toFixed(2),
+            inferenceMemoryMB: ((memoryAfterInference.usedJSHeapSize - memoryBeforeInference.usedJSHeapSize) / 1024 / 1024).toFixed(2),
+            totalUsedMB: (memoryAfterInference.usedJSHeapSize / 1024 / 1024).toFixed(2),
+            heapLimitMB: (memoryBefore.jsHeapSizeLimit / 1024 / 1024).toFixed(2),
+          } : null;
+
           this.result = {
             model: MODEL_PATH,
             timestamp: new Date().toISOString(),
             imageSize: { width: imageData.width, height: imageData.height },
+            initializationTime: Math.round(initTime),
             inferenceTime: Math.round(inferenceTime),
+            memory: memoryUsage,
             keypoints,
             metadata: result.metadata, // Include full metadata for debugging
           };
@@ -140,9 +175,27 @@
 
     function displayResults(result) {
       const resultsEl = document.getElementById('results');
+      
+      const memoryInfo = result.memory ? `
+        <h4>💾 Memory Usage</h4>
+        <ul>
+          <li>Initialization: ${result.memory.initializationMemoryMB} MB</li>
+          <li>Inference: ${result.memory.inferenceMemoryMB} MB</li>
+          <li>Total Heap Used: ${result.memory.totalUsedMB} MB</li>
+          <li>Heap Limit: ${result.memory.heapLimitMB} MB</li>
+        </ul>
+      ` : '<p>Memory tracking not available (requires --enable-precise-memory-info flag)</p>';
+      
       resultsEl.innerHTML = `
         <h3>📊 Results</h3>
-        <pre>${JSON.stringify(result, null, 2)}</pre>
+        <h4>⏱️ Performance</h4>
+        <ul>
+          <li>Initialization: ${result.initializationTime || 'N/A'}ms</li>
+          <li>Inference: ${result.inferenceTime}ms</li>
+        </ul>
+        ${memoryInfo}
+        <h4>🎯 Keypoints</h4>
+        <pre>${JSON.stringify(result.keypoints, null, 2)}</pre>
       `;
     }
 

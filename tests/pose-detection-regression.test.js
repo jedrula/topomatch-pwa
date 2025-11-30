@@ -93,6 +93,25 @@ test.describe('Pose Detection Regression', () => {
     // If we get here, all coordinates matched!
     console.log('✅ All keypoints match baseline exactly');
     console.log(`   Inference time: ${result.inferenceTime}ms (baseline: ${baseline.inferenceTime}ms)`);
+    
+    // Check memory usage (warning, not failure)
+    if (result.memory && baseline.memory) {
+      console.log(`\n💾 Memory Comparison:`);
+      console.log(`   Initialization: ${result.memory.initializationMemoryMB} MB (baseline: ${baseline.memory.initializationMemoryMB} MB)`);
+      console.log(`   Inference: ${result.memory.inferenceMemoryMB} MB (baseline: ${baseline.memory.inferenceMemoryMB} MB)`);
+      console.log(`   Total Heap: ${result.memory.totalUsedMB} MB (baseline: ${baseline.memory.totalUsedMB} MB)`);
+      
+      // Warn if memory increased significantly (>20%)
+      const initMemIncrease = (parseFloat(result.memory.initializationMemoryMB) - parseFloat(baseline.memory.initializationMemoryMB)) / parseFloat(baseline.memory.initializationMemoryMB);
+      const inferMemIncrease = (parseFloat(result.memory.inferenceMemoryMB) - parseFloat(baseline.memory.inferenceMemoryMB)) / parseFloat(baseline.memory.inferenceMemoryMB);
+      
+      if (initMemIncrease > 0.2) {
+        console.warn(`⚠️  Initialization memory increased by ${(initMemIncrease * 100).toFixed(0)}%`);
+      }
+      if (inferMemIncrease > 0.2) {
+        console.warn(`⚠️  Inference memory increased by ${(inferMemIncrease * 100).toFixed(0)}%`);
+      }
+    }
 
     // Generate visual artifact for this test run
     const visualArtifactDataUrl = await page.evaluate(async (keypoints) => {

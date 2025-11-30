@@ -1,11 +1,18 @@
 {
   "model": "/yolo11n-pose.onnx",
-  "timestamp": "2025-11-30T11:00:06.302Z",
+  "timestamp": "2025-11-30T11:15:47.265Z",
   "imageSize": {
     "width": 1016,
     "height": 1792
   },
-  "inferenceTime": 245,
+  "initializationTime": 443,
+  "inferenceTime": 320,
+  "memory": {
+    "initializationMemoryMB": "16.80",
+    "inferenceMemoryMB": "7.90",
+    "totalUsedMB": "42.83",
+    "heapLimitMB": "4096.00"
+  },
   "keypoints": {
     "leftHand": {
       "x": 733.1760375976562,
@@ -31,7 +38,7 @@
   "metadata": {
     "model": "/yolo11n-pose.onnx",
     "provider": "yolo",
-    "processingTime": 243.69999998807907,
+    "processingTime": 318.50999999046326,
     "rawKeypoints": [
       {
         "keypoints": [

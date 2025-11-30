@@ -44,7 +44,16 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Enable memory tracking
+        launchOptions: {
+          args: [
+            '--enable-precise-memory-info',
+            '--js-flags=--expose-gc',
+          ],
+        },
+      },
     },
   ],
 
