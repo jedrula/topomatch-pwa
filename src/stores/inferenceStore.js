@@ -212,6 +212,32 @@ export const useInferenceStore = defineStore('inference', () => {
     errorString.value = null;
   };
 
+  /**
+   * Wait for the inference session to be ready
+   * @param {number} timeout - Maximum wait time in milliseconds (default: 60000)
+   * @returns {Promise<void>}
+   * @throws {Error} If session fails to initialize within timeout
+   */
+  const ensureSessionReady = async (timeout = 60000) => {
+    if (sessionReady.value) return;
+    
+    const startTime = Date.now();
+    return new Promise((resolve, reject) => {
+      const checkInterval = setInterval(() => {
+        if (sessionReady.value) {
+          clearInterval(checkInterval);
+          resolve();
+        } else if (Date.now() - startTime > timeout) {
+          clearInterval(checkInterval);
+          reject(new Error('Inference session failed to initialize within timeout'));
+        } else if (errorString.value) {
+          clearInterval(checkInterval);
+          reject(new Error(`Inference session initialization failed: ${errorString.value}`));
+        }
+      }, 500); // Check every 500ms
+    });
+  };
+
   return {
     sessionTime,
     isLoading,
@@ -226,5 +252,6 @@ export const useInferenceStore = defineStore('inference', () => {
     inferenceWorker,
     runInferenceBatch,
     resetInferenceState,
+    ensureSessionReady,
   };
 });

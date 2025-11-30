@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from 'vue';
 import { getPoseDetectionService, getActiveModelInfo } from '@/services/poseDetectionFactory';
+import { generateUUID } from '@/utils/uuid';
 
 /**
  * Composable for pose detection using configurable model factory
@@ -130,7 +131,7 @@ export function usePoseDetection() {
           bbox: [0, 0, imageData.width, imageData.height], // Full image bbox
           metadata: result.metadata,
           detected: result.detected,
-          id: crypto.randomUUID(),
+          id: generateUUID(),
         }];
         
         // Count detected keypoints for status

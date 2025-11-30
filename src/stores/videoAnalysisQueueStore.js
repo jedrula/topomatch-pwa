@@ -8,6 +8,7 @@ import { holdDetectionService } from '../services/holdDetectionService.js';
 import { manualHoldsService } from '../services/manualHoldsService.js';
 import { calculateProblemScores } from '../utils/problemScoringUtils.js';
 import { getKeypointRows } from '../composables/useHoldMatching.js';
+import { generateUUID } from '../utils/uuid.js';
 
 /**
  * Video Analysis Queue Store
@@ -81,7 +82,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     // Auto-create job if it doesn't exist (simplified component flow)
     if (!job) {
       console.log(`📊 Creating analysis job for ascent ${ascentId}`);
-      const jobId = crypto.randomUUID();
+      const jobId = generateUUID();
       
       job = {
         id: jobId,
@@ -345,6 +346,11 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     // Get the inference store for SuperPoint
     const inferenceStore = useInferenceStore();
     
+    // Wait for inference session to be ready
+    console.log(`   Waiting for inference session to initialize...`);
+    await inferenceStore.ensureSessionReady();
+    console.log(`   ✅ Inference session ready`);
+    
     // Use the best frame selected in Step 1
     if (job.bestFrameIndex === undefined || !job.extractedFrames[job.bestFrameIndex]) {
       throw new Error('Best frame not found - pose detection may have failed');
@@ -550,15 +556,31 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
    */
   const _scoreProblems = async (job) => {
     console.log(`\n🎯 Starting problem scoring...`);
-    console.log(`   Problems to score: ${job.boulderProblems.length}`);
-    console.log(`   Frames with poses: ${job.extractedFrames.filter(f => f.poseData).length}`);
-    console.log(`   Available holds: ${job.holds.length}`);
     
     job.status = 'scoring';
     job.progress = 80;
     
     if (!job.homographyMatrix) {
       throw new Error('No homography matrix - cannot transform coordinates');
+    }
+    
+    // 🎯 CRITICAL: Only score problems that belong to the matched image
+    const matchedImageProblems = job.boulderProblems.filter(problem => {
+      // Support both field names: imageId or referenceImageId
+      const problemImageId = problem.imageId || problem.referenceImageId;
+      return problemImageId === job.matchedImageId;
+    });
+    
+    console.log(`   Total problems in location: ${job.boulderProblems.length}`);
+    console.log(`   Problems on matched image (${job.matchedImageId}): ${matchedImageProblems.length}`);
+    console.log(`   Frames with poses: ${job.extractedFrames.filter(f => f.poseData).length}`);
+    console.log(`   Available holds: ${job.holds.length}`);
+    
+    if (matchedImageProblems.length === 0) {
+      console.warn(`   ⚠️ No problems found on matched image ${job.matchedImageId}`);
+      job.scores = [];
+      job.progress = 95;
+      return;
     }
     
     console.log(`✓ Homography matrix exists`);
@@ -665,8 +687,9 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`      Detection image (AI): ${job.holdDetection?.detectionResults?.metadata?.imageDimensions?.width}×${job.holdDetection?.detectionResults?.metadata?.imageDimensions?.height}`);
     
     // Create the getKeypointRowsForFrame function that calculateProblemScores expects
+    // 🎯 IMPORTANT: Pass matchedImageProblems (filtered), not all problems
     const getKeypointRowsForFrame = (frame) => {
-      const rows = getKeypointRows(frame, transformedFrames, bestMatchImage, job.boulderProblems);
+      const rows = getKeypointRows(frame, transformedFrames, bestMatchImage, matchedImageProblems);
       console.log(`   🔍 getKeypointRows returned ${rows.length} rows for frame`);
       if (rows.length > 0) {
         console.log(`      First keypoint's 3 closest holds:`);
@@ -680,7 +703,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     // Score problems using the shared utility
     console.log(`\n🎲 Calling calculateProblemScores...`);
     console.log(`   transformedFrames.length: ${transformedFrames.length}`);
-    console.log(`   boulderProblems.length: ${job.boulderProblems.length}`);
+    console.log(`   matchedImageProblems.length: ${matchedImageProblems.length} (filtered from ${job.boulderProblems.length} total)`);
     console.log(`   holds.length: ${job.holds.length}`);
     
     const scores = calculateProblemScores(

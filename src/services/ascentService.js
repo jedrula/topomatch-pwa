@@ -15,14 +15,15 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { getCurrentUser } from './authService';
+import { generateUUID } from '../utils/uuid';
 
 /**
  * Generate a unique ascent ID on the client
- * Uses crypto.randomUUID() for proper UUID v4 generation
+ * Uses crypto.randomUUID() with polyfill fallback
  * @returns {string} A unique ascent ID
  */
 export const generateAscentId = () => {
-  return crypto.randomUUID();
+  return generateUUID();
 };
 
 export const ascentService = {

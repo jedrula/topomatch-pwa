@@ -37,7 +37,7 @@ export const PoseModel = {
  * 
  * TODO: MediaPipe models currently broken - stick with YOLO for now
  */
-export const ACTIVE_POSE_MODEL = PoseModel.YOLO11S;
+export const ACTIVE_POSE_MODEL = PoseModel.YOLO11N;
 
 /**
  * Model metadata for runtime use

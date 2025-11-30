@@ -190,6 +190,7 @@ import { ref, computed } from 'vue';
 import { storage } from '../services/firebase.js';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { compressImage } from '../utils/imageCompression.js';
+import { generateUUID } from '../utils/uuid.js';
 
 const props = defineProps({
   locationId: {
@@ -340,8 +341,8 @@ const uploadSingleFile = async (uploadItem) => {
       uploadItem.compressedSize = fileToUpload.size;
     }
 
-    // Generate unique imageId using crypto (consistent with ascentId generation)
-    const imageId = crypto.randomUUID();
+    // Generate unique imageId using UUID utility (consistent with ascentId generation)
+    const imageId = generateUUID();
     
     // Store imageId in uploadItem for later use
     uploadItem.imageId = imageId;
