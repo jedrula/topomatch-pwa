@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pose Detection Test Harness</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+    }
+    #status {
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #0f0;
+    }
+    .error { color: #f00; border-color: #f00; }
+    .success { color: #0f0; border-color: #0f0; }
+    pre {
+      background: #111;
+      padding: 10px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Pose Detection Test Harness</h1>
+  <div id="status">Initializing...</div>
+  <div id="results"></div>
+
+  <script type="module">
+    /**
+     * ISOLATED POSE DETECTION TEST HARNESS
+     * 
+     * This is a minimal, standalone page that ONLY tests pose detection.
+     * No app dependencies, no Firebase, no router - just pure pose detection.
+     * 
+     * Playwright can run tests against this page instead of the full app.
+     */
+
+    import { YoloPoseService } from '../src/services/yoloPoseService.js';
+
+    const TEST_IMAGE_PATH = '/test-data/wibrem/test-pose.png';
+    const MODEL_PATH = '/yolo11n-pose.onnx';
+
+    // Expose test API to Playwright
+    window.poseDetectionTest = {
+      status: 'initializing',
+      result: null,
+      error: null,
+      
+      /**
+       * Run pose detection on test image
+       * Returns exact keypoint coordinates for regression testing
+       */
+      async run() {
+        try {
+          updateStatus('Loading pose detection service...');
+          const service = new YoloPoseService(MODEL_PATH);
+          
+          updateStatus('Initializing ONNX Runtime...');
+          await service.initialize();
+          
+          updateStatus('Loading test image...');
+          const imageData = await loadTestImage(TEST_IMAGE_PATH);
+          
+          updateStatus('Running pose detection...');
+          const startTime = performance.now();
+          const result = await service.detectPose(imageData);
+          const inferenceTime = performance.now() - startTime;
+          
+          console.log('Pose detection result:', result);
+          
+          if (!result.detected || !result.keypoints) {
+            throw new Error(`No pose detected in test image. Result: ${JSON.stringify(result, null, 2)}`);
+          }
+          
+          // The unified format returns keypoints directly
+          const keypoints = {
+            leftHand: result.keypoints.leftHand,
+            rightHand: result.keypoints.rightHand,
+            leftFoot: result.keypoints.leftFoot,
+            rightFoot: result.keypoints.rightFoot,
+          };
+
+          this.result = {
+            model: MODEL_PATH,
+            timestamp: new Date().toISOString(),
+            imageSize: { width: imageData.width, height: imageData.height },
+            inferenceTime: Math.round(inferenceTime),
+            keypoints,
+            metadata: result.metadata, // Include full metadata for debugging
+          };
+
+          this.status = 'success';
+          updateStatus('✅ Pose detection complete', 'success');
+          displayResults(this.result);
+          
+          return this.result;
+
+        } catch (error) {
+          this.status = 'error';
+          this.error = error.message;
+          updateStatus(`❌ Error: ${error.message}`, 'error');
+          console.error('Pose detection error:', error);
+          throw error;
+        }
+      }
+    };
+
+    /**
+     * Load image and convert to ImageData
+     */
+    async function loadTestImage(path) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error(`Failed to load image: ${path}`));
+        img.src = path;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      
+      return ctx.getImageData(0, 0, img.width, img.height);
+    }
+
+    function updateStatus(message, type = 'info') {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = type;
+    }
+
+    function displayResults(result) {
+      const resultsEl = document.getElementById('results');
+      resultsEl.innerHTML = `
+        <h3>📊 Results</h3>
+        <pre>${JSON.stringify(result, null, 2)}</pre>
+      `;
+    }
+
+    /**
+     * Draw keypoints on test image and return as data URL
+     * Used to generate visual artifacts for test reports
+     */
+    async function generateVisualArtifact(imageData, keypoints) {
+      // Load original image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = TEST_IMAGE_PATH;
+      });
+
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+
+      // Draw original image
+      ctx.drawImage(img, 0, 0);
+
+      // Draw keypoints
+      const keypointColors = {
+        leftHand: '#00FF00',   // Green
+        rightHand: '#FF00FF',  // Magenta
+        leftFoot: '#FFFF00',   // Yellow
+        rightFoot: '#00FFFF',  // Cyan
+      };
+
+      const keypointLabels = {
+        leftHand: 'L Hand',
+        rightHand: 'R Hand',
+        leftFoot: 'L Foot',
+        rightFoot: 'R Foot',
+      };
+
+      for (const [name, kp] of Object.entries(keypoints)) {
+        const color = keypointColors[name];
+        
+        // Draw circle
+        ctx.beginPath();
+        ctx.arc(kp.x, kp.y, 15, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw label
+        ctx.font = 'bold 16px monospace';
+        ctx.fillStyle = '#000000';
+        ctx.fillText(keypointLabels[name], kp.x + 20, kp.y - 10);
+        ctx.fillStyle = color;
+        ctx.fillText(keypointLabels[name], kp.x + 19, kp.y - 11);
+
+        // Draw confidence
+        const confText = `${(kp.confidence * 100).toFixed(1)}%`;
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#000000';
+        ctx.fillText(confText, kp.x + 20, kp.y + 10);
+        ctx.fillStyle = color;
+        ctx.fillText(confText, kp.x + 19, kp.y + 9);
+      }
+
+      return canvas.toDataURL('image/png');
+    }
+
+    // Expose visual artifact generator to Playwright
+    window.poseDetectionTest.generateVisualArtifact = generateVisualArtifact;
+
+    // Auto-run if requested via query param
+    if (window.location.search.includes('autorun=true')) {
+      updateStatus('Auto-running test...');
+      window.poseDetectionTest.run();
+    } else {
+      updateStatus('Ready. Call window.poseDetectionTest.run() to start test.');
+    }
+  </script>
+</body>
+</html>

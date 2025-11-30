@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pose Detection Regression Test</title>
+  <style>
+    body {
+      font-family: monospace;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #00ff00;
+    }
+    h1 { color: #00ffff; }
+    button {
+      background: #00ff00;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px 5px;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    button:hover { background: #00ffff; }
+    button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    .status {
+      padding: 15px;
+      margin: 15px 0;
+      border: 1px solid #00ff00;
+      background: #0a0a0a;
+    }
+    .pass { border-color: #00ff00; color: #00ff00; }
+    .fail { border-color: #ff0000; color: #ff0000; }
+    .info { border-color: #ffff00; color: #ffff00; }
+    pre {
+      background: #0a0a0a;
+      padding: 15px;
+      overflow-x: auto;
+      border: 1px solid #333;
+    }
+    .keypoint-row {
+      display: grid;
+      grid-template-columns: 120px 200px 200px 100px;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid #333;
+    }
+    .keypoint-row.header {
+      font-weight: bold;
+      color: #00ffff;
+    }
+    .match { color: #00ff00; }
+    .mismatch { color: #ff0000; font-weight: bold; }
+    #testImage {
+      max-width: 100%;
+      border: 2px solid #00ff00;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Pose Detection Regression Test</h1>
+  
+  <div class="status info">
+    <strong>Test Configuration:</strong><br>
+    Model: <span id="modelName">yolo11n-pose.onnx</span><br>
+    Test Image: /test-data/compressed-test-image.jpg<br>
+    Keypoints tested: Left Wrist, Right Wrist, Left Ankle, Right Ankle
+  </div>
+
+  <div>
+    <button id="generateBaseline">1. Generate Baseline</button>
+    <button id="runTest" disabled>2. Run Regression Test</button>
+    <button id="downloadBaseline" disabled>3. Download Baseline JSON</button>
+  </div>
+
+  <div id="status" class="status" style="display: none;"></div>
+  
+  <img id="testImage" style="display: none;">
+  
+  <div id="results"></div>
+
+  <script type="module">
+    import { YoloPoseService } from '/src/services/yoloPoseService.js';
+    import { getActiveModelConfig } from '/src/config/poseDetection.js';
+
+    const config = getActiveModelConfig();
+    const TEST_IMAGE_PATH = '/test-data/compressed-test-image.jpg';
+    
+    // Keypoints we care about (COCO format indices)
+    const KEYPOINTS_TO_TEST = {
+      'Left Wrist': 9,
+      'Right Wrist': 10,
+      'Left Ankle': 15,
+      'Right Ankle': 16,
+    };
+
+    let baseline = null;
+    let poseService = null;
+
+    // Initialize pose service
+    async function initPoseService() {
+      if (!poseService) {
+        showStatus('info', 'Initializing pose detection service...');
+        poseService = new YoloPoseService(config.modelPath);
+        await poseService.initialize();
+        showStatus('pass', `✅ Pose service initialized (${config.modelPath})`);
+        document.getElementById('modelName').textContent = config.modelPath;
+      }
+    }
+
+    // Load and run pose detection on test image
+    async function detectPoseOnTestImage() {
+      showStatus('info', '🔄 Loading test image...');
+      
+      // Load image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = TEST_IMAGE_PATH;
+      });
+
+      // Show image
+      const imgElement = document.getElementById('testImage');
+      imgElement.src = TEST_IMAGE_PATH;
+      imgElement.style.display = 'block';
+
+      // Convert to ImageData
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, img.width, img.height);
+
+      // Run detection
+      showStatus('info', '🧠 Running pose detection...');
+      const startTime = performance.now();
+      const result = await poseService.detectPose(imageData);
+      const inferenceTime = performance.now() - startTime;
+
+      showStatus('pass', `✅ Detection complete in ${inferenceTime.toFixed(0)}ms`);
+
+      return {
+        imageSize: { width: img.width, height: img.height },
+        inferenceTime: Math.round(inferenceTime),
+        result,
+      };
+    }
+
+    // Generate baseline
+    document.getElementById('generateBaseline').addEventListener('click', async () => {
+      try {
+        await initPoseService();
+        const { imageSize, inferenceTime, result } = await detectPoseOnTestImage();
+
+        if (!result.poses || result.poses.length === 0) {
+          throw new Error('No pose detected in test image');
+        }
+
+        const pose = result.poses[0];
+        
+        // Extract keypoints we care about
+        const keypoints = {};
+        for (const [name, index] of Object.entries(KEYPOINTS_TO_TEST)) {
+          const kp = pose.keypoints[index];
+          keypoints[name] = {
+            x: kp.x,
+            y: kp.y,
+            confidence: kp.confidence,
+          };
+        }
+
+        baseline = {
+          model: config.modelPath,
+          timestamp: new Date().toISOString(),
+          imageSize,
+          inferenceTime,
+          keypoints,
+        };
+
+        showStatus('pass', '✅ Baseline generated successfully!');
+        
+        // Show baseline
+        document.getElementById('results').innerHTML = `
+          <h3>📋 Baseline Generated:</h3>
+          <pre>${JSON.stringify(baseline, null, 2)}</pre>
+        `;
+
+        // Enable other buttons
+        document.getElementById('runTest').disabled = false;
+        document.getElementById('downloadBaseline').disabled = false;
+
+      } catch (error) {
+        showStatus('fail', `❌ Failed to generate baseline: ${error.message}`);
+        console.error(error);
+      }
+    });
+
+    // Run regression test
+    document.getElementById('runTest').addEventListener('click', async () => {
+      try {
+        if (!baseline) {
+          throw new Error('No baseline loaded. Generate baseline first.');
+        }
+
+        await initPoseService();
+        const { imageSize, inferenceTime, result } = await detectPoseOnTestImage();
+
+        if (!result.poses || result.poses.length === 0) {
+          throw new Error('No pose detected in test image');
+        }
+
+        const pose = result.poses[0];
+        
+        // Compare against baseline
+        let allMatch = true;
+        let resultsHtml = '<h3>📊 Test Results:</h3>';
+        resultsHtml += '<div class="keypoint-row header"><div>Keypoint</div><div>Baseline</div><div>Current</div><div>Status</div></div>';
+
+        for (const [name, index] of Object.entries(KEYPOINTS_TO_TEST)) {
+          const current = pose.keypoints[index];
+          const expected = baseline.keypoints[name];
+          
+          const matches = 
+            current.x === expected.x &&
+            current.y === expected.y &&
+            current.confidence === expected.confidence;
+
+          allMatch = allMatch && matches;
+
+          const statusClass = matches ? 'match' : 'mismatch';
+          const statusText = matches ? '✅ MATCH' : '❌ FAIL';
+
+          resultsHtml += `
+            <div class="keypoint-row ${statusClass}">
+              <div>${name}</div>
+              <div>(${expected.x.toFixed(2)}, ${expected.y.toFixed(2)}, ${expected.confidence.toFixed(3)})</div>
+              <div>(${current.x.toFixed(2)}, ${current.y.toFixed(2)}, ${current.confidence.toFixed(3)})</div>
+              <div>${statusText}</div>
+            </div>
+          `;
+        }
+
+        // Check inference time (allow ±20% variance)
+        const timeVariance = Math.abs(inferenceTime - baseline.inferenceTime) / baseline.inferenceTime;
+        const timeOk = timeVariance <= 0.2;
+        
+        resultsHtml += `<br><strong>Inference Time:</strong> ${inferenceTime}ms (baseline: ${baseline.inferenceTime}ms) ${timeOk ? '✅' : '⚠️  ±' + (timeVariance * 100).toFixed(0) + '%'}`;
+
+        document.getElementById('results').innerHTML = resultsHtml;
+
+        if (allMatch) {
+          showStatus('pass', '✅ ALL TESTS PASSED - No regression detected!');
+        } else {
+          showStatus('fail', '❌ TEST FAILED - Coordinates have changed!');
+        }
+
+      } catch (error) {
+        showStatus('fail', `❌ Test failed: ${error.message}`);
+        console.error(error);
+      }
+    });
+
+    // Download baseline JSON
+    document.getElementById('downloadBaseline').addEventListener('click', () => {
+      if (!baseline) {
+        alert('No baseline to download');
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(baseline, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pose-detection-baseline.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    function showStatus(type, message) {
+      const status = document.getElementById('status');
+      status.className = `status ${type}`;
+      status.textContent = message;
+      status.style.display = 'block';
+    }
+
+    // Initial status
+    showStatus('info', '👉 Click "Generate Baseline" to start');
+  </script>
+</body>
+</html>
