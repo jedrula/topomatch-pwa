@@ -248,6 +248,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  sessionId: {
+    type: String,
+    default: null, // If not provided, will generate one
+  },
   title: {
     type: String,
     default: 'Upload Beta Video',
@@ -335,11 +339,11 @@ const createAscentAndStartUpload = async (videoFile) => {
       return;
     }
 
-    // Generate ascentId on client (using crypto.randomUUID)
-    const ascentId = generateAscentId();
+    // Use provided sessionId as ascentId, or generate new one if not provided
+    const ascentId = props.sessionId || generateAscentId();
     createdAscentId.value = ascentId;
 
-    console.log('📝 Creating ascent record:', ascentId);
+    console.log('📝 Creating ascent record:', ascentId, props.sessionId ? '(from session)' : '(generated)');
 
     // Create the ascent record in Firestore using logAscent
     const ascentData = {

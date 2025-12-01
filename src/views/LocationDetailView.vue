@@ -165,8 +165,10 @@
 
     <!-- Beta Video Upload Modal -->
     <BetaVideoUploadModal
+      :key="currentUploadSessionId"
       :is-open="showBetaUploadModal"
       :is-minimized="isBetaModalMinimized"
+      :session-id="currentUploadSessionId"
       :comparison-images="images"
       :location-id="route.params.locationId"
       :pending-redirect-data="pendingRedirectData"
@@ -263,6 +265,7 @@ const error = ref('');
 const showUploadModal = ref(false);
 const showBetaUploadModal = ref(false);
 const isBetaModalMinimized = ref(false); // Track if modal is minimized
+const currentUploadSessionId = ref(null); // Each upload session gets unique ID for component reset
 
 // Upload tracking state
 const pendingMetadataSaves = ref(0);
@@ -518,6 +521,8 @@ const handleBetaUploadClick = () => {
   }
 
   // User is authenticated, show the upload modal (NOT minimized yet)
+  // Generate new session ID - this will force Vue to recreate the modal component with fresh state
+  currentUploadSessionId.value = crypto.randomUUID();
   showBetaUploadModal.value = true;
   isBetaModalMinimized.value = false; // Start expanded - minimize after video selected
 };
@@ -730,7 +735,8 @@ const handleMaximizeModal = () => {
   if (showBetaUploadModal.value && isBetaModalMinimized.value) {
     isBetaModalMinimized.value = false;
   } else if (!showBetaUploadModal.value) {
-    // If modal isn't open, open it
+    // If modal isn't open, open it (and reset it)
+    currentUploadSessionId.value = crypto.randomUUID(); // New session = fresh modal state
     showBetaUploadModal.value = true;
     isBetaModalMinimized.value = false;
   }

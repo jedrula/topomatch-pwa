@@ -35,6 +35,7 @@
         <VideoFrameMatcherEnhanced
           :comparison-images="comparisonImages"
           :location-id="locationId"
+          :session-id="sessionId"
           title="Upload Beta Video"
           subtitle="Upload a climbing video and we'll identify the boulder problem automatically"
           :auto-start-matching="true"
@@ -305,6 +306,10 @@ defineProps({
   isMinimized: {
     type: Boolean,
     default: false
+  },
+  sessionId: {
+    type: String,
+    default: null
   },
   comparisonImages: {
     type: Array,
