@@ -52,6 +52,8 @@ export default defineConfig({
             '--enable-precise-memory-info',
             '--js-flags=--expose-gc',
           ],
+          // Open DevTools automatically in headed mode
+          devtools: true,
         },
       },
     },

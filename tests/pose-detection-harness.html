@@ -45,6 +45,78 @@
     const TEST_IMAGE_PATH = '/test-data/wibrem/test-pose.png';
     const MODEL_PATH = '/yolo11n-pose.onnx';
 
+    /**
+     * Capture WASM memory info
+     * WASM has its own linear memory separate from JS heap
+     */
+    function captureWasmMemory() {
+      try {
+        // Check if WASM is supported
+        if (typeof WebAssembly === 'undefined') {
+          return { supported: false };
+        }
+        
+        const wasmInfo = {
+          supported: true,
+          memories: []
+        };
+        
+        // Try to access ONNX Runtime WASM memory
+        // ONNX Runtime exposes its module through the ort namespace
+        if (window.ort && window.ort.env) {
+          wasmInfo.ortEnv = {
+            wasm: {
+              numThreads: window.ort.env.wasm?.numThreads,
+              simd: window.ort.env.wasm?.simd,
+            }
+          };
+        }
+        
+        // Try to find WASM memory instances in global scope
+        // This is a heuristic - WASM modules create WebAssembly.Memory instances
+        // We'll look for them indirectly through known patterns
+        
+        // Check for ONNX Runtime WASM worker threads
+        if (window.ort && window.ort.env && window.ort.env.wasm) {
+          wasmInfo.ortWasmConfig = {
+            numThreads: window.ort.env.wasm.numThreads,
+            simd: window.ort.env.wasm.simd,
+            proxy: window.ort.env.wasm.proxy
+          };
+        }
+        
+        return wasmInfo;
+      } catch (e) {
+        console.warn('Could not access WASM memory info:', e);
+        return { supported: false, error: e.message };
+      }
+    }
+
+    /**
+     * Get memory snapshot including JS heap and WASM info
+     */
+    function getMemorySnapshot() {
+      const snapshot = {
+        timestamp: performance.now(),
+        jsHeap: null,
+        wasm: null
+      };
+      
+      // JS Heap (Chrome only with --enable-precise-memory-info)
+      if (performance.memory) {
+        snapshot.jsHeap = {
+          usedJSHeapSize: performance.memory.usedJSHeapSize,
+          totalJSHeapSize: performance.memory.totalJSHeapSize,
+          jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
+        };
+      }
+      
+      // WASM Memory
+      snapshot.wasm = captureWasmMemory();
+      
+      return snapshot;
+    }
+
     // Expose test API to Playwright
     window.poseDetectionTest = {
       status: 'initializing',
@@ -57,12 +129,8 @@
        */
       async run() {
         try {
-          // Measure memory before initialization
-          const memoryBefore = performance.memory ? {
-            usedJSHeapSize: performance.memory.usedJSHeapSize,
-            totalJSHeapSize: performance.memory.totalJSHeapSize,
-            jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
-          } : null;
+          // Capture baseline memory (JS + WASM)
+          const memoryBefore = getMemorySnapshot();
 
           updateStatus('Loading pose detection service...');
           const service = new YoloPoseService(MODEL_PATH);
@@ -72,29 +140,22 @@
           await service.initialize();
           const initTime = performance.now() - initStartTime;
           
-          // Measure memory after initialization
-          const memoryAfterInit = performance.memory ? {
-            usedJSHeapSize: performance.memory.usedJSHeapSize,
-            totalJSHeapSize: performance.memory.totalJSHeapSize,
-          } : null;
+          // Capture memory after ONNX/WASM initialization
+          const memoryAfterInit = getMemorySnapshot();
           
           updateStatus('Loading test image...');
           const imageData = await loadTestImage(TEST_IMAGE_PATH);
           
-          // Measure memory before inference
-          const memoryBeforeInference = performance.memory ? {
-            usedJSHeapSize: performance.memory.usedJSHeapSize,
-          } : null;
+          // Capture memory before inference (after image load)
+          const memoryBeforeInference = getMemorySnapshot();
           
           updateStatus('Running pose detection...');
           const startTime = performance.now();
           const result = await service.detectPose(imageData);
           const inferenceTime = performance.now() - startTime;
           
-          // Measure memory after inference
-          const memoryAfterInference = performance.memory ? {
-            usedJSHeapSize: performance.memory.usedJSHeapSize,
-          } : null;
+          // Capture memory after inference
+          const memoryAfterInference = getMemorySnapshot();
           
           console.log('Pose detection result:', result);
           
@@ -110,12 +171,24 @@
             rightFoot: result.keypoints.rightFoot,
           };
 
-          // Calculate memory usage
-          const memoryUsage = memoryBefore && memoryAfterInit && memoryAfterInference ? {
-            initializationMemoryMB: ((memoryAfterInit.usedJSHeapSize - memoryBefore.usedJSHeapSize) / 1024 / 1024).toFixed(2),
-            inferenceMemoryMB: ((memoryAfterInference.usedJSHeapSize - memoryBeforeInference.usedJSHeapSize) / 1024 / 1024).toFixed(2),
-            totalUsedMB: (memoryAfterInference.usedJSHeapSize / 1024 / 1024).toFixed(2),
-            heapLimitMB: (memoryBefore.jsHeapSizeLimit / 1024 / 1024).toFixed(2),
+          // Calculate memory usage (JS heap + WASM info)
+          const memoryUsage = memoryBefore.jsHeap && memoryAfterInit.jsHeap && memoryAfterInference.jsHeap ? {
+            // Raw values for tests (in bytes)
+            initializationMemory: memoryAfterInit.jsHeap.usedJSHeapSize - memoryBefore.jsHeap.usedJSHeapSize,
+            inferenceMemory: memoryAfterInference.jsHeap.usedJSHeapSize - memoryBeforeInference.jsHeap.usedJSHeapSize,
+            totalHeapSize: memoryAfterInference.jsHeap.usedJSHeapSize,
+            heapLimit: memoryBefore.jsHeap.jsHeapSizeLimit,
+            // Formatted values for display
+            initializationMemoryMB: ((memoryAfterInit.jsHeap.usedJSHeapSize - memoryBefore.jsHeap.usedJSHeapSize) / 1024 / 1024).toFixed(2),
+            inferenceMemoryMB: ((memoryAfterInference.jsHeap.usedJSHeapSize - memoryBeforeInference.jsHeap.usedJSHeapSize) / 1024 / 1024).toFixed(2),
+            totalUsedMB: (memoryAfterInference.jsHeap.usedJSHeapSize / 1024 / 1024).toFixed(2),
+            heapLimitMB: (memoryBefore.jsHeap.jsHeapSizeLimit / 1024 / 1024).toFixed(2),
+            // WASM memory snapshots
+            wasm: {
+              before: memoryBefore.wasm,
+              afterInit: memoryAfterInit.wasm,
+              afterInference: memoryAfterInference.wasm
+            }
           } : null;
 
           this.result = {
