@@ -32,6 +32,16 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
   // Analysis queue: { [ascentId]: analysisJob }
   const jobs = ref({});
 
+  // 🎯 COMPLETED JOBS REGISTRY: Lightweight tracking with PRIMITIVES ONLY (no object references!)
+  // After job completes and is deleted (for memory cleanup), we store minimal completion info.
+  // CRITICAL: Only primitive values (strings, numbers, booleans) - NO references to heavy objects!
+  // Structure: { [ascentId]: { status: 'complete', completedAt: timestamp, problemId: string, score: number } }
+  // Purpose:
+  // 1. Tests can check if job completed without keeping heavy job objects in memory
+  // 2. UI can show "recently analyzed" without memory leak
+  // 3. Each entry is ~100 bytes vs ~80MB for full job with frames
+  const completionRegistry = ref({});
+
   // Track which ascents have been loaded as videos (to avoid showing placeholders)
   // Map<locationId, Set<ascentId>>
   const loadedAscentsByLocation = ref(new Map());
@@ -183,7 +193,46 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       console.log(`   Detected: ${job.scores?.[0]?.name || 'No match'}`);
       console.log(`   Score: ${job.scores?.[0]?.totalScore ? (job.scores[0].totalScore * 100).toFixed(1) + '%' : 'N/A'}\n`);
 
+      // 🧹 MEMORY CLEANUP: Free frames to prevent 80MB memory leak!
+      // ROOT CAUSE: Job object stays in Pinia reactive store (jobs.value), keeping frames reachable
+      // SOLUTION: Delete job entirely from store after completion callback
+      console.log(`\n🧹 MEMORY CLEANUP STARTING...`);
+      
+      if (job.extractedFrames && job.extractedFrames.length > 0) {
+        const frameCount = job.extractedFrames.length;
+        let revokedUrls = 0;
+        let clearedImageData = 0;
+        
+        job.extractedFrames.forEach(frame => {
+          // Revoke blob URLs to free blob memory
+          if (frame.url) {
+            try {
+              URL.revokeObjectURL(frame.url);
+              revokedUrls++;
+            } catch (e) {
+              // URL might already be revoked, ignore
+            }
+          }
+          
+          // Clear ImageData reference (this is the 8MB per frame!)
+          if (frame.imageData) {
+            clearedImageData++;
+            frame.imageData = null;
+          }
+          
+          // Clear pose data too (smaller but still helpful)
+          if (frame.poseData) {
+            frame.poseData = null;
+          }
+        });
+        
+        console.log(`   ✓ Freed ${frameCount} frames (~${frameCount * 8}MB)`);
+        console.log(`   ✓ Revoked ${revokedUrls} blob URLs`);
+        console.log(`   ✓ Cleared ${clearedImageData} ImageData objects`);
+      }
+
       // Trigger completion callback if registered for this location
+      // (callback needs to run BEFORE we delete the job)
       if (job.locationId && completionCallbacks.has(job.locationId)) {
         const callback = completionCallbacks.get(job.locationId);
         try {
@@ -193,10 +242,63 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         }
       }
 
+      // � RECORD COMPLETION: Store lightweight completion state BEFORE deleting job
+      // Tests and UI components can check this registry to see if processing is done
+      // PRIMITIVES ONLY - no object references!
+      completionRegistry.value[ascentId] = {
+        status: 'complete',                                    // string
+        completedAt: job.completedAt,                          // number (timestamp)
+        detectedProblemId: job.detectedProblemId || null,      // string or null
+        topScore: job.scores?.[0]?.totalScore || null,         // number or null
+        topProblemName: job.scores?.[0]?.name || null,         // string or null
+        // This entry is ~100 bytes vs ~80MB for the full job with frames!
+      };
+      console.log(`   📝 Completion recorded (primitives only, ~100 bytes)`);
+
+      // �🗑️ DELETE JOB FROM STORE: This is the KEY to memory cleanup!
+      // Even with null refs above, the job object in Pinia reactive store keeps everything reachable
+      // Deleting the job allows JavaScript GC to collect ALL nested data (frames, ImageData, etc.)
+      console.log(`   🗑️  Removing job from store to enable garbage collection...`);
+      delete jobs.value[ascentId];
+      console.log(`   ✅ Job removed - memory now eligible for GC\n`);
+
     } catch (error) {
       console.error(`❌ Error in analysis pipeline:`, error);
       job.status = 'error';
       job.error = error.message;
+      
+      // 🧹 CLEANUP ON ERROR: Still need to free memory even if job failed!
+      console.log(`\n🧹 ERROR CLEANUP: Freeing memory...`);
+      if (job.extractedFrames && job.extractedFrames.length > 0) {
+        const frameCount = job.extractedFrames.length;
+        job.extractedFrames.forEach(frame => {
+          if (frame.url) {
+            try {
+              URL.revokeObjectURL(frame.url);
+            } catch (e) {
+              // Ignore revoke errors
+            }
+          }
+          frame.imageData = null;
+          frame.poseData = null;
+        });
+        console.log(`   ✓ Freed ${frameCount} frames (~${frameCount * 8}MB)`);
+      }
+      
+      // 📝 RECORD ERROR: Store error state in completion registry
+      completionRegistry.value[ascentId] = {
+        status: 'error',                   // string
+        completedAt: Date.now(),           // number
+        error: error.message,              // string
+        detectedProblemId: null,           // null
+        topScore: null,                    // null
+      };
+      console.log(`   📝 Error recorded in completion registry`);
+      
+      // 🗑️ DELETE JOB: Free memory even on error
+      console.log(`   🗑️  Removing failed job from store...`);
+      delete jobs.value[ascentId];
+      console.log(`   ✅ Job removed - memory freed despite error\n`);
     }
   };
 
@@ -220,15 +322,20 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         // Use real pose detection service (goes through YOLO adapter)
         const poseResult = await poseService.detectPose(frame.imageData);
         
+        console.log(`   Frame ${i + 1}/${job.extractedFrames.length}: detected=${poseResult?.detected}, error=${poseResult?.error}`);
+        
         if (poseResult && poseResult.error) {
           frame.poseData = null;
           frame.poseError = poseResult.message;
-        } else if (poseResult) {
+        } else if (poseResult && poseResult.detected) {
+          // Only set poseData if a pose was actually detected
           frame.poseData = poseResult;
           frame.poseError = null;
+          console.log(`      ✓ Pose detected with confidence: ${poseResult.confidence || 'N/A'}`);
         } else {
           frame.poseData = null;
           frame.poseError = 'No person visible in frame';
+          console.log(`      ✗ No pose detected`);
         }
       } catch (err) {
         console.error(`Error in frame ${i + 1}:`, err);
@@ -810,9 +917,20 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
 
   /**
    * Get analysis job by ascent ID
+   * Returns active job OR completion record (lightweight status after job deleted)
    */
   const getJob = (ascentId) => {
-    return jobs.value[ascentId] || null;
+    // Check active jobs first
+    if (jobs.value[ascentId]) {
+      return jobs.value[ascentId];
+    }
+    
+    // Check completion registry (job was completed and deleted for memory cleanup)
+    if (completionRegistry.value[ascentId]) {
+      return completionRegistry.value[ascentId];
+    }
+    
+    return null;
   };
 
   /**
@@ -823,6 +941,10 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       delete jobs.value[ascentId];
       console.log(`❌ Analysis job cancelled: ${ascentId}`);
     }
+    // Also clear from completion registry if exists
+    if (completionRegistry.value[ascentId]) {
+      delete completionRegistry.value[ascentId];
+    }
   };
 
   /**
@@ -830,6 +952,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
    */
   const clearAll = () => {
     jobs.value = {};
+    completionRegistry.value = {}; // Also clear completion records
   };
 
   /**
@@ -920,6 +1043,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
   return {
     // State
     jobs,
+    completionRegistry,  // Expose for tests (lightweight completion tracking)
     
     // Computed
     activeJobs,

@@ -274,6 +274,8 @@ export class YoloPoseService extends PoseDetectionService {
     const INPUT_SIZE = 640;
     const { width, height } = imageData;
     
+    console.log(`🔬 YOLO inference input: ${width}×${height} ImageData`);
+    
     // Calculate padding to square (matching worker approach)
     const maxSize = Math.max(width, height);
     const xPad = maxSize - width;
@@ -336,6 +338,12 @@ export class YoloPoseService extends PoseDetectionService {
     // JavaScript NMS post-processing
     const scale = maxSize / INPUT_SIZE;
     const poses = this._processYoloWithJsNMS(output0, scale, xOffset, yOffset, width, height);
+    
+    console.log(`🔬 YOLO inference output: ${poses?.length || 0} poses detected`);
+    if (poses && poses.length > 0) {
+      console.log(`   First pose confidence: ${poses[0].confidence}`);
+      console.log(`   First pose keypoints: ${poses[0].keypoints?.length || 0}`);
+    }
     
     return poses;
   }

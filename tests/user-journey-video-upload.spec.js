@@ -28,6 +28,7 @@
 
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import fs from 'fs';
 import { signIn } from './helpers.js';
 
 // Test configuration
@@ -42,15 +43,19 @@ const TEST_PASSWORD = 'andrzej.swaton@gmail.com';
 
 test.describe('User Journey: Video Upload', () => {
   // Increase timeout for this test since it involves real video processing
-  test.setTimeout(120000); // 2 minutes
+  test.setTimeout(300000); // 5 minutes
 
-  test('should upload video 3 times sequentially and check for memory leaks', async ({ page }) => {
-    console.log('\n🎬 Starting Real User Journey Test - 3 Sequential Uploads...\n');
+  test('should upload video multiple times sequentially and check for memory leaks', async ({ page }) => {
+    // 🎯 CONFIGURATION: Change this number to test different cycle counts
+    const NUM_UPLOADS = 5;
+    
+    console.log(`\n🎬 Starting Real User Journey Test - ${NUM_UPLOADS} Sequential Uploads...\n`);
     console.log('⚠️  NOTE: Make sure dev server is running (npm run dev)\n');
     console.log('📊 This test will:');
-    console.log('   1. Upload video → wait for complete processing');
-    console.log('   2. Upload same video again → wait for complete processing');
-    console.log('   3. Upload same video 3rd time → wait for complete processing');
+    for (let i = 1; i <= NUM_UPLOADS; i++) {
+      const suffix = i === 1 ? '' : ' again';
+      console.log(`   ${i}. Upload${suffix} video → wait for complete processing`);
+    }
     console.log('   Then check if memory grows between uploads (leak detection)\n');
 
     const memorySnapshots = [];
@@ -79,6 +84,49 @@ test.describe('User Journey: Video Upload', () => {
         return snapshot;
       }
       return null;
+    };
+
+    // 🔬 HEAP SNAPSHOT: Capture heap snapshot for detailed analysis
+    let cdpSession;
+    const heapSnapshots = [];
+    
+    const takeHeapSnapshot = async (label) => {
+      try {
+        if (!cdpSession) {
+          cdpSession = await page.context().newCDPSession(page);
+        }
+
+        console.log(`   🔬 Taking heap snapshot: ${label}...`);
+        
+        let snapshotData = '';
+        const chunkHandler = (params) => {
+          snapshotData += params.chunk;
+        };
+        
+        cdpSession.on('HeapProfiler.addHeapSnapshotChunk', chunkHandler);
+        
+        await cdpSession.send('HeapProfiler.takeHeapSnapshot', {
+          reportProgress: false,
+          captureNumericValue: true
+        });
+        
+        cdpSession.off('HeapProfiler.addHeapSnapshotChunk', chunkHandler);
+        
+        const filename = `heap-snapshot-${label.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.heapsnapshot`;
+        const filepath = path.resolve(`./test-results/${filename}`);
+        
+        const dir = path.dirname(filepath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        fs.writeFileSync(filepath, snapshotData);
+        heapSnapshots.push({ label, filepath, size: snapshotData.length });
+        
+        console.log(`   ✅ Saved: ${filename} (${(snapshotData.length / 1024 / 1024).toFixed(2)} MB)`);
+      } catch (error) {
+        console.warn(`   ⚠️  Failed to take heap snapshot: ${error.message}`);
+      }
     };
 
     // Start memory monitoring
@@ -135,9 +183,7 @@ test.describe('User Journey: Video Upload', () => {
       
       await captureMemory('After authentication');
 
-      // Step 2-5: Upload video 3 times in a row
-      const NUM_UPLOADS = 3;
-      
+      // Step 2-5: Upload video multiple times in a row (NUM_UPLOADS configured at top)
       for (let uploadNum = 1; uploadNum <= NUM_UPLOADS; uploadNum++) {
         console.log('\n' + '═'.repeat(60));
         console.log(`🔄 UPLOAD CYCLE ${uploadNum}/${NUM_UPLOADS}`);
@@ -262,9 +308,17 @@ test.describe('User Journey: Video Upload', () => {
             throw new Error('Upload queue not found');
           }
           
-          // Get analysis job
+          // Get analysis job (check both active jobs AND completion registry)
           const analysisJobs = Object.values(analysisQueue.jobs || {});
-          const analysisJob = analysisJobs.length > 0 ? analysisJobs[analysisJobs.length - 1] : null;
+          const completionRegistry = analysisQueue.completionRegistry || {};
+          const completedJobs = Object.values(completionRegistry);
+          
+          // Try active jobs first, then check completion registry
+          let analysisJob = analysisJobs.length > 0 ? analysisJobs[analysisJobs.length - 1] : null;
+          if (!analysisJob && completedJobs.length > 0) {
+            // Job was completed and deleted - use completion record
+            analysisJob = completedJobs[completedJobs.length - 1];
+          }
           
           // Get upload job
           const uploads = Object.values(uploadQueue.uploads || {});
@@ -273,7 +327,7 @@ test.describe('User Journey: Video Upload', () => {
           return {
             analysis: analysisJob ? {
               status: analysisJob.status,
-              progress: analysisJob.progress,
+              progress: analysisJob.progress || 100, // Completed jobs don't have progress field
               ascentId: analysisJob.ascentId,
               error: analysisJob.error
             } : { status: 'no-jobs' },
@@ -304,7 +358,13 @@ test.describe('User Journey: Video Upload', () => {
         if (state.analysis.status === 'complete') {
           if (!analysisComplete) {
             console.log(`   ✅ Analysis pipeline complete!`);
+            console.log(`   📊 Analysis state:`, JSON.stringify(state.analysis));
             analysisComplete = true;
+          }
+        } else {
+          // Debug: log non-complete status
+          if (checkCount % 5 === 0) {
+            console.log(`   🔍 Still waiting... status=${state.analysis.status}, complete=${analysisComplete}`);
           }
         }
         
@@ -364,6 +424,10 @@ test.describe('User Journey: Video Upload', () => {
         await page.waitForTimeout(2000);
         
         const cycleEndMemory = await captureMemory(`Upload ${uploadNum} complete`);
+        
+        // 🔬 Take heap snapshot to analyze what's in memory
+        await takeHeapSnapshot(`cycle-${uploadNum}-end`);
+        
         uploadCycleMemory.push({
           cycle: uploadNum,
           memory: cycleEndMemory.memory,
@@ -408,7 +472,7 @@ test.describe('User Journey: Video Upload', () => {
 
       // Step 6: Analyze memory
       console.log('\n\n' + '='.repeat(60));
-      console.log('📊 MEMORY ANALYSIS - 3 SEQUENTIAL UPLOADS');
+      console.log(`📊 MEMORY ANALYSIS - ${NUM_UPLOADS} SEQUENTIAL UPLOADS`);
       console.log('='.repeat(60) + '\n');
 
       if (memorySnapshots.length > 0) {
@@ -423,66 +487,71 @@ test.describe('User Journey: Video Upload', () => {
           console.log(`   ${snapshot.label}: ${snapshot.memory.toFixed(2)} MB${growthStr}`);
         });
 
-        // Analyze memory growth between upload cycles (CRITICAL for leak detection!)
-        console.log('\n🔍 Upload Cycle Memory Comparison:');
+        // Simple memory tracking: just show MB after each cycle
+        console.log('\n🔍 Memory After Each Upload Cycle:');
+        const baselineMemory = memorySnapshots[0].memory;
         uploadCycleMemory.forEach((cycle, i) => {
-          const growth = i > 0 
-            ? cycle.memory - uploadCycleMemory[i - 1].memory 
-            : cycle.memory - memorySnapshots[0].memory;
-          const growthStr = i > 0 
-            ? ` (${growth >= 0 ? '+' : ''}${growth.toFixed(2)} MB from previous cycle)`
-            : ` (+${growth.toFixed(2)} MB from start)`;
-          console.log(`   Upload ${cycle.cycle}: ${cycle.memory.toFixed(2)} MB${growthStr}`);
+          const prevMemory = i > 0 ? uploadCycleMemory[i - 1].memory : baselineMemory;
+          const growth = cycle.memory - prevMemory;
+          const growthStr = ` (${growth >= 0 ? '+' : ''}${growth.toFixed(1)} MB)`;
+          console.log(`   Cycle ${cycle.cycle}: ${cycle.memory.toFixed(1)} MB${growthStr}`);
         });
         
-        // Check for leak between cycles
+        // Leak detection: memory shouldn't grow cycle-to-cycle (should stabilize)
         if (uploadCycleMemory.length >= 2) {
-          const cycle1Memory = uploadCycleMemory[0].memory;
-          const cycle2Memory = uploadCycleMemory[1].memory;
-          const cycle1to2Growth = cycle2Memory - cycle1Memory;
-          const cycle1to2Percent = (cycle1to2Growth / cycle1Memory) * 100;
+          const cycleDiffs = [];
+          for (let i = 1; i < uploadCycleMemory.length; i++) {
+            cycleDiffs.push(uploadCycleMemory[i].memory - uploadCycleMemory[i - 1].memory);
+          }
           
-          console.log(`\n🔬 Cycle 1→2 Growth: ${cycle1to2Growth >= 0 ? '+' : ''}${cycle1to2Growth.toFixed(2)} MB (${cycle1to2Percent.toFixed(1)}%)`);
+          const avgGrowth = cycleDiffs.reduce((a, b) => a + b, 0) / cycleDiffs.length;
+          const maxMemoryInCycles = Math.max(...uploadCycleMemory.map(c => c.memory));
           
-          if (uploadCycleMemory.length >= 3) {
-            const cycle3Memory = uploadCycleMemory[2].memory;
-            const cycle2to3Growth = cycle3Memory - cycle2Memory;
-            const cycle2to3Percent = (cycle2to3Growth / cycle2Memory) * 100;
-            
-            console.log(`🔬 Cycle 2→3 Growth: ${cycle2to3Growth >= 0 ? '+' : ''}${cycle2to3Growth.toFixed(2)} MB (${cycle2to3Percent.toFixed(1)}%)`);
-            
-            // If 2nd and 3rd cycles both grow significantly, we have a leak!
-            const LEAK_THRESHOLD = 10; // MB
-            if (cycle1to2Growth > LEAK_THRESHOLD && cycle2to3Growth > LEAK_THRESHOLD) {
-              console.log(`   ⚠️  MEMORY LEAK DETECTED! Each cycle adds ${((cycle1to2Growth + cycle2to3Growth) / 2).toFixed(1)} MB`);
-            } else if (Math.abs(cycle2to3Growth) < 5) {
-              console.log(`   ✅ Memory stable between cycles 2-3 (no leak detected)`);
-            }
+          console.log(`\n🔬 Leak Detection:`);
+          console.log(`   Average cycle-to-cycle change: ${avgGrowth >= 0 ? '+' : ''}${avgGrowth.toFixed(1)} MB`);
+          console.log(`   Peak memory (end of cycles): ${maxMemoryInCycles.toFixed(1)} MB`);
+          
+          // Memory should be stable after cleanup (not grow each cycle)
+          const LEAK_THRESHOLD = 10; // MB average growth = leak
+          const MAX_STABLE_MEMORY = 320;
+          
+          if (avgGrowth > LEAK_THRESHOLD) {
+            console.log(`   ❌ MEMORY LEAK! Grows ${avgGrowth.toFixed(1)} MB per cycle (should be ~0)`);
+            expect(avgGrowth).toBeLessThan(LEAK_THRESHOLD); // Fail test
+          } else if (maxMemoryInCycles > MAX_STABLE_MEMORY) {
+            console.log(`   ⚠️  Memory doesn't clean up properly: ${maxMemoryInCycles.toFixed(1)} MB (expected < ${MAX_STABLE_MEMORY} MB)`);
+            expect(maxMemoryInCycles).toBeLessThan(MAX_STABLE_MEMORY * 1.2); // 20% buffer
+          } else {
+            console.log(`   ✅ Memory stable - no leak detected`);
           }
         }
 
         const firstMemory = memorySnapshots[0].memory;
         const lastMemory = memorySnapshots[memorySnapshots.length - 1].memory;
         const totalGrowth = lastMemory - firstMemory;
-        const growthPercent = (totalGrowth / firstMemory) * 100;
 
-        console.log('\nOverall Summary:');
-        console.log(`   Initial: ${firstMemory.toFixed(2)} MB`);
-        console.log(`   Final: ${lastMemory.toFixed(2)} MB`);
-        console.log(`   Total Growth: ${totalGrowth >= 0 ? '+' : ''}${totalGrowth.toFixed(2)} MB (${growthPercent.toFixed(1)}%)`);
-
-        // Check for memory leak (more lenient for 3 uploads)
-        const MAX_ACCEPTABLE_GROWTH_PERCENT = 150; // Allow 150% growth for 3x video processing
-        if (Math.abs(growthPercent) <= MAX_ACCEPTABLE_GROWTH_PERCENT) {
-          console.log(`   ✅ Total memory growth acceptable (< ${MAX_ACCEPTABLE_GROWTH_PERCENT}%)`);
-        } else {
-          console.log(`   ⚠️  Total memory growth high: ${growthPercent.toFixed(1)}%`);
-        }
-
-        // Assert memory is reasonable
-        expect(growthPercent).toBeLessThan(MAX_ACCEPTABLE_GROWTH_PERCENT * 1.5); // 225% hard limit
+        console.log('\n📊 Overall:');
+        console.log(`   Baseline: ${firstMemory.toFixed(1)} MB`);
+        console.log(`   Final: ${lastMemory.toFixed(1)} MB`);
+        console.log(`   Net change: ${totalGrowth >= 0 ? '+' : ''}${totalGrowth.toFixed(1)} MB`);
       } else {
         console.log('⚠️  Memory API not available. Run Chromium with --enable-precise-memory-info');
+      }
+
+      // 🔬 Print heap snapshot summary
+      if (heapSnapshots.length > 0) {
+        console.log('\n' + '='.repeat(60));
+        console.log('🔬 HEAP SNAPSHOTS CAPTURED');
+        console.log('='.repeat(60));
+        heapSnapshots.forEach(snapshot => {
+          console.log(`   ${snapshot.label}: ${snapshot.filepath}`);
+          console.log(`      Size: ${(snapshot.size / 1024 / 1024).toFixed(2)} MB`);
+        });
+        console.log('\n📖 How to analyze:');
+        console.log('   See HEAP_SNAPSHOT_ANALYSIS.md for step-by-step guide');
+        console.log('   Quick: Load snapshots in Chrome DevTools → Memory tab');
+        console.log('   Compare cycle-2-end vs cycle-1-end to see what grew by 80MB');
+        console.log('='.repeat(60) + '\n');
       }
 
       console.log('\n' + '='.repeat(60));
@@ -504,6 +573,11 @@ test.describe('User Journey: Video Upload', () => {
       console.log('   Body text (first 500 chars):', bodyText.substring(0, 500));
       
       throw error;
+    } finally {
+      // Cleanup CDP session
+      if (cdpSession) {
+        await cdpSession.detach().catch(() => {/* ignore */});
+      }
     }
   });
 });

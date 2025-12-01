@@ -55,7 +55,8 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
       return store ? {
         jobs: store.jobs,
         activeJobs: store.activeJobs,
-        hasActiveJobs: store.hasActiveJobs
+        hasActiveJobs: store.hasActiveJobs,
+        completionRegistry: store.completionRegistry  // ← CRITICAL: Expose for tests!
       } : null;
     },
     
