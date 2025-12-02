@@ -19,6 +19,12 @@
 - Only add code/sections when actually needed, not "just in case"
 - **Use `crypto.randomUUID()` for generating unique IDs** (ascentId, imageId, etc.) - NOT `Math.random()`
 
+### Documentation
+- **DO NOT create .md documentation files** (e.g., `FEATURE_NAME.md`, `FIX_DESCRIPTION.md`)
+- Conversation explanations are sufficient - user doesn't read the markdown files
+- Exception: Only create .md if explicitly requested by user
+- Keep explanations in chat responses instead
+
 ### When Asked to Refactor
 1. Delete the old code
 2. Implement the new approach

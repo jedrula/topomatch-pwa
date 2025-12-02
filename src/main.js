@@ -34,8 +34,9 @@ app.use(pinia);
 import { useInferenceStore } from './stores/inferenceStore';
 useInferenceStore(); // This will trigger the session creation immediately
 
-// Expose testing API for E2E tests (development only)
-if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
+// Expose testing API for E2E tests
+// Enabled in: dev mode, test mode, or production-test build (VITE_ENABLE_TEST_API=true)
+if (import.meta.env.DEV || import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_TEST_API === 'true') {
   window.__TEST_API__ = {
     // Get store state
     getStoreState: (storeName) => {
