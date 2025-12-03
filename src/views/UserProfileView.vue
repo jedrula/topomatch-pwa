@@ -64,7 +64,7 @@
               :src="video.downloadUrl"
               class="w-full h-full object-cover"
               muted
-              preload="metadata"
+              preload="none"
               crossorigin="anonymous"
             />
 

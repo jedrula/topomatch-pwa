@@ -163,7 +163,7 @@ export async function extractVideoFrames(videoFile, timestamps) {
 
     video.addEventListener('loadedmetadata', () => {
       // 🎯 MEMORY OPTIMIZATION: Configurable downscaling
-      const DOWNSCALE_IMAGES = false; // Set to true in production for memory savings
+      const DOWNSCALE_IMAGES = true; // Set to true in production for memory savings
       const MAX_DIMENSION = 640; // Optimal for YOLOv8 (trained on 640x640)
       
       const videoWidth = video.videoWidth;

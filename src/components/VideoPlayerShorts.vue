@@ -134,7 +134,7 @@
             @loadedmetadata="handleVideoLoaded(index)"
             @ended="onVideoEnded"
             playsinline
-            preload="metadata"
+            preload="none"
             crossorigin="anonymous"
           />
           

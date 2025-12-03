@@ -75,7 +75,7 @@
               :src="video.downloadUrl"
               class="w-full h-full object-cover transition-transform group-hover:scale-105"
               muted
-              preload="metadata"
+              preload="none"
               crossorigin="anonymous"
               @loadedmetadata="handleVideoMetadata"
               @seeked="handleVideoSeeked"
