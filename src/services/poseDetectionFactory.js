@@ -8,11 +8,17 @@
 import { ACTIVE_POSE_MODEL, getActiveModelConfig, PoseModel } from '../config/poseDetection.js';
 import { YoloPoseService } from './yoloPoseService.js';
 import { MediaPipePoseService } from './mediapipePoseService.js';
+import poseDetectionService from './poseDetectionService.js';
 
 /**
  * Singleton instance of the active pose detection service
  */
 let activeService = null;
+
+/**
+ * Check if we should use worker-based pose detection
+ */
+const useWorkerPose = import.meta.env.VITE_USE_NEW_WORKER === 'true';
 
 /**
  * Create a pose detection service based on model identifier
@@ -22,8 +28,15 @@ let activeService = null;
 function createPoseService(modelId) {
   const config = getActiveModelConfig();
 
+  // Use worker-based service if flag is enabled and using YOLO
+  if (useWorkerPose && config.provider === 'yolo') {
+    console.log('🚀 Using worker-based pose detection (non-blocking)');
+    return poseDetectionService;
+  }
+
   switch (config.provider) {
     case 'yolo':
+      console.log('👷 Using main thread pose detection (blocks UI)');
       return new YoloPoseService(config.modelPath);
 
     case 'mediapipe':

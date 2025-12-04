@@ -1,11 +1,22 @@
 // Pose Detection Service
 // Wraps the YOLOv8 pose detection worker for easy integration
 
+import { createPoseResult, createEmptyResult, createKeypoint } from '../types/poseDetection.js';
+
+// YOLO COCO keypoint indices (matching yoloPoseService.js)
+const YOLO_KEYPOINTS = {
+  LEFT_WRIST: 9,
+  RIGHT_WRIST: 10,
+  LEFT_ANKLE: 15,
+  RIGHT_ANKLE: 16,
+};
+
 class PoseDetectionService {
   constructor() {
     this.worker = null;
     this.isInitialized = false;
     this.initializationPromise = null;
+    this.modelPath = 'yolo11n-pose'; // Default model
   }
 
   async initialize() {
@@ -14,8 +25,19 @@ class PoseDetectionService {
 
     this.initializationPromise = new Promise((resolve, reject) => {
       try {
-        // Create worker using the same approach as the working usePoseDetection composable
-        this.worker = new Worker(new URL('/poseDetectionWorker.combined.js', import.meta.url));
+        // Choose worker based on env flag
+        const useNewWorker = import.meta.env.VITE_USE_NEW_WORKER === 'true';
+        
+        if (useNewWorker) {
+          console.log('🚀 Using NEW pose detection worker (ES modules)');
+          this.worker = new Worker(
+            new URL('../workers/poseDetectionWorkerNew.js', import.meta.url),
+            { type: 'module' }
+          );
+        } else {
+          console.log('👷 Using OLD pose detection worker (concatenated)');
+          this.worker = new Worker(new URL('/poseDetectionWorker.combined.js', import.meta.url));
+        }
         
         // Set up message handling
         const handleMessage = (event) => {
@@ -44,10 +66,18 @@ class PoseDetectionService {
     return this.initializationPromise;
   }
 
+  // Alias for compatibility with YoloPoseService API
+  async detectPose(imageData) {
+    return this.detectPoses(imageData);
+  }
+
   async detectPoses(imageData) {
     if (!this.isInitialized) {
       await this.initialize();
     }
+
+    const width = imageData.width;
+    const height = imageData.height;
 
     return new Promise((resolve, reject) => {
       if (!this.worker) {
@@ -62,7 +92,8 @@ class PoseDetectionService {
         
         if (type === 'poseDetectionComplete') {
           this.worker.removeEventListener('message', handleMessage);
-          resolve(this.formatPoseResults(data.results.poses));
+          // Format the raw poses into the unified format expected by the pipeline
+          resolve(this.formatPoseResults(data.results.poses, width, height));
         } else if (type === 'error') {
           this.worker.removeEventListener('message', handleMessage);
           reject(new Error(data.message));
@@ -79,38 +110,72 @@ class PoseDetectionService {
         type: 'runPoseDetection',
         imageData: {
           data: dataClone.buffer, // ArrayBuffer of raw RGBA pixels
-          width: imageData.width,
-          height: imageData.height
+          width: width,
+          height: height
         }
       }, [dataClone.buffer]); // Transfer ownership for better performance
     });
   }
 
-  formatPoseResults(poses) {
+  formatPoseResults(poses, imageWidth, imageHeight) {
     if (!poses || poses.length === 0) {
-      // Return empty array if no poses detected (matching original working code)
-      return [];
+      console.log('❌ No poses detected');
+      return createEmptyResult(this.modelPath, 'yolo', 0);
     }
 
-    // Return all poses in the format expected by the original working code
-    return poses.map(pose => ({
-      bbox: pose.bbox,
-      confidence: pose.confidence,
-      keypoints: pose.keypoints
-    }));
+    // Use the first (most confident) pose
+    const pose = poses[0];
+    const keypoints = pose.keypoints;
+    
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`YOLO Worker - Image: ${imageWidth}x${imageHeight}, Detected ${keypoints.length} keypoints`);
+    
+    // Extract YOLO keypoints (wrists and ankles)
+    const leftHand = this._extractKeypoint(keypoints, YOLO_KEYPOINTS.LEFT_WRIST, 'LEFT_WRIST');
+    const rightHand = this._extractKeypoint(keypoints, YOLO_KEYPOINTS.RIGHT_WRIST, 'RIGHT_WRIST');
+    const leftFoot = this._extractKeypoint(keypoints, YOLO_KEYPOINTS.LEFT_ANKLE, 'LEFT_ANKLE');
+    const rightFoot = this._extractKeypoint(keypoints, YOLO_KEYPOINTS.RIGHT_ANKLE, 'RIGHT_ANKLE');
+
+    console.log(`RESULT: LH=${leftHand?'✓':'✗'} RH=${rightHand?'✓':'✗'} LF=${leftFoot?'✓':'✗'} RF=${rightFoot?'✓':'✗'}`);
+    console.log(`${'='.repeat(80)}\n`);
+
+    return createPoseResult(
+      { leftHand, rightHand, leftFoot, rightFoot },
+      this.modelPath,
+      'yolo',
+      0,
+      poses // Include all raw poses
+    );
   }
 
-  extractKeypoint(keypoints, index) {
-    if (index < keypoints.length / 3) {
-      const x = keypoints[index * 3];
-      const y = keypoints[index * 3 + 1];
-      const confidence = keypoints[index * 3 + 2];
-      
-      return { x, y, confidence };
+  _extractKeypoint(keypoints, index, name = '') {
+    // Check if keypoints is already an array of objects (new format)
+    if (keypoints.length > 0 && typeof keypoints[0] === 'object' && 'x' in keypoints[0]) {
+      // New format: array of {x, y, confidence} objects
+      if (index < keypoints.length) {
+        const kp = keypoints[index];
+        
+        if (kp.confidence > 0.1) {
+          console.log(`  ${name}: (${kp.x.toFixed(0)}, ${kp.y.toFixed(0)}) conf=${(kp.confidence*100).toFixed(0)}%`);
+          return createKeypoint(kp.x, kp.y, kp.confidence);
+        } else {
+          console.log(`  ${name}: LOW CONFIDENCE ${(kp.confidence*100).toFixed(0)}%`);
+        }
+      }
+    } else {
+      // Old format: flat array [x1, y1, conf1, x2, y2, conf2, ...]
+      if (index < keypoints.length / 3) {
+        const x = keypoints[index * 3];
+        const y = keypoints[index * 3 + 1];
+        const confidence = keypoints[index * 3 + 2];
+        
+        if (confidence > 0.1) {
+          return createKeypoint(x, y, confidence);
+        }
+      }
     }
     
-    // Return default if keypoint not available
-    return { x: 0, y: 0, confidence: 0 };
+    return null;
   }
 
   terminate() {

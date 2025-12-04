@@ -16,7 +16,7 @@ export const useInferenceStore = defineStore('inference', () => {
   let inferenceWorker;
   
   try {
-    // Load worker as ES module (best practice)
+    // Load worker as ES module
     inferenceWorker = new Worker(
       new URL('../workers/inferenceWorkerNew.js', import.meta.url),
       { type: 'module' }

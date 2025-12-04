@@ -36,22 +36,27 @@ app.use(pinia);
 // 2. Main thread mode (VITE_USE_MAIN_THREAD_INFERENCE=true): Runs in main thread (no worker)
 // 3. Worker (new) mode (VITE_USE_NEW_WORKER=true): ES modules worker following ONNX Runtime best practices
 // 4. Worker (old) mode (default): Legacy concatenated worker
-let inferenceStorePath;
+
+// Use static imports so Vite can properly bundle everything
+let useInferenceStore;
 if (import.meta.env.VITE_USE_INFERENCE_MOCK === 'true') {
-  inferenceStorePath = './stores/inferenceStoreMock';
   console.log('🎭 Using MOCK inference store (recorded fixtures)');
+  const module = await import('./stores/inferenceStoreMock.js');
+  useInferenceStore = module.useInferenceStore;
 } else if (import.meta.env.VITE_USE_MAIN_THREAD_INFERENCE === 'true') {
-  inferenceStorePath = './stores/inferenceStoreMainThread';
   console.log('🧵 Using MAIN THREAD inference store (no worker)');
+  const module = await import('./stores/inferenceStoreMainThread.js');
+  useInferenceStore = module.useInferenceStore;
 } else if (import.meta.env.VITE_USE_NEW_WORKER === 'true') {
-  inferenceStorePath = './stores/inferenceStoreWorkerNew';
   console.log('🚀 Using NEW WORKER inference store (ES modules, ONNX Runtime best practices)');
+  const module = await import('./stores/inferenceStoreWorkerNew.js');
+  useInferenceStore = module.useInferenceStore;
 } else {
-  inferenceStorePath = './stores/inferenceStore';
   console.log('👷 Using OLD WORKER inference store (legacy concatenated)');
+  const module = await import('./stores/inferenceStore.js');
+  useInferenceStore = module.useInferenceStore;
 }
 
-const { useInferenceStore } = await import(inferenceStorePath);
 useInferenceStore(); // This will trigger the session creation immediately
 
 // Expose testing API for E2E tests

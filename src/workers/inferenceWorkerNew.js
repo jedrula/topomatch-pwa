@@ -56,9 +56,10 @@ self.onmessage = async (event) => {
       const sessionConfig = {
         executionProviders: ['wasm'],
         graphOptimizationLevel: 'basic',
-        enableMemPattern: false,
-        enableCpuMemArena: false,
+        enableMemPattern: true,
+        enableCpuMemArena: true,
         wasm: {
+          initialMemory: 128 * 1024 * 1024,
           numThreads: maxThreads,
           simd: true,
           threads: maxThreads > 1,

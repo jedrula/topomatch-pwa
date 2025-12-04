@@ -25,7 +25,7 @@ export default defineConfig({
     }
   },
   worker: {
-    format: 'iife',
+    format: 'es', // Use ES modules for workers (supports { type: 'module' })
   },
   // base: process.env.NODE_ENV === "production" ? "/topomatch-pwa/" : "/",
   plugins: [

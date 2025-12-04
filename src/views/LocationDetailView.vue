@@ -225,6 +225,7 @@ import LocationBoulderProblems from '../components/LocationBoulderProblems.vue';
 import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
+import { generateUUID } from '../utils/uuid.js';
 import { useVideoAnalysisQueueStore } from '../stores/videoAnalysisQueueStore.js';
 import { videoService } from '../services/videoService.js';
 import { fixLocalhostUrl } from '../services/storageUtils.js';
@@ -522,7 +523,7 @@ const handleBetaUploadClick = () => {
 
   // User is authenticated, show the upload modal (NOT minimized yet)
   // Generate new session ID - this will force Vue to recreate the modal component with fresh state
-  currentUploadSessionId.value = crypto.randomUUID();
+  currentUploadSessionId.value = generateUUID();
   showBetaUploadModal.value = true;
   isBetaModalMinimized.value = false; // Start expanded - minimize after video selected
 };
@@ -736,7 +737,7 @@ const handleMaximizeModal = () => {
     isBetaModalMinimized.value = false;
   } else if (!showBetaUploadModal.value) {
     // If modal isn't open, open it (and reset it)
-    currentUploadSessionId.value = crypto.randomUUID(); // New session = fresh modal state
+    currentUploadSessionId.value = generateUUID(); // New session = fresh modal state
     showBetaUploadModal.value = true;
     isBetaModalMinimized.value = false;
   }
