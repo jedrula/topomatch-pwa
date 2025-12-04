@@ -59,3 +59,5 @@ storybook-static
 firebase.json
 .DS_Store
 .firebase/
+.DS_Store
+src/.DS_Store
