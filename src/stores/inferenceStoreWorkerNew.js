@@ -1,3 +1,13 @@
+/**
+ * Inference Store - Worker-based (Best Practices)
+ * Following ONNX Runtime Web deployment best practices
+ * 
+ * Key improvements over old implementation:
+ * - Uses ES modules for worker (no concatenation)
+ * - Proper worker loading as per ONNX Runtime docs
+ * - Same API as inferenceStoreMainThread for easy switching
+ */
+
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { imageCacheService } from '@/services/imageCacheService';
@@ -6,23 +16,17 @@ export const useInferenceStore = defineStore('inference', () => {
   let inferenceWorker;
   
   try {
-    inferenceWorker = new Worker(new URL('/inferenceWorker.combined.js', import.meta.url), {
-      type: 'module',
-    });
+    // Load worker as ES module (best practice)
+    inferenceWorker = new Worker(
+      new URL('../workers/inferenceWorkerNew.js', import.meta.url),
+      { type: 'module' }
+    );
   } catch (error) {
     console.error('❌ Failed to create inference worker:', error);
-    // Fallback: try relative path for mobile compatibility
-    try {
-      inferenceWorker = new Worker('/inferenceWorker.combined.js', {
-        type: 'module',
-      });
-    } catch (fallbackError) {
-      console.error('❌ Fallback worker creation also failed:', fallbackError);
-    }
   }
 
   const sessionTime = ref(null);
-  const isLoading = ref(true); // Start loading immediately
+  const isLoading = ref(true);
   const loadingMessage = ref('Creating inference session...');
   const inferenceResults = ref({});
   const matchCounts = ref({});
@@ -48,47 +52,33 @@ export const useInferenceStore = defineStore('inference', () => {
     sessionReady.value = false;
   }
 
+  // Listen for worker messages
   if (inferenceWorker) {
-    inferenceWorker.onmessage = (event) => {
+    inferenceWorker.addEventListener('message', (event) => {
       const { type, data } = event.data;
-      if (type === 'inferenceComplete') {
-        // Handled by Promise-based listeners in runInference()
-      } else if (type === 'sessionCreated') {
-        sessionTime.value = `${data.sessionTime.toFixed(2)} ms`;
-        sessionReady.value = true;
+      
+      if (type === 'sessionReady') {
+        sessionTime.value = data.sessionTime;
         isLoading.value = false;
+        sessionReady.value = true;
         loadingMessage.value = '';
+        console.log('✅ Inference session ready');
       } else if (type === 'error') {
         errorString.value = data.message;
         isLoading.value = false;
-        loadingMessage.value = '';
-        console.error('Inference worker error:', data.message);
-      } else if (type === 'workerMemoryInfo') {
-        // Memory info logging (optional)
+        sessionReady.value = false;
+        console.error('❌ Worker error:', data.message);
       }
-    };
+    });
+
+    // Start session creation immediately
+    inferenceWorker.postMessage({ type: 'createSession' });
   }
 
-  // Create session immediately when store is initialized
-  const initializeSession = () => {
-    if (inferenceWorker) {
-      inferenceWorker.postMessage({ type: 'createSession' });
-    }
-  };
-
-  // Start session creation immediately (if worker loaded successfully)
-  if (inferenceWorker) {
-    initializeSession();
-  }
-
-  // Computed property to get match counts sorted by value (descending)
   const sortedMatchCounts = computed(() => {
     return Object.entries(matchCounts.value)
-      .sort(([, a], [, b]) => b - a) // sort by match count descending
-      .reduce((acc, [imagePath, count]) => {
-        acc[imagePath] = count;
-        return acc;
-      }, {});
+      .filter(([_, count]) => count > 0)
+      .sort(([, countA], [, countB]) => countB - countA);
   });
 
   const runInferenceBatch = async (
@@ -99,38 +89,58 @@ export const useInferenceStore = defineStore('inference', () => {
   ) => {
     // Check if session is ready before starting inference
     if (!sessionReady.value) {
-      errorString.value = 'Inference session is not ready yet. Please wait.';
-      return;
+      console.warn('⚠️ Session not ready yet, waiting...');
+      await new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (sessionReady.value || errorString.value) {
+            clearInterval(checkInterval);
+            resolve();
+          }
+        }, 100);
+      });
+
+      if (errorString.value) {
+        throw new Error(`Cannot run inference: ${errorString.value}`);
+      }
     }
 
-    isLoading.value = true;
-    loadingMessage.value = `Inferencing with user image and ${topoImagePaths.length} topo images...`;
-    const MATCH_THRESHOLD = 50; // Store results if matches >= 50
-    const allResults = {}; // Store all results temporarily
+    if (isLoading.value) {
+      throw new Error('Session is still loading, please wait...');
+    }
+
+    if (!userFile) {
+      throw new Error('User file is required for inference.');
+    }
+
+    if (!topoImagePaths || topoImagePaths.length === 0) {
+      throw new Error('At least one topo image path is required for inference.');
+    }
+
+    matchCounts.value = {};
+    inferenceResults.value = {};
+    inferenceTimes.value = {};
+
+    const userArrayBuffer = await userFile.arrayBuffer();
+    const MATCH_THRESHOLD = 50;
+    const allResults = {};
     let bestResult = null;
     let bestMatches = -Infinity;
     let bestImgPath = null;
 
-    // Read user image buffer once
-    const userArrayBuffer = await userFile.arrayBuffer();
-
     for (let i = 0; i < topoImagePaths.length; i++) {
       const imgPath = topoImagePaths[i];
       currentlyProcessingImage.value = imgPath;
-      loadingMessage.value = `Comparing with ${imgPath.split('/').pop()} (${i + 1}/${
-        topoImagePaths.length
-      })...`;
 
-      // Call progress callback if provided
       if (progressCallback) {
         progressCallback(i, topoImagePaths.length);
       }
 
+      // Fetch image (cache-first strategy)
       const resp = await imageCacheService.fetchImage(imgPath);
       const topoBlob = await resp.blob();
       const topoArrayBuffer = await topoBlob.arrayBuffer();
 
-      // Clone the userArrayBuffer for each transfer to avoid DataCloneError
+      // Clone the user buffer for transfer
       const userArrayBufferCopy = userArrayBuffer.slice(0);
       const start = performance.now();
 
@@ -164,7 +174,6 @@ export const useInferenceStore = defineStore('inference', () => {
               bestImgPath = imgPath;
             }
 
-            // Remove the event listener after handling this specific inference
             inferenceWorker.removeEventListener('message', handler);
             resolve();
           }
@@ -181,27 +190,41 @@ export const useInferenceStore = defineStore('inference', () => {
             [userArrayBufferCopy, topoArrayBuffer]
           );
         } else {
-          console.error('❌ Inference worker not available');
-          resolve(); // Resolve anyway to avoid hanging
+          resolve();
         }
       });
     }
 
-    // Store results: all above threshold + ensure best match is included
+    // Store results
     inferenceResults.value = { ...allResults };
     if (bestResult && bestImgPath && !inferenceResults.value[bestImgPath]) {
       inferenceResults.value[bestImgPath] = bestResult;
     }
 
     currentlyProcessingImage.value = null;
-    isLoading.value = false;
-    loadingMessage.value = '';
 
-
-    // Call the completion callback if provided
     if (onComplete && bestImgPath) {
       onComplete(bestImgPath);
     }
+  };
+
+  const getTopMatch = (userImagePath, topoImagePaths) => {
+    if (!topoImagePaths || topoImagePaths.length === 0) {
+      return null;
+    }
+
+    let maxCount = 0;
+    let topMatch = null;
+
+    for (const imagePath of topoImagePaths) {
+      const count = matchCounts.value[imagePath] || 0;
+      if (count > maxCount) {
+        maxCount = count;
+        topMatch = imagePath;
+      }
+    }
+
+    return topMatch;
   };
 
   const resetInferenceState = () => {
@@ -212,12 +235,6 @@ export const useInferenceStore = defineStore('inference', () => {
     errorString.value = null;
   };
 
-  /**
-   * Wait for the inference session to be ready
-   * @param {number} timeout - Maximum wait time in milliseconds (default: 60000)
-   * @returns {Promise<void>}
-   * @throws {Error} If session fails to initialize within timeout
-   */
   const ensureSessionReady = async (timeout = 60000) => {
     if (sessionReady.value) return;
     
@@ -234,7 +251,7 @@ export const useInferenceStore = defineStore('inference', () => {
           clearInterval(checkInterval);
           reject(new Error(`Inference session initialization failed: ${errorString.value}`));
         }
-      }, 500); // Check every 500ms
+      }, 500);
     });
   };
 
@@ -249,8 +266,8 @@ export const useInferenceStore = defineStore('inference', () => {
     currentlyProcessingImage,
     errorString,
     sessionReady,
-    inferenceWorker,
     runInferenceBatch,
+    getTopMatch,
     resetInferenceState,
     ensureSessionReady,
   };

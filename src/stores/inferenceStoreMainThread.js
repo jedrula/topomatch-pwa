@@ -117,7 +117,7 @@ export const useInferenceStore = defineStore('inference', () => {
 
         inferenceResults.value[imagePath] = {
           rawData: results,
-          images: data.images,
+          // images removed - not used and causes memory leak
           imgWidth,
           imgHeight,
           userImageDims,

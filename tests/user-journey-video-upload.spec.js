@@ -72,7 +72,7 @@ test.describe('User Journey: Video Upload', () => {
 
   test('should upload video multiple times sequentially and check for memory leaks', async ({ page }) => {
     // 🎯 CONFIGURATION: Change this number to test different cycle counts
-    const NUM_UPLOADS = 1;
+    const NUM_UPLOADS = 3;
     
     console.log(`\n🎬 Starting Real User Journey Test - ${NUM_UPLOADS} Sequential Uploads...\n`);
     console.log(`🌍 Environment: ${TEST_ENV.toUpperCase()}`);
@@ -340,7 +340,7 @@ test.describe('User Journey: Video Upload', () => {
       }
       
       // Capture baseline memory once before starting uploads
-      // await captureMemory('Baseline (before uploads)');
+      await captureMemory('Baseline (before uploads)');
 
       // Step 2-5: Upload video multiple times in a row (NUM_UPLOADS configured at top)
       for (let uploadNum = 1; uploadNum <= NUM_UPLOADS; uploadNum++) {
@@ -573,7 +573,7 @@ test.describe('User Journey: Video Upload', () => {
         console.log('   ⏳ Waiting for cleanup...');
         await page.waitForTimeout(2000);
         
-        // const cycleEndMemory = await captureMemory(`Upload ${uploadNum} complete`);
+        const cycleEndMemory = await captureMemory(`Upload ${uploadNum} complete`);
         
         // 🔬 Take heap snapshot to analyze what's in memory
         // await takeHeapSnapshot(`cycle-${uploadNum}-end`);
@@ -621,7 +621,7 @@ test.describe('User Journey: Video Upload', () => {
       }
       
       // End of all upload cycles
-      // await captureMemory('All uploads complete');
+      await captureMemory('All uploads complete');
 
       // Step 6: Analyze memory
       console.log('\n\n' + '='.repeat(60));

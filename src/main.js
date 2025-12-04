@@ -31,10 +31,11 @@ app.use(FloatingVue);
 app.use(pinia);
 
 // Eagerly initialize inference store to start loading AI models immediately
-// Three modes available:
+// Four modes available:
 // 1. Mock mode (VITE_USE_INFERENCE_MOCK=true): Uses recorded fixtures (saves ~49 MB)
 // 2. Main thread mode (VITE_USE_MAIN_THREAD_INFERENCE=true): Runs in main thread (no worker)
-// 3. Worker mode (default): Runs in web worker (best for UI responsiveness)
+// 3. Worker (new) mode (VITE_USE_NEW_WORKER=true): ES modules worker following ONNX Runtime best practices
+// 4. Worker (old) mode (default): Legacy concatenated worker
 let inferenceStorePath;
 if (import.meta.env.VITE_USE_INFERENCE_MOCK === 'true') {
   inferenceStorePath = './stores/inferenceStoreMock';
@@ -42,9 +43,12 @@ if (import.meta.env.VITE_USE_INFERENCE_MOCK === 'true') {
 } else if (import.meta.env.VITE_USE_MAIN_THREAD_INFERENCE === 'true') {
   inferenceStorePath = './stores/inferenceStoreMainThread';
   console.log('🧵 Using MAIN THREAD inference store (no worker)');
+} else if (import.meta.env.VITE_USE_NEW_WORKER === 'true') {
+  inferenceStorePath = './stores/inferenceStoreWorkerNew';
+  console.log('🚀 Using NEW WORKER inference store (ES modules, ONNX Runtime best practices)');
 } else {
   inferenceStorePath = './stores/inferenceStore';
-  console.log('👷 Using WORKER inference store (default)');
+  console.log('👷 Using OLD WORKER inference store (legacy concatenated)');
 }
 
 const { useInferenceStore } = await import(inferenceStorePath);
