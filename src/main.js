@@ -31,10 +31,21 @@ app.use(FloatingVue);
 app.use(pinia);
 
 // Eagerly initialize inference store to start loading AI models immediately
-// Use mock if VITE_USE_INFERENCE_MOCK is enabled (saves ~49 MB YOLO model)
-const inferenceStorePath = import.meta.env.VITE_USE_INFERENCE_MOCK === 'true' 
-  ? './stores/inferenceStoreMock' 
-  : './stores/inferenceStore';
+// Three modes available:
+// 1. Mock mode (VITE_USE_INFERENCE_MOCK=true): Uses recorded fixtures (saves ~49 MB)
+// 2. Main thread mode (VITE_USE_MAIN_THREAD_INFERENCE=true): Runs in main thread (no worker)
+// 3. Worker mode (default): Runs in web worker (best for UI responsiveness)
+let inferenceStorePath;
+if (import.meta.env.VITE_USE_INFERENCE_MOCK === 'true') {
+  inferenceStorePath = './stores/inferenceStoreMock';
+  console.log('🎭 Using MOCK inference store (recorded fixtures)');
+} else if (import.meta.env.VITE_USE_MAIN_THREAD_INFERENCE === 'true') {
+  inferenceStorePath = './stores/inferenceStoreMainThread';
+  console.log('🧵 Using MAIN THREAD inference store (no worker)');
+} else {
+  inferenceStorePath = './stores/inferenceStore';
+  console.log('👷 Using WORKER inference store (default)');
+}
 
 const { useInferenceStore } = await import(inferenceStorePath);
 useInferenceStore(); // This will trigger the session creation immediately
