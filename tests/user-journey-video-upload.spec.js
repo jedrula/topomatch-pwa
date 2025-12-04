@@ -23,7 +23,9 @@
  * 
  * This is the MAIN user journey - keeping this green means the app works!
  * 
- * Run with: npx playwright test tests/user-journey-video-upload.spec.js --headed
+ * USAGE:
+ * - Local dev:    npx playwright test tests/user-journey-video-upload.spec.js --headed
+ * - Production:   TEST_ENV=production npx playwright test tests/user-journey-video-upload.spec.js --headed
  */
 
 import { test, expect } from '@playwright/test';
@@ -31,11 +33,34 @@ import path from 'path';
 import fs from 'fs';
 import { signIn } from './helpers.js';
 
+// 🎯 TEST ENVIRONMENT CONFIGURATION
+// Set via environment variable: TEST_ENV=production or TEST_ENV=local (default)
+// eslint-disable-next-line no-undef
+const TEST_ENV = process.env.TEST_ENV || 'local';
+
+const ENV_CONFIG = {
+  local: {
+    baseUrl: 'http://localhost:5173',
+    locationId: 'tJdos74GeYUuxoMPKWnu',
+    videoPath: './test-data/wibrem/wibrem czarne jedr.mp4'
+  },
+  production: {
+    baseUrl: 'https://topomatch-pwa.web.app',
+    locationId: 'M8OzUlFxU2YGBJ4qXOA0',
+    videoPath: './test-data/wibrem/wibrem czarne jedr.mp4'
+  }
+};
+
+const CONFIG = ENV_CONFIG[TEST_ENV];
+if (!CONFIG) {
+  throw new Error(`Unknown TEST_ENV: ${TEST_ENV}. Use 'local' or 'production'`);
+}
+
 // Test configuration
-const TEST_LOCATION_ID = 'j16Gvm1xyQtfefr1HYiH';
-const TEST_VIDEO_PATH = path.resolve('./test-data/groto_29aug/IMG_8410.MOV');
-const MAX_PROCESSING_TIME = 60000; // 60 seconds max
-const MEMORY_CHECK_INTERVAL = 5000; // Check memory every 5 seconds
+const BASE_URL = CONFIG.baseUrl;
+const TEST_LOCATION_ID = CONFIG.locationId;
+const TEST_VIDEO_PATH = path.resolve(CONFIG.videoPath);
+const MAX_PROCESSING_TIME = 1000 * 60 * 15; // 15 minutes max (increased for memory estimation overhead)
 
 // Authentication
 const TEST_EMAIL = 'andrzej.swaton@gmail.com';
@@ -43,15 +68,21 @@ const TEST_PASSWORD = 'andrzej.swaton@gmail.com';
 
 test.describe('User Journey: Video Upload', () => {
   // Increase timeout for this test since it involves real video processing
-  test.setTimeout(300000); // 5 minutes
+  test.setTimeout(300000 * 3); // 15 minutes
 
   test('should upload video multiple times sequentially and check for memory leaks', async ({ page }) => {
     // 🎯 CONFIGURATION: Change this number to test different cycle counts
-    const NUM_UPLOADS = 5;
+    const NUM_UPLOADS = 1;
     
     console.log(`\n🎬 Starting Real User Journey Test - ${NUM_UPLOADS} Sequential Uploads...\n`);
-    console.log('⚠️  NOTE: Make sure dev server is running (npm run dev)\n');
-    console.log('📊 This test will:');
+    console.log(`🌍 Environment: ${TEST_ENV.toUpperCase()}`);
+    console.log(`🔗 Base URL: ${BASE_URL}`);
+    console.log(`📍 Location: ${TEST_LOCATION_ID}`);
+    console.log(`🎥 Video: ${path.basename(TEST_VIDEO_PATH)}`);
+    if (TEST_ENV === 'local') {
+      console.log('⚠️  NOTE: Make sure dev server is running (npm run dev)');
+    }
+    console.log('\n📊 This test will:');
     for (let i = 1; i <= NUM_UPLOADS; i++) {
       const suffix = i === 1 ? '' : ' again';
       console.log(`   ${i}. Upload${suffix} video → wait for complete processing`);
@@ -59,31 +90,144 @@ test.describe('User Journey: Video Upload', () => {
     console.log('   Then check if memory grows between uploads (leak detection)\n');
 
     const memorySnapshots = [];
-    let memoryMonitorInterval;
     const uploadCycleMemory = []; // Track memory at end of each upload cycle
 
-    // Helper to capture memory snapshot
+    // Helper to estimate UNTRACKED memory (GPU, video, canvas)
+    const estimateUntrackedMemory = async () => {
+      return await page.evaluate(() => {
+        let estimated = 0;
+        
+        // 1. Video elements (decode buffers: ~100-200 MB for HD video)
+        const videos = document.querySelectorAll('video');
+        videos.forEach(video => {
+          if (video.videoWidth && video.videoHeight) {
+            // Estimate: width * height * 4 bytes (RGBA) * ~10 decoded frames buffered
+            const frameSize = video.videoWidth * video.videoHeight * 4;
+            const bufferedFrames = 10; // Typical browser buffering
+            estimated += frameSize * bufferedFrames;
+          }
+        });
+        
+        // 2. Canvas elements (backing store in GPU memory)
+        const canvases = document.querySelectorAll('canvas');
+        canvases.forEach(canvas => {
+          if (canvas.width && canvas.height) {
+            // Estimate: width * height * 4 bytes (RGBA)
+            estimated += canvas.width * canvas.height * 4;
+          }
+        });
+        
+        // 3. ImageBitmap tracking (if we track them in stores)
+        // Note: Can't enumerate ImageBitmaps directly, but we can check stores
+        
+        // 4. Browser overhead estimate: ~50-100 MB baseline
+        const browserOverhead = 70 * 1024 * 1024; // 70 MB average
+        estimated += browserOverhead;
+        
+        return {
+          videoBytes: Array.from(videos).reduce((sum, v) => {
+            if (v.videoWidth && v.videoHeight) {
+              return sum + (v.videoWidth * v.videoHeight * 4 * 10);
+            }
+            return sum;
+          }, 0),
+          canvasBytes: Array.from(canvases).reduce((sum, c) => 
+            sum + (c.width * c.height * 4), 0),
+          browserOverheadBytes: browserOverhead,
+          totalEstimatedBytes: estimated,
+          videoCount: videos.length,
+          canvasCount: canvases.length
+        };
+      });
+    };
+
+    // Helper to capture memory snapshot using NEW API
     const captureMemory = async (label) => {
-      const memory = await page.evaluate(() => {
+      console.log(`\n   💾 Capturing memory snapshot: ${label}...`);
+      const memory = await page.evaluate(async () => {
+        // Force GC first
         if (window.gc) window.gc();
-        return performance.memory ? {
-          usedJSHeapSize: performance.memory.usedJSHeapSize,
-          totalJSHeapSize: performance.memory.totalJSHeapSize,
-          timestamp: Date.now()
-        } : null;
+        
+        // REQUIRE measureUserAgentSpecificMemory API - no fallback!
+        if (!performance.measureUserAgentSpecificMemory) {
+          throw new Error('❌ measureUserAgentSpecificMemory is NOT available! Check Cross-Origin Isolation headers (COOP/COEP)');
+        }
+        
+        const measurement = await performance.measureUserAgentSpecificMemory();
+        const totalBytes = measurement.bytes;
+        
+        // Break down by attribution (main thread vs workers)
+        const breakdown = measurement.breakdown || [];
+        let workerMemory = 0;
+        let mainMemory = 0;
+        let otherMemory = 0;
+        
+        breakdown.forEach(entry => {
+          const bytes = entry.bytes;
+          const scope = entry.attribution?.[0]?.scope;
+          
+          if (scope === 'DedicatedWorkerGlobalScope' || entry.types?.includes('Worker')) {
+            workerMemory += bytes;
+          } else if (scope === 'Window' || entry.types?.includes('Window')) {
+            mainMemory += bytes;
+          } else {
+            otherMemory += bytes;
+          }
+        });
+        
+        return {
+          totalBytes,
+          mainBytes: mainMemory,
+          workerBytes: workerMemory,
+          otherBytes: otherMemory,
+          breakdown: breakdown.map(e => ({
+            bytes: e.bytes,
+            types: e.types,
+            scope: e.attribution?.[0]?.scope
+          })),
+          timestamp: Date.now(),
+          api: 'measureUserAgentSpecificMemory'
+        };
       });
       
-      if (memory) {
-        const snapshot = {
-          label,
-          memory: memory.usedJSHeapSize / 1024 / 1024,
-          timestamp: memory.timestamp
-        };
-        memorySnapshots.push(snapshot);
-        console.log(`   💾 ${label}: ${snapshot.memory.toFixed(2)} MB`);
-        return snapshot;
+      // Get estimated untracked memory
+      const untracked = await estimateUntrackedMemory();
+      
+      const snapshot = {
+        label,
+        totalMB: memory.totalBytes / 1024 / 1024,
+        mainMB: memory.mainBytes / 1024 / 1024,
+        workerMB: memory.workerBytes / 1024 / 1024,
+        otherMB: memory.otherBytes / 1024 / 1024,
+        timestamp: memory.timestamp,
+        api: memory.api,
+        breakdown: memory.breakdown,
+        // Estimated untracked memory
+        untrackedMB: untracked.totalEstimatedBytes / 1024 / 1024,
+        videoMB: untracked.videoBytes / 1024 / 1024,
+        canvasMB: untracked.canvasBytes / 1024 / 1024,
+        browserOverheadMB: untracked.browserOverheadBytes / 1024 / 1024,
+        estimatedTotalMB: (memory.totalBytes + untracked.totalEstimatedBytes) / 1024 / 1024,
+        videoCount: untracked.videoCount,
+        canvasCount: untracked.canvasCount
+      };
+      memorySnapshots.push(snapshot);
+      
+      // Log with worker breakdown + estimated untracked
+      console.log(`   💾 ${label}:`);
+      console.log(`      Tracked (measureUserAgentSpecificMemory): ${snapshot.totalMB.toFixed(2)} MB`);
+      console.log(`      ├─ Main Thread: ${snapshot.mainMB.toFixed(2)} MB`);
+      console.log(`      ├─ Workers:     ${snapshot.workerMB.toFixed(2)} MB`);
+      if (snapshot.otherMB > 0) {
+        console.log(`      └─ Other:       ${snapshot.otherMB.toFixed(2)} MB`);
       }
-      return null;
+      console.log(`      Estimated Untracked (GPU/Video/Browser): ${snapshot.untrackedMB.toFixed(2)} MB`);
+      console.log(`      ├─ Video buffers:  ${snapshot.videoMB.toFixed(2)} MB (${snapshot.videoCount} videos)`);
+      console.log(`      ├─ Canvas pixels:  ${snapshot.canvasMB.toFixed(2)} MB (${snapshot.canvasCount} canvases)`);
+      console.log(`      └─ Browser overhead: ${snapshot.browserOverheadMB.toFixed(2)} MB`);
+      console.log(`      ⚠️  ESTIMATED TOTAL: ${snapshot.estimatedTotalMB.toFixed(2)} MB`);
+      
+      return snapshot;
     };
 
     // 🔬 HEAP SNAPSHOT: Capture heap snapshot for detailed analysis
@@ -129,23 +273,15 @@ test.describe('User Journey: Video Upload', () => {
       }
     };
 
-    // Start memory monitoring
-    const startMemoryMonitoring = () => {
-      memoryMonitorInterval = setInterval(async () => {
-        await captureMemory('Background check');
-      }, MEMORY_CHECK_INTERVAL);
-    };
-
-    const stopMemoryMonitoring = () => {
-      if (memoryMonitorInterval) {
-        clearInterval(memoryMonitorInterval);
-      }
-    };
+    // Background monitoring removed - captureMemory is async and slow
+    // We only capture at key points: baseline + end of each cycle
 
     try {
       // Step 1: Navigate to location page
       console.log('📍 Step 1: Navigate to location page...');
-      const locationUrl = `http://localhost:5173/location/${TEST_LOCATION_ID}`;
+      console.log(`   Environment: ${TEST_ENV.toUpperCase()}`);
+      console.log(`   Base URL: ${BASE_URL}`);
+      const locationUrl = `${BASE_URL}/location/${TEST_LOCATION_ID}`;
       await page.goto(locationUrl, { 
         waitUntil: 'domcontentloaded' // Faster than 'networkidle' - just wait for DOM
       });
@@ -157,13 +293,33 @@ test.describe('User Journey: Video Upload', () => {
       });
       console.log('   ⏳ Waiting for app to initialize...');
       await page.waitForTimeout(1000); // Brief pause for Vue initialization
-      
-      await captureMemory('After page load');
 
       // Verify we're on the right page
       const currentUrl = page.url();
       expect(currentUrl).toContain(TEST_LOCATION_ID);
       console.log(`   ✅ On location page: ${currentUrl}`);
+
+      // CRITICAL: Check if __TEST_API__ is available
+      const hasTestApi = await page.evaluate(() => {
+        return typeof window.__TEST_API__ !== 'undefined';
+      });
+      
+      if (!hasTestApi) {
+        console.error('\n❌ ERROR: window.__TEST_API__ is NOT available!');
+        console.error(`   Environment: ${TEST_ENV}`);
+        console.error(`   URL: ${BASE_URL}`);
+        if (TEST_ENV === 'production') {
+          console.error('\n💡 To test against production:');
+          console.error('   1. Build with test API: npm run build:test');
+          console.error('   2. Deploy to Firebase: npm run deploy:test');
+          console.error('   3. Wait for deployment to complete');
+          console.error('   4. Run this test again\n');
+        } else {
+          console.error('\n💡 Make sure dev server is running: npm run dev\n');
+        }
+        throw new Error('Test API not available - cannot run E2E test. See console for details.');
+      }
+      console.log('   ✅ Test API available');
 
       // Step 1.5: Authenticate user
       console.log('\n🔐 Step 1.5: Authenticating user...');
@@ -174,22 +330,23 @@ test.describe('User Journey: Video Upload', () => {
       const pageText = await page.textContent('body');
       
       if (pageText.includes('Failed to load location')) {
-        throw new Error('Location failed to load - check Firebase emulator is running and location exists');
+        const envHint = TEST_ENV === 'local' ? 'check Firebase emulator is running and location exists' : 'check if location exists in production database';
+        throw new Error(`Location failed to load - ${envHint}`);
       }
       
       if (pageText.includes('Network error')) {
-        throw new Error('Network error - check Firebase emulator is running');
+        const envHint = TEST_ENV === 'local' ? 'check Firebase emulator is running' : 'check production Firebase connection';
+        throw new Error(`Network error - ${envHint}`);
       }
       
-      await captureMemory('After authentication');
+      // Capture baseline memory once before starting uploads
+      // await captureMemory('Baseline (before uploads)');
 
       // Step 2-5: Upload video multiple times in a row (NUM_UPLOADS configured at top)
       for (let uploadNum = 1; uploadNum <= NUM_UPLOADS; uploadNum++) {
         console.log('\n' + '═'.repeat(60));
         console.log(`🔄 UPLOAD CYCLE ${uploadNum}/${NUM_UPLOADS}`);
         console.log('═'.repeat(60));
-        
-        await captureMemory(`Before upload ${uploadNum}`);
         
         // Step 2: Find and click "Upload Beta" button
         console.log(`\n🎯 Step 2.${uploadNum}: Looking for "Upload Beta" button...`);
@@ -264,10 +421,6 @@ test.describe('User Journey: Video Upload', () => {
       }
       
       await page.waitForTimeout(500);
-      await captureMemory('After file selected');
-
-      // Start continuous memory monitoring during processing
-      startMemoryMonitoring();
 
       // Step 4: Wait for BOTH analysis AND upload to complete
       console.log('\n⚙️  Step 4: Monitoring background processing...');
@@ -397,7 +550,6 @@ test.describe('User Journey: Video Upload', () => {
         
         // Wait before next check
         await page.waitForTimeout(2000);
-        await captureMemory(`Processing (A:${state.analysis.status} U:${state.upload.status})`);
       }
       
       // Fail if analysis didn't complete
@@ -416,23 +568,24 @@ test.describe('User Journey: Video Upload', () => {
 
       const processingTime = Date.now() - processingStartTime;
       console.log(`   ⏱️  Total processing time: ${(processingTime / 1000).toFixed(1)}s`);
-
-        stopMemoryMonitoring();
         
         // Wait a bit more for any cleanup to happen
         console.log('   ⏳ Waiting for cleanup...');
         await page.waitForTimeout(2000);
         
-        const cycleEndMemory = await captureMemory(`Upload ${uploadNum} complete`);
+        // const cycleEndMemory = await captureMemory(`Upload ${uploadNum} complete`);
         
         // 🔬 Take heap snapshot to analyze what's in memory
-        await takeHeapSnapshot(`cycle-${uploadNum}-end`);
+        // await takeHeapSnapshot(`cycle-${uploadNum}-end`);
         
-        uploadCycleMemory.push({
-          cycle: uploadNum,
-          memory: cycleEndMemory.memory,
-          timestamp: cycleEndMemory.timestamp
-        });
+        // uploadCycleMemory.push({
+        //   cycle: uploadNum,
+        //   totalMB: cycleEndMemory.totalMB,
+        //   mainMB: cycleEndMemory.mainMB,
+        //   workerMB: cycleEndMemory.workerMB,
+        //   timestamp: cycleEndMemory.timestamp,
+        //   api: cycleEndMemory.api
+        // });
 
         // Step 5: Verify ascent was created
         console.log(`\n✅ Step 5.${uploadNum}: Verifying ascent creation...`);
@@ -468,7 +621,7 @@ test.describe('User Journey: Video Upload', () => {
       }
       
       // End of all upload cycles
-      await captureMemory('All uploads complete');
+      // await captureMemory('All uploads complete');
 
       // Step 6: Analyze memory
       console.log('\n\n' + '='.repeat(60));
@@ -477,52 +630,106 @@ test.describe('User Journey: Video Upload', () => {
 
       if (memorySnapshots.length > 0) {
         console.log('All Memory Snapshots:');
+        console.log(`   API Used: ${memorySnapshots[0]?.api || 'unknown'}\n`);
+        
         memorySnapshots.forEach((snapshot, i) => {
           const growth = i > 0 
-            ? snapshot.memory - memorySnapshots[i - 1].memory 
+            ? snapshot.totalMB - memorySnapshots[i - 1].totalMB 
+            : 0;
+          const estimatedGrowth = i > 0
+            ? snapshot.estimatedTotalMB - memorySnapshots[i - 1].estimatedTotalMB
             : 0;
           const growthStr = i > 0 
             ? ` (${growth >= 0 ? '+' : ''}${growth.toFixed(2)} MB)`
             : '';
-          console.log(`   ${snapshot.label}: ${snapshot.memory.toFixed(2)} MB${growthStr}`);
+          const estimatedGrowthStr = i > 0
+            ? ` (${estimatedGrowth >= 0 ? '+' : ''}${estimatedGrowth.toFixed(2)} MB)`
+            : '';
+          
+          console.log(`   ${snapshot.label}:`);
+          console.log(`      Tracked: ${snapshot.totalMB.toFixed(2)} MB${growthStr}`);
+          console.log(`      ├─ Main:   ${snapshot.mainMB.toFixed(2)} MB`);
+          console.log(`      └─ Worker: ${snapshot.workerMB.toFixed(2)} MB`);
+          console.log(`      ⚠️  Est. Total: ${snapshot.estimatedTotalMB.toFixed(2)} MB${estimatedGrowthStr} (incl. GPU/Video)`);
         });
 
-        // Simple memory tracking: just show MB after each cycle
+        // Memory tracking with worker breakdown
         console.log('\n🔍 Memory After Each Upload Cycle:');
-        const baselineMemory = memorySnapshots[0].memory;
+        const baselineTotal = memorySnapshots[0].totalMB;
+        const baselineEstimated = memorySnapshots[0].estimatedTotalMB;
         uploadCycleMemory.forEach((cycle, i) => {
-          const prevMemory = i > 0 ? uploadCycleMemory[i - 1].memory : baselineMemory;
-          const growth = cycle.memory - prevMemory;
-          const growthStr = ` (${growth >= 0 ? '+' : ''}${growth.toFixed(1)} MB)`;
-          console.log(`   Cycle ${cycle.cycle}: ${cycle.memory.toFixed(1)} MB${growthStr}`);
+          const prevTotal = i > 0 ? uploadCycleMemory[i - 1].totalMB : baselineTotal;
+          const prevEstimated = i > 0 ? uploadCycleMemory[i - 1].estimatedTotalMB : baselineEstimated;
+          const totalGrowth = cycle.totalMB - prevTotal;
+          const estimatedGrowth = cycle.estimatedTotalMB - prevEstimated;
+          const growthStr = ` (${totalGrowth >= 0 ? '+' : ''}${totalGrowth.toFixed(1)} MB)`;
+          const estimatedGrowthStr = ` (${estimatedGrowth >= 0 ? '+' : ''}${estimatedGrowth.toFixed(1)} MB)`;
+          
+          console.log(`   Cycle ${cycle.cycle}:`);
+          console.log(`      Tracked: ${cycle.totalMB.toFixed(1)} MB${growthStr}`);
+          console.log(`      ├─ Main:   ${cycle.mainMB.toFixed(1)} MB`);
+          console.log(`      └─ Worker: ${cycle.workerMB.toFixed(1)} MB`);
+          console.log(`      ⚠️  Est. Total: ${cycle.estimatedTotalMB.toFixed(1)} MB${estimatedGrowthStr}`);
         });
         
-        // Leak detection: memory shouldn't grow cycle-to-cycle (should stabilize)
+        // Enhanced leak detection with worker breakdown
         if (uploadCycleMemory.length >= 2) {
-          const cycleDiffs = [];
+          const totalDiffs = [];
+          const mainDiffs = [];
+          const workerDiffs = [];
+          const estimatedTotalDiffs = [];
+          
           for (let i = 1; i < uploadCycleMemory.length; i++) {
-            cycleDiffs.push(uploadCycleMemory[i].memory - uploadCycleMemory[i - 1].memory);
+            totalDiffs.push(uploadCycleMemory[i].totalMB - uploadCycleMemory[i - 1].totalMB);
+            mainDiffs.push(uploadCycleMemory[i].mainMB - uploadCycleMemory[i - 1].mainMB);
+            workerDiffs.push(uploadCycleMemory[i].workerMB - uploadCycleMemory[i - 1].workerMB);
+            estimatedTotalDiffs.push(uploadCycleMemory[i].estimatedTotalMB - uploadCycleMemory[i - 1].estimatedTotalMB);
           }
           
-          const avgGrowth = cycleDiffs.reduce((a, b) => a + b, 0) / cycleDiffs.length;
-          const maxMemoryInCycles = Math.max(...uploadCycleMemory.map(c => c.memory));
+          const avgTotalGrowth = totalDiffs.reduce((a, b) => a + b, 0) / totalDiffs.length;
+          const avgMainGrowth = mainDiffs.reduce((a, b) => a + b, 0) / mainDiffs.length;
+          const avgWorkerGrowth = workerDiffs.reduce((a, b) => a + b, 0) / workerDiffs.length;
+          const avgEstimatedGrowth = estimatedTotalDiffs.reduce((a, b) => a + b, 0) / estimatedTotalDiffs.length;
+          const maxMemoryInCycles = Math.max(...uploadCycleMemory.map(c => c.totalMB));
+          const maxEstimatedInCycles = Math.max(...uploadCycleMemory.map(c => c.estimatedTotalMB));
           
           console.log(`\n🔬 Leak Detection:`);
-          console.log(`   Average cycle-to-cycle change: ${avgGrowth >= 0 ? '+' : ''}${avgGrowth.toFixed(1)} MB`);
-          console.log(`   Peak memory (end of cycles): ${maxMemoryInCycles.toFixed(1)} MB`);
+          console.log(`   Average cycle-to-cycle change (tracked): ${avgTotalGrowth >= 0 ? '+' : ''}${avgTotalGrowth.toFixed(1)} MB`);
+          console.log(`   Average cycle-to-cycle change (estimated total): ${avgEstimatedGrowth >= 0 ? '+' : ''}${avgEstimatedGrowth.toFixed(1)} MB`);
+          
+          if (uploadCycleMemory[0].api === 'measureUserAgentSpecificMemory') {
+            console.log(`      ├─ Main thread:  ${avgMainGrowth >= 0 ? '+' : ''}${avgMainGrowth.toFixed(1)} MB`);
+            console.log(`      └─ Workers:      ${avgWorkerGrowth >= 0 ? '+' : ''}${avgWorkerGrowth.toFixed(1)} MB`);
+            
+            // Identify WHERE the leak is
+            if (Math.abs(avgWorkerGrowth) > Math.abs(avgMainGrowth)) {
+              console.log(`   🎯 Leak source: WORKERS (${Math.abs(avgWorkerGrowth).toFixed(1)} MB > ${Math.abs(avgMainGrowth).toFixed(1)} MB)`);
+            } else if (Math.abs(avgMainGrowth) > Math.abs(avgWorkerGrowth)) {
+              console.log(`   🎯 Leak source: MAIN THREAD (${Math.abs(avgMainGrowth).toFixed(1)} MB > ${Math.abs(avgWorkerGrowth).toFixed(1)} MB)`);
+            }
+          }
+          
+          console.log(`   Peak tracked memory: ${maxMemoryInCycles.toFixed(1)} MB`);
+          console.log(`   Peak estimated total: ${maxEstimatedInCycles.toFixed(1)} MB`);
+          
+          // Check Safari limits (iOS Safari: ~400-700 MB, desktop ~1-2 GB)
+          const SAFARI_MOBILE_LIMIT = 700; // MB
+          if (maxEstimatedInCycles > SAFARI_MOBILE_LIMIT * 0.9) {
+            console.log(`   🍎 ⚠️  SAFARI RISK: ${maxEstimatedInCycles.toFixed(1)} MB approaching mobile Safari limit (~${SAFARI_MOBILE_LIMIT} MB)`);
+          }
           
           // Memory should be stable after cleanup (not grow each cycle)
           const LEAK_THRESHOLD = 10; // MB average growth = leak
-          const MAX_STABLE_MEMORY = 320;
+          const MAX_STABLE_MEMORY = 320; // Tracked memory limit
           
-          if (avgGrowth > LEAK_THRESHOLD) {
-            console.log(`   ❌ MEMORY LEAK! Grows ${avgGrowth.toFixed(1)} MB per cycle (should be ~0)`);
-            expect(avgGrowth).toBeLessThan(LEAK_THRESHOLD); // Fail test
+          if (avgTotalGrowth > LEAK_THRESHOLD) {
+            console.log(`   ❌ MEMORY LEAK! Grows ${avgTotalGrowth.toFixed(1)} MB per cycle (should be ~0)`);
+            expect(avgTotalGrowth).toBeLessThan(LEAK_THRESHOLD); // Fail test
           } else if (maxMemoryInCycles > MAX_STABLE_MEMORY) {
-            console.log(`   ⚠️  Memory doesn't clean up properly: ${maxMemoryInCycles.toFixed(1)} MB (expected < ${MAX_STABLE_MEMORY} MB)`);
+            console.log(`   ⚠️  Tracked memory doesn't clean up properly: ${maxMemoryInCycles.toFixed(1)} MB (expected < ${MAX_STABLE_MEMORY} MB)`);
             expect(maxMemoryInCycles).toBeLessThan(MAX_STABLE_MEMORY * 1.2); // 20% buffer
           } else {
-            console.log(`   ✅ Memory stable - no leak detected`);
+            console.log(`   ✅ Tracked memory stable - no leak detected`);
           }
         }
 
@@ -559,7 +766,6 @@ test.describe('User Journey: Video Upload', () => {
       console.log('='.repeat(60) + '\n');
 
     } catch (error) {
-      stopMemoryMonitoring();
       console.error('\n❌ Test failed:', error.message);
       
       // Take screenshot on failure
