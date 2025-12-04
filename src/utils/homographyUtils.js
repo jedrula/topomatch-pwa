@@ -72,6 +72,20 @@ export async function calculateHomographyMatrix(matches) {
 }
 
 /**
+ * 🎭 MOCK MODE: Import fixtures for mocked transformPoint
+ */
+const useMockOpenCV = import.meta.env.VITE_USE_OPENCV_MOCK === 'true';
+let mockFixtures = null;
+
+if (useMockOpenCV) {
+  console.warn('⚠️ OpenCV MOCK Mode ENABLED - using recorded fixtures (saves ~20 MB memory)');
+  import('../mocks/transformPointFixtures.js').then(module => {
+    mockFixtures = module.transformPointFixtures;
+    console.log(`✅ Loaded ${mockFixtures.length} transformPoint fixtures`);
+  });
+}
+
+/**
  * Transform a point using homography matrix
  * @param {number} x - X coordinate
  * @param {number} y - Y coordinate  
@@ -80,6 +94,24 @@ export async function calculateHomographyMatrix(matches) {
  * @returns {{x: number, y: number}|null} Transformed point or null if failed
  */
 export function transformPoint(x, y, homographyMatrix, inverse = false) {
+  // 🎭 MOCK MODE: Use recorded fixtures instead of OpenCV
+  if (useMockOpenCV && mockFixtures) {
+    const TOLERANCE = 0.5; // Allow 0.5px tolerance for fuzzy matching
+    
+    const match = mockFixtures.find(fixture => 
+      Math.abs(fixture.input.x - x) < TOLERANCE &&
+      Math.abs(fixture.input.y - y) < TOLERANCE &&
+      fixture.input.inverse === inverse
+    );
+    
+    if (match) {
+      return { x: match.output.x, y: match.output.y };
+    } else {
+      console.warn(`⚠️ transformPoint mock: No fixture found for (${x}, ${y}, inverse=${inverse})`);
+      return null;
+    }
+  }
+
   if (!window.cv || !homographyMatrix) {
     console.warn('Transform point failed: OpenCV or homography matrix not available');
     return null;
