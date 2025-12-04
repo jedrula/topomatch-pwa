@@ -4,13 +4,14 @@
   >
     <nav class="flex items-center justify-between max-w-6xl mx-auto">
       <!-- Left side: App Title -->
-      <div class="flex items-center">
+      <div class="flex items-center space-x-2">
         <router-link 
           to="/" 
           class="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
         >
           TopoMatch(v1.5)
         </router-link>
+        <span class="text-sm text-gray-400 font-mono">{{ counter.toFixed(1) }}s</span>
       </div>
 
       <!-- Right side: Navigation and App title -->
@@ -137,16 +138,34 @@
 </template>
 
 <script setup>
-import { computed, ref, inject } from 'vue';
+import { computed, ref, inject, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useUserStore } from '../stores/userStore.js';
 
 const route = useRoute();
 const userStore = useUserStore();
 const showMobileMenu = ref(false);
+const counter = ref(0);
+let intervalId = null;
+let startTime = null;
 
 // Inject auth modal methods from App.vue
 const authModal = inject('authModal');
+
+// Start counter on mount - tracks actual elapsed time
+onMounted(() => {
+  startTime = Date.now();
+  intervalId = setInterval(() => {
+    counter.value = (Date.now() - startTime) / 1000;
+  }, 100);
+});
+
+// Clean up on unmount
+onUnmounted(() => {
+  if (intervalId) {
+    clearInterval(intervalId);
+  }
+});
 
 const isLocationRoute = computed(
   () =>
