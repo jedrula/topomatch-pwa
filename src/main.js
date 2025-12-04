@@ -31,7 +31,12 @@ app.use(FloatingVue);
 app.use(pinia);
 
 // Eagerly initialize inference store to start loading AI models immediately
-import { useInferenceStore } from './stores/inferenceStore';
+// Use mock if VITE_USE_INFERENCE_MOCK is enabled (saves ~49 MB YOLO model)
+const inferenceStorePath = import.meta.env.VITE_USE_INFERENCE_MOCK === 'true' 
+  ? './stores/inferenceStoreMock' 
+  : './stores/inferenceStore';
+
+const { useInferenceStore } = await import(inferenceStorePath);
 useInferenceStore(); // This will trigger the session creation immediately
 
 // Expose testing API for E2E tests

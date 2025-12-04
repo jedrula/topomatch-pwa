@@ -59,7 +59,8 @@ export default defineConfig({
           },
           {
             // Firebase Storage images - NetworkFirst with CORS
-            urlPattern: ({ url }) => 
+            // ⚡ MEMORY OPTIMIZATION: Reduced cache limits to prevent 500+ MB accumulation
+            urlPattern: ({ url}) => 
               url.hostname === 'firebasestorage.googleapis.com',
             handler: 'NetworkFirst',
             options: {
@@ -69,8 +70,8 @@ export default defineConfig({
                 credentials: 'omit',
               },
               expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+                maxEntries: 20,  // Reduced from 100 (20 recent videos/images max)
+                maxAgeSeconds: 60 * 60 * 24 * 2, // 2 days instead of 7
               },
               cacheableResponse: {
                 statuses: [0, 200],
@@ -127,6 +128,10 @@ export default defineConfig({
         {
           src: 'node_modules/onnxruntime-web/dist/*.mjs',
           dest: './public', // for dev:
+        },
+        {
+          src: 'playgrounds/*.html',
+          dest: './playgrounds',
         },
       ],
     }),
