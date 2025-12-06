@@ -554,6 +554,7 @@ import {
   extractHoldCoordinates,
   getKeypointRows as processKeypointRows 
 } from '../composables/useHoldMatching'
+import { normalizeHomographyTo3x3 } from '../utils/homographyUtils'
 
 const props = defineProps({
   sourceImageUrl: String,
@@ -690,13 +691,12 @@ const canRenderCombinedView = computed(() => {
 
 // Helper function to transform a point using homography matrix
 const transformPointWithHomography = (x, y, homography) => {
-  if (!homography || !Array.isArray(homography[0]) || homography.length !== 3) {
-    console.error('❌ Invalid homography format. Expected 3x3 nested array:', homography);
+  // Normalize to 3x3 format (handles both server and frontend formats)
+  const H = normalizeHomographyTo3x3(homography);
+  if (!H) {
+    console.error('❌ Invalid homography matrix');
     return { x: 0, y: 0 }
   }
-  
-  // Homography is 3x3 nested array: [[h00, h01, h02], [h10, h11, h12], [h20, h21, h22]]
-  const H = homography;
   
   // Homography transformation: [x', y', w'] = H * [x, y, 1]
   const denominator = H[2][0] * x + H[2][1] * y + H[2][2];

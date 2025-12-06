@@ -4,6 +4,72 @@
  */
 
 /**
+ * Convert homography matrix to flat array format
+ * Handles both 3x3 nested array (server LoFTR) and flat array (frontend SuperPoint)
+ * @param {Array} homographyMatrix - 3x3 nested array [[r0],[r1],[r2]] or flat array [h0..h8]
+ * @returns {Array} Flat array with 9 elements [h0, h1, ..., h8]
+ */
+export function normalizeHomographyToFlat(homographyMatrix) {
+  if (!homographyMatrix) {
+    return null;
+  }
+  
+  // Check if it's a 3x3 nested array
+  if (Array.isArray(homographyMatrix[0])) {
+    // 3x3 nested array from server (LoFTR) - flatten it
+    if (homographyMatrix.length !== 3) {
+      console.error('❌ Invalid 3x3 nested array (expected 3 rows):', homographyMatrix);
+      return null;
+    }
+    return [
+      homographyMatrix[0][0], homographyMatrix[0][1], homographyMatrix[0][2],
+      homographyMatrix[1][0], homographyMatrix[1][1], homographyMatrix[1][2],
+      homographyMatrix[2][0], homographyMatrix[2][1], homographyMatrix[2][2]
+    ];
+  } else {
+    // Already flat array from frontend (SuperPoint)
+    if (homographyMatrix.length !== 9) {
+      console.error('❌ Invalid flat array (expected 9 elements):', homographyMatrix);
+      return null;
+    }
+    return homographyMatrix;
+  }
+}
+
+/**
+ * Convert homography matrix to 3x3 nested array format
+ * Handles both 3x3 nested array (server LoFTR) and flat array (frontend SuperPoint)
+ * @param {Array} homographyMatrix - 3x3 nested array [[r0],[r1],[r2]] or flat array [h0..h8]
+ * @returns {Array} 3x3 nested array [[h00,h01,h02], [h10,h11,h12], [h20,h21,h22]]
+ */
+export function normalizeHomographyTo3x3(homographyMatrix) {
+  if (!homographyMatrix) {
+    return null;
+  }
+  
+  // Check if it's already a 3x3 nested array
+  if (Array.isArray(homographyMatrix[0])) {
+    // Already 3x3 nested array
+    if (homographyMatrix.length !== 3) {
+      console.error('❌ Invalid 3x3 nested array (expected 3 rows):', homographyMatrix);
+      return null;
+    }
+    return homographyMatrix;
+  } else {
+    // Flat array from frontend (SuperPoint) - convert to 3x3
+    if (homographyMatrix.length !== 9) {
+      console.error('❌ Invalid flat array (expected 9 elements):', homographyMatrix);
+      return null;
+    }
+    return [
+      [homographyMatrix[0], homographyMatrix[1], homographyMatrix[2]],
+      [homographyMatrix[3], homographyMatrix[4], homographyMatrix[5]],
+      [homographyMatrix[6], homographyMatrix[7], homographyMatrix[8]]
+    ];
+  }
+}
+
+/**
  * Calculate homography matrix from matching point pairs
  * @param {Array} matches - Array of {point1: {x, y}, point2: {x, y}} matches
  * @returns {Promise<{matrix: Array, inliers: number}>} Homography matrix and inlier count
@@ -120,18 +186,11 @@ export function transformPoint(x, y, homographyMatrix, inverse = false) {
   try {
     const cv = window.cv;
     
-    // Convert homography matrix to flat array if it's 3x3 nested array
-    let flatMatrix;
-    if (Array.isArray(homographyMatrix[0])) {
-      // 3x3 nested array from server (LoFTR) - flatten it
-      flatMatrix = [
-        homographyMatrix[0][0], homographyMatrix[0][1], homographyMatrix[0][2],
-        homographyMatrix[1][0], homographyMatrix[1][1], homographyMatrix[1][2],
-        homographyMatrix[2][0], homographyMatrix[2][1], homographyMatrix[2][2]
-      ];
-    } else {
-      // Already flat array from frontend (SuperPoint)
-      flatMatrix = homographyMatrix;
+    // Normalize to flat array (handles both formats)
+    const flatMatrix = normalizeHomographyToFlat(homographyMatrix);
+    if (!flatMatrix) {
+      console.error('❌ Invalid homography matrix format');
+      return null;
     }
     
     // Create homography matrix from flat array
