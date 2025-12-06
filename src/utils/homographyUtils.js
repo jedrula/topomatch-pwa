@@ -89,7 +89,7 @@ if (useMockOpenCV) {
  * Transform a point using homography matrix
  * @param {number} x - X coordinate
  * @param {number} y - Y coordinate  
- * @param {Array} homographyMatrix - 3x3 homography matrix as flat array
+ * @param {Array} homographyMatrix - 3x3 homography matrix (flat array [h0..h8] or nested array [[r0],[r1],[r2]])
  * @param {boolean} inverse - Whether to apply inverse transformation
  * @returns {{x: number, y: number}|null} Transformed point or null if failed
  */
@@ -120,10 +120,24 @@ export function transformPoint(x, y, homographyMatrix, inverse = false) {
   try {
     const cv = window.cv;
     
-    // Create homography matrix from stored data
+    // Convert homography matrix to flat array if it's 3x3 nested array
+    let flatMatrix;
+    if (Array.isArray(homographyMatrix[0])) {
+      // 3x3 nested array from server (LoFTR) - flatten it
+      flatMatrix = [
+        homographyMatrix[0][0], homographyMatrix[0][1], homographyMatrix[0][2],
+        homographyMatrix[1][0], homographyMatrix[1][1], homographyMatrix[1][2],
+        homographyMatrix[2][0], homographyMatrix[2][1], homographyMatrix[2][2]
+      ];
+    } else {
+      // Already flat array from frontend (SuperPoint)
+      flatMatrix = homographyMatrix;
+    }
+    
+    // Create homography matrix from flat array
     const H = new cv.Mat(3, 3, cv.CV_64F);
     for (let i = 0; i < 9; i++) {
-      H.data64F[i] = homographyMatrix[i];
+      H.data64F[i] = flatMatrix[i];
     }
 
     // Create point matrix
@@ -165,7 +179,7 @@ export function transformPoint(x, y, homographyMatrix, inverse = false) {
 /**
  * Transform multiple points using homography matrix
  * @param {Array} points - Array of {x, y, ...} points (additional properties preserved)
- * @param {Array} homographyMatrix - 3x3 homography matrix as flat array
+ * @param {Array} homographyMatrix - 3x3 homography matrix (flat array [h0..h8] or nested array [[r0],[r1],[r2]])
  * @param {boolean} inverse - Whether to apply inverse transformation
  * @returns {Array} Array of transformed points with preserved properties
  */

@@ -690,20 +690,24 @@ const canRenderCombinedView = computed(() => {
 
 // Helper function to transform a point using homography matrix
 const transformPointWithHomography = (x, y, homography) => {
-  if (!homography || homography.length !== 9) {
+  if (!homography || !Array.isArray(homography[0]) || homography.length !== 3) {
+    console.error('❌ Invalid homography format. Expected 3x3 nested array:', homography);
     return { x: 0, y: 0 }
   }
   
+  // Homography is 3x3 nested array: [[h00, h01, h02], [h10, h11, h12], [h20, h21, h22]]
+  const H = homography;
+  
   // Homography transformation: [x', y', w'] = H * [x, y, 1]
-  const h = homography
-  const denominator = h[6] * x + h[7] * y + h[8]
+  const denominator = H[2][0] * x + H[2][1] * y + H[2][2];
   
   if (Math.abs(denominator) < 1e-10) {
-    return { x: 0, y: 0 } // Avoid division by zero
+    console.warn('⚠️ Near-zero denominator in homography transformation');
+    return { x: 0, y: 0 }
   }
   
-  const transformedX = (h[0] * x + h[1] * y + h[2]) / denominator
-  const transformedY = (h[3] * x + h[4] * y + h[5]) / denominator
+  const transformedX = (H[0][0] * x + H[0][1] * y + H[0][2]) / denominator;
+  const transformedY = (H[1][0] * x + H[1][1] * y + H[1][2]) / denominator;
   
   return {
     x: transformedX,

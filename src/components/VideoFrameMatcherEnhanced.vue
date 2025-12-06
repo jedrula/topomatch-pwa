@@ -102,12 +102,7 @@
             :key="index"
             class="relative group"
           >
-            <div
-              :class="[
-                'border-2 rounded overflow-hidden transition-all relative',
-                frame === bestFrameForMatching ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300'
-              ]"
-            >
+            <div class="border-2 border-gray-300 rounded overflow-hidden transition-all relative">
               <!-- Base image -->
               <img
                 v-if="frame.url"
@@ -176,8 +171,6 @@
               <div class="font-medium text-gray-700">Frame {{ index + 1 }}</div>
               <div v-if="frame.poseData" class="text-green-600">✓ Pose detected</div>
               <div v-else-if="frame.poseError" class="text-red-600">✗ {{ frame.poseError }}</div>
-              <div v-if="frame === bestFrameForMatching" class="text-blue-600 font-semibold">⭐ Best</div>
-              <div v-if="framesUsedForTransformation.includes(index)" class="text-purple-600 font-semibold">📊 Used</div>
             </div>
           </div>
         </div>
@@ -201,6 +194,32 @@
             <span>Right Foot</span>
           </div>
         </div>
+      </div>
+
+      <!-- Homography Debug Visualization (Debug Mode Only) -->
+      <div v-if="debugMode && homographyDebugData" class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">
+              🎯 Interactive Homography Testing
+            </h3>
+            <p class="text-xs text-gray-600 mt-1">
+              Using: <span class="font-mono font-semibold">{{ homographyDebugData.homographySource }}</span>
+              <span v-if="homographyDebugData.serverHomographyQuality" class="ml-2">
+                ({{ homographyDebugData.serverHomographyQuality.inlierMatches }} inliers, {{ (homographyDebugData.serverHomographyQuality.inlierRatio * 100).toFixed(1) }}%)
+              </span>
+            </p>
+          </div>
+          <span class="text-xs text-gray-500">Click on video frame to test projection</span>
+        </div>
+        <FeatureMatchVisualization
+          :source-image-url="homographyDebugData.videoFrameUrl"
+          :target-image-url="homographyDebugData.locationImageUrl"
+          :homography-matrix="homographyDebugData.homographyMatrix"
+          :feature-matches="homographyDebugData.featureMatches"
+          :homography-inliers="homographyDebugData.homographyInliers"
+          :best-match-image="homographyDebugData.bestMatchImage"
+        />
       </div>
 
       <!-- Video Frames Animator + Ascent Form (shown as soon as frames are extracted) -->
@@ -227,9 +246,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted, watch } from 'vue';
 import VideoUploadSelector from './VideoUploadSelector.vue';
 import AscentForm from './AscentForm.vue';
+import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
 import { extractVideoFrames } from '@/utils/homographyUtils';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
@@ -282,12 +302,16 @@ const isProcessing = ref(false);
 const processingStatus = ref('');
 const processingDetails = ref('');
 const error = ref(null);
-const debugMode = ref(false);
+const debugMode = ref(true);  // Default to true - minimal UI, debug info useful
 const createdAscentId = ref(null);
 const isSubmittingAscent = ref(false);
 
 // Stores
 const boulderProblemsStore = useBoulderProblemsStore();
+const analysisQueueStore = useVideoAnalysisQueueStore();
+
+// Homography debug data
+const homographyDebugData = ref(null);
 
 // Detected problem for the ascent form (will be populated by store analysis)
 const detectedProblemForForm = computed(() => {
@@ -303,6 +327,52 @@ const top3Scores = computed(() => {
 
 // Frame timestamps for extraction (10 frames evenly distributed)
 const FRAME_TIMESTAMPS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
+
+// Watch for analysis job completion to get homography data
+watch(
+  () => createdAscentId.value ? analysisQueueStore.jobs[createdAscentId.value] : null,
+  (job) => {
+    if (!job) return;
+    
+    // Once matching completes, we have homography matrix and matched image
+    if (job.homographyMatrix && job.matchedImageId && extractedFrames.value.length > 0) {
+      // Find the best frame (first one with pose data, or just first frame)
+      const bestFrame = extractedFrames.value.find(f => f.poseData) || extractedFrames.value[0];
+      
+      // Find the matched image from comparisonImages
+      const matchedImage = props.comparisonImages.find(img => img.imageId === job.matchedImageId);
+      
+      if (bestFrame && matchedImage) {
+        // Use server homography if available (more accurate LoFTR), otherwise frontend (SuperPoint)
+        const homographyMatrix = job.serverHomographyMatrix || job.homographyMatrix;
+        const homographySource = job.serverHomographyMatrix ? 'LoFTR (server)' : 'SuperPoint (frontend)';
+        
+        console.log('🎯 Homography debug data ready:', {
+          frame: bestFrame.timestamp,
+          image: matchedImage.name,
+          source: homographySource,
+          matrix: homographyMatrix,
+          matches: job.featureMatches?.length || 0,
+          inliers: job.homographyInliers || 0,
+          serverQuality: job.serverHomographyQuality
+        });
+        
+        homographyDebugData.value = {
+          videoFrameUrl: bestFrame.url,
+          locationImageUrl: matchedImage.url,
+          homographyMatrix: homographyMatrix,
+          homographySource: homographySource,
+          featureMatches: job.featureMatches || [],
+          homographyInliers: job.homographyInliers || 0,
+          bestMatchImage: matchedImage,
+          videoFrameData: bestFrame.imageData,
+          serverHomographyQuality: job.serverHomographyQuality,
+        };
+      }
+    }
+  },
+  { deep: true }
+);
 
 // Utility functions
 const createImageUrlFromImageData = (imageData) => {

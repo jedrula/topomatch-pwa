@@ -9,6 +9,7 @@ import { manualHoldsService } from '../services/manualHoldsService.js';
 import { calculateProblemScores } from '../utils/problemScoringUtils.js';
 import { getKeypointRows } from '../composables/useHoldMatching.js';
 import { generateUUID } from '../utils/uuid.js';
+import { matchImagesOnServer } from '../services/imageMatchingService.js';
 
 /**
  * Video Analysis Queue Store
@@ -29,6 +30,20 @@ import { generateUUID } from '../utils/uuid.js';
  * - Step 5: Update Firestore ascent record
  */
 export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () => {
+  // 🐛 DEBUG MODE: Set VITE_DEBUG_KEEP_JOBS=true to keep completed jobs in memory for debugging
+  // WARNING: This will cause memory leaks (~80MB per job) - only use for development!
+  const DEBUG_KEEP_JOBS = import.meta.env.VITE_DEBUG_KEEP_JOBS === 'true';
+  if (DEBUG_KEEP_JOBS) {
+    console.warn('🐛 DEBUG MODE: Completed jobs will NOT be deleted (memory will accumulate!)');
+  }
+
+  // 🔬 EXPERIMENTAL: Use server-side LoFTR homography instead of frontend SuperPoint homography
+  // Set VITE_USE_SERVER_HOMOGRAPHY=true to enable
+  const USE_SERVER_HOMOGRAPHY = import.meta.env.VITE_USE_SERVER_HOMOGRAPHY === 'true';
+  if (USE_SERVER_HOMOGRAPHY) {
+    console.log('🔬 EXPERIMENTAL: Using server-side LoFTR homography for coordinate transformation');
+  }
+
   // Analysis queue: { [ascentId]: analysisJob }
   const jobs = ref({});
 
@@ -296,9 +311,13 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       console.log(`   📝 Error recorded in completion registry`);
       
       // 🗑️ DELETE JOB: Free memory even on error
-      console.log(`   🗑️  Removing failed job from store...`);
-      delete jobs.value[ascentId];
-      console.log(`   ✅ Job removed - memory freed despite error\n`);
+      if (!DEBUG_KEEP_JOBS) {
+        console.log(`   🗑️  Removing failed job from store...`);
+        delete jobs.value[ascentId];
+        console.log(`   ✅ Job removed - memory freed despite error\n`);
+      } else {
+        console.log(`   🐛 DEBUG: Keeping failed job in memory (VITE_DEBUG_KEEP_JOBS=true)\n`);
+      }
     }
   };
 
@@ -532,6 +551,68 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`✅ Best match found: ${bestMatch.matchCount} feature matches`);
     console.log(`   Image ID: ${bestMatch.imageId}`);
     
+    // 🔬 Server-side LoFTR matching for improved homography
+    const matchedImage = job.comparisonImages?.find(img => img.imageId === bestMatch.imageId);
+    
+    if (USE_SERVER_HOMOGRAPHY && bestFrame?.imageData && matchedImage?.url) {
+      console.log(`\n🔬 Requesting server-side LoFTR homography...`);
+      try {
+        // Pass video frame dimensions so server knows coordinate space
+        const videoDimensions = {
+          width: bestFrame.imageData.width,
+          height: bestFrame.imageData.height
+        };
+        
+        // Fetch location image
+        const locationImageBlob = await fetch(matchedImage.url).then(r => r.blob());
+        
+        // Load blob as image to get dimensions
+        const locationImage = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = URL.createObjectURL(locationImageBlob);
+        });
+        
+        const locationDimensions = {
+          width: locationImage.naturalWidth,
+          height: locationImage.naturalHeight
+        };
+        
+        console.log(`   📐 Sending dimensions: video ${videoDimensions.width}×${videoDimensions.height}, location ${locationDimensions.width}×${locationDimensions.height}`);
+        
+        // Send to server with explicit dimensions
+        const serverResult = await matchImagesOnServer(
+          bestFrame.imageData, 
+          locationImageBlob, 
+          job.ascentId,
+          videoDimensions,
+          locationDimensions
+        );
+        
+        // Clean up object URL
+        URL.revokeObjectURL(locationImage.src);
+        
+        if (serverResult?.homography_matrix) {
+          console.log(`✅ Server homography received!`);
+          console.log(`   Inliers: ${serverResult.inlier_matches}/${serverResult.total_matches} (${(serverResult.inlier_ratio * 100).toFixed(1)}%)`);
+          console.log(`   Quality: ${serverResult.matchQuality}`);
+          
+          // Store server homography - will be used in Step 4 (scoring)
+          job.serverHomographyMatrix = serverResult.homography_matrix;
+          job.serverHomographyQuality = {
+            inlierMatches: serverResult.inlier_matches,
+            totalMatches: serverResult.total_matches,
+            inlierRatio: serverResult.inlier_ratio,
+            quality: serverResult.matchQuality
+          };
+        } else {
+          console.warn(`⚠️ Server response missing homography_matrix, falling back to frontend`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Server homography failed: ${err.message}, falling back to frontend`);
+      }
+    }
     // Convert raw ONNX data to match objects for homography calculation
     // SuperPoint/LightGlue uses 256x256 inference size - scale keypoints back to original dimensions
     const result = results[bestMatch.imageUrl];
@@ -584,6 +665,8 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     
     job.matchedImageId = bestMatch.imageId;
     job.homographyMatrix = homographyResult.matrix;
+    job.featureMatches = matches;  // Store for debugging/visualization
+    job.homographyInliers = homographyResult.inliers;  // Number of inlier matches
     job.matchedImageDimensions = topoImageDims; // Store the actual location image dimensions
     job.progress = 70;  // Image matching complete (70%)
   };
@@ -683,6 +766,19 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`   Frames with poses: ${job.extractedFrames.filter(f => f.poseData).length}`);
     console.log(`   Available holds: ${job.holds.length}`);
     
+    // 🔍 DEBUG: Check problem-hold association structure
+    if (matchedImageProblems.length > 0) {
+      const firstProblem = matchedImageProblems[0];
+      console.log(`   🔍 First problem structure:`, {
+        id: firstProblem.id,
+        name: firstProblem.name,
+        holdsCount: firstProblem.holds?.length || 0,
+        holdsFieldName: Object.keys(firstProblem).find(k => k.toLowerCase().includes('hold')),
+        firstHoldStructure: firstProblem.holds?.[0]
+      });
+      console.log(`   🔍 First hold from job.holds:`, job.holds[0]);
+    }
+    
     if (matchedImageProblems.length === 0) {
       console.warn(`   ⚠️ No problems found on matched image ${job.matchedImageId}`);
       job.scores = [];
@@ -723,7 +819,16 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`   Collected ${videoKeypoints.length} keypoints`);
     
     // Transform keypoints from video coordinates to image coordinates
-    const imageKeypoints = transformPoints(videoKeypoints, job.homographyMatrix);
+    // Use server homography if available (more accurate LoFTR matches)
+    const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
+    const homographySource = job.serverHomographyMatrix ? 'LoFTR (server)' : 'SuperPoint (frontend)';
+    
+    console.log(`   🔄 Using ${homographySource} homography for transformation`);
+    if (job.serverHomographyQuality) {
+      console.log(`      Server quality: ${job.serverHomographyQuality.inlierMatches} inliers (${(job.serverHomographyQuality.inlierRatio * 100).toFixed(1)}%)`);
+    }
+    
+    const imageKeypoints = transformPoints(videoKeypoints, homographyToUse);
     
     if (!imageKeypoints || !Array.isArray(imageKeypoints) || imageKeypoints.length === 0) {
       throw new Error('Keypoint transformation failed');
@@ -938,12 +1043,18 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
    */
   const cancelJob = (ascentId) => {
     if (jobs.value[ascentId]) {
-      delete jobs.value[ascentId];
-      console.log(`❌ Analysis job cancelled: ${ascentId}`);
+      if (!DEBUG_KEEP_JOBS) {
+        delete jobs.value[ascentId];
+        console.log(`❌ Analysis job cancelled: ${ascentId}`);
+      } else {
+        console.log(`🐛 DEBUG: Would cancel job ${ascentId} but VITE_DEBUG_KEEP_JOBS=true`);
+      }
     }
     // Also clear from completion registry if exists
     if (completionRegistry.value[ascentId]) {
-      delete completionRegistry.value[ascentId];
+      if (!DEBUG_KEEP_JOBS) {
+        delete completionRegistry.value[ascentId];
+      }
     }
   };
 
@@ -951,8 +1062,13 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
    * Clear all jobs (for testing/debugging)
    */
   const clearAll = () => {
-    jobs.value = {};
-    completionRegistry.value = {}; // Also clear completion records
+    if (!DEBUG_KEEP_JOBS) {
+      jobs.value = {};
+      completionRegistry.value = {}; // Also clear completion records
+      console.log('🗑️ All jobs and completion records cleared');
+    } else {
+      console.log('🐛 DEBUG: clearAll() skipped (VITE_DEBUG_KEEP_JOBS=true)');
+    }
   };
 
   /**
