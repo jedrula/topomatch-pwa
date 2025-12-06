@@ -581,13 +581,41 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         
         console.log(`   📐 Sending dimensions: video ${videoDimensions.width}×${videoDimensions.height}, location ${locationDimensions.width}×${locationDimensions.height}`);
         
-        // Send to server with explicit dimensions
+        // Extract 4 body extremity keypoints for localized homography
+        const transformPoints = [];
+        if (bestFrame.poseData?.keypoints) {
+          const extremityMapping = {
+            left_wrist: 'leftHand',
+            right_wrist: 'rightHand',
+            left_ankle: 'leftFoot',
+            right_ankle: 'rightFoot'
+          };
+          
+          for (const [id, keypointType] of Object.entries(extremityMapping)) {
+            const kp = bestFrame.poseData.keypoints[keypointType];
+            if (kp && kp.confidence > 0.5) {  // Only use confident keypoints
+              transformPoints.push({
+                x: kp.x,
+                y: kp.y,
+                id: id,
+                name: id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+              });
+            }
+          }
+          
+          if (transformPoints.length > 0) {
+            console.log(`   🎯 Requesting localized homography for ${transformPoints.length} body extremities`);
+          }
+        }
+        
+        // Send to server with explicit dimensions and transform points
         const serverResult = await matchImagesOnServer(
           bestFrame.imageData, 
           locationImageBlob, 
           job.ascentId,
           videoDimensions,
-          locationDimensions
+          locationDimensions,
+          transformPoints  // Include extremity points for localized transforms
         );
         
         // Clean up object URL
@@ -606,6 +634,12 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
             inlierRatio: serverResult.inlier_ratio,
             quality: serverResult.matchQuality
           };
+          
+          // Store localized transforms if received
+          if (serverResult.localized_transforms && serverResult.localized_transforms.length > 0) {
+            job.localizedTransforms = serverResult.localized_transforms;
+            console.log(`   🎯 Stored ${serverResult.localized_transforms.length} localized transformations`);
+          }
         } else {
           console.warn(`⚠️ Server response missing homography_matrix, falling back to frontend`);
         }
@@ -819,16 +853,55 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`   Collected ${videoKeypoints.length} keypoints`);
     
     // Transform keypoints from video coordinates to image coordinates
-    // Use server homography if available (more accurate LoFTR matches)
-    const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
-    const homographySource = job.serverHomographyMatrix ? 'LoFTR (server)' : 'SuperPoint (frontend)';
+    // Use localized transforms if available (most accurate), otherwise fallback to global homography
+    let imageKeypoints = [];
     
-    console.log(`   🔄 Using ${homographySource} homography for transformation`);
-    if (job.serverHomographyQuality) {
-      console.log(`      Server quality: ${job.serverHomographyQuality.inlierMatches} inliers (${(job.serverHomographyQuality.inlierRatio * 100).toFixed(1)}%)`);
+    if (job.localizedTransforms && job.localizedTransforms.length > 0) {
+      console.log(`   🎯 Using localized transformations for ${job.localizedTransforms.length} keypoints`);
+      
+      // Map keypoint types to localized transform IDs
+      const typeToId = {
+        'leftHand': 'left_wrist',
+        'rightHand': 'right_wrist',
+        'leftFoot': 'left_ankle',
+        'rightFoot': 'right_ankle'
+      };
+      
+      // Use localized transform for each keypoint
+      for (const kp of videoKeypoints) {
+        const transformId = typeToId[kp.type];
+        const localizedTransform = job.localizedTransforms.find(t => t.id === transformId);
+        
+        if (localizedTransform) {
+          // Use the pre-transformed target point from server
+          imageKeypoints.push({
+            x: localizedTransform.target_point.x,
+            y: localizedTransform.target_point.y,
+            type: kp.type,
+            confidence: kp.confidence
+          });
+          const fallbackIndicator = localizedTransform.fallback_used ? ' (fallback)' : '';
+          console.log(`   ✓ ${kp.type}: localized transform${fallbackIndicator}`);
+        } else {
+          // Fallback to global homography for this keypoint if no localized transform
+          const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
+          const transformed = transformPoints([kp], homographyToUse);
+          imageKeypoints.push(transformed[0]);
+          console.log(`   ⚠️ ${kp.type}: using global homography (no localized transform)`);
+        }
+      }
+    } else {
+      // Use global homography (legacy path)
+      const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
+      const homographySource = job.serverHomographyMatrix ? 'LoFTR (server)' : 'SuperPoint (frontend)';
+      
+      console.log(`   🔄 Using ${homographySource} global homography for transformation`);
+      if (job.serverHomographyQuality) {
+        console.log(`      Server quality: ${job.serverHomographyQuality.inlierMatches} inliers (${(job.serverHomographyQuality.inlierRatio * 100).toFixed(1)}%)`);
+      }
+      
+      imageKeypoints = transformPoints(videoKeypoints, homographyToUse);
     }
-    
-    const imageKeypoints = transformPoints(videoKeypoints, homographyToUse);
     
     if (!imageKeypoints || !Array.isArray(imageKeypoints) || imageKeypoints.length === 0) {
       throw new Error('Keypoint transformation failed');

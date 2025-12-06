@@ -139,9 +139,10 @@ function imageElementToCanvas(img) {
  * @param {string} outputFilename - Optional output filename
  * @param {Object} videoDimensions - {width, height} of video frame for coordinate space
  * @param {Object} locationDimensions - {width, height} of location image (null = auto-detect)
- * @returns {Promise<Object>} Match result with homography_matrix
+ * @param {Array} transformPoints - Array of {x, y, id, name} points for localized homography (optional)
+ * @returns {Promise<Object>} Match result with homography_matrix and localized_transforms
  */
-export async function matchImagesOnServer(videoFrame, locationImage, outputFilename = 'match_result.jpg', videoDimensions = null, locationDimensions = null) {
+export async function matchImagesOnServer(videoFrame, locationImage, outputFilename = 'match_result.jpg', videoDimensions = null, locationDimensions = null, transformPoints = []) {
   try {
     console.log('🚀 [Server Matching] Starting image match request...');
     const startTime = performance.now();
@@ -182,6 +183,14 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
       requestBody.location_dimensions = location_dims;
     }
     
+    // Include transform_points if provided (typically 4 body extremities)
+    if (transformPoints && transformPoints.length > 0) {
+      requestBody.transform_points = transformPoints;
+      requestBody.create_debug_images = true; // Request debug images showing localized matches
+      console.log(`   📍 Requesting localized homography for ${transformPoints.length} points:`, 
+        transformPoints.map(p => `${p.name || p.id} (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`).join(', '));
+    }
+    
     const response = await fetch(`${MATCH_API_BASE}/api/v1/match-images`, {
       method: 'POST',
       headers: {
@@ -204,6 +213,15 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
     console.log(`   📊 Matches: ${result.inlier_matches}/${result.total_matches} inliers (${(result.inlier_ratio * 100).toFixed(1)}%)`);
     console.log(`   🎯 Quality: ${assessMatchQuality(result.inlier_ratio)}`);
     console.log(`   🖼️  Visualization: ${MATCH_API_BASE}${result.download_url}`);
+    
+    // Log localized transforms if present
+    if (result.localized_transforms && result.localized_transforms.length > 0) {
+      console.log(`   🎯 Localized transforms: ${result.localized_transforms.length} points`);
+      result.localized_transforms.forEach(transform => {
+        const fallbackIndicator = transform.fallback_used ? ' (fallback)' : '';
+        console.log(`      📍 ${transform.name}: (${transform.source_point.x.toFixed(1)}, ${transform.source_point.y.toFixed(1)}) → (${transform.target_point.x.toFixed(1)}, ${transform.target_point.y.toFixed(1)})${fallbackIndicator}`);
+      });
+    }
     
     return {
       ...result,
