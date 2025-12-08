@@ -9,6 +9,26 @@ import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { storage, db } from './firebase';
 import { getCurrentUser } from './authService';
 
+/**
+ * Construct Firebase Storage download URL without network request
+ * @param {string} storagePath - The storage path (e.g., "videos/raw/userId/video.mp4")
+ * @returns {string} The download URL
+ */
+function constructStorageUrl(storagePath) {
+  const useEmulators = import.meta.env.MODE === 'development' || import.meta.env.VITE_USE_EMULATORS === 'true';
+  
+  if (useEmulators) {
+    // Emulator URL format
+    const emulatorHost = import.meta.env.VITE_EMULATOR_HOST || window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+    const encodedPath = encodeURIComponent(storagePath);
+    return `http://${emulatorHost}:9199/v0/b/topomatch-pwa.firebasestorage.app/o/${encodedPath}?alt=media`;
+  } else {
+    // Production URL format
+    const encodedPath = encodeURIComponent(storagePath);
+    return `https://firebasestorage.googleapis.com/v0/b/topomatch-pwa.firebasestorage.app/o/${encodedPath}?alt=media`;
+  }
+}
+
 export const videoService = {
   /**
    * Internal helper: Transform ascent document to video object with download URL
@@ -35,8 +55,8 @@ export const videoService = {
         return null;
       }
       
-      const videoStorageRef = ref(storage, videoPath);
-      const videoUrl = await getDownloadURL(videoStorageRef);
+      // Construct URL directly without network request
+      const videoUrl = constructStorageUrl(videoPath);
       
       return {
         id: docSnapshot.id,
@@ -115,8 +135,8 @@ export const videoService = {
             continue;
           }
           
-          const videoStorageRef = ref(storage, videoPath);
-          const videoUrl = await getDownloadURL(videoStorageRef);
+          // Construct URL directly without network request
+          const videoUrl = constructStorageUrl(videoPath);
           
           const video = {
             id: docSnapshot.id,
