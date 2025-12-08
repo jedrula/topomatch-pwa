@@ -8,6 +8,28 @@
           {{ videos.length }} {{ videos.length === 1 ? 'video' : 'videos' }}
         </p>
       </div>
+      
+      <!-- Delete All Button (Admin Only) -->
+      <button
+        v-if="userStore.isAdmin && !loading && videos.length > 0"
+        @click="confirmDeleteAll"
+        class="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-300 hover:border-red-400 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+        :disabled="isDeletingAll"
+      >
+        <span v-if="!isDeletingAll" class="flex items-center space-x-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span>Delete All</span>
+        </span>
+        <span v-else class="flex items-center space-x-2">
+          <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Deleting...</span>
+        </span>
+      </button>
     </div>
 
     <!-- Content -->
@@ -166,8 +188,11 @@
 import { ref } from 'vue';
 import { videoService } from '@/services/videoService';
 import { getCurrentUser } from '@/services/authService';
+import { useUserStore } from '@/stores/userStore';
 
-defineProps({
+const userStore = useUserStore();
+
+const props = defineProps({
   videos: {
     type: Array,
     required: true,
@@ -184,6 +209,8 @@ const emit = defineEmits(['video-click', 'video-deleted']);
 const showDeleteConfirm = ref(false);
 const videoToDelete = ref(null);
 const deleting = ref(false);
+const isDeletingAll = ref(false);
+const showDeleteAllConfirm = ref(false);
 
 const handleVideoMetadata = (event) => {
   const video = event.target;
@@ -265,6 +292,56 @@ const confirmDelete = async () => {
     alert(`Failed to delete video: ${error.message}`);
   } finally {
     deleting.value = false;
+  }
+};
+
+// Delete all videos (admin only)
+const confirmDeleteAll = () => {
+  if (isDeletingAll.value) return;
+  
+  const confirmed = window.confirm(
+    `Are you sure you want to delete ALL ${props.videos.length} videos? This action cannot be undone.`
+  );
+  
+  if (confirmed) {
+    deleteAllVideos();
+  }
+};
+
+const deleteAllVideos = async () => {
+  if (isDeletingAll.value || !props.videos || props.videos.length === 0) return;
+  
+  try {
+    isDeletingAll.value = true;
+    
+    console.log(`🗑️ Deleting ${props.videos.length} videos...`);
+    
+    // Delete all videos sequentially
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const video of props.videos) {
+      try {
+        await videoService.deleteVideo(video.id);
+        emit('video-deleted', video.id);
+        successCount++;
+        console.log(`✅ Deleted video ${successCount}/${props.videos.length}`);
+      } catch (error) {
+        failCount++;
+        console.error(`❌ Failed to delete video ${video.id}:`, error);
+      }
+    }
+    
+    if (failCount > 0) {
+      alert(`Deleted ${successCount} videos. ${failCount} videos failed to delete.`);
+    } else {
+      alert(`Successfully deleted all ${successCount} videos!`);
+    }
+  } catch (error) {
+    console.error('Error during bulk delete:', error);
+    alert(`Failed to delete videos: ${error.message}`);
+  } finally {
+    isDeletingAll.value = false;
   }
 };
 </script>
