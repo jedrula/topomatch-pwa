@@ -65,6 +65,7 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
         record.file,
         (progress) => {
           // Update progress in real-time
+          console.log(`[PROGRESS] 📤 [UPLOAD] Ascent ${ascentId}: ${progress.toFixed(1)}%`);
           if (uploads.value[ascentId]) {
             uploads.value[ascentId].progress = progress;
           }
@@ -72,6 +73,7 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
       );
 
       // Mark as completed
+      console.log(`[PROGRESS] ✅ [UPLOAD] Ascent ${ascentId}: Upload complete (100%)`);
       if (uploads.value[ascentId]) {
         uploads.value[ascentId].status = 'completed';
         uploads.value[ascentId].videoData = result;

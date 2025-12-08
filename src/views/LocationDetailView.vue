@@ -280,17 +280,22 @@ const displayVideos = computed(() => {
   const activeJobs = analysisStore.getActiveJobsForLocation(locationId.value);
   
   // Convert active jobs to placeholder video objects
-  const uploadingVideos = activeJobs.map(job => ({
-    id: job.ascentId,
-    ascentId: job.ascentId,
-    isUploading: true,
-    progress: job.progress || 0,
-    status: job.status,
-    metadata: {
-      duration: null,
-      problemName: null
-    }
-  }));
+  // Note: We're showing ANALYSIS progress here (pose detection, matching, scoring)
+  // Upload progress is separate and completes before analysis starts
+  const uploadingVideos = activeJobs.map(job => {
+    console.log(`[PROGRESS] 📊 [UI] Displaying job ${job.ascentId}: analysis=${job.progress}%, status=${job.status}`);
+    return {
+      id: job.ascentId,
+      ascentId: job.ascentId,
+      isUploading: true,
+      progress: job.progress || 0,
+      status: job.status,
+      metadata: {
+        duration: null,
+        problemName: null
+      }
+    };
+  });
   
   // Get completed jobs that we should keep visible until video loads
   const completedJobs = analysisStore.getCompletedJobsForLocation(locationId.value);

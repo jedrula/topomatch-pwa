@@ -92,6 +92,7 @@
 <script setup>
 import { ref } from 'vue';
 import VideoRecorder from './VideoRecorder.vue';
+import { extractVideoThumbnail, getBase64Size } from '@/utils/videoThumbnail';
 
 defineProps({
   title: {
@@ -113,16 +114,42 @@ const emit = defineEmits(['video-selected']);
 const fileInput = ref(null);
 const mode = ref('upload'); // 'upload' or 'record'
 
-const handleFileChange = (event) => {
+const handleFileChange = async (event) => {
   const file = event.target.files[0];
   if (file) {
-    emit('video-selected', file);
+    try {
+      // Extract thumbnail from video
+      console.log('📸 Extracting thumbnail from video...');
+      const thumbnailBase64 = await extractVideoThumbnail(file, 1, 320);
+      const thumbnailSizeKB = getBase64Size(thumbnailBase64);
+      console.log(`✅ Thumbnail extracted: ${thumbnailSizeKB.toFixed(1)} KB`);
+      
+      // Emit video file with thumbnail attached as property
+      file.thumbnailBase64 = thumbnailBase64;
+      emit('video-selected', file);
+    } catch (error) {
+      console.warn('⚠️ Failed to extract thumbnail, continuing without it:', error);
+      // Still emit the file even if thumbnail extraction fails
+      emit('video-selected', file);
+    }
   }
   // Clear the input so the same file can be selected again
   event.target.value = '';
 };
 
-const handleVideoRecorded = (file) => {
-  emit('video-selected', file);
+const handleVideoRecorded = async (file) => {
+  try {
+    // Extract thumbnail from recorded video
+    console.log('📸 Extracting thumbnail from recorded video...');
+    const thumbnailBase64 = await extractVideoThumbnail(file, 1, 320);
+    const thumbnailSizeKB = getBase64Size(thumbnailBase64);
+    console.log(`✅ Thumbnail extracted: ${thumbnailSizeKB.toFixed(1)} KB`);
+    
+    file.thumbnailBase64 = thumbnailBase64;
+    emit('video-selected', file);
+  } catch (error) {
+    console.warn('⚠️ Failed to extract thumbnail, continuing without it:', error);
+    emit('video-selected', file);
+  }
 };
 </script>

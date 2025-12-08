@@ -95,25 +95,12 @@
           >
             <video
               :src="video.downloadUrl"
+              :poster="video.thumbnailBase64 || defaultPoster"
               class="w-full h-full object-cover transition-transform group-hover:scale-105"
               muted
               preload="none"
               crossorigin="anonymous"
-              @loadedmetadata="handleVideoMetadata"
-              @seeked="handleVideoSeeked"
-              @error="handleVideoError"
-              style="opacity: 0; transition: opacity 0.3s ease"
             />
-
-            <!-- Loading placeholder -->
-            <div class="loading-placeholder absolute inset-0 bg-gray-100 flex items-center justify-center">
-              <div class="text-center">
-                <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-                <p class="text-xs text-gray-500">Loading preview...</p>
-              </div>
-            </div>
 
             <!-- Play button overlay -->
             <div class="absolute inset-0 flex items-center justify-center transition-all duration-200 pointer-events-none">
@@ -212,39 +199,17 @@ const deleting = ref(false);
 const isDeletingAll = ref(false);
 const showDeleteAllConfirm = ref(false);
 
-const handleVideoMetadata = (event) => {
-  const video = event.target;
-  video.currentTime = 1; // Seek to 1 second for thumbnail
-};
-
-const handleVideoSeeked = (event) => {
-  const video = event.target;
-  video.style.opacity = '1';
-  const placeholder = video.parentElement?.querySelector('.loading-placeholder');
-  if (placeholder) {
-    placeholder.style.display = 'none';
-  }
-};
-
-// Add error handler for videos that fail to load
-const handleVideoError = (event) => {
-  const video = event.target;
-  const container = video.parentElement;
-  const placeholder = container?.querySelector('.loading-placeholder');
-  
-  if (placeholder) {
-    placeholder.innerHTML = `
-      <div class="text-center">
-        <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z" />
-        </svg>
-        <p class="text-xs text-gray-500">Video unavailable</p>
-      </div>
-    `;
-  }
-  
-  console.warn('Video failed to load:', video.src);
-};
+// Default poster image (gray placeholder with play icon)
+const defaultPoster = 'data:image/svg+xml;base64,' + btoa(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+    <rect width="320" height="180" fill="#f3f4f6"/>
+    <g transform="translate(160, 90)">
+      <circle r="24" fill="#9ca3af" opacity="0.8"/>
+      <path d="M-6,-9 L-6,9 L12,0 Z" fill="white"/>
+    </g>
+    <text x="160" y="140" font-family="Arial, sans-serif" font-size="12" fill="#6b7280" text-anchor="middle">No preview</text>
+  </svg>
+`);
 
 const formatDuration = (seconds) => {
   if (!seconds) return '';

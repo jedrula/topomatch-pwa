@@ -106,7 +106,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     
     // Auto-create job if it doesn't exist (simplified component flow)
     if (!job) {
-      console.log(`📊 Creating analysis job for ascent ${ascentId}`);
+      console.log(`[PROGRESS] 📊 [ANALYSIS] Creating analysis job for ascent ${ascentId}`);
       const jobId = generateUUID();
       
       job = {
@@ -118,7 +118,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         boulderProblems: plainBoulderProblems,     // For scoring (Step 4)
         
         status: 'queued',
-        progress: 0,
+        progress: 10,  // Start at 10% (upload complete, frame extraction done)
         
         extractedFrames: [],
         matchedImageId: null,    // Set by Step 2
@@ -325,7 +325,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
    * Step 1: Detect poses in all frames
    */
   const _detectPoses = async (job) => {
-    console.log(`\n🔍 Starting pose detection...`);
+    console.log(`[PROGRESS] 🔍 [ANALYSIS] Starting pose detection (progress: ${job.progress}%)...`);
     console.log(`   Frames to analyze: ${job.extractedFrames.length}`);
     
     job.status = 'detecting';
@@ -362,8 +362,12 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         frame.poseError = `Detection failed: ${err.message}`;
       }
 
-      // Update progress (0-15%)
-      job.progress = Math.round((i / job.extractedFrames.length) * 15);
+      // Update progress (10-25%)
+      const newProgress = job.extractedFrames.length > 0 
+        ? 10 + Math.round((i / job.extractedFrames.length) * 15)
+        : 10;
+      console.log(`[PROGRESS] 🤸 [ANALYSIS] Pose detection frame ${i + 1}/${job.extractedFrames.length}: ${newProgress}%`);
+      job.progress = newProgress;
 
       // Small delay between frames for mobile devices
       if (i < job.extractedFrames.length - 1) {
@@ -458,7 +462,8 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`   Images: ${job.comparisonImages.length}`);
     
     job.status = 'matching';
-    job.progress = 15;
+    job.progress = 25;
+    console.log(`[PROGRESS] 🖼️ [ANALYSIS] Step 2: Matching video frame to location image (progress: 25%)...`);
     
     // Extract image URLs from comparison images
     const imageUrls = job.comparisonImages.map(img => img.url).filter(Boolean);
@@ -501,7 +506,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         (currentIndex, totalImages) => {
           // Image matching takes longest: 15% → 70% (55% of total)
           // progressCallback receives (currentIndex, totalImages), convert to 0-1 range
-          const progressRatio = currentIndex / totalImages;
+          const progressRatio = totalImages > 0 ? currentIndex / totalImages : 0;
           job.progress = 15 + Math.round(progressRatio * 55);
         }
       );
