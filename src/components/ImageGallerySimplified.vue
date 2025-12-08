@@ -519,7 +519,8 @@ watch(
   { immediate: true }
 );
 
-// Load boulder problems for the location
+// Load boulder problems for the location (only on location change, not initial mount)
+// Initial load is handled by parent LocationDetailView
 watch(
   () => props.locationId,
   async (newLocationId) => {
@@ -533,8 +534,7 @@ watch(
         console.error('Error loading boulder problems:', error);
       }
     }
-  },
-  { immediate: true }
+  }
 );
 
 // Hide floating card when image changes
