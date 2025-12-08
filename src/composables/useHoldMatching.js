@@ -4,59 +4,86 @@
  */
 
 /**
- * Extract hold coordinates in a consistent way
- * @param {Object} hold - The hold object from various sources
- * @returns {Object|null} - {x, y} coordinates or null if not found
+ * Extract hold center coordinates and dimensions
+ * REQUIRED: Hold MUST have center point AND dimensions
+ * 
+ * Supported formats:
+ * 1. AI holds: { centerX, centerY, width, height }
+ * 2. Manual holds: { centerPoint: {x, y}, width, height } OR extract from SVG path
+ * 
+ * @param {Object} hold - The hold object
+ * @returns {Object} - {x, y, width, height} or throws error
  */
 export function extractHoldCoordinates(hold) {
-  let holdX, holdY;
-
-  // PRIORITY 1: Check for explicit center coordinates
+  let centerX, centerY, width, height;
+  
+  // Extract center coordinates
   if (hold.centerX !== undefined && hold.centerY !== undefined) {
-    holdX = hold.centerX;
-    holdY = hold.centerY;
-  } 
-  // PRIORITY 2: Check for center_x/center_y (alternative naming)
-  else if (hold.center_x !== undefined && hold.center_y !== undefined) {
-    holdX = hold.center_x;
-    holdY = hold.center_y;
+    // Format 1: AI holds with centerX/centerY
+    centerX = hold.centerX;
+    centerY = hold.centerY;
+  } else if (hold.centerPoint?.x !== undefined && hold.centerPoint?.y !== undefined) {
+    // Format 2: Manual holds with centerPoint object
+    centerX = hold.centerPoint.x;
+    centerY = hold.centerPoint.y;
+  } else {
+    throw new Error(`Hold missing center coordinates (need centerX/centerY OR centerPoint.x/.y): ${JSON.stringify(hold)}`);
   }
-  // PRIORITY 3: Calculate from coordinates object (bounding box format)
-  else if (hold.coordinates) {
-    holdX = hold.coordinates.x + (hold.coordinates.width || 0) / 2;
-    holdY = hold.coordinates.y + (hold.coordinates.height || 0) / 2;
-  } 
-  // PRIORITY 4: Calculate from bbox array
-  else if (hold.bbox && Array.isArray(hold.bbox)) {
-    holdX = hold.bbox[0] + hold.bbox[2] / 2;
-    holdY = hold.bbox[1] + hold.bbox[3] / 2;
-  } 
-  // PRIORITY 5: Calculate from bbox object
-  else if (hold.bbox && typeof hold.bbox === 'object') {
-    holdX = hold.bbox.x + (hold.bbox.width || 0) / 2;
-    holdY = hold.bbox.y + (hold.bbox.height || 0) / 2;
-  } 
-  // PRIORITY 6: Use x,y coordinates (may be center or top-left depending on source)
-  else if (hold.x !== undefined && hold.y !== undefined) {
-    // Check if this is already a center coordinate (from our processed AI holds)
-    // Our AI holds from the server have x,y as center coordinates already
-    if (hold.source === 'ai-detected' || hold.aiModel === 'server-detection') {
-      holdX = hold.x; // Already center coordinate in detection space (e.g., 1080x1440)
-      holdY = hold.y; // Already center coordinate in detection space
+  
+  // Extract dimensions
+  if (hold.width !== undefined && hold.height !== undefined) {
+    width = hold.width;
+    height = hold.height;
+  } else if (hold.svgMarkup) {
+    // Manual hold with SVG path - calculate bounding box from path
+    const bounds = calculateSVGPathBounds(hold.svgMarkup);
+    if (bounds) {
+      width = bounds.width;
+      height = bounds.height;
     } else {
-      // For other holds, treat x,y as top-left and calculate center
-      holdX = hold.x + (hold.width || 0) / 2;
-      holdY = hold.y + (hold.height || 0) / 2;
+      throw new Error(`Manual hold has SVG but cannot extract bounds: ${hold.svgMarkup.substring(0, 100)}...`);
     }
-  } 
-  else {
-    console.warn('❌ Unknown hold coordinate format:', hold);
+  } else {
+    throw new Error(`Hold missing dimensions (need width/height OR svgMarkup): ${JSON.stringify(hold)}`);
+  }
+
+  return { x: centerX, y: centerY, width, height };
+}
+
+/**
+ * Calculate bounding box from SVG path string
+ * @param {string} svgMarkup - SVG path markup
+ * @returns {Object|null} - {width, height} or null if parsing fails
+ */
+function calculateSVGPathBounds(svgMarkup) {
+  try {
+    // Extract all coordinates from path (M, L commands)
+    const coordPattern = /([ML])\s*([\d.]+)\s+([\d.]+)/g;
+    const coords = [];
+    let match;
+    
+    while ((match = coordPattern.exec(svgMarkup)) !== null) {
+      coords.push({ x: parseFloat(match[2]), y: parseFloat(match[3]) });
+    }
+    
+    if (coords.length === 0) return null;
+    
+    // Find bounding box
+    const xs = coords.map(c => c.x);
+    const ys = coords.map(c => c.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    
+    return {
+      width: maxX - minX,
+      height: maxY - minY
+    };
+  } catch (err) {
+    console.error('Failed to parse SVG path bounds:', err);
     return null;
   }
-
-  // NOTE: Holds are kept in their stored coordinate space (detection image space, e.g., 1080x1440)
-  // Keypoints will be scaled to match this space in findClosestHolds()
-  return { x: holdX, y: holdY };
 }
 
 /**
@@ -151,10 +178,40 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
       return null;
     }
 
-    const distance = Math.sqrt(
-      Math.pow(scaledKeypointX - coords.x, 2) + 
-      Math.pow(scaledKeypointY - coords.y, 2)
-    );
+    // 🎯 ELLIPSE-BASED DISTANCE CALCULATION
+    // Approximate hold as ellipse using width/height from canonical format
+    // If limb inside ellipse → distance = 0 (full score)
+    // If limb outside ellipse → distance to closest point on ellipse edge
+    
+    // coords already contains {x, y, width, height} from extractHoldCoordinates
+    const radiusX = coords.width / 2;
+    const radiusY = coords.height / 2;
+    
+    // Translate keypoint to ellipse-centered coordinate system
+    const dx = scaledKeypointX - coords.x;
+    const dy = scaledKeypointY - coords.y;
+    
+    // Calculate normalized distance in ellipse space
+    // Point is inside ellipse if: (dx/rx)² + (dy/ry)² ≤ 1
+    const normalizedDistSq = (dx * dx) / (radiusX * radiusX) + (dy * dy) / (radiusY * radiusY);
+    
+    let distance;
+    if (normalizedDistSq <= 1.0) {
+      // Keypoint is INSIDE ellipse → perfect match!
+      distance = 0;
+    } else {
+      // Keypoint is OUTSIDE ellipse → find distance to nearest point on ellipse edge
+      // Scale the vector to the ellipse boundary
+      const scale = 1.0 / Math.sqrt(normalizedDistSq);
+      const nearestX = coords.x + dx * scale;
+      const nearestY = coords.y + dy * scale;
+      
+      distance = Math.sqrt(
+        Math.pow(scaledKeypointX - nearestX, 2) + 
+        Math.pow(scaledKeypointY - nearestY, 2)
+      );
+    }
+
     const score = distance <= proximityThreshold ? 
       Math.round(((proximityThreshold - distance) / proximityThreshold) * 1000) / 1000 : 0;
 
