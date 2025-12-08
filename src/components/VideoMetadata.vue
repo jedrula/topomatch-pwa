@@ -1,6 +1,17 @@
 <template>
   <div class="text-white text-right bg-black bg-opacity-50 p-3 rounded-lg text-sm">
-    <h3 class="font-medium mb-1 text-gray-200">{{ video.name }}</h3>
+    <!-- Problem name - clickable if we have problemId and locationId -->
+    <h3 class="font-medium mb-1 text-gray-200">
+      <router-link
+        v-if="video.problemId && video.locationId"
+        :to="{ name: 'boulder-problem-detail', params: { locationId: video.locationId, problemId: video.problemId } }"
+        class="text-blue-400 hover:text-blue-300 transition-colors pointer-events-auto cursor-pointer"
+        @click.stop
+      >
+        {{ video.name }}
+      </router-link>
+      <span v-else>{{ video.name }}</span>
+    </h3>
     <div class="text-xs text-gray-400 space-y-0.5">
       <p v-if="video.uploadedBy && video.userId">
         <router-link
