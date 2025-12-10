@@ -84,9 +84,6 @@
       ref="videoContainer"
       class="flex-1 relative overflow-y-auto overflow-x-hidden scroll-smooth"
       style="scroll-snap-type: y mandatory; scrollbar-width: none; -ms-overflow-style: none;"
-      @touchstart="handleTouchStart"
-      @touchmove="handleTouchMove"
-      @touchend="handleTouchEnd"
       @scroll="handleScroll"
     >
       <!-- Loading state -->
@@ -316,10 +313,6 @@ const stopProgressTracking = () => {
   }
 };
 
-// Touch handling for swipe navigation
-const touchStartY = ref(0);
-const touchEndY = ref(0);
-const minSwipeDistance = 50;
 let scrollTimeout = null;
 
 // Scroll handling
@@ -382,32 +375,6 @@ const scrollToVideo = (index) => {
     top: targetScrollTop,
     behavior: 'smooth'
   });
-};
-
-// Touch handlers for swipe navigation
-const handleTouchStart = (event) => {
-  touchStartY.value = event.touches[0].clientY;
-};
-
-const handleTouchMove = (event) => {
-  // Prevent default scrolling
-  event.preventDefault();
-};
-
-const handleTouchEnd = (event) => {
-  touchEndY.value = event.changedTouches[0].clientY;
-  const deltaY = touchStartY.value - touchEndY.value;
-  
-  // Check if swipe is significant enough
-  if (Math.abs(deltaY) > minSwipeDistance) {
-    if (deltaY > 0) {
-      // Swipe up - next video
-      nextVideo();
-    } else {
-      // Swipe down - previous video
-      previousVideo();
-    }
-  }
 };
 
 // Navigation methods
