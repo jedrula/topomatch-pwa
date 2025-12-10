@@ -122,7 +122,6 @@
         <LocationVideos
           :videos="displayVideos"
           :loading="videosLoading"
-          @video-click="openVideoGallery"
           @video-deleted="handleVideoDeleted"
         />
 
@@ -197,13 +196,6 @@
       @navigate-previous="navigatePrevious"
     />
 
-    <!-- Video Gallery Modal -->
-    <VideoGallery
-      :videos="filteredVideos"
-      :initial-index="videoGalleryIndex"
-      :is-open="isVideoGalleryOpen"
-      @close="closeVideoGallery"
-    />
   </div>
 </template>
 
@@ -216,7 +208,6 @@ import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
 import { useToast } from '../composables/useToast.js';
 import ImageUploadModal from '../components/ImageUploadModal.vue';
 import ImageGallerySimplified from '../components/ImageGallerySimplified.vue';
-import VideoGallery from '../components/VideoGallery.vue';
 import BetaVideoUploadModal from '../components/BetaVideoUploadModal.vue';
 import ToastNotification from '../components/ToastNotification.vue';
 import LocationImages from '../components/LocationImages.vue';
@@ -258,9 +249,6 @@ const images = ref([]); // Placeholder for location images
 const videos = ref([]); // Beta videos for location
 const videosLoading = ref(false);
 const problemVideoCounts = ref({}); // Cache for video counts per problem
-const isVideoGalleryOpen = ref(false);
-const videoGalleryIndex = ref(0);
-const currentVideoFilter = ref(null); // For filtering videos by problem;
 const isLoading = ref(true);
 const error = ref('');
 const showUploadModal = ref(false);
@@ -414,6 +402,7 @@ const loadLocationImages = async () => {
 const loadLocationVideos = async () => {
   videosLoading.value = true;
   try {
+    console.log('wow');
     const locationVideos = await videoService.getLocationVideos(locationId.value);
     videos.value = locationVideos;
 
@@ -449,17 +438,6 @@ const loadProblemVideoCounts = async () => {
   }
 };
 
-// Video gallery methods
-const openVideoGallery = (index = 0) => {
-  videoGalleryIndex.value = index;
-  isVideoGalleryOpen.value = true;
-};
-
-const closeVideoGallery = () => {
-  isVideoGalleryOpen.value = false;
-  currentVideoFilter.value = null; // Clear filter when closing
-};
-
 // Handle video deletion
 const handleVideoDeleted = async (videoId) => {
   // Find the video to get its problemId before removing it
@@ -493,31 +471,12 @@ const openProblemVideos = async (problem) => {
       return;
     }
 
-    // Set filter and open gallery
-    currentVideoFilter.value = problem;
-    videoGalleryIndex.value = 0;
-    isVideoGalleryOpen.value = true;
+    // TODO: Open VideoPlayerShorts with filtered videos for this problem
+    console.log('Open problem videos:', problem.name, problemVideos);
   } catch (error) {
     console.error('Error loading problem videos:', error);
   }
 };
-
-// Computed property for filtered videos
-const filteredVideos = computed(() => {
-  let videosToShow = currentVideoFilter.value
-    ? videos.value.filter((video) => video.problemId === currentVideoFilter.value.id)
-    : videos.value;
-
-  // Add problem names to videos
-  return videosToShow.map((video) => {
-    const problem = boulderProblemsStore.boulderProblems.find((p) => p.id === video.problemId);
-
-    return {
-      ...video,
-      problemName: problem?.name || 'Unknown Problem',
-    };
-  });
-});
 
 const handleBetaUploadClick = () => {
   if (!userStore.user) {
