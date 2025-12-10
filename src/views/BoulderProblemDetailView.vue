@@ -208,28 +208,11 @@ const loadBetaVideos = async () => {
   
   try {
     videosLoading.value = true;
-    const videos = await videoService.getProblemVideos(
+    // videoService.getProblemVideos already returns videos in the correct format
+    betaVideos.value = await videoService.getProblemVideos(
       route.params.locationId,
       route.params.problemId
     );
-    
-    // Transform to match the expected format for LocationVideos and VideoGallery
-    betaVideos.value = videos.map(video => ({
-      id: video.videoId,
-      name: video.uploadedBy || 'Unknown User',
-      downloadUrl: video.downloadUrl, // Fixed: was video.url
-      thumbnailBase64: video.thumbnailBase64, // Include thumbnail for poster
-      uploadedBy: video.uploadedBy,
-      uploadedAt: video.uploadedAt, // Fixed: was video.createdAt
-      userId: video.userId, // Important for delete permissions
-      problemName: problem.value?.name || 'Unknown Problem',
-      size: video.size,
-      metadata: {
-        problemName: problem.value?.name || 'Unknown Problem',
-        uploadedBy: video.uploadedBy,
-        duration: null,
-      }
-    }));
   } catch (err) {
     console.error('Error loading beta videos:', err);
   } finally {

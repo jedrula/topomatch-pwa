@@ -58,10 +58,11 @@
             v-for="(video, index) in videos"
             :key="video.id"
             class="aspect-video bg-gray-100 rounded-lg overflow-hidden relative group cursor-pointer"
-            @click="openVideoGallery(index)"
+            @click="openVideoPlayer(video.id)"
           >
             <video
               :src="video.downloadUrl"
+              :poster="video.thumbnailBase64 || defaultPoster"
               class="w-full h-full object-cover"
               muted
               preload="none"
@@ -87,32 +88,43 @@
       </div>
     </div>
 
-    <!-- Video Gallery Modal -->
-    <VideoGallery
-      :videos="videos"
-      :initial-index="videoGalleryIndex"
-      :is-open="isVideoGalleryOpen"
-      @close="closeVideoGallery"
+    <!-- Video Player Shorts -->
+    <VideoPlayerShorts
+      v-if="route.query.videoId"
+      :get-videos="getPlayerVideos"
+      :title="`${userName}'s Beta Videos`"
+      @close="closeVideoPlayer"
     />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/userStore';
 import { ascentService } from '@/services/ascentService';
 import { videoService } from '@/services/videoService';
-import VideoGallery from '@/components/VideoGallery.vue';
+import VideoPlayerShorts from '@/components/VideoPlayerShorts.vue';
 
 const route = useRoute();
+const router = useRouter();
 const userStore = useUserStore();
 
 const loading = ref(true);
 const videos = ref([]);
 const ascents = ref([]);
-const isVideoGalleryOpen = ref(false);
-const videoGalleryIndex = ref(0);
+
+// Default poster image (gray placeholder with play icon)
+const defaultPoster = 'data:image/svg+xml;base64,' + btoa(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+    <rect width="320" height="180" fill="#f3f4f6"/>
+    <g transform="translate(160, 90)">
+      <circle r="24" fill="#9ca3af" opacity="0.8"/>
+      <path d="M-6,-9 L-6,9 L12,0 Z" fill="white"/>
+    </g>
+    <text x="160" y="140" font-family="Arial, sans-serif" font-size="12" fill="#6b7280" text-anchor="middle">No preview</text>
+  </svg>
+`);
 
 // Get userId from route or use current user
 const userId = computed(() => route.params.userId || userStore.user?.uid);
@@ -145,14 +157,25 @@ const uniqueProblems = computed(() => {
   return problemIds.size;
 });
 
-// Video gallery handlers
-const openVideoGallery = (index) => {
-  videoGalleryIndex.value = index;
-  isVideoGalleryOpen.value = true;
+// Video player handlers
+const openVideoPlayer = (videoId) => {
+  router.push({
+    query: {
+      ...route.query,
+      videoId,
+    },
+  });
 };
 
-const closeVideoGallery = () => {
-  isVideoGalleryOpen.value = false;
+const closeVideoPlayer = () => {
+  const query = { ...route.query };
+  delete query.videoId;
+  router.push({ query });
+};
+
+// Function to provide videos to VideoPlayerShorts
+const getPlayerVideos = async () => {
+  return videos.value;
 };
 
 // Format date for display

@@ -113,60 +113,9 @@ export const videoService = {
       );
 
       const querySnapshot = await getDocs(q);
-      const videos = [];
-
-      for (const docSnapshot of querySnapshot.docs) {
-        const data = docSnapshot.data();
-        
-        // Skip if no video
-        // Show videos with status: 'transcoding' (emulator) or 'ready' (production)
-        if (!data.video || data.video.status === 'error') {
-          continue;
-        }
-        
-        try {
-          // Get video URL
-          // Use transcoded path if ready, otherwise use original (for emulator)
-          const videoPath = data.video.status === 'ready'
-            ? (data.video.transcodedPath || data.video.originalPath)
-            : data.video.originalPath;
-          
-          if (!videoPath || videoPath.trim() === '') {
-            console.warn(`Ascent ${docSnapshot.id} has video object but no valid path:`, data.video);
-            continue;
-          }
-          
-          // Construct URL directly without network request
-          const videoUrl = constructStorageUrl(videoPath);
-          
-          const video = {
-            id: docSnapshot.id,
-            videoId: docSnapshot.id,
-            name: data.problemSnapshot?.name || 'Beta Video',
-            downloadUrl: videoUrl,
-            isTranscoded: !!data.video.transcodedPath,
-            status: data.video.status,
-            size: data.video.transcodedFileSize || data.video.fileSize,
-            contentType: 'video/mp4',
-            uploadedAt: data.video.uploadedAt?.toDate?.() || data.date?.toDate?.() || new Date(),
-            uploadedBy: data.userName || 'Unknown',
-            userId: data.userId,
-            ascentId: docSnapshot.id,
-            locationId: data.locationId,
-            problemId: data.problemId,
-            problemName: data.problemSnapshot?.name || 'Unknown Problem',
-            metadata: {
-              problemName: data.problemSnapshot?.name,
-              problemGrade: data.problemSnapshot?.grade,
-              attemptType: data.attemptType,
-            }
-          };
-
-          videos.push(video);
-        } catch (error) {
-          console.warn(`Failed to load video for ascent ${docSnapshot.id}:`, error);
-        }
-      }
+      const videos = querySnapshot.docs
+        .map(doc => this._transformAscentToVideo(doc))
+        .filter(v => v !== null);
 
       return videos;
     } catch (error) {
