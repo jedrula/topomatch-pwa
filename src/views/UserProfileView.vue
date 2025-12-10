@@ -69,15 +69,6 @@
               crossorigin="anonymous"
             />
 
-            <!-- Play button overlay -->
-            <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all">
-              <div class="w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <svg class="w-6 h-6 text-gray-700 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-            </div>
-
             <!-- Video info overlay -->
             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-3">
               <p class="text-white text-sm font-medium truncate">{{ video.problemName }}</p>
@@ -104,6 +95,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/userStore';
 import { ascentService } from '@/services/ascentService';
 import { videoService } from '@/services/videoService';
+import { getDefaultVideoPoster } from '@/utils/videoUtils';
 import VideoPlayerShorts from '@/components/VideoPlayerShorts.vue';
 
 const route = useRoute();
@@ -115,16 +107,7 @@ const videos = ref([]);
 const ascents = ref([]);
 
 // Default poster image (gray placeholder with play icon)
-const defaultPoster = 'data:image/svg+xml;base64,' + btoa(`
-  <svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
-    <rect width="320" height="180" fill="#f3f4f6"/>
-    <g transform="translate(160, 90)">
-      <circle r="24" fill="#9ca3af" opacity="0.8"/>
-      <path d="M-6,-9 L-6,9 L12,0 Z" fill="white"/>
-    </g>
-    <text x="160" y="140" font-family="Arial, sans-serif" font-size="12" fill="#6b7280" text-anchor="middle">No preview</text>
-  </svg>
-`);
+const defaultPoster = getDefaultVideoPoster();
 
 // Get userId from route or use current user
 const userId = computed(() => route.params.userId || userStore.user?.uid);
