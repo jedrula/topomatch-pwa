@@ -34,7 +34,7 @@ export const videoService = {
    * Internal helper: Transform ascent document to video object with download URL
    * @private
    */
-  async _transformAscentToVideo(docSnapshot) {
+  _transformAscentToVideo(docSnapshot) {
     const data = docSnapshot.data();
     
     // Skip if no video or video has error status
@@ -449,8 +449,9 @@ export const videoService = {
       );
 
       const querySnapshot = await getDocs(q);
-      const videoPromises = querySnapshot.docs.map(doc => this._transformAscentToVideo(doc));
-      const videos = (await Promise.all(videoPromises)).filter(v => v !== null);
+      const videos = querySnapshot.docs
+        .map(doc => this._transformAscentToVideo(doc))
+        .filter(v => v !== null);
 
       return videos;
     } catch (error) {
@@ -476,8 +477,9 @@ export const videoService = {
       );
 
       const querySnapshot = await getDocs(q);
-      const videoPromises = querySnapshot.docs.map(doc => this._transformAscentToVideo(doc));
-      const videos = (await Promise.all(videoPromises)).filter(v => v !== null);
+      const videos = querySnapshot.docs
+        .map(doc => this._transformAscentToVideo(doc))
+        .filter(v => v !== null);
 
       return videos;
     } catch (error) {
@@ -503,7 +505,7 @@ export const videoService = {
         return null;
       }
       
-      return await this._transformAscentToVideo(docSnapshot);
+      return this._transformAscentToVideo(docSnapshot);
     } catch (error) {
       console.error(`Error fetching video for ascent ${ascentId}:`, error);
       return null;
@@ -527,8 +529,9 @@ export const videoService = {
       );
 
       const querySnapshot = await getDocs(q);
-      const videoPromises = querySnapshot.docs.map(doc => this._transformAscentToVideo(doc));
-      const videos = (await Promise.all(videoPromises)).filter(v => v !== null);
+      const videos = querySnapshot.docs
+        .map(doc => this._transformAscentToVideo(doc))
+        .filter(v => v !== null);
 
       return videos;
     } catch (error) {
