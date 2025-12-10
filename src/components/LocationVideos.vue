@@ -86,12 +86,12 @@
           <div 
             v-else
             class="w-full h-full relative cursor-pointer"
-            @click="$emit('video-click', index)"
+            @click="openVideoPlayer(index)"
             :aria-label="`Play beta video ${index + 1}`"
             role="button"
             tabindex="0"
-            @keydown.enter="$emit('video-click', index)"
-            @keydown.space.prevent="$emit('video-click', index)"
+            @keydown.enter="openVideoPlayer(index)"
+            @keydown.space.prevent="openVideoPlayer(index)"
           >
             <video
               :src="video.downloadUrl"
@@ -168,15 +168,27 @@
         </div>
       </div>
     </div>
+
+    <!-- Video Player Shorts -->
+    <VideoPlayerShorts
+      v-if="route.query.videoId"
+      :get-videos="getPlayerVideos"
+      title="Beta Videos"
+      @close="closeVideoPlayer"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { videoService } from '@/services/videoService';
 import { getCurrentUser } from '@/services/authService';
 import { useUserStore } from '@/stores/userStore';
+import VideoPlayerShorts from './VideoPlayerShorts.vue';
 
+const route = useRoute();
+const router = useRouter();
 const userStore = useUserStore();
 
 const props = defineProps({
@@ -191,13 +203,12 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['video-click', 'video-deleted']);
+const emit = defineEmits(['video-deleted']);
 
 const showDeleteConfirm = ref(false);
 const videoToDelete = ref(null);
 const deleting = ref(false);
 const isDeletingAll = ref(false);
-const showDeleteAllConfirm = ref(false);
 
 // Default poster image (gray placeholder with play icon)
 const defaultPoster = 'data:image/svg+xml;base64,' + btoa(`
@@ -308,5 +319,32 @@ const deleteAllVideos = async () => {
   } finally {
     isDeletingAll.value = false;
   }
+};
+
+// Video player methods
+const openVideoPlayer = (index) => {
+  const video = props.videos[index];
+  if (video && !video.isUploading) {
+    // Add videoId to URL to open the player
+    router.push({
+      query: {
+        ...route.query,
+        videoId: video.id,
+      },
+    });
+  }
+};
+
+const closeVideoPlayer = () => {
+  // Remove videoId from URL to close the player
+  const query = { ...route.query };
+  delete query.videoId;
+  router.push({ query });
+};
+
+// Function to provide videos to VideoPlayerShorts
+const getPlayerVideos = async () => {
+  // Filter out uploading videos and return only completed ones
+  return props.videos.filter(video => !video.isUploading);
 };
 </script>

@@ -111,20 +111,12 @@
             v-if="userStore.isLoggedIn"
             :videos="allVideos" 
             :loading="videosLoading"
-            @video-click="openVideoGallery"
             @video-deleted="handleVideoDeleted"
           />
         </div>
       </div>
     </div>
 
-    <!-- Video Gallery Modal -->
-    <VideoGallery
-      :videos="allVideos"
-      :initial-index="videoGalleryIndex"
-      :is-open="isVideoGalleryOpen"
-      @close="closeVideoGallery"
-    />
   </div>
 </template>
 
@@ -139,7 +131,6 @@ import { locationService } from '@/services/locationService';
 import { videoService } from '@/services/videoService';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
 import LocationVideos from '@/components/LocationVideos.vue';
-import VideoGallery from '@/components/VideoGallery.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -152,20 +143,10 @@ const loading = ref(true);
 const error = ref(null);
 const problem = ref(null);
 const image = ref(null);
-const isVideoGalleryOpen = ref(false);
-const videoGalleryIndex = ref(0);
 const betaVideos = ref([]);
 const videosLoading = ref(false);
 
-// Video gallery handlers
-const openVideoGallery = (index = 0) => {
-  videoGalleryIndex.value = index;
-  isVideoGalleryOpen.value = true;
-};
 
-const closeVideoGallery = () => {
-  isVideoGalleryOpen.value = false;
-};
 
 // Combine uploaded videos with actively uploading ones
 const allVideos = computed(() => {
