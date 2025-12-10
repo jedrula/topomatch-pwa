@@ -1,13 +1,12 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 bg-black z-[10000] flex flex-col">
+  <div class="fixed inset-0 bg-black z-[10000] flex flex-col">
     <!-- Header with close button and info -->
     <div class="absolute top-0 left-0 right-0 z-[100] bg-gradient-to-b from-black/80 to-transparent p-4">
       <div class="flex items-center justify-between text-white">
         <div class="flex-1">
-          <h3 class="font-semibold text-lg">{{ problem?.name || 'Boulder Videos' }}</h3>
+          <h3 class="font-semibold text-lg">{{ title }}</h3>
           <p class="text-sm text-gray-300">
-            <span v-if="videosLoading">Loading videos...</span>
-            <span v-else>{{ currentVideoIndex + 1 }} of {{ videos.length }}</span>
+            {{ currentVideoIndex + 1 }} of {{ videos.length }}
           </p>
         </div>
         <div class="flex items-center space-x-2">
@@ -92,7 +91,7 @@
     >
       <!-- Loading state -->
       <div 
-        v-if="videosLoading"
+        v-if="loading"
         class="w-full h-full flex items-center justify-center text-white"
       >
         <div class="text-center">
@@ -236,44 +235,40 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { videoService } from '@/services/videoService.js';
-import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import VideoMetadata from './VideoMetadata.vue';
 
 const route = useRoute();
 const router = useRouter();
-const boulderProblemsStore = useBoulderProblemsStore();
 
 const props = defineProps({
-  problemId: {
+  getVideos: {
+    type: Function,
+    required: true
+  },
+  videoId: {
     type: String,
     default: null
   },
-  locationId: {
+  title: {
+    type: String,
+    default: 'Videos'
+  },
+  initialVideoId: {
     type: String,
     default: null
-  },
+  }
 });
 
 const emit = defineEmits(['close']);
 
-// Computed
-const isOpen = computed(() => !!props.problemId);
-
-// Get problem object from store
-const problem = computed(() => {
-  if (!props.problemId) return null;
-  return boulderProblemsStore.boulderProblems.find(p => p.id === props.problemId) || null;
-});
-
 // Refs
+const videos = ref([]);
+const loading = ref(false);
 const videoContainer = ref(null);
 const videoElements = ref({});
 const isMuted = ref(true); // Start muted by default
 const videoProgress = ref({});
 const isPlaying = ref({});
-const videos = ref([]);
-const videosLoading = ref(false);
 
 // Computed current video index based on videoId from URL
 const currentVideoIndex = computed(() => {
@@ -293,46 +288,6 @@ const setCurrentVideoId = (videoId) => {
     }
   });
 };
-
-// Watch for problemId changes and load videos
-watch(
-  () => [props.problemId, props.locationId],
-  async ([newProblemId, newLocationId]) => {
-    if (newProblemId && newLocationId) {
-      try {
-        videosLoading.value = true;
-        videos.value = await videoService.getProblemVideos(newLocationId, newProblemId);
-        videosLoading.value = false;
-        
-        // Set the first video ID in URL if not already set or if current videoId is invalid
-        await nextTick();
-        if (videos.value.length > 0 && isOpen.value) {
-          const currentVideoId = route.query.videoId;
-          const isValidVideoId = currentVideoId && videos.value.some(v => v.id === currentVideoId);
-          
-          if (!isValidVideoId) {
-            // Set first video as current
-            setCurrentVideoId(videos.value[0].id);
-          }
-          
-          // Scroll to and play the current video
-          await nextTick();
-          scrollToVideo(currentVideoIndex.value);
-          await nextTick();
-          playCurrentVideo();
-        }
-      } catch (error) {
-        console.error('Error loading problem videos:', error);
-        videos.value = [];
-        videosLoading.value = false;
-      }
-    } else {
-      videos.value = [];
-      videosLoading.value = false;
-    }
-  },
-  { immediate: true }
-);
 
 // Update progress for all videos
 const updateVideoProgress = () => {
@@ -389,15 +344,37 @@ const handleScroll = () => {
       const newVideo = videos.value[newIndex];
       if (newVideo && newVideo.id) {
         setCurrentVideoId(newVideo.id);
+        nextTick(() => {
+          pauseOtherVideos(newIndex);
+          const video = videoElements.value[newIndex];
+          if (video && video.paused) {
+            video.muted = isMuted.value;
+            video.play().catch(err => console.log('Autoplay failed:', err));
+            startProgressTracking();
+          }
+        });
       }
     }
   }, 100);
+};
+
+// Pause all videos except the current one
+const pauseOtherVideos = (currentIndex) => {
+  Object.entries(videoElements.value).forEach(([index, video]) => {
+    const videoIndex = parseInt(index);
+    if (video && videoIndex !== currentIndex && !video.paused) {
+      video.pause();
+      video.currentTime = 0; // Reset to beginning
+    }
+  });
 };
 
 // Scroll to specific video
 const scrollToVideo = (index) => {
   const container = videoContainer.value;
   if (!container) return;
+  
+  pauseOtherVideos(index);
   
   const targetScrollTop = index * container.clientHeight;
   container.scrollTo({
@@ -441,6 +418,7 @@ const nextVideo = () => {
       setCurrentVideoId(newVideo.id);
       nextTick(() => {
         scrollToVideo(newIndex);
+        nextTick(() => playCurrentVideo());
       });
     }
   }
@@ -454,6 +432,7 @@ const previousVideo = () => {
       setCurrentVideoId(newVideo.id);
       nextTick(() => {
         scrollToVideo(newIndex);
+        nextTick(() => playCurrentVideo());
       });
     }
   }
@@ -467,11 +446,14 @@ const pauseCurrentVideo = () => {
   }
 };
 
-const playCurrentVideo = async () => {
+const playCurrentVideo = async (resetTime = true) => {
   const currentVideo = videoElements.value[currentVideoIndex.value];
+  console.log('Playing video at index:', currentVideoIndex.value);
   if (currentVideo) {
     try {
-      currentVideo.currentTime = 0; // Reset to beginning
+      if (resetTime) {
+        currentVideo.currentTime = 0; // Reset to beginning
+      }
       currentVideo.muted = isMuted.value;
       await currentVideo.play();
       startProgressTracking();
@@ -491,8 +473,6 @@ const onVideoEnded = () => {
 
 // Keyboard navigation
 const handleKeyDown = (event) => {
-  if (!isOpen.value) return;
-  
   switch (event.key) {
     case 'ArrowUp':
       event.preventDefault();
@@ -608,53 +588,59 @@ const handleProgressBarClick = (event) => {
   
 };
 
-// Watchers
-watch(isOpen, (newIsOpen) => {
-  if (newIsOpen) {
-    // When opening, video loading watcher will handle initial setup
-  } else {
-    pauseCurrentVideo();
-    stopProgressTracking();
+// Load videos using getVideos function
+const loadVideos = async () => {
+  try {
+    loading.value = true;
+    videos.value = await props.getVideos(props.videoId);
+  } catch (error) {
+    console.error('Error loading videos:', error);
+    videos.value = [];
+  } finally {
+    loading.value = false;
   }
-});
+};
 
-// Watch for videoId changes in URL to handle video switching
-watch(
-  () => route.query.videoId,
-  (newVideoId, oldVideoId) => {
-    if (newVideoId && newVideoId !== oldVideoId && videos.value.length > 0) {
-      pauseCurrentVideo();
-      nextTick(() => {
-        scrollToVideo(currentVideoIndex.value);
-        nextTick(() => {
-          playCurrentVideo();
-        });
-      });
-    }
-  }
-);
 
-watch(currentVideoIndex, (newIndex) => {
+// Initialize player when opened
+const initializePlayer = async () => {
+  if (videos.value.length === 0) return;
   
-  // Pause all videos except current one
-  Object.entries(videoElements.value).forEach(([index, video]) => {
-    const videoIndex = parseInt(index);
-    if (video && videoIndex !== newIndex) {
-      if (!video.paused) {
-        video.pause();
-      }
-    }
-  });
-});
+  await nextTick();
+  const currentVideoId = route.query.videoId || props.initialVideoId;
+  const isValidVideoId = currentVideoId && videos.value.some(v => v.id === currentVideoId);
+  
+  if (!isValidVideoId && videos.value.length > 0) {
+    // Set first video as current
+    setCurrentVideoId(videos.value[0].id);
+    await nextTick();
+    scrollToVideo(currentVideoIndex.value);
+    await nextTick();
+    playCurrentVideo();
+  }
+  else if (isValidVideoId) {
+    await nextTick();
+    scrollToVideo(currentVideoIndex.value);
+    await nextTick();
+    playCurrentVideo();
+  }
+};
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('keydown', handleKeyDown);
+  await loadVideos();
+  await initializePlayer();
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown);
   stopProgressTracking();
+});
+
+// Expose initializePlayer so parent can call it when videos load
+defineExpose({
+  initializePlayer
 });
 </script>
 

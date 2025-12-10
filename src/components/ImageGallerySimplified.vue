@@ -168,8 +168,10 @@
 
     <!-- Video Player Shorts -->
     <VideoPlayerShorts
-      :problem-id="route.query.showVideosForProblem"
-      :location-id="locationId"
+      v-if="route.query.showVideosForProblem"
+      :get-videos="getVideosForProblem"
+      :video-id="route.query.showVideosForProblem"
+      :title="problemVideosTitle"
       @close="handleVideoPlayerClose"
     />
   </div>
@@ -186,6 +188,7 @@ import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
 import { getOptimalImageUrl } from '@/utils/imageResize.js';
 import { boulderProblemsServiceV2 } from '@/services/boulderProblemsServiceV2.js';
+import { videoService } from '@/services/videoService.js';
 
 const props = defineProps({
   images: {
@@ -215,6 +218,14 @@ const emit = defineEmits(['close', 'navigate', 'navigate-next', 'navigate-previo
 const route = useRoute();
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
+
+// Video player state
+const problemVideosTitle = computed(() => {
+  const problemId = route.query.showVideosForProblem;
+  if (!problemId) return 'Videos';
+  const problem = boulderProblemsStore.boulderProblems.find(p => p.id === problemId);
+  return problem?.name || 'Boulder Videos';
+});
 
 // Touch/swipe handling
 const touchStartX = ref(0);
@@ -440,6 +451,11 @@ const handleFloatingCardShowVideos = (problemId) => {
       showVideosForProblem: problemId,
     },
   });
+};
+
+// Create getVideos function for VideoPlayerShorts
+const getVideosForProblem = async (problemId) => {
+  return videoService.getProblemVideos(props.locationId, problemId);
 };
 
 // Video player event handlers
