@@ -218,6 +218,7 @@ const loadBetaVideos = async () => {
       id: video.videoId,
       name: video.uploadedBy || 'Unknown User',
       downloadUrl: video.downloadUrl, // Fixed: was video.url
+      thumbnailBase64: video.thumbnailBase64, // Include thumbnail for poster
       uploadedBy: video.uploadedBy,
       uploadedAt: video.uploadedAt, // Fixed: was video.createdAt
       userId: video.userId, // Important for delete permissions

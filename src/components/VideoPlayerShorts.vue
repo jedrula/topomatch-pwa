@@ -176,7 +176,7 @@
           </div>
           
           <!-- Video metadata overlay -->
-          <div class="absolute bottom-20 right-4 max-w-xs pointer-events-none">
+          <div class="absolute bottom-20 right-4 max-w-xs pointer-events-auto z-[70]">
             <VideoMetadata :video="video" />
           </div>
         </div>
