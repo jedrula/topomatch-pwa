@@ -219,6 +219,7 @@
           :feature-matches="homographyDebugData.featureMatches"
           :homography-inliers="homographyDebugData.homographyInliers"
           :best-match-image="homographyDebugData.bestMatchImage"
+          :localized-transforms="homographyDebugData.localizedTransforms"
         />
       </div>
 
@@ -336,8 +337,10 @@ watch(
     
     // Once matching completes, we have homography matrix and matched image
     if (job.homographyMatrix && job.matchedImageId && extractedFrames.value.length > 0) {
-      // Find the best frame (first one with pose data, or just first frame)
-      const bestFrame = extractedFrames.value.find(f => f.poseData) || extractedFrames.value[0];
+      // Use the SAME best frame that was selected during analysis
+      const bestFrame = job.bestFrameIndex !== undefined 
+        ? extractedFrames.value[job.bestFrameIndex]
+        : (extractedFrames.value.find(f => f.poseData) || extractedFrames.value[0]);
       
       // Find the matched image from comparisonImages
       const matchedImage = props.comparisonImages.find(img => img.imageId === job.matchedImageId);
@@ -367,6 +370,7 @@ watch(
           bestMatchImage: matchedImage,
           videoFrameData: bestFrame.imageData,
           serverHomographyQuality: job.serverHomographyQuality,
+          localizedTransforms: job.localizedTransforms || [],
         };
       }
     }

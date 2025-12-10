@@ -639,14 +639,14 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
             inlierRatio: serverResult.inlier_ratio,
             quality: serverResult.matchQuality
           };
-          
-          // Store localized transforms if received
-          if (serverResult.localized_transforms && serverResult.localized_transforms.length > 0) {
-            job.localizedTransforms = serverResult.localized_transforms;
-            console.log(`   🎯 Stored ${serverResult.localized_transforms.length} localized transformations`);
-          }
+      
         } else {
           console.warn(`⚠️ Server response missing homography_matrix, falling back to frontend`);
+        }
+        // Store localized transforms if received
+        if (serverResult.localized_transforms && serverResult.localized_transforms.length > 0) {
+          job.localizedTransforms = serverResult.localized_transforms;
+          console.log(`   🎯 Stored ${serverResult.localized_transforms.length} localized transformations`);
         }
       } catch (err) {
         console.warn(`⚠️ Server homography failed: ${err.message}, falling back to frontend`);
@@ -864,18 +864,18 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     if (job.localizedTransforms && job.localizedTransforms.length > 0) {
       console.log(`   🎯 Using localized transformations for ${job.localizedTransforms.length} keypoints`);
       
-      // Map keypoint types to localized transform IDs
-      const typeToId = {
-        'leftHand': 'left_wrist',
-        'rightHand': 'right_wrist',
-        'leftFoot': 'left_ankle',
-        'rightFoot': 'right_ankle'
+      // Map keypoint types to localized transform names
+      const typeToName = {
+        'leftHand': 'Left Wrist',
+        'rightHand': 'Right Wrist',
+        'leftFoot': 'Left Ankle',
+        'rightFoot': 'Right Ankle'
       };
       
       // Use localized transform for each keypoint
       for (const kp of videoKeypoints) {
-        const transformId = typeToId[kp.type];
-        const localizedTransform = job.localizedTransforms.find(t => t.id === transformId);
+        const transformName = typeToName[kp.type];
+        const localizedTransform = job.localizedTransforms.find(t => t.name === transformName);
         
         if (localizedTransform) {
           // Use the pre-transformed target point from server
@@ -898,7 +898,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     } else {
       // Use global homography (legacy path)
       const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
-      const homographySource = job.serverHomographyMatrix ? 'LoFTR (server)' : 'SuperPoint (frontend)';
+      const homographySource = job.serverHomographyMatrix ? '(server homography)' : 'SuperPoint (frontend)';
       
       console.log(`   🔄 Using ${homographySource} global homography for transformation`);
       if (job.serverHomographyQuality) {
@@ -929,6 +929,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     
     transformedFrames.push({
       ...bestFrame,
+      frameIndex: job.bestFrameIndex, // Preserve original frame number for logging
       originalPoints,
       transformedPoints,
       poseData: {

@@ -544,6 +544,113 @@
         </div>
       </div>
     </div>
+
+    <!-- Localized Transforms Visualization -->
+    <div v-if="localizedTransforms && localizedTransforms.length > 0" class="mt-6 border-t pt-6">
+      <div class="mb-4">
+        <h6 class="text-sm font-medium text-gray-700 mb-2">Localized Transforms Target Points</h6>
+        <p class="text-xs text-gray-600 mb-3">
+          Showing {{ localizedTransforms.length }} transformed keypoint(s) on the location image using localized homography.
+        </p>
+      </div>
+
+      <div class="relative inline-block border-2 border-purple-300 rounded">
+        <img
+          ref="localizedTransformsImage"
+          :src="targetImageUrl"
+          alt="Localized transforms"
+          class="max-w-full max-h-[600px] object-contain"
+          crossorigin="anonymous"
+          @load="onLocalizedTransformsImageLoad"
+        />
+        <!-- Localized transform points overlay -->
+        <svg
+          v-if="localizedTransformsImageDimensions.width > 0"
+          class="absolute inset-0 pointer-events-none"
+          :width="localizedTransformsImageDimensions.width"
+          :height="localizedTransformsImageDimensions.height"
+          :viewBox="`0 0 ${localizedTransformsImageDimensions.naturalWidth} ${localizedTransformsImageDimensions.naturalHeight}`"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <g v-for="(transform, index) in localizedTransforms" :key="`localized-${index}`">
+            <!-- Point marker -->
+            <circle
+              :cx="transform.target_point.x"
+              :cy="transform.target_point.y"
+              r="10"
+              :fill="getLimbColor(transform.name)"
+              stroke="white"
+              stroke-width="3"
+              opacity="0.9"
+            />
+            <!-- Label with limb name -->
+            <text
+              :x="transform.target_point.x + 15"
+              :y="transform.target_point.y + 5"
+              font-size="14"
+              :fill="getLimbColor(transform.name)"
+              font-weight="bold"
+              stroke="white"
+              stroke-width="1"
+            >{{ transform.name }}</text>
+            <!-- Confidence badge -->
+            <text
+              :x="transform.target_point.x + 15"
+              :y="transform.target_point.y + 20"
+              font-size="11"
+              fill="#6b7280"
+              stroke="white"
+              stroke-width="0.5"
+            >{{ (transform.confidence * 100).toFixed(0) }}% ({{ transform.inlier_count }}/{{ transform.total_matches }})</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Localized Transforms Details Table -->
+      <div class="mt-4">
+        <h6 class="text-xs font-medium text-gray-700 mb-2">Transform Details</h6>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs bg-white border border-gray-200 rounded">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-3 py-2 text-left font-medium text-gray-500">Limb</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-500">Source (x, y)</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-500">Target (x, y)</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-500">Method</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-500">Confidence</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-500">Matches</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr v-for="(transform, index) in localizedTransforms" :key="index" class="hover:bg-gray-50">
+                <td class="px-3 py-2 font-medium" :style="{ color: getLimbColor(transform.name) }">
+                  {{ transform.name }}
+                </td>
+                <td class="px-3 py-2 text-gray-600 font-mono text-xs">
+                  ({{ Math.round(transform.source_point.x) }}, {{ Math.round(transform.source_point.y) }})
+                </td>
+                <td class="px-3 py-2 text-gray-600 font-mono text-xs">
+                  ({{ Math.round(transform.target_point.x) }}, {{ Math.round(transform.target_point.y) }})
+                </td>
+                <td class="px-3 py-2 text-gray-500 font-mono text-xs">
+                  {{ transform.method }}
+                </td>
+                <td class="px-3 py-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                    :class="getConfidenceClass(transform.confidence)">
+                    {{ (transform.confidence * 100).toFixed(1) }}%
+                  </span>
+                </td>
+                <td class="px-3 py-2 text-gray-600">
+                  <span class="font-medium text-green-600">{{ transform.inlier_count }}</span>
+                  <span class="text-gray-400">/{{ transform.total_matches }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -600,6 +707,10 @@ const props = defineProps({
   bestMatchImage: {
     type: Object,
     default: () => null
+  },
+  localizedTransforms: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -620,6 +731,10 @@ const debugSourceImage = ref(null)
 const debugTargetImage = ref(null)
 const debugSourceImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
 const debugTargetImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
+
+// Localized transforms visualization
+const localizedTransformsImage = ref(null)
+const localizedTransformsImageDimensions = ref({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 })
 
 // Image load handlers
 const onSourceImageLoad = () => {
@@ -663,6 +778,17 @@ const onDebugTargetImageLoad = () => {
       height: debugTargetImage.value.clientHeight,
       naturalWidth: debugTargetImage.value.naturalWidth,
       naturalHeight: debugTargetImage.value.naturalHeight
+    }
+  }
+}
+
+const onLocalizedTransformsImageLoad = () => {
+  if (localizedTransformsImage.value) {
+    localizedTransformsImageDimensions.value = {
+      width: localizedTransformsImage.value.clientWidth,
+      height: localizedTransformsImage.value.clientHeight,
+      naturalWidth: localizedTransformsImage.value.naturalWidth,
+      naturalHeight: localizedTransformsImage.value.naturalHeight
     }
   }
 }
@@ -887,6 +1013,23 @@ const removeTestPoint = (index) => {
 
 const clearTestPoints = () => {
   testPoints.value = []
+}
+
+// Helper functions for localized transforms visualization
+const getLimbColor = (limbName) => {
+  const colorMap = {
+    'Left Wrist': '#3b82f6',   // blue
+    'Right Wrist': '#8b5cf6',  // purple
+    'Left Ankle': '#10b981',   // green
+    'Right Ankle': '#f59e0b'   // amber
+  }
+  return colorMap[limbName] || '#6b7280' // default gray
+}
+
+const getConfidenceClass = (confidence) => {
+  if (confidence >= 0.7) return 'bg-green-100 text-green-800'
+  if (confidence >= 0.4) return 'bg-yellow-100 text-yellow-800'
+  return 'bg-red-100 text-red-800'
 }
 
 // Wrapper functions that call the composable with component-specific data

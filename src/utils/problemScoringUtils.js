@@ -35,7 +35,9 @@ export function calculateProblemScores(transformedFrames, getKeypointRowsForFram
   // Process all frames and keypoints
   transformedFrames.forEach((frame, frameIndex) => {
     const keypointRows = getKeypointRowsForFrame(frame);
-    console.log(`\n📊 Frame ${frameIndex + 1}: ${keypointRows.length} keypoints`);
+    // Use frame.frameIndex if available (actual frame number), otherwise fall back to array index
+    const displayFrameNumber = frame.frameIndex !== undefined ? frame.frameIndex + 1 : frameIndex + 1;
+    console.log(`\n📊 Frame ${displayFrameNumber}: ${keypointRows.length} keypoints`);
     
     keypointRows.forEach(keypoint => {
       // 🎯 ONE SCORE PER KEYPOINT PER PROBLEM: Only count the closest hold for each problem
