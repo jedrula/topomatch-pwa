@@ -126,6 +126,7 @@
           <video
             :ref="el => videoElements[index] = el"
             :src="video.downloadUrl"
+            :poster="video.thumbnailBase64"
             :controls="false"
             :muted="false"
             class="w-full h-full object-contain"
@@ -133,7 +134,7 @@
             @loadedmetadata="handleVideoLoaded(index)"
             @ended="onVideoEnded"
             playsinline
-            preload="none"
+            preload="metadata"
             crossorigin="anonymous"
           />
           
