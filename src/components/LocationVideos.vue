@@ -71,7 +71,9 @@
               <svg class="w-12 h-12 text-blue-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
               </svg>
-              <p class="text-sm font-medium text-gray-700 mb-2">Uploading Video...</p>
+              <p class="text-sm font-medium text-gray-700 mb-2">
+                {{ video.statusMessage || (video.isAnalyzing ? 'Processing video...' : 'Uploading video...') }}
+              </p>
               <div class="w-full max-w-[200px] bg-gray-300 rounded-full h-2 overflow-hidden">
                 <div 
                   class="bg-blue-500 h-full transition-all duration-300"

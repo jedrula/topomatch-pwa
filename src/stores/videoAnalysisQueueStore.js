@@ -29,6 +29,36 @@ import { matchImagesOnServer } from '../services/imageMatchingService.js';
  * - Step 4: Score problems (transform poses, calculate matches)
  * - Step 5: Update Firestore ascent record
  */
+
+// 📊 PROGRESS STEPS: Define progress ranges for each pipeline step
+// Each step contains: start, end, and message
+const PROGRESS_STEPS = [
+  { name: 'POSE', start: 0, end: 30, message: 'Detecting pose...' },
+  { name: 'MATCHING', start: 30, end: 70, message: 'Matching to location...' },  // Longest step
+  { name: 'HOLDS', start: 70, end: 80, message: 'Loading holds...' },
+  { name: 'SCORING', start: 80, end: 95, message: 'Scoring problems...' },
+  { name: 'FIRESTORE', start: 95, end: 100, message: 'Saving results...' },
+];
+
+// Build lookup object for convenience (e.g., PROGRESS.POSE.start)
+const PROGRESS = PROGRESS_STEPS.reduce((acc, step) => {
+  acc[step.name] = step;
+  return acc;
+}, { COMPLETE: 100 });
+
+// Helper to calculate range for progress interpolation
+const range = (step) => step.end - step.start;
+
+// Helper to get current step for a given progress value
+const getCurrentStep = (progress) => {
+  for (let i = PROGRESS_STEPS.length - 1; i >= 0; i--) {
+    if (progress >= PROGRESS_STEPS[i].start) {
+      return PROGRESS_STEPS[i];
+    }
+  }
+  return { message: 'Starting analysis...', start: 0, end: 0 };
+};
+
 export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () => {
   // 🐛 DEBUG MODE: Set VITE_DEBUG_KEEP_JOBS=true to keep completed jobs in memory for debugging
   // WARNING: This will cause memory leaks (~80MB per job) - only use for development!
@@ -118,7 +148,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         boulderProblems: plainBoulderProblems,     // For scoring (Step 4)
         
         status: 'queued',
-        progress: 10,  // Start at 10% (upload complete, frame extraction done)
+        progress: PROGRESS.START,  // Start at 10% (upload complete, frame extraction done)
         
         extractedFrames: [],
         matchedImageId: null,    // Set by Step 2
@@ -198,7 +228,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
 
       // Complete!
       job.status = 'complete';
-      job.progress = 100;
+      job.progress = PROGRESS.COMPLETE;
       job.completedAt = Date.now();
 
       console.log(`\n╔════════════════════════════════════════════════════════════╗`);
@@ -362,10 +392,10 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         frame.poseError = `Detection failed: ${err.message}`;
       }
 
-      // Update progress (10-25%)
+      // Update progress (pose detection range)
       const newProgress = job.extractedFrames.length > 0 
-        ? 10 + Math.round((i / job.extractedFrames.length) * 15)
-        : 10;
+        ? PROGRESS.POSE.start + Math.round((i / job.extractedFrames.length) * range(PROGRESS.POSE))
+        : PROGRESS.POSE.start;
       console.log(`[PROGRESS] 🤸 [ANALYSIS] Pose detection frame ${i + 1}/${job.extractedFrames.length}: ${newProgress}%`);
       job.progress = newProgress;
 
@@ -462,8 +492,8 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`   Images: ${job.comparisonImages.length}`);
     
     job.status = 'matching';
-    job.progress = 25;
-    console.log(`[PROGRESS] 🖼️ [ANALYSIS] Step 2: Matching video frame to location image (progress: 25%)...`);
+    job.progress = PROGRESS.MATCHING.start;
+    console.log(`[PROGRESS] 🖼️ [ANALYSIS] Step 2: Matching video frame to location image (progress: ${PROGRESS.MATCHING.start}%)...`);
     
     // Extract image URLs from comparison images
     const imageUrls = job.comparisonImages.map(img => img.url).filter(Boolean);
@@ -504,10 +534,10 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         imageUrls,
         resolve,  // onComplete callback
         (currentIndex, totalImages) => {
-          // Image matching takes longest: 15% → 70% (55% of total)
+          // Image matching takes longest: uses PROGRESS.MATCHING.start → PROGRESS.MATCHING.end
           // progressCallback receives (currentIndex, totalImages), convert to 0-1 range
           const progressRatio = totalImages > 0 ? currentIndex / totalImages : 0;
-          job.progress = 15 + Math.round(progressRatio * 55);
+          job.progress = PROGRESS.MATCHING.start + Math.round(progressRatio * range(PROGRESS.MATCHING));
         }
       );
     });
@@ -707,7 +737,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     job.featureMatches = matches;  // Store for debugging/visualization
     job.homographyInliers = homographyResult.inliers;  // Number of inlier matches
     job.matchedImageDimensions = topoImageDims; // Store the actual location image dimensions
-    job.progress = 70;  // Image matching complete (70%)
+    job.progress = PROGRESS.MATCHING.end;  // Image matching complete
   };
 
   /**
@@ -725,7 +755,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     }
     
     job.status = 'loading-holds';
-    job.progress = 70;
+    job.progress = PROGRESS.HOLDS.start;
     
     // Load FULL hold detection document (not just holds array)
     // We need the full structure with metadata for findClosestHolds
@@ -777,7 +807,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       console.warn(`   ⚠ No holds found for image ${job.matchedImageId}`);
     }
     
-    job.progress = 80;  // Hold loading complete (80%)
+    job.progress = PROGRESS.HOLDS.end;  // Hold loading complete
   };
 
   /**
@@ -787,7 +817,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`\n🎯 Starting problem scoring...`);
     
     job.status = 'scoring';
-    job.progress = 80;
+    job.progress = PROGRESS.SCORING.start;
     
     if (!job.homographyMatrix) {
       throw new Error('No homography matrix - cannot transform coordinates');
@@ -821,7 +851,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     if (matchedImageProblems.length === 0) {
       console.warn(`   ⚠️ No problems found on matched image ${job.matchedImageId}`);
       job.scores = [];
-      job.progress = 95;
+      job.progress = PROGRESS.SCORING.end;
       return;
     }
     
@@ -1038,7 +1068,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         job.detectedProblemId = mappedScores[0].id;
       }
     }
-    job.progress = 95;  // Scoring complete (95%)
+    job.progress = PROGRESS.SCORING.end;  // Scoring complete
   };
 
   /**
@@ -1091,7 +1121,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         console.log(`   No confident problem match (score < 50%)`);
       }
 
-      job.progress = 100;
+      job.progress = PROGRESS.COMPLETE;
 
     } catch (error) {
       console.error('❌ Failed to update ascent with analysis results:', error);
@@ -1256,5 +1286,12 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     cancelJob,      // Cancel job
     clearAll,       // Clear all jobs (testing)
     onJobComplete,  // Register completion callback (returns unregister function)
+    
+    // Export progress steps and helpers for UI components
+    PROGRESS_STEPS,
+    getCurrentStep,
   };
 });
+
+// Export progress steps and helpers for external use
+export { PROGRESS_STEPS, getCurrentStep };

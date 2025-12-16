@@ -217,7 +217,8 @@ import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
 import { generateUUID } from '../utils/uuid.js';
-import { useVideoAnalysisQueueStore } from '../stores/videoAnalysisQueueStore.js';
+import { useVideoAnalysisQueueStore, getCurrentStep } from '../stores/videoAnalysisQueueStore.js';
+import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
 import { videoService } from '../services/videoService.js';
 import { fixLocalhostUrl } from '../services/storageUtils.js';
 import { getResizedImageUrl } from '../utils/imageResize.js';
@@ -227,6 +228,7 @@ const router = useRouter();
 const userStore = useUserStore();
 const boulderProblemsStore = useBoulderProblemsStore();
 const analysisStore = useVideoAnalysisQueueStore();
+const uploadQueue = useVideoUploadQueueStore();
 const toast = useToast();
 
 // Video analysis composable
@@ -262,22 +264,54 @@ const totalUploadsExpected = ref(0);
 
 const locationId = computed(() => route.params.locationId);
 
-// Merge active analysis jobs with loaded videos
+// Separate display for uploads (0-100% file upload) and analysis (0-100% processing)
 const displayVideos = computed(() => {
-  // Get active jobs for this location (not complete)
+  // 1. Get ANALYSIS progress first (to filter uploads)
   const activeJobs = analysisStore.getActiveJobsForLocation(locationId.value);
+  const analyzingAscentIds = new Set(activeJobs.map(job => job.ascentId));
   
-  // Convert active jobs to placeholder video objects
-  // Note: We're showing ANALYSIS progress here (pose detection, matching, scoring)
-  // Upload progress is separate and completes before analysis starts
-  const uploadingVideos = activeJobs.map(job => {
+  // 2. Get UPLOAD progress (exclude if already analyzing)
+  const allUploads = uploadQueue.uploads;
+  const locationUploads = Object.values(allUploads).filter(
+    upload => upload.locationId === locationId.value
+  );
+  
+  const uploadingVideos = locationUploads
+    .filter(upload => 
+      (upload.status === 'uploading' || upload.status === 'pending') &&
+      !analyzingAscentIds.has(upload.ascentId)  // ✅ Exclude if already analyzing
+    )
+    .map(upload => ({
+      id: upload.ascentId,
+      ascentId: upload.ascentId,
+      isUploading: true,
+      isAnalyzing: false,  // This is UPLOAD only
+      progress: upload.progress || 0,
+      status: upload.status,
+      statusMessage: 'Uploading video...',
+      metadata: {
+        duration: null,
+        problemName: null
+      }
+    }));
+  
+  // 3. Get ANALYSIS progress (separate from upload)
+  // Progress breakdown for ANALYSIS (runs parallel to upload):
+  // Uses PROGRESS constants from store to avoid magic numbers
+  const analyzingVideos = activeJobs.map(job => {
     console.log(`[PROGRESS] 📊 [UI] Displaying job ${job.ascentId}: analysis=${job.progress}%, status=${job.status}`);
+    
+    // Get current step object (contains message, start, end)
+    const currentStep = getCurrentStep(job.progress || 0);
+    
     return {
       id: job.ascentId,
       ascentId: job.ascentId,
-      isUploading: true,
+      isUploading: true,  // Still show as "in progress" visually
+      isAnalyzing: true,  // Flag to distinguish from uploads
       progress: job.progress || 0,
       status: job.status,
+      statusMessage: currentStep.message,
       metadata: {
         duration: null,
         problemName: null
@@ -285,16 +319,17 @@ const displayVideos = computed(() => {
     };
   });
   
-  // Get completed jobs that we should keep visible until video loads
+  // 3. Get completed jobs that we should keep visible until video loads
   const completedJobs = analysisStore.getCompletedJobsForLocation(locationId.value);
   
-  // Convert completed jobs to placeholder video objects (show as 100% complete)
   const completedPlaceholders = completedJobs.map(job => ({
     id: job.ascentId,
     ascentId: job.ascentId,
     isUploading: true,
+    isAnalyzing: true,
     progress: 100,
     status: 'complete',
+    statusMessage: 'Processing complete',
     metadata: {
       duration: null,
       problemName: job.detectedProblemId ? 
@@ -309,8 +344,9 @@ const displayVideos = computed(() => {
     }
   });
   
-  // Merge: uploading jobs first, then completed placeholders, then actual videos
-  return [...uploadingVideos, ...completedPlaceholders, ...videos.value];
+  // Merge: uploads first, then analysis jobs, then completed placeholders, then actual videos
+  // This way you see: "Uploading (25%)" → "Detecting pose (15%)" → "Matching (45%)" → Done
+  return [...uploadingVideos, ...analyzingVideos, ...completedPlaceholders, ...videos.value];
 });
 
 // Boulder problems summary grouped by grade

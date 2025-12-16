@@ -75,14 +75,50 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useVideoAnalysisQueueStore } from '../stores/videoAnalysisQueueStore.js';
+import { useVideoAnalysisQueueStore, getCurrentStep } from '../stores/videoAnalysisQueueStore.js';
+import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
 
 const router = useRouter();
 const analysisQueue = useVideoAnalysisQueueStore();
+const uploadQueue = useVideoUploadQueueStore();
 const showCompleted = ref(false);
 let completedTimeout = null;
+
+// Check if there's an active upload for this job
+const hasActiveUpload = computed(() => {
+  const job = analysisQueue.getActiveJob;
+  if (!job) return false;
+  
+  const upload = uploadQueue.uploads[job.ascentId];
+  return upload && (upload.status === 'uploading' || upload.status === 'pending');
+});
+
+// Get upload progress if available
+const getUploadProgress = computed(() => {
+  const job = analysisQueue.getActiveJob;
+  if (!job) return 0;
+  
+  const upload = uploadQueue.uploads[job.ascentId];
+  return upload?.progress || 0;
+});
+
+const getProgressText = () => {
+  const job = analysisQueue.getActiveJob;
+  if (!job) return 'Processing...';
+  
+  const progress = Math.round(job.progress || 0);
+  
+  // Show upload progress if still uploading
+  if (hasActiveUpload.value) {
+    return `Uploading video... ${Math.round(getUploadProgress.value)}%`;
+  }
+  
+  // Get current step object and show message with percentage
+  const currentStep = getCurrentStep(job.progress || 0);
+  return `${currentStep.message} ${progress}%`;
+};
 
 // Watch for analysis completion
 watch(
@@ -100,22 +136,6 @@ watch(
     }
   }
 );
-
-const getProgressText = () => {
-  const job = analysisQueue.getActiveJob;
-  if (!job) return 'Processing...';
-  
-  const progress = Math.round(job.progress || 0);
-  
-  if (job.status === 'processing') {
-    if (progress < 33) return 'Extracting frames...';
-    if (progress < 66) return 'Detecting poses...';
-    return 'Matching problems...';
-  }
-  if (job.status === 'matching') return 'Analyzing holds...';
-  
-  return `${progress}% complete`;
-};
 
 const handleClick = () => {
   // Navigate to location page if not already there
