@@ -270,56 +270,45 @@ const displayVideos = computed(() => {
   const activeJobs = analysisStore.getActiveJobsForLocation(locationId.value);
   const analyzingAscentIds = new Set(activeJobs.map(job => job.ascentId));
   
-  // 2. Get UPLOAD progress (exclude if already analyzing)
+  // 2. Get UPLOAD progress and create INSTANT video objects from local files
   const allUploads = uploadQueue.uploads;
   const locationUploads = Object.values(allUploads).filter(
     upload => upload.locationId === locationId.value
   );
   
+  // Create video objects from uploading files (show immediately with local blob URL!)
   const uploadingVideos = locationUploads
     .filter(upload => 
-      (upload.status === 'uploading' || upload.status === 'pending') &&
-      !analyzingAscentIds.has(upload.ascentId)  // ✅ Exclude if already analyzing
+      // Show video during upload AND after completion (until server video loads)
+      (upload.status === 'uploading' || upload.status === 'pending' || upload.status === 'completed')
     )
-    .map(upload => ({
-      id: upload.ascentId,
-      ascentId: upload.ascentId,
-      isUploading: true,
-      isAnalyzing: false,  // This is UPLOAD only
-      progress: upload.progress || 0,
-      status: upload.status,
-      statusMessage: 'Uploading video...',
-      metadata: {
-        duration: null,
-        problemName: null
-      }
-    }));
+    .map(upload => {
+      // Get current step for progress message
+      const currentStep = analyzingAscentIds.has(upload.ascentId)
+        ? getCurrentStep(activeJobs.find(j => j.ascentId === upload.ascentId)?.progress || 0)
+        : null;
+      
+      return {
+        id: upload.ascentId,
+        ascentId: upload.ascentId,
+        url: upload.localUrl,  // ✨ Reuse blob URL from upload queue!
+        isLocalVideo: true,  // Flag to know this is temporary
+        isUploading: true,
+        isAnalyzing: analyzingAscentIds.has(upload.ascentId),
+        progress: analyzingAscentIds.has(upload.ascentId) 
+          ? activeJobs.find(j => j.ascentId === upload.ascentId)?.progress || 0
+          : upload.progress || 0,
+        status: upload.status,
+        statusMessage: currentStep?.message || 'Uploading video...',
+        metadata: {
+          duration: null,
+          problemName: upload.problemId ? 
+            boulderProblemsStore.boulderProblems.find(p => p.id === upload.problemId)?.name : null
+        }
+      };
+    });
   
-  // 3. Get ANALYSIS progress (separate from upload)
-  // Progress breakdown for ANALYSIS (runs parallel to upload):
-  // Uses PROGRESS constants from store to avoid magic numbers
-  const analyzingVideos = activeJobs.map(job => {
-    console.log(`[PROGRESS] 📊 [UI] Displaying job ${job.ascentId}: analysis=${job.progress}%, status=${job.status}`);
-    
-    // Get current step object (contains message, start, end)
-    const currentStep = getCurrentStep(job.progress || 0);
-    
-    return {
-      id: job.ascentId,
-      ascentId: job.ascentId,
-      isUploading: true,  // Still show as "in progress" visually
-      isAnalyzing: true,  // Flag to distinguish from uploads
-      progress: job.progress || 0,
-      status: job.status,
-      statusMessage: currentStep.message,
-      metadata: {
-        duration: null,
-        problemName: null
-      }
-    };
-  });
-  
-  // 3. Get completed jobs that we should keep visible until video loads
+  // 3. Get completed jobs that we should keep visible until server video loads
   const completedJobs = analysisStore.getCompletedJobsForLocation(locationId.value);
   
   const completedPlaceholders = completedJobs.map(job => ({
@@ -344,9 +333,24 @@ const displayVideos = computed(() => {
     }
   });
   
-  // Merge: uploads first, then analysis jobs, then completed placeholders, then actual videos
-  // This way you see: "Uploading (25%)" → "Detecting pose (15%)" → "Matching (45%)" → Done
-  return [...uploadingVideos, ...analyzingVideos, ...completedPlaceholders, ...videos.value];
+  // Clean up completed uploads when server video arrives
+  const serverAscentIds = new Set(videos.value.map(v => v.ascentId).filter(Boolean));
+  locationUploads.forEach(upload => {
+    if (upload.status === 'completed' && serverAscentIds.has(upload.ascentId)) {
+      // Server video is here, remove the upload record
+      uploadQueue.cancelUpload(upload.ascentId);
+    }
+  });
+  
+  // Filter out server videos that are still uploading (show local version instead)
+  const uploadingAscentIds = new Set(locationUploads.map(u => u.ascentId));
+  const serverVideos = videos.value.filter(video => 
+    !uploadingAscentIds.has(video.ascentId) && !completedJobs.some(j => j.ascentId === video.ascentId)
+  );
+  
+  // Merge: uploading videos (with local URLs!) first, then completed placeholders, then server videos
+  // This way you see your video INSTANTLY, then it seamlessly switches to server version when ready
+  return [...uploadingVideos, ...completedPlaceholders, ...serverVideos];
 });
 
 // Boulder problems summary grouped by grade

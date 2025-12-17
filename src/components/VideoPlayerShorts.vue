@@ -122,7 +122,7 @@
           <!-- Video element -->
           <video
             :ref="el => videoElements[index] = el"
-            :src="video.downloadUrl"
+            :src="video.url || video.downloadUrl"
             :poster="video.thumbnailBase64"
             :controls="false"
             :muted="false"

@@ -21,10 +21,14 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
    * @returns {string} The ascentId for tracking
    */
   const startUpload = (file, locationId, problemId, ascentId) => {
+    // Create blob URL for local video playback (instant UX)
+    const localUrl = URL.createObjectURL(file);
+    
     // Create upload record
     const uploadRecord = {
       ascentId,
       file,
+      localUrl,  // Store blob URL for reuse
       locationId,
       problemId,
       status: 'pending',
@@ -136,6 +140,15 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
       return;
     }
 
+    // Clean up blob URL if it exists
+    if (record.localUrl) {
+      try {
+        URL.revokeObjectURL(record.localUrl);
+      } catch (err) {
+        console.error(`Failed to revoke blob URL for ${ascentId}:`, err);
+      }
+    }
+
     delete uploads.value[ascentId];
   };
 
@@ -143,6 +156,17 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
    * Clear all uploads (for testing/debugging)
    */
   const clearAll = () => {
+    // Clean up all blob URLs first
+    Object.values(uploads.value).forEach(record => {
+      if (record.localUrl) {
+        try {
+          URL.revokeObjectURL(record.localUrl);
+        } catch (err) {
+          console.error(`Failed to revoke blob URL for ${record.ascentId}:`, err);
+        }
+      }
+    });
+    
     uploads.value = {};
   };
 

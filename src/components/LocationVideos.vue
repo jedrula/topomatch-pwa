@@ -65,8 +65,8 @@
           :key="video.id"
           class="aspect-video bg-gray-100 rounded-lg overflow-hidden relative group"
         >
-          <!-- Uploading State -->
-          <div v-if="video.isUploading" class="w-full h-full relative bg-gray-200">
+          <!-- Uploading State (only if no video URL available) -->
+          <div v-if="video.isUploading && !video.url && !video.downloadUrl" class="w-full h-full relative bg-gray-200">
             <div class="absolute inset-0 flex flex-col items-center justify-center p-4">
               <svg class="w-12 h-12 text-blue-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -84,7 +84,7 @@
             </div>
           </div>
 
-          <!-- Video thumbnail/preview -->
+          <!-- Video thumbnail/preview (show if URL available, even while uploading!) -->
           <div 
             v-else
             class="w-full h-full relative cursor-pointer"
@@ -96,7 +96,7 @@
             @keydown.space.prevent="openVideoPlayer(index)"
           >
             <video
-              :src="video.downloadUrl"
+              :src="video.url || video.downloadUrl"
               :poster="video.thumbnailBase64 || defaultPoster"
               class="w-full h-full object-cover transition-transform group-hover:scale-105"
               muted
@@ -313,7 +313,8 @@ const deleteAllVideos = async () => {
 // Video player methods
 const openVideoPlayer = (index) => {
   const video = props.videos[index];
-  if (video && !video.isUploading) {
+  // Allow opening if video has a URL (local or server)
+  if (video && (video.url || video.downloadUrl)) {
     // Add videoId to URL to open the player
     router.push({
       query: {
@@ -333,7 +334,7 @@ const closeVideoPlayer = () => {
 
 // Function to provide videos to VideoPlayerShorts
 const getPlayerVideos = async () => {
-  // Filter out uploading videos and return only completed ones
-  return props.videos.filter(video => !video.isUploading);
+  // Return videos that have a URL (local or server)
+  return props.videos.filter(video => video.url || video.downloadUrl);
 };
 </script>
