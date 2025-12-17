@@ -108,10 +108,10 @@ export const transcodeVideo = onObjectFinalized(
                 key: "video-sd",
                 videoStream: {
                   h264: {
-                    bitrateBps: 1000000, // 1 Mbps
-                    frameRate: 30,
+                    bitrateBps: 900000,
+                    frameRate: 24, // Cinema standard (-20% from 30 FPS)
                     heightPixels: 480,
-                    widthPixels: 854,
+                    // Don't set widthPixels - let transcoder maintain aspect ratio
                   },
                 },
               },
