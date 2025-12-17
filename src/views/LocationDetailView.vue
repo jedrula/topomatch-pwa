@@ -292,6 +292,7 @@ const displayVideos = computed(() => {
         id: upload.ascentId,
         ascentId: upload.ascentId,
         url: upload.localUrl,  // ✨ Reuse blob URL from upload queue!
+        thumbnailBase64: upload.thumbnailBase64,  // ✨ Use extracted thumbnail as poster!
         isLocalVideo: true,  // Flag to know this is temporary
         isUploading: true,
         isAnalyzing: analyzingAscentIds.has(upload.ascentId),

@@ -29,6 +29,7 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
       ascentId,
       file,
       localUrl,  // Store blob URL for reuse
+      thumbnailBase64: file.thumbnailBase64 || null,  // Store thumbnail if available
       locationId,
       problemId,
       status: 'pending',
