@@ -529,18 +529,26 @@ const handleBetaUploadClick = () => {
     return;
   }
 
-  // 🎯 SHORT CIRCUIT: Open modal minimized and trigger file input directly
-  // This skips the "Upload or Record" screen, hiding the Record Video feature
+  // 🎯 SHORT CIRCUIT MODE: Controlled by VITE_BETA_UPLOAD_SHORT_CIRCUIT env variable
+  // When true: Open modal minimized and trigger file input directly (hides Record Video feature)
+  // When false: Show full modal with "Upload File" / "Record Video" toggle
+  const useShortCircuit = import.meta.env.VITE_BETA_UPLOAD_SHORT_CIRCUIT === 'true';
+  
   currentUploadSessionId.value = generateUUID();
   showBetaUploadModal.value = true;
-  isBetaModalMinimized.value = true; // Start minimized
   
-  // Trigger file input after modal mounts
-  nextTick(() => {
-    if (betaUploadModalRef.value && betaUploadModalRef.value.triggerFileInput) {
-      betaUploadModalRef.value.triggerFileInput();
-    }
-  });
+  if (useShortCircuit) {
+    // Start minimized and trigger file input
+    isBetaModalMinimized.value = true;
+    nextTick(() => {
+      if (betaUploadModalRef.value && betaUploadModalRef.value.triggerFileInput) {
+        betaUploadModalRef.value.triggerFileInput();
+      }
+    });
+  } else {
+    // Start expanded with full modal UI
+    isBetaModalMinimized.value = false;
+  }
 };
 
 // Wrapper to minimize modal instead of closing when detection needed
