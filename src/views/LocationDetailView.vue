@@ -200,7 +200,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, inject } from 'vue';
+import { ref, onMounted, onUnmounted, computed, inject, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
 import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
@@ -403,16 +403,17 @@ const loadLocation = async () => {
     isLoading.value = true;
     error.value = '';
 
+    // Load location data first (needed for display)
     location.value = await locationService.getLocation(locationId.value);
 
-    // Initialize boulder problems store for this location
+    // Initialize boulder problems store (quick operation)
     await boulderProblemsStore.initializeForLocation(locationId.value);
 
-    // Load boulder problems
-    await boulderProblemsStore.loadBoulderProblems(locationId.value);
-
-    // Load images for this location from the backend
-    await loadLocationImages();
+    // Load everything else in parallel - they don't depend on each other
+    await Promise.all([
+      boulderProblemsStore.loadBoulderProblems(locationId.value),
+      loadLocationImages(),
+    ]);
   } catch (err) {
     console.error('Error loading location:', err);
     error.value = 'Failed to load location. Please try again.';
@@ -775,21 +776,29 @@ const handleJobComplete = async (ascentId) => {
   }
 };
 
-// Store unregister function for cleanup
-let unregisterJobCallback = null;
-
-onMounted(async () => {
+// Load OpenCV.js library (lazy loaded via dynamic import)
+const loadOpenCV = async () => {
   try {
-    // Import OpenCV.js - required for homography matrix calculation
-    const cvReadyPromise = await import('@techstark/opencv-js');
-    window.cv = await cvReadyPromise.default;
+    // Dynamic import - only loads when this function is called
+    const { loadOpenCV: initOpenCV } = await import('../utils/opencv.js');
+    await initOpenCV();
+    console.log('✅ OpenCV loaded for homography calculations');
   } catch (err) {
     console.error('❌ Failed to load OpenCV.js:', err);
     console.warn('⚠️ Homography calculations will not be available');
   }
+};
 
-  loadLocation();
-  loadLocationVideos();
+// Store unregister function for cleanup
+let unregisterJobCallback = null;
+
+onMounted(async () => {
+  // Load location data, videos, and OpenCV in parallel - they're independent
+  await Promise.all([
+    loadLocation(),
+    loadLocationVideos(),
+    loadOpenCV(),
+  ]);
 
   // Register callback for job completions at this location
   unregisterJobCallback = analysisStore.onJobComplete(locationId.value, handleJobComplete);

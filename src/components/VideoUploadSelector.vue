@@ -152,4 +152,18 @@ const handleVideoRecorded = async (file) => {
     emit('video-selected', file);
   }
 };
+
+/**
+ * Trigger file input programmatically (for short-circuit mode)
+ */
+const triggerFileInput = () => {
+  if (fileInput.value) {
+    fileInput.value.click();
+  }
+};
+
+// Expose method for parent component
+defineExpose({
+  triggerFileInput
+});
 </script>

@@ -11,7 +11,10 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   assetsInclude: ['**/*.onnx'],
   optimizeDeps: {
-    exclude: ['onnxruntime-web'],
+    exclude: [
+      'onnxruntime-web',
+      // Note: NOT excluding @techstark/opencv-js - let Vite optimize it (matches TechStark's example)
+    ],
   },
   build: {
     target: 'esnext',
@@ -21,7 +24,13 @@ export default defineConfig({
         '/poseDetectionWorker.combined.js',
         '/holdDetectionWorker.combined.js', 
         '/inferenceWorker.combined.js'
-      ]
+      ],
+      output: {
+        manualChunks: {
+          // Split OpenCV into separate chunk for better caching (8 MB)
+          'opencv': ['@techstark/opencv-js'],
+        }
+      }
     }
   },
   worker: {
@@ -40,6 +49,9 @@ export default defineConfig({
         cleanupOutdatedCaches: true, // Auto-cleanup old caches on update
         clientsClaim: true, // Take control immediately on activation
         skipWaiting: true, // Activate new service worker immediately
+        globIgnores: [
+          // Note: Removed opencv*.js exclusion - now that Vite optimizes it properly, we can cache it
+        ],
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'document',
@@ -49,6 +61,21 @@ export default defineConfig({
             urlPattern: ({ request }) =>
               request.destination === 'script' || request.destination === 'style',
             handler: 'StaleWhileRevalidate',
+          },
+          {
+            // OpenCV.js and WASM files - CacheFirst for performance
+            urlPattern: /opencv.*\.(js|wasm|data)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'opencv-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+              },
+              cacheableResponse: {
+                statuses: [200],
+              },
+            },
           },
           {
             // Cache images EXCEPT Firebase Storage URLs

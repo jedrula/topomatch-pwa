@@ -13,6 +13,7 @@
 
     <!-- Video Upload/Record Selector -->
     <VideoUploadSelector
+      ref="videoSelectorRef"
       v-if="!selectedVideo"
       :title="title"
       :subtitle="subtitle"
@@ -258,6 +259,8 @@ import { ascentService, generateAscentId } from '@/services/ascentService';
 import { getCurrentUser } from '@/services/authService';
 import { useVideoUploadQueueStore } from '@/stores/videoUploadQueueStore';
 import { useVideoAnalysisQueueStore } from '@/stores/videoAnalysisQueueStore';
+
+const videoSelectorRef = ref(null);
 
 // Props
 const props = defineProps({
@@ -614,6 +617,20 @@ onUnmounted(() => {
       URL.revokeObjectURL(frame.url);
     }
   });
+});
+
+/**
+ * Trigger file input programmatically (for short-circuit mode)
+ */
+const triggerFileInput = () => {
+  if (videoSelectorRef.value && videoSelectorRef.value.triggerFileInput) {
+    videoSelectorRef.value.triggerFileInput();
+  }
+};
+
+// Expose method for parent component
+defineExpose({
+  triggerFileInput
 });
 </script>
 

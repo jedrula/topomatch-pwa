@@ -33,6 +33,7 @@
 
       <div class="px-6 flex-1 overflow-y-auto">
         <VideoFrameMatcherEnhanced
+          ref="videoMatcherRef"
           :comparison-images="comparisonImages"
           :location-id="locationId"
           :session-id="sessionId"
@@ -271,9 +272,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import VideoFrameMatcherEnhanced from './VideoFrameMatcherEnhanced.vue';
 import { useVideoAnalysisQueueStore } from '@/stores/videoAnalysisQueueStore';
+
+const videoMatcherRef = ref(null);
 
 // Access the analysis queue store
 const analysisQueue = useVideoAnalysisQueueStore();
@@ -364,4 +367,18 @@ defineEmits([
 const handleAscentCreated = ({ ascentId }) => {
   console.log(`🎉 Ascent created: ${ascentId} - processing in background`);
 };
+
+/**
+ * Trigger file input programmatically (for short-circuit mode)
+ */
+const triggerFileInput = () => {
+  if (videoMatcherRef.value && videoMatcherRef.value.triggerFileInput) {
+    videoMatcherRef.value.triggerFileInput();
+  }
+};
+
+// Expose method for parent component
+defineExpose({
+  triggerFileInput
+});
 </script>

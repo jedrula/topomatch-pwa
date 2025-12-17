@@ -3,6 +3,8 @@
  * Extracted from playground implementation for reuse across components
  */
 
+import { loadOpenCV } from './opencv.js';
+
 /**
  * Convert homography matrix to flat array format
  * Handles both 3x3 nested array (server LoFTR) and flat array (frontend SuperPoint)
@@ -75,66 +77,58 @@ export function normalizeHomographyTo3x3(homographyMatrix) {
  * @returns {Promise<{matrix: Array, inliers: number}>} Homography matrix and inlier count
  */
 export async function calculateHomographyMatrix(matches) {
-  return new Promise((resolve, reject) => {
-    if (!window.cv) {
-      reject(new Error('OpenCV.js not loaded'));
-      return;
+  const { cv } = await loadOpenCV();
+
+  if (!matches || matches.length < 4) {
+    throw new Error('Need at least 4 point matches to calculate homography');
+  }
+
+  try {
+    // Create OpenCV point arrays
+    const srcMat = new cv.Mat(matches.length, 1, cv.CV_32FC2);
+    const dstMat = new cv.Mat(matches.length, 1, cv.CV_32FC2);
+
+    // Fill matrices with point data
+    for (let i = 0; i < matches.length; i++) {
+      srcMat.data32F[i * 2] = matches[i].point1.x;
+      srcMat.data32F[i * 2 + 1] = matches[i].point1.y;
+      dstMat.data32F[i * 2] = matches[i].point2.x;
+      dstMat.data32F[i * 2 + 1] = matches[i].point2.y;
     }
 
-    if (!matches || matches.length < 4) {
-      reject(new Error('Need at least 4 point matches to calculate homography'));
-      return;
+    const mask = new cv.Mat();
+
+    // Calculate homography using RANSAC
+    const homography = cv.findHomography(srcMat, dstMat, cv.RANSAC, 5.0, mask);
+
+    // Count inliers
+    let inlierCount = 0;
+    for (let i = 0; i < mask.rows; i++) {
+      if (mask.ucharPtr(i, 0)[0] === 1) inlierCount++;
     }
 
-    try {
-      const cv = window.cv;
-
-      // Create OpenCV point arrays
-      const srcMat = new cv.Mat(matches.length, 1, cv.CV_32FC2);
-      const dstMat = new cv.Mat(matches.length, 1, cv.CV_32FC2);
-
-      // Fill matrices with point data
-      for (let i = 0; i < matches.length; i++) {
-        srcMat.data32F[i * 2] = matches[i].point1.x;
-        srcMat.data32F[i * 2 + 1] = matches[i].point1.y;
-        dstMat.data32F[i * 2] = matches[i].point2.x;
-        dstMat.data32F[i * 2 + 1] = matches[i].point2.y;
-      }
-
-      const mask = new cv.Mat();
-
-      // Calculate homography using RANSAC
-      const homography = cv.findHomography(srcMat, dstMat, cv.RANSAC, 5.0, mask);
-
-      // Count inliers
-      let inlierCount = 0;
-      for (let i = 0; i < mask.rows; i++) {
-        if (mask.ucharPtr(i, 0)[0] === 1) inlierCount++;
-      }
-
-      // Extract matrix data
-      const matrixData = [];
-      for (let i = 0; i < 9; i++) {
-        matrixData.push(homography.data64F[i]);
-      }
-
-      // Cleanup
-      srcMat.delete();
-      dstMat.delete();
-      mask.delete();
-      homography.delete();
-
-      resolve({
-        matrix: matrixData,
-        inliers: inlierCount,
-        total: matches.length
-      });
-
-    } catch (error) {
-      console.error('Homography calculation error:', error);
-      reject(error);
+    // Extract matrix data
+    const matrixData = [];
+    for (let i = 0; i < 9; i++) {
+      matrixData.push(homography.data64F[i]);
     }
-  });
+
+    // Cleanup
+    srcMat.delete();
+    dstMat.delete();
+    mask.delete();
+    homography.delete();
+
+    return {
+      matrix: matrixData,
+      inliers: inlierCount,
+      total: matches.length
+    };
+
+  } catch (error) {
+    console.error('Homography calculation error:', error);
+    throw error;
+  }
 }
 
 /**
@@ -153,13 +147,14 @@ if (useMockOpenCV) {
 
 /**
  * Transform a point using homography matrix
+ * @param {Object} cv - OpenCV instance
  * @param {number} x - X coordinate
  * @param {number} y - Y coordinate  
  * @param {Array} homographyMatrix - 3x3 homography matrix (flat array [h0..h8] or nested array [[r0],[r1],[r2]])
  * @param {boolean} inverse - Whether to apply inverse transformation
  * @returns {{x: number, y: number}|null} Transformed point or null if failed
  */
-export function transformPoint(x, y, homographyMatrix, inverse = false) {
+export function transformPoint(cv, x, y, homographyMatrix, inverse = false) {
   // 🎭 MOCK MODE: Use recorded fixtures instead of OpenCV
   if (useMockOpenCV && mockFixtures) {
     const TOLERANCE = 0.5; // Allow 0.5px tolerance for fuzzy matching
@@ -178,14 +173,12 @@ export function transformPoint(x, y, homographyMatrix, inverse = false) {
     }
   }
 
-  if (!window.cv || !homographyMatrix) {
+  if (!cv || !homographyMatrix) {
     console.warn('Transform point failed: OpenCV or homography matrix not available');
     return null;
   }
 
   try {
-    const cv = window.cv;
-    
     // Normalize to flat array (handles both formats)
     const flatMatrix = normalizeHomographyToFlat(homographyMatrix);
     if (!flatMatrix) {
@@ -240,11 +233,13 @@ export function transformPoint(x, y, homographyMatrix, inverse = false) {
  * @param {Array} points - Array of {x, y, ...} points (additional properties preserved)
  * @param {Array} homographyMatrix - 3x3 homography matrix (flat array [h0..h8] or nested array [[r0],[r1],[r2]])
  * @param {boolean} inverse - Whether to apply inverse transformation
- * @returns {Array} Array of transformed points with preserved properties
+ * @returns {Promise<Array>} Array of transformed points with preserved properties
  */
-export function transformPoints(points, homographyMatrix, inverse = false) {
+export async function transformPoints(points, homographyMatrix, inverse = false) {
+  const { cv } = await loadOpenCV();
+  
   return points.map(point => {
-    const transformed = transformPoint(point.x, point.y, homographyMatrix, inverse);
+    const transformed = transformPoint(cv, point.x, point.y, homographyMatrix, inverse);
     if (transformed === null) return null;
     
     // Preserve all additional properties (like confidence, name, etc.)
