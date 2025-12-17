@@ -164,6 +164,7 @@
 
     <!-- Beta Video Upload Modal -->
     <BetaVideoUploadModal
+      ref="betaUploadModalRef"
       :key="currentUploadSessionId"
       :is-open="showBetaUploadModal"
       :is-minimized="isBetaModalMinimized"
@@ -246,6 +247,7 @@ const {
 // Inject auth modal controls
 const authModal = inject('authModal');
 
+const betaUploadModalRef = ref(null);
 const location = ref(null);
 const images = ref([]); // Placeholder for location images
 const videos = ref([]); // Beta videos for location
@@ -527,11 +529,18 @@ const handleBetaUploadClick = () => {
     return;
   }
 
-  // User is authenticated, show the upload modal (NOT minimized yet)
-  // Generate new session ID - this will force Vue to recreate the modal component with fresh state
+  // 🎯 SHORT CIRCUIT: Open modal minimized and trigger file input directly
+  // This skips the "Upload or Record" screen, hiding the Record Video feature
   currentUploadSessionId.value = generateUUID();
   showBetaUploadModal.value = true;
-  isBetaModalMinimized.value = false; // Start expanded - minimize after video selected
+  isBetaModalMinimized.value = true; // Start minimized
+  
+  // Trigger file input after modal mounts
+  nextTick(() => {
+    if (betaUploadModalRef.value && betaUploadModalRef.value.triggerFileInput) {
+      betaUploadModalRef.value.triggerFileInput();
+    }
+  });
 };
 
 // Wrapper to minimize modal instead of closing when detection needed
