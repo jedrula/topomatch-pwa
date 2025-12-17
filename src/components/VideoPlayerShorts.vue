@@ -494,7 +494,7 @@ const getVideoContentDimensions = (index) => {
   const container = videoContainer.value;
   
   if (!video || !container) {
-    return { width: '100%', height: '100%' };
+    return {};
   }
   
   // Get the video's natural dimensions
@@ -502,7 +502,9 @@ const getVideoContentDimensions = (index) => {
   const videoHeight = video.videoHeight;
   
   if (!videoWidth || !videoHeight) {
-    return { width: '100%', height: '100%' };
+    // Don't return dimensions until metadata loads
+    // This prevents stretching before video is ready
+    return {};
   }
   
   // Get the actual container dimensions (not window dimensions)
