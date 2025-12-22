@@ -471,8 +471,14 @@ const processVideo = async (videoFile) => {
     });
     extractedFrames.value = [];
 
-    // Create ascent and start upload immediately (non-blocking)
-    await createAscentAndStartUpload(videoFile);
+    // Only create ascent and start upload for NEW videos (not re-processing)
+    if (!videoFile.existingVideo) {
+      // Create ascent and start upload immediately (non-blocking)
+      await createAscentAndStartUpload(videoFile);
+    } else {
+      console.log('🔄 Re-processing existing video, skipping ascent creation and upload');
+      createdAscentId.value = videoFile.ascentId; // Use existing ascent ID
+    }
 
     const totalStartTime = performance.now();
 
@@ -480,7 +486,9 @@ const processVideo = async (videoFile) => {
     const extractStartTime = performance.now();
     processingDetails.value = 'Reading video file...';
 
-    const frames = await extractVideoFrames(videoFile, FRAME_TIMESTAMPS);
+    // For existing videos, use URL; for new videos, use File object
+    const videoSource = videoFile.existingVideo ? videoFile.url : videoFile;
+    const frames = await extractVideoFrames(videoSource, FRAME_TIMESTAMPS);
     const extractTime = performance.now() - extractStartTime;
     console.log(`  ✅ Frame extraction: ${(extractTime / 1000).toFixed(2)}s (${frames.length} frames)`);
 
@@ -636,7 +644,32 @@ const triggerFileInput = () => {
 
 // Expose method for parent component
 defineExpose({
-  triggerFileInput
+  triggerFileInput,
+  analyzeExistingVideo: async (video) => {
+    try {
+      console.log('🔄 Re-processing existing video:', video);
+      
+      // Create a pseudo-video object with download URL for analysis
+      const videoForAnalysis = {
+        file: null, // No file since it's already uploaded
+        url: video.downloadUrl || video.url,
+        name: video.fileName || 'Existing video',
+        size: 0, // Unknown size
+        type: 'video/mp4', // Assume mp4
+        ascentId: video.id, // Use existing ascent ID
+        existingVideo: true // Flag to skip upload
+      };
+      
+      selectedVideo.value = videoForAnalysis;
+      emit('video-selected', videoForAnalysis);
+      
+      // Start analysis directly
+      await processVideo(videoForAnalysis);
+    } catch (err) {
+      console.error('❌ Error re-processing video:', err);
+      error.value = err.message;
+    }
+  }
 });
 </script>
 

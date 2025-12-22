@@ -382,8 +382,18 @@ const triggerFileInput = () => {
   }
 };
 
-// Expose method for parent component
+/**
+ * Re-process an existing video (skip upload, start analysis)
+ */
+const reprocessExistingVideo = (video) => {
+  if (videoMatcherRef.value && videoMatcherRef.value.analyzeExistingVideo) {
+    videoMatcherRef.value.analyzeExistingVideo(video);
+  }
+};
+
+// Expose methods for parent component
 defineExpose({
-  triggerFileInput
+  triggerFileInput,
+  reprocessExistingVideo
 });
 </script>

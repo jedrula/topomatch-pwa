@@ -133,6 +133,7 @@
           :videos="displayVideos"
           :loading="videosLoading"
           @video-deleted="handleVideoDeleted"
+          @reprocess-video="handleReprocessVideo"
         />
 
         <!-- Boulder Problems Summary -->
@@ -559,6 +560,32 @@ const handleVideoDeleted = async (videoId) => {
       0, 
       problemVideoCounts.value[deletedVideo.problemId] - 1
     );
+  }
+};
+
+// Handle video re-processing (for unclassified videos)
+const handleReprocessVideo = async (video) => {
+  try {
+    console.log('🔄 Re-processing video:', video.id);
+    
+    // Open the beta upload modal minimized (same as short circuit mode)
+    currentUploadSessionId.value = generateUUID();
+    showBetaUploadModal.value = true;
+    isBetaModalMinimized.value = true;
+    
+    // Wait for modal to mount, then trigger analysis with the existing video
+    await nextTick();
+    await nextTick();
+    
+    if (betaUploadModalRef.value && betaUploadModalRef.value.reprocessExistingVideo) {
+      console.log('📹 Triggering re-analysis for existing video');
+      betaUploadModalRef.value.reprocessExistingVideo(video);
+    } else {
+      console.error('❌ Modal ref or reprocessExistingVideo method not available');
+    }
+  } catch (error) {
+    console.error('❌ Error re-processing video:', error);
+    alert('Failed to re-process video: ' + error.message);
   }
 };
 

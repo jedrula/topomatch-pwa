@@ -249,17 +249,18 @@ export async function transformPoints(points, homographyMatrix, inverse = false)
 
 /**
  * Extract video frames at specified timestamps
- * @param {File} videoFile - Video file
+ * @param {File|String} videoSource - Video file or URL string
  * @param {Array} timestamps - Array of timestamps in seconds (e.g., [0.25, 0.5, 0.75] for 25%, 50%, 75%)
  * @returns {Promise<Array>} Array of ImageData objects
  */
-export async function extractVideoFrames(videoFile, timestamps) {
+export async function extractVideoFrames(videoSource, timestamps) {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const frames = [];
     let currentTimestampIndex = 0;
+    let objectUrl = null;
 
     video.addEventListener('loadedmetadata', () => {
       // 🎯 MEMORY OPTIMIZATION: Configurable downscaling
@@ -360,11 +361,17 @@ export async function extractVideoFrames(videoFile, timestamps) {
 
     video.addEventListener('error', (e) => {
       console.error('Video loading error:', e);
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
       reject(new Error('Failed to load video for processing. Please try recording again.'));
     });
 
     // Simple timeout - MP4 videos should load quickly
     const timeout = setTimeout(() => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
       reject(new Error('Video loading timeout. Please try recording again.'));
     }, 10000); // 10 second timeout
 
@@ -373,16 +380,33 @@ export async function extractVideoFrames(videoFile, timestamps) {
     const originalReject = reject;
     resolve = (...args) => {
       clearTimeout(timeout);
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
       originalResolve(...args);
     };
     reject = (...args) => {
       clearTimeout(timeout);
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
       originalReject(...args);
     };
 
     // Configure video element for reliable playback
     video.preload = 'metadata';
-    video.src = URL.createObjectURL(videoFile);
+    video.crossOrigin = 'anonymous'; // For CORS videos
+    
+    // Handle both File objects and URL strings
+    if (typeof videoSource === 'string') {
+      // It's a URL string (existing video)
+      video.src = videoSource;
+    } else {
+      // It's a File object (new video)
+      objectUrl = URL.createObjectURL(videoSource);
+      video.src = objectUrl;
+    }
+    
     video.load();
   });
 }

@@ -136,6 +136,19 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
             </svg>
           </button>
+
+          <!-- Re-process button (only for unclassified videos that belong to user) -->
+          <button
+            v-if="canReprocessVideo(video)"
+            @click.stop="handleReprocessClick(video)"
+            class="absolute top-2 right-14 p-2 bg-blue-600 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-blue-700 z-10"
+            :aria-label="`Re-process video ${index + 1}`"
+            title="Re-analyze video to detect problem"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
@@ -206,7 +219,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['video-deleted']);
+const emit = defineEmits(['video-deleted', 'reprocess-video']);
 
 const showDeleteConfirm = ref(false);
 const videoToDelete = ref(null);
@@ -226,9 +239,29 @@ const canDeleteVideo = (video) => {
   return video.userId === currentUser.uid;
 };
 
+const canReprocessVideo = (video) => {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return false;
+  
+  // Can re-process if:
+  // 1. It's the user's video
+  // 2. Video doesn't have a problemId (unclassified)
+  // 3. Video is not currently uploading or analyzing
+  return (
+    video.userId === currentUser.uid &&
+    !video.problemId &&
+    !video.isUploading &&
+    !video.isAnalyzing
+  );
+};
+
 const handleDeleteClick = (video) => {
   videoToDelete.value = video;
   showDeleteConfirm.value = true;
+};
+
+const handleReprocessClick = (video) => {
+  emit('reprocess-video', video);
 };
 
 const cancelDelete = () => {
