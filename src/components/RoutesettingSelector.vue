@@ -112,6 +112,7 @@
               <img
                 :src="image.url"
                 :alt="image.name"
+                crossorigin="anonymous"
                 class="w-full h-full object-cover"
                 :class="{ 'opacity-60': !selectedImageIds.includes(image.imageId) }"
               />

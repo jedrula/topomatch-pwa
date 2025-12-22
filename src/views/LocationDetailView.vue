@@ -586,25 +586,46 @@ const openProblemVideos = async (problem) => {
 };
 
 const handleBetaUploadClick = () => {
-  if (!userStore.user) {
-    // User is not authenticated, trigger sign-in
-    authModal.open();
-    return;
-  }
-
-  // 🎯 SHORT CIRCUIT MODE: Controlled by VITE_BETA_UPLOAD_SHORT_CIRCUIT env variable
-  // When true: Open modal minimized and trigger file input directly (hides Record Video feature)
-  // When false: Show full modal with "Upload File" / "Record Video" toggle
-  const useShortCircuit = import.meta.env.VITE_BETA_UPLOAD_SHORT_CIRCUIT === 'true';
-  
-  currentUploadSessionId.value = generateUUID();
-  showBetaUploadModal.value = true;
-
-  nextTick(() => {
-    if (useShortCircuit) {
-      isBetaModalMinimized.value = true;
+  try {
+    console.log('🎬 Beta upload clicked');
+    
+    if (!userStore.user) {
+      console.log('❌ User not authenticated, opening auth modal');
+      authModal.open();
+      return;
     }
-  });
+
+    // 🎯 SHORT CIRCUIT MODE: Controlled by VITE_BETA_UPLOAD_SHORT_CIRCUIT env variable
+    // When true: Open modal minimized and trigger file input directly (hides Record Video feature)
+    // When false: Show full modal with "Upload File" / "Record Video" toggle
+    const useShortCircuit = import.meta.env.VITE_BETA_UPLOAD_SHORT_CIRCUIT === 'true';
+    console.log('⚙️ Short circuit mode:', useShortCircuit);
+    
+    currentUploadSessionId.value = generateUUID();
+    console.log('🆔 Session ID:', currentUploadSessionId.value);
+    
+    showBetaUploadModal.value = true;
+    console.log('✅ Modal opened');
+
+    nextTick(() => {
+      if (useShortCircuit) {
+        console.log('🔄 Minimizing modal (short circuit)');
+        isBetaModalMinimized.value = true;
+        
+        // Trigger file input after modal is mounted and minimized
+        nextTick(() => {
+          if (betaUploadModalRef.value) {
+            console.log('📁 Triggering file input');
+            betaUploadModalRef.value.triggerFileInput();
+          } else {
+            console.error('❌ Modal ref not available');
+          }
+        });
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error in handleBetaUploadClick:', error);
+  }
 };
 
 const handleRoutesettingChanged = async (newRoutesetting) => {
