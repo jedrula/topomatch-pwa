@@ -77,13 +77,18 @@ class LocationService {
   }
 
   // Add image metadata to a location
-  async addLocationImage(imageId, locationId, fileName, downloadUrl) {
+  async addLocationImage(imageId, locationId, fileName, downloadUrl, routesetting) {
+    if (!routesetting) {
+      throw new Error('routesetting is required. Create a routesetting for this location first.');
+    }
+    
     try {
       const result = await addLocationImageFn({
         imageId,
         locationId,
         fileName,
         downloadUrl,
+        routesetting,
       });
       return result.data;
     } catch (error) {
@@ -92,10 +97,14 @@ class LocationService {
     }
   }
 
-  // Get all images for a location
-  async getLocationImages(locationId) {
+  // Get all images for a location (optionally filtered by routesetting)
+  async getLocationImages(locationId, routesetting = null) {
     try {
-      const result = await getLocationImagesFn({ locationId });
+      const params = { locationId };
+      if (routesetting) {
+        params.routesetting = routesetting;
+      }
+      const result = await getLocationImagesFn(params);
       return result.data;
     } catch (error) {
       console.error('Error getting location images:', error);

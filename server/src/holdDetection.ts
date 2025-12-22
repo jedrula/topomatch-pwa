@@ -63,7 +63,7 @@ interface FirestoreHold {
 /**
  * Automatically detect holds when a location image is uploaded
  * 
- * Triggered when an image is uploaded to: location-images/{locationId}/{imageId}/original.*
+ * Triggered when an image is uploaded to: location-images/{locationId}/{imageId}/original.ext
  * 
  * Flow:
  * 1. Extract locationId and imageId from file path
@@ -84,13 +84,12 @@ export const onLocationImageUploaded = onObjectFinalized(
 
     logger.info(`🖼️ Storage trigger fired for file: ${filePath}, 📥 Detection server URL: ${DETECTION_SERVER_URL.value()}`);
 
-    // Only process original images in location-images path
-    // Path format: location-images/{locationId}/{imageId}/original.{ext}
-    const pathRegex = /^location-images\/([^\/]+)\/([^\/]+)\/original\./;
+    // Only process original images in format: location-images/{locationId}/{imageId}/original.{ext}
+    const pathRegex = /^location-images\/([^\/]+)\/([^\/]+)\/original\.(jpg|jpeg|png)$/i;
     const match = filePath.match(pathRegex);
-
+    
     if (!match) {
-      logger.info(`Skipping file - not an original location image: ${filePath}`);
+      logger.info(`Skipping file - doesn't match expected path format: ${filePath}`);
       return null;
     }
 
@@ -99,7 +98,7 @@ export const onLocationImageUploaded = onObjectFinalized(
       logger.info(`Skipping file - not an image (${contentType}): ${filePath}`);
       return null;
     }
-
+    
     const locationId = match[1];
     const imageId = match[2];
 

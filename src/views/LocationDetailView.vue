@@ -105,6 +105,16 @@
           </div>
         </div>
 
+        <!-- Routesetting Selector -->
+        <RoutesettingSelector
+          v-if="allRoutesettings.length > 0"
+          :location-id="locationId"
+          :all-routesettings="allRoutesettings"
+          :current-routesetting="currentRoutesetting"
+          :can-edit="userStore.canEditLocations"
+          @routesetting-changed="handleRoutesettingChanged"
+        />
+
         <!-- Images section -->
         <LocationImages
           :images="images"
@@ -112,7 +122,7 @@
           :can-upload="userStore.canUploadImages"
           :can-edit-holds="userStore.canEditLocations"
           :get-resized-image-url="getResizedImageUrl"
-          @upload="showUploadModal = true"
+          @upload="handleUploadClick"
           @image-click="openImageModal"
           @analyze-holds="openHoldDetection"
           @delete-image="handleDeleteImage"
@@ -151,8 +161,10 @@
 
     <!-- Upload Modal -->
     <ImageUploadModal
+      v-if="currentRoutesetting"
       :is-open="showUploadModal"
       :location-id="route.params.locationId"
+      :routesetting="currentRoutesetting"
       :pending-metadata-saves="pendingMetadataSaves"
       :total-uploads-expected="totalUploadsExpected"
       @close="handleUploadModalClose"
@@ -169,8 +181,9 @@
       :is-open="showBetaUploadModal"
       :is-minimized="isBetaModalMinimized"
       :session-id="currentUploadSessionId"
-      :comparison-images="images"
+      :comparison-images="filteredComparisonImages"
       :location-id="route.params.locationId"
+      :current-routesetting="currentRoutesetting"
       :pending-redirect-data="pendingRedirectData"
       :get-grade-color="getGradeColor"
       :get-grade-label="getGradeLabel"
@@ -192,7 +205,6 @@
       :location-id="locationId"
       :boulder-problems="boulderProblemsStore.boulderProblems || []"
       @close="closeGallery"
-      @navigate="onGalleryNavigate"
       @navigate-next="navigateNext"
       @navigate-previous="navigatePrevious"
     />
@@ -201,9 +213,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, inject, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, inject, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
+import { routesettingService } from '../services/routesettingService.js';
 import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
 import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
 import { useToast } from '../composables/useToast.js';
@@ -214,6 +227,7 @@ import ToastNotification from '../components/ToastNotification.vue';
 import LocationImages from '../components/LocationImages.vue';
 import LocationVideos from '../components/LocationVideos.vue';
 import LocationBoulderProblems from '../components/LocationBoulderProblems.vue';
+import RoutesettingSelector from '../components/RoutesettingSelector.vue';
 import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
@@ -249,6 +263,7 @@ const authModal = inject('authModal');
 
 const betaUploadModalRef = ref(null);
 const location = ref(null);
+const allRoutesettings = ref([]); // All routesettings for this location
 const images = ref([]); // Placeholder for location images
 const videos = ref([]); // Beta videos for location
 const videosLoading = ref(false);
@@ -266,7 +281,32 @@ const totalUploadsExpected = ref(0);
 
 const locationId = computed(() => route.params.locationId);
 
+// Current routesetting from query param (or latest if not specified)
+const currentRoutesetting = computed(() => {
+  const queryRoutesetting = route.query.routesetting;
+  if (queryRoutesetting) {
+    return queryRoutesetting;
+  }
+  // Default to latest (first in array, since sorted newest first)
+  return allRoutesettings.value.length > 0 
+    ? allRoutesettings.value[0] 
+    : null;
+});
+
 // Separate display for uploads (0-100% file upload) and analysis (0-100% processing)
+// Filter comparison images by current routesetting
+const filteredComparisonImages = computed(() => {
+  if (!currentRoutesetting.value) {
+    return images.value;
+  }
+  
+  return images.value.filter(img => 
+    img.routesettings && 
+    Array.isArray(img.routesettings) && 
+    img.routesettings.includes(currentRoutesetting.value)
+  );
+});
+
 const displayVideos = computed(() => {
   // 1. Get ANALYSIS progress first (to filter uploads)
   const activeJobs = analysisStore.getActiveJobsForLocation(locationId.value);
@@ -351,12 +391,29 @@ const displayVideos = computed(() => {
     !uploadingAscentIds.has(video.ascentId) && !completedJobs.some(j => j.ascentId === video.ascentId)
   );
   
+  // 4. Filter videos by current routesetting
+  // - Assigned videos: show if problem's image is in current routesetting
+  // - Unassigned videos: show if video's routesetting matches current routesetting
+  const filteredImageIds = new Set(filteredComparisonImages.value.map(img => img.id));
+  const filteredServerVideos = currentRoutesetting.value
+    ? serverVideos.filter(video => {
+        // If video has a problemId, check if that problem's image is in current routesetting
+        if (video.problemId) {
+          const problem = boulderProblemsStore.boulderProblems.find(p => p.id === video.problemId);
+          return problem && filteredImageIds.has(problem.imageId);
+        }
+        // If no problemId, filter by routesetting timestamp
+        return video.routesetting === currentRoutesetting.value;
+      })
+    : serverVideos;
+  
   // Merge: uploading videos (with local URLs!) first, then completed placeholders, then server videos
   // This way you see your video INSTANTLY, then it seamlessly switches to server version when ready
-  return [...uploadingVideos, ...completedPlaceholders, ...serverVideos];
+  return [...uploadingVideos, ...completedPlaceholders, ...filteredServerVideos];
 });
 
 // Boulder problems summary grouped by grade
+// Filtering is now done server-side based on routesetting
 const boulderProblemsSummary = computed(() => {
   if (!boulderProblemsStore.boulderProblems.length) return [];
 
@@ -385,6 +442,7 @@ const boulderProblemsSummary = computed(() => {
 });
 
 const totalProblems = computed(() => {
+  // Problems are already filtered server-side by routesetting
   return boulderProblemsStore.boulderProblems.length;
 });
 
@@ -407,13 +465,16 @@ const loadLocation = async () => {
 
     // Load location data first (needed for display)
     location.value = await locationService.getLocation(locationId.value);
+    
+    // Load all routesettings for this location
+    allRoutesettings.value = await routesettingService.getRoutesettings(locationId.value);
 
     // Initialize boulder problems store (quick operation)
     await boulderProblemsStore.initializeForLocation(locationId.value);
 
     // Load everything else in parallel - they don't depend on each other
     await Promise.all([
-      boulderProblemsStore.loadBoulderProblems(locationId.value),
+      boulderProblemsStore.loadBoulderProblems(locationId.value, null, currentRoutesetting.value),
       loadLocationImages(),
     ]);
   } catch (err) {
@@ -426,13 +487,16 @@ const loadLocation = async () => {
 
 const loadLocationImages = async () => {
   try {
-    const imageRecords = await locationService.getLocationImages(locationId.value);
+    // Filter images by current routesetting
+    const imageRecords = await locationService.getLocationImages(locationId.value, currentRoutesetting.value);
 
     // Transform the records to the format expected by the template
     images.value = imageRecords.map((record) => ({
+      id: record.imageId,
       imageId: record.imageId,
       url: record.downloadUrl,
       name: record.fileName,
+      routesettings: record.routesettings || [],
     }));
 
   } catch (err) {
@@ -446,7 +510,6 @@ const loadLocationImages = async () => {
 const loadLocationVideos = async () => {
   videosLoading.value = true;
   try {
-    console.log('wow');
     const locationVideos = await videoService.getLocationVideos(locationId.value);
     videos.value = locationVideos;
 
@@ -536,19 +599,28 @@ const handleBetaUploadClick = () => {
   
   currentUploadSessionId.value = generateUUID();
   showBetaUploadModal.value = true;
+
+  nextTick(() => {
+    if (useShortCircuit) {
+      isBetaModalMinimized.value = true;
+    }
+  });
+};
+
+const handleRoutesettingChanged = async (newRoutesetting) => {
+  // Reload routesettings (in case a new one was created)
+  allRoutesettings.value = await routesettingService.getRoutesettings(locationId.value);
   
-  if (useShortCircuit) {
-    // Start minimized and trigger file input
-    isBetaModalMinimized.value = true;
-    nextTick(() => {
-      if (betaUploadModalRef.value && betaUploadModalRef.value.triggerFileInput) {
-        betaUploadModalRef.value.triggerFileInput();
-      }
-    });
-  } else {
-    // Start expanded with full modal UI
-    isBetaModalMinimized.value = false;
-  }
+  // Update URL query parameter (source of truth)
+  await router.push({
+    query: {
+      ...route.query,
+      routesetting: newRoutesetting
+    }
+  });
+  
+  // Reload images for new routesetting (currentRoutesetting computed will update automatically)
+  await loadLocationImages();
 };
 
 // Wrapper to minimize modal instead of closing when detection needed
@@ -631,7 +703,7 @@ const handleDeleteImage = async (image) => {
     images.value = images.value.filter(img => img.imageId !== image.imageId);
     
     // Refresh boulder problems since some may have been deleted
-    await boulderProblemsStore.loadProblemsForLocation(locationId.value);
+    await boulderProblemsStore.loadProblemsForLocation(locationId.value, currentRoutesetting.value);
   } catch (error) {
     console.error('Error deleting image:', error);
     alert('Failed to delete image. Please try again.');
@@ -666,9 +738,12 @@ const navigateToImage = (direction) => {
 const navigateNext = () => navigateToImage('next');
 const navigatePrevious = () => navigateToImage('previous');
 
-const onGalleryNavigate = () => {
-  // This is called when the gallery navigates to a different image
-  // The ImageGallery component handles the URL update
+const handleUploadClick = () => {
+  if (!currentRoutesetting.value) {
+    alert('⚠️ No active routesetting found.\n\nPlease create a routesetting for this location before uploading images.\n\nRoutesettings organize images by reset date (e.g., when new boulder problems are set).');
+    return;
+  }
+  showUploadModal.value = true;
 };
 
 const handleUploadModalClose = () => {
@@ -685,11 +760,13 @@ const handleImageUploadComplete = async (uploadResult) => {
   try {
     // Save image metadata to Firestore via backend function
     // Use client-generated imageId (same as Storage folder name)
+    // Pass routesetting timestamp for version control
     await locationService.addLocationImage(
       uploadResult.imageId,
       uploadResult.locationId,
       uploadResult.fileName,
-      uploadResult.downloadUrl
+      uploadResult.downloadUrl,
+      uploadResult.routesetting
     );
 
     // Add the new image to the images array for immediate display
@@ -808,6 +885,13 @@ const loadOpenCV = async () => {
 
 // Store unregister function for cleanup
 let unregisterJobCallback = null;
+
+// Watch currentRoutesetting and reload problems when it changes
+watch(currentRoutesetting, async (newRoutesetting, oldRoutesetting) => {
+  if (newRoutesetting !== oldRoutesetting && locationId.value) {
+    await boulderProblemsStore.loadProblemsForLocation(locationId.value, newRoutesetting);
+  }
+});
 
 onMounted(async () => {
   // Load location data, videos, and OpenCV in parallel - they're independent

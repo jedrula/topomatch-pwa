@@ -37,6 +37,7 @@
           :comparison-images="comparisonImages"
           :location-id="locationId"
           :session-id="sessionId"
+          :current-routesetting="currentRoutesetting"
           title="Upload Beta Video"
           subtitle="Upload a climbing video and we'll identify the boulder problem automatically"
           :auto-start-matching="true"
@@ -321,6 +322,10 @@ defineProps({
   locationId: {
     type: String,
     required: true
+  },
+  currentRoutesetting: {
+    type: String,
+    default: null
   },
   // Legacy props - kept for backward compatibility but not actively used
   videoAnalysisResult: {

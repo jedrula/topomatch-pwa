@@ -65,6 +65,9 @@ export const ascentService = {
         notes: ascentData.notes || '',
         date: ascentData.date || serverTimestamp(),
         
+        // Routesetting timestamp (for filtering unassigned videos)
+        routesetting: ascentData.routesetting || null,
+        
         // Optional embedded video data
         video: ascentData.video || null,
         

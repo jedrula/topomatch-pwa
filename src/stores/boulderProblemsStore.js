@@ -132,7 +132,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     currentLocationGradingSystem.value = gradingSystemData;
   };
 
-  const loadBoulderProblems = async (locationId, imageId = null) => {
+  const loadBoulderProblems = async (locationId, imageId = null, routesetting = null) => {
     if (!locationId) return;
 
     isLoading.value = true;
@@ -153,7 +153,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
 
         return result; // Return the full result including metadata
       } else {
-        const problems = await boulderProblemsService.getBoulderProblems(locationId);
+        const problems = await boulderProblemsService.getBoulderProblems(locationId, routesetting);
         
         // Add color property based on index if not present
         boulderProblems.value = problems.map((problem, index) => ({
@@ -628,7 +628,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     initializeForLocation,
     setLocationGradingSystem,
     loadBoulderProblems,
-    loadProblemsForLocation: (locationId) => loadBoulderProblems(locationId),
+    loadProblemsForLocation: (locationId, routesetting = null) => loadBoulderProblems(locationId, null, routesetting),
     loadProblemsForImage: (locationId, imageId) => loadBoulderProblems(locationId, imageId),
     createNewProblem,
     finishCreatingProblem,

@@ -26,6 +26,7 @@
       <div class="px-6 flex-1 overflow-y-auto">
         <ImageUpload
           :location-id="locationId"
+          :routesetting="routesetting"
           @uploaded="$emit('uploaded', $event)"
           @error="$emit('error', $event)"
           @uploads-started="$emit('uploads-started', $event)"
@@ -61,6 +62,10 @@ const props = defineProps({
     required: true
   },
   locationId: {
+    type: String,
+    required: true
+  },
+  routesetting: {
     type: String,
     required: true
   },

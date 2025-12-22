@@ -104,24 +104,36 @@
               </div>
             </div>
             
-            <!-- Show optimized thumbnail -->
+            <!-- Show image (use resized versions for better performance) -->
             <picture v-else>
-              <!-- WebP format for modern browsers -->
-              <source 
-                :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
-                type="image/webp"
-                crossorigin="anonymous"
-              />
-              <!-- JPEG fallback -->
-              <img
-                :src="getResizedImageUrl(image.url, '300x300', 'jpeg')"
-                :alt="`Photo of ${locationName || 'climbing location'}`"
-                class="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                @click="$emit('image-click', image)"
-                @error="(e) => e.target.src = image.url"
-                loading="lazy"
-                crossorigin="anonymous"
-              />
+              <template v-if="isDev">
+                <!-- Dev/Emulator: Extension works, but may need time to generate thumbnails -->
+                <img
+                  :src="image.url"
+                  :alt="`Photo of ${locationName || 'climbing location'}`"
+                  class="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                  @click="$emit('image-click', image)"
+                  loading="lazy"
+                  crossorigin="anonymous"
+                />
+              </template>
+              <template v-else>
+                <!-- Production: use optimized thumbnails -->
+                <source 
+                  :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
+                  type="image/webp"
+                  crossorigin="anonymous"
+                />
+                <img
+                  :src="getResizedImageUrl(image.url, '300x300', 'jpeg')"
+                  :alt="`Photo of ${locationName || 'climbing location'}`"
+                  class="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                  @click="$emit('image-click', image)"
+                  @error="(e) => e.target.src = image.url"
+                  loading="lazy"
+                  crossorigin="anonymous"
+                />
+              </template>
             </picture>
             
             <!-- Hold detection button for admins -->
@@ -167,7 +179,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 defineProps({
   images: {
@@ -194,6 +206,9 @@ defineProps({
 });
 
 defineEmits(['upload', 'image-click', 'analyze-holds', 'delete-image']);
+
+// Check if running in dev mode (emulator)
+const isDev = computed(() => import.meta.env.DEV);
 
 const isHeicFile = (filename) => {
   return filename?.toLowerCase().endsWith('.heic') || filename?.toLowerCase().endsWith('.heif');

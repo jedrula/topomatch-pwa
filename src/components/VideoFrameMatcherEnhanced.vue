@@ -276,6 +276,10 @@ const props = defineProps({
     type: String,
     default: null, // If not provided, will generate one
   },
+  currentRoutesetting: {
+    type: String,
+    default: null,
+  },
   title: {
     type: String,
     default: 'Upload Beta Video',
@@ -426,6 +430,7 @@ const createAscentAndStartUpload = async (videoFile) => {
     const ascentData = {
       attemptType: 'flash', // Default, user can change later
       notes: '',
+      routesetting: props.currentRoutesetting || null,
       // problemId and problemSnapshot will be added by analysis pipeline
       video: {
         status: 'uploading',
@@ -505,6 +510,7 @@ const processVideo = async (videoFile) => {
       // Pass images and problems separately (cleaner separation of concerns)
       // - comparisonImages: for Step 2 image matching (SuperPoint)
       // - boulderProblems: for Step 4 problem scoring
+      // Note: comparisonImages are already filtered by routesetting at parent level
       console.log(`Frames: ${processedFrames.length}, Images: ${props.comparisonImages.length}, Problems: ${boulderProblemsStore.boulderProblems.length}`);
       await analysisQueue.setFrames(
         createdAscentId.value,

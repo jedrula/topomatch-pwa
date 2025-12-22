@@ -74,6 +74,7 @@ export const videoService = {
         locationId: data.locationId,
         problemId: data.problemId,
         problemName: data.problemSnapshot?.name || 'Unknown Problem',
+        routesetting: data.routesetting || null, // For filtering unassigned videos
         thumbnailBase64: data.video.thumbnailBase64, // Include thumbnail if available
         metadata: {
           problemName: data.problemSnapshot?.name,

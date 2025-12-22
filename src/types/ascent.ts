@@ -109,5 +109,6 @@ export interface CreateAscentData {
   userGrade?: string;
   notes?: string;
   date: Date;
+  routesetting?: string; // Routesetting when video was recorded (for filtering unassigned videos)
   video?: Omit<AscentVideo, 'uploadedAt' | 'transcodedAt'>;
 }

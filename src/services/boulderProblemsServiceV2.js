@@ -64,11 +64,17 @@ export const boulderProblemsServiceV2 = {
   /**
    * Get all boulder problems for a location via Firebase Function
    * @param {string} locationId - The location ID
+   * @param {string} [routesetting] - Optional routesetting to filter by
    * @returns {Promise<Array>} Array of boulder problems
    */
-  async getBoulderProblems(locationId) {
+  async getBoulderProblems(locationId, routesetting = null) {
     try {
-      const result = await getBoulderProblemsFn({ locationId });
+      const params = { locationId };
+      if (routesetting) {
+        params.routesetting = routesetting;
+      }
+      
+      const result = await getBoulderProblemsFn(params);
       const problems = result.data.problems.map((problem) => ({
         ...problem,
         // Convert Firestore timestamps to JavaScript Date objects

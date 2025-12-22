@@ -155,6 +155,7 @@ interface Location {
   description?: string;
   heroImageUrl?: string;
   gradingSystem?: GradingSystem;
+  routesettings?: string[]; // Array of ISO timestamps, last one is current
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -162,16 +163,21 @@ interface Location {
 // Interface for LocationImage data
 // imageId is always present (matches Firestore doc ID)
 // uploadedAt is optional because it's added server-side
+// settingDate is required - all images must belong to a routesetting
 interface LocationImage {
   imageId: string;
   locationId: string;
   fileName: string;
   downloadUrl: string;
   uploadedAt?: Date;
+  routesettings: string[]; // Array of ISO timestamps (YYYY-MM-DDTHH:mm:ss) - which routesettings use this image
 }
 
 // Input type for addLocationImage (omit uploadedAt which is added server-side)
-type AddLocationImageRequest = Omit<LocationImage, 'uploadedAt'>;
+// When creating, client provides single routesetting, server converts to array
+type AddLocationImageRequest = Omit<LocationImage, 'uploadedAt' | 'routesettings'> & {
+  routesetting: string; // Single routesetting when creating (converted to array server-side)
+};
 
 // Create a new location
 export const createLocation = onCall({region: REGION}, async (request) => {
@@ -402,18 +408,19 @@ export const deleteLocation = onCall({region: REGION}, async (request) => {
 export const addLocationImage = onCall({region: REGION}, async (request) => {
   try {
     // Input: imageId is the client-generated ID that becomes the Firestore doc ID
-    const { imageId, locationId, fileName, downloadUrl } = request.data as AddLocationImageRequest;
+    const { imageId, locationId, fileName, downloadUrl, routesetting } = request.data as AddLocationImageRequest;
 
-    if (!imageId || !locationId || !fileName || !downloadUrl) {
-      throw new Error("imageId, locationId, fileName, and downloadUrl are required");
+    if (!imageId || !locationId || !fileName || !downloadUrl || !routesetting) {
+      throw new Error("imageId, locationId, fileName, downloadUrl, and routesetting are required");
     }
 
-    // Data to store (imageId is included, uploadedAt added server-side)
+    // Data to store
     const imageData: Omit<LocationImage, 'uploadedAt'> = {
       imageId,
       locationId,
       fileName,
       downloadUrl,
+      routesettings: [routesetting], // Image belongs to this routesetting
     };
 
     // Use setDoc with client-provided imageId (matches Storage folder name)
@@ -421,6 +428,8 @@ export const addLocationImage = onCall({region: REGION}, async (request) => {
       ...imageData,
       uploadedAt: new Date(),
     });
+    
+    logger.info(`Added image ${imageId} with routesetting ${routesetting}`);
     
     // Return with uploadedAt field populated
     const imageWithUploadedAt: LocationImage = {
@@ -439,12 +448,57 @@ export const addLocationImage = onCall({region: REGION}, async (request) => {
 // Get all images for a location
 export const getLocationImages = onCall({region: REGION}, async (request) => {
   try {
-    const { locationId } = request.data;
+    const { locationId, routesetting } = request.data;
 
     if (!locationId) {
       throw new Error("locationId is required");
     }
 
+    logger.info(`getLocationImages called with locationId=${locationId}, routesetting=${routesetting}`);
+
+    // If routesetting provided, query images that contain this routesetting in their array
+    if (routesetting) {
+      logger.info(`Querying with array-contains: routesetting=${routesetting}`);
+      
+      // First get all images for location
+      const allSnapshot = await db
+        .collection("locationImages")
+        .where("locationId", "==", locationId)
+        .get();
+      
+      logger.info(`Found ${allSnapshot.size} total images for location`);
+      
+      // Then filter in memory for the routesetting
+      const images: LocationImage[] = [];
+      allSnapshot.forEach((doc) => {
+        const data = doc.data() as LocationImage;
+        logger.info(`  Image ${doc.id}: routesettings=${JSON.stringify(data.routesettings)}`);
+        
+        // Check if this image's routesettings array contains the requested routesetting
+        if (data.routesettings && Array.isArray(data.routesettings) && data.routesettings.includes(routesetting)) {
+          logger.info(`    ✓ MATCH - including this image`);
+          images.push({
+            ...data,
+            imageId: doc.id,
+          });
+        } else {
+          logger.info(`    ✗ NO MATCH - skipping`);
+        }
+      });
+      
+      // Sort by uploadedAt descending
+      images.sort((a, b) => {
+        const aTime = a.uploadedAt instanceof Date ? a.uploadedAt.getTime() : 0;
+        const bTime = b.uploadedAt instanceof Date ? b.uploadedAt.getTime() : 0;
+        return bTime - aTime;
+      });
+
+      logger.info(`Returning ${images.length} filtered images`);
+      return images;
+    }
+
+    // No routesetting - return all images for location (admin view)
+    logger.info(`No routesetting provided - returning all images for location`);
     const snapshot = await db
       .collection("locationImages")
       .where("locationId", "==", locationId)
@@ -539,13 +593,33 @@ export const createBoulderProblem = onCall({region: REGION}, async (request) => 
 });
 
 export const getBoulderProblems = onCall({region: REGION}, async (request) => {
-  const { locationId, imageId } = request.data;
+  const { locationId, imageId, routesetting } = request.data;
 
   if (!locationId) {
     throw new Error("Missing required field: locationId");
   }
 
   try {
+    // If routesetting is provided, first get imageIds that match the routesetting
+    let filteredImageIds: string[] | null = null;
+    if (routesetting && !imageId) {
+      console.log(`🔍 Filtering by routesetting: ${routesetting}`);
+      const imagesSnapshot = await db
+        .collection("locationImages")
+        .where("locationId", "==", locationId)
+        .where("routesettings", "array-contains", routesetting)
+        .get();
+      
+      filteredImageIds = imagesSnapshot.docs.map(doc => doc.id);
+      console.log(`📷 Found ${filteredImageIds.length} images with routesetting:`, filteredImageIds);
+      
+      // If no images match the routesetting, return empty array early
+      if (filteredImageIds.length === 0) {
+        console.log(`✅ No images found, returning empty array`);
+        return { problems: [], metadata: null };
+      }
+    }
+
     let query = db
       .collection("locations")
       .doc(locationId)
@@ -554,16 +628,36 @@ export const getBoulderProblems = onCall({region: REGION}, async (request) => {
 
     if (imageId) {
       query = query.where("imageId", "==", imageId);
+    } else if (filteredImageIds) {
+      // Firestore 'in' query supports up to 30 values
+      if (filteredImageIds.length <= 30) {
+        console.log(`✅ Using Firestore 'in' query with ${filteredImageIds.length} imageIds`);
+        query = query.where("imageId", "in", filteredImageIds);
+      } else {
+        // If more than 30, this will break - acceptable for now
+        throw new Error(`Too many images (${filteredImageIds.length}) - Firestore 'in' limit is 30`);
+      }
     }
 
     const querySnapshot = await query.get();
     const problems: any[] = [];
+    console.log(`📋 Query returned ${querySnapshot.size} problems`);
 
     querySnapshot.forEach((doc) => {
-      problems.push({
+      const problemData: any = doc.data();
+      const problem = {
         id: doc.id,
-        ...doc.data(),
-      });
+        ...problemData,
+      };
+      
+      // If we have more than 10 filtered images, filter in-memory
+      if (filteredImageIds && filteredImageIds.length > 10) {
+        if (filteredImageIds.includes(problemData.imageId)) {
+          problems.push(problem);
+        }
+      } else {
+        problems.push(problem);
+      }
     });
 
     // If imageId is provided, try to get the holdDetection metadata

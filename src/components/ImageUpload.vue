@@ -197,6 +197,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  routesetting: {
+    type: String,
+    required: true,
+  },
 });
 
 const emit = defineEmits(['uploaded', 'error', 'all-complete', 'uploads-started']);
@@ -350,8 +354,9 @@ const uploadSingleFile = async (uploadItem) => {
     // Get file extension
     const fileExtension = uploadItem.file.name.split('.').pop();
     
-    // New folder-based path: location-images/{locationId}/{imageId}/original.ext
+    // Storage path: location-images/{locationId}/{imageId}/original.ext
     const fileName = `location-images/${props.locationId}/${imageId}/original.${fileExtension}`;
+    
     const imageRef = storageRef(storage, fileName);
     
     // Upload with timeout protection for emulator issues
@@ -414,6 +419,7 @@ const startUploads = async () => {
           fileName: item.file.name,
           downloadUrl: item.downloadUrl,
           locationId: props.locationId,
+          routesetting: props.routesetting, // Routesetting timestamp for version control
         });
 
         results.push({ success: true, item });
@@ -435,6 +441,7 @@ const startUploads = async () => {
           fileName: item.file.name,
           downloadUrl: item.downloadUrl,
           locationId: props.locationId,
+          routesetting: props.routesetting,
         });
 
         return { success: true, item };
