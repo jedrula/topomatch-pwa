@@ -122,6 +122,14 @@
                 {{ formatDuration(video.metadata.duration) }}
               </p>
             </div>
+            
+            <!-- Like count (always visible) -->
+            <div class="absolute bottom-2 right-2 flex items-center space-x-1 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1">
+              <span class="text-base">💪</span>
+              <span class="text-xs text-white font-medium">
+                {{ formatLikeCount(video.likeCount) }}
+              </span>
+            </div>
           </div>
 
           <!-- Delete button (only for video owner) -->
@@ -230,6 +238,14 @@ const isDeletingAll = ref(false);
 const defaultPoster = getDefaultVideoPoster();
 
 const formatDuration = formatVideoDuration;
+
+const formatLikeCount = (count) => {
+  if (!count) return '0';
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}k`;
+  }
+  return count.toString();
+};
 
 const canDeleteVideo = (video) => {
   const currentUser = getCurrentUser();

@@ -193,7 +193,7 @@
     </div>
 
     <!-- Right side action buttons -->
-    <div v-if="currentVideo" class="absolute bottom-24 right-3 flex flex-col space-y-6 pointer-events-auto z-[70]">
+    <div v-if="currentVideo" class="absolute top-1/2 -translate-y-1/2 right-3 flex flex-col space-y-6 pointer-events-auto z-[70]">
       <LikeButton 
         :ascent="currentVideo" 
         @update="handleLikeUpdate"
