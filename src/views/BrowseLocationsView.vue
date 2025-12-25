@@ -56,6 +56,11 @@
 
     <!-- Locations Grid -->
     <div v-else class="max-w-7xl mx-auto px-4 py-8">
+      <!-- Trending Videos Section -->
+      <div class="mb-8">
+        <TrendingVideos />
+      </div>
+
       <div class="mb-6 flex items-center justify-between">
         <p class="text-gray-600">
           Pick a location
@@ -142,6 +147,7 @@ import { locationService } from '../services/locationService.js';
 import { formatDateShort } from '../utils/dateUtils.js';
 import { useUserStore } from '../stores/userStore.js';
 import { fixLocalhostUrl } from '../services/storageUtils.js';
+import TrendingVideos from '../components/TrendingVideos.vue';
 
 const router = useRouter();
 const userStore = useUserStore();

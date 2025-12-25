@@ -306,4 +306,52 @@ export const ascentService = {
       throw error;
     }
   },
+
+  /**
+   * Get trending ascents (most liked videos from the last 2 weeks)
+   * @param {number} limit - Maximum number of ascents to return (default: 10)
+   * @returns {Promise<Array>} Array of trending ascent records
+   */
+  async getTrendingAscents(limit = 10) {
+    try {
+      // Calculate date 2 weeks ago
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+      const ascentsRef = collection(db, 'ascents');
+      const q = query(
+        ascentsRef,
+        where('date', '>=', twoWeeksAgo),
+        orderBy('date', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const ascents = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Only include ascents with videos that have a path or URL
+        // Check for transcodedPath, originalPath, downloadUrl, or url (same as videoService)
+        if (data.video && (
+          data.video.transcodedPath ||
+          data.video.originalPath ||
+          data.video.downloadUrl ||
+          data.video.url
+        )) {
+          ascents.push({
+            id: doc.id,
+            ...data,
+            likeCount: data.likeCount || 0,
+          });
+        }
+      });
+
+      // Sort by like count (descending) and take top N
+      ascents.sort((a, b) => b.likeCount - a.likeCount);
+      return ascents.slice(0, limit);
+    } catch (error) {
+      console.error('Error fetching trending ascents:', error);
+      throw error;
+    }
+  },
 };

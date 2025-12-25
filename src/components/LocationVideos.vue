@@ -63,10 +63,10 @@
         <div
           v-for="(video, index) in videos"
           :key="video.id"
-          class="aspect-video bg-gray-100 rounded-lg overflow-hidden relative group"
+          class="relative"
         >
           <!-- Uploading State (only if no video URL available) -->
-          <div v-if="video.isUploading && !video.url && !video.downloadUrl" class="w-full h-full relative bg-gray-200">
+          <div v-if="video.isUploading && !video.url && !video.downloadUrl" class="aspect-video w-full relative bg-gray-200 rounded-lg overflow-hidden">
             <div class="absolute inset-0 flex flex-col items-center justify-center p-4">
               <svg class="w-12 h-12 text-blue-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -84,79 +84,45 @@
             </div>
           </div>
 
-          <!-- Video thumbnail/preview (show if URL available, even while uploading!) -->
-          <div 
+          <!-- Video thumbnail (show if URL available) -->
+          <VideoGridItem
             v-else
-            class="w-full h-full relative cursor-pointer"
+            :video-url="video.url || video.downloadUrl"
+            :thumbnail-url="video.thumbnailBase64 || defaultPoster"
+            :problem-name="video.metadata?.problemName"
+            :problem-grade="video.metadata?.problemGrade"
+            :user-name="video.uploadedBy"
+            :like-count="video.likeCount"
             @click="openVideoPlayer(index)"
-            :aria-label="`Play beta video ${index + 1}`"
-            role="button"
-            tabindex="0"
-            @keydown.enter="openVideoPlayer(index)"
-            @keydown.space.prevent="openVideoPlayer(index)"
           >
-            <video
-              :src="video.url || video.downloadUrl"
-              :poster="video.thumbnailBase64 || defaultPoster"
-              class="w-full h-full object-cover transition-transform group-hover:scale-105"
-              muted
-              preload="none"
-              crossorigin="anonymous"
-            />
-
-            <!-- Play button overlay -->
-            <div class="absolute inset-0 flex items-center justify-center transition-all duration-200 pointer-events-none">
-              <div class="w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
-                <svg class="w-6 h-6 text-gray-700 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
+            <template #actions>
+              <!-- Delete button (only for video owner) -->
+              <button
+                v-if="canDeleteVideo(video)"
+                @click.stop="handleDeleteClick(video)"
+                class="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-700 z-10"
+                :aria-label="`Delete video ${index + 1}`"
+                title="Delete video"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                 </svg>
-              </div>
-            </div>
+              </button>
 
-            <!-- Video info overlay -->
-            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <p v-if="video.metadata?.problemName" class="text-white text-xs font-medium truncate">
-                {{ video.metadata.problemName }}
-              </p>
-              <p v-if="video.metadata?.duration" class="text-white text-xs opacity-75">
-                {{ formatDuration(video.metadata.duration) }}
-              </p>
-            </div>
-            
-            <!-- Like count (always visible) -->
-            <div class="absolute bottom-2 right-2 flex items-center space-x-1 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1">
-              <span class="text-base">💪</span>
-              <span class="text-xs text-white font-medium">
-                {{ formatLikeCount(video.likeCount) }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Delete button (only for video owner) -->
-          <button
-            v-if="canDeleteVideo(video)"
-            @click.stop="handleDeleteClick(video)"
-            class="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-700 z-10"
-            :aria-label="`Delete video ${index + 1}`"
-            title="Delete video"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-            </svg>
-          </button>
-
-          <!-- Re-process button (only for unclassified videos that belong to user) -->
-          <button
-            v-if="canReprocessVideo(video)"
-            @click.stop="handleReprocessClick(video)"
-            class="absolute top-2 right-14 p-2 bg-blue-600 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-blue-700 z-10"
-            :aria-label="`Re-process video ${index + 1}`"
-            title="Re-analyze video to detect problem"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-            </svg>
-          </button>
+              <!-- Re-process button (only for unclassified videos that belong to user) -->
+              <button
+                v-if="canReprocessVideo(video)"
+                @click.stop="handleReprocessClick(video)"
+                class="absolute top-2 right-14 p-2 bg-blue-600 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-blue-700 z-10"
+                :aria-label="`Re-process video ${index + 1}`"
+                title="Re-analyze video to detect problem"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+              </button>
+            </template>
+          </VideoGridItem>
         </div>
       </div>
     </div>
@@ -210,6 +176,7 @@ import { getCurrentUser } from '@/services/authService';
 import { useUserStore } from '@/stores/userStore';
 import { getDefaultVideoPoster, formatVideoDuration } from '@/utils/videoUtils';
 import VideoPlayerShorts from './VideoPlayerShorts.vue';
+import VideoGridItem from './VideoGridItem.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -238,14 +205,6 @@ const isDeletingAll = ref(false);
 const defaultPoster = getDefaultVideoPoster();
 
 const formatDuration = formatVideoDuration;
-
-const formatLikeCount = (count) => {
-  if (!count) return '0';
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}k`;
-  }
-  return count.toString();
-};
 
 const canDeleteVideo = (video) => {
   const currentUser = getCurrentUser();
