@@ -1,7 +1,7 @@
 <template>
-  <div class="text-white text-right bg-black bg-opacity-50 p-3 rounded-lg text-sm">
+  <div class="video-metadata text-white text-right p-2 rounded text-xs">
     <!-- Problem name - clickable if we have problemId and locationId -->
-    <h3 class="font-medium mb-1 text-gray-200">
+    <h3 class="font-medium mb-0.5 text-gray-200">
       <router-link
         v-if="video.problemId && video.locationId"
         :to="{ name: 'boulder-problem-detail', params: { locationId: video.locationId, problemId: video.problemId } }"
@@ -12,7 +12,7 @@
       </router-link>
       <span v-else>{{ video.name }}</span>
     </h3>
-    <div class="text-xs text-gray-400 space-y-0.5">
+    <div class="text-xs text-gray-400 space-y-0">
       <p v-if="video.uploadedBy && video.userId">
         <router-link
           :to="{ name: 'user-profile', params: { userId: video.userId } }"
@@ -57,3 +57,13 @@ const formatFileSize = (bytes) => {
   return videoService.formatFileSize(bytes);
 };
 </script>
+<style scoped>
+.video-metadata {
+  background-color: rgba(1, 1, 1, 0.3);
+  transition: background-color 0.2s;
+}
+
+.video-metadata:hover {
+  background-color: rgba(1, 1, 1, 0.8);
+}
+</style>

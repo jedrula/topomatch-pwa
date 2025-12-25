@@ -48,37 +48,6 @@
       </div>
     </div>
 
-    <!-- Desktop navigation arrows (hidden on mobile) -->
-    <div class="hidden md:flex absolute right-4 top-1/2 transform -translate-y-1/2 z-[90] flex-col space-y-4">
-      <button
-        @click="previousVideo"
-        :disabled="currentVideoIndex === 0"
-        :class="[
-          'bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all duration-200',
-          currentVideoIndex === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'
-        ]"
-        title="Previous video"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-        </svg>
-      </button>
-      
-      <button
-        @click="nextVideo"
-        :disabled="currentVideoIndex === videos.length - 1"
-        :class="[
-          'bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all duration-200',
-                    currentVideoIndex === videos.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'
-        ]"
-        title="Next video"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-    </div>
-
     <!-- Video container with swipe and scroll support -->
     <div 
       ref="videoContainer"
@@ -174,11 +143,6 @@
               </div>
             </div>
           </div>
-          
-          <!-- Video metadata overlay -->
-          <div class="absolute bottom-20 right-4 max-w-xs pointer-events-auto z-[70]">
-            <VideoMetadata :video="video" />
-          </div>
         </div>
       </div>
 
@@ -227,16 +191,34 @@
         <p>Swipe up/down to navigate videos</p>
       </div>
     </div>
+
+    <!-- Right side action buttons -->
+    <div v-if="currentVideo" class="absolute bottom-24 right-3 flex flex-col space-y-6 pointer-events-auto z-[70]">
+      <LikeButton 
+        :ascent="currentVideo" 
+        @update="handleLikeUpdate"
+      />
+      <!-- Future: Add comment button here -->
+      <!-- Future: Add share button here -->
+    </div>
+
+    <!-- Video metadata overlay (bottom right) -->
+    <div v-if="currentVideo" class="absolute bottom-1 right-0.5 max-w-[200px] pointer-events-auto z-[70]">
+      <VideoMetadata :video="currentVideo" />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/userStore';
 import VideoMetadata from './VideoMetadata.vue';
+import LikeButton from './LikeButton.vue';
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 
 const props = defineProps({
   getVideos: {
@@ -275,6 +257,11 @@ const currentVideoIndex = computed(() => {
   
   const index = videos.value.findIndex(v => v.id === videoId);
   return index >= 0 ? index : 0;
+});
+
+// Computed current video data
+const currentVideo = computed(() => {
+  return videos.value[currentVideoIndex.value] || null;
 });
 
 // Helper function to update videoId in URL
@@ -593,6 +580,24 @@ const initializePlayer = async () => {
     scrollToVideo(currentVideoIndex.value);
     await nextTick();
     playCurrentVideo();
+  }
+};
+
+// Handle like updates from LikeButton
+const handleLikeUpdate = ({ liked, likeCount }) => {
+  if (!currentVideo.value || !userStore.user?.uid) return;
+  
+  // Update the video data locally for immediate UI feedback
+  const video = videos.value[currentVideoIndex.value];
+  if (video) {
+    video.likeCount = likeCount;
+    // Update the likedByUserIds array locally
+    const userId = userStore.user.uid;
+    if (liked && !video.likedByUserIds?.includes(userId)) {
+      video.likedByUserIds = [...(video.likedByUserIds || []), userId];
+    } else if (!liked && video.likedByUserIds?.includes(userId)) {
+      video.likedByUserIds = video.likedByUserIds.filter(id => id !== userId);
+    }
   }
 };
 

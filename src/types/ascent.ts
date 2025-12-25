@@ -88,6 +88,12 @@ export interface Ascent {
   /** Optional embedded video data */
   video?: AscentVideo;
   
+  /** Array of user IDs who liked this ascent */
+  likedByUserIds?: string[];
+  
+  /** Total number of likes */
+  likeCount?: number;
+  
   /** When this ascent was logged */
   createdAt: Timestamp;
   

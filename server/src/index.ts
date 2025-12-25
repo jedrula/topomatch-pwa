@@ -20,6 +20,9 @@ export {onLocationImageDeleted} from "./locationImageDeletion";
 // Automatic hold detection when images are uploaded
 export {onLocationImageUploaded} from "./holdDetection";
 
+// Like toggle function for ascents
+export {toggleLike} from "./likeToggle";
+
 // Configure Storage emulator BEFORE initializing Firebase Admin
 // This must be set before any Storage client is created
 if (process.env.FUNCTIONS_EMULATOR === "true") {
