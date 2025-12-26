@@ -8,7 +8,7 @@
         </svg>
         <h2 class="text-base sm:text-lg font-semibold text-gray-900">Trending This Week</h2>
       </div>
-      <p class="text-sm text-gray-600 mt-1">Most liked videos from the last 2 weeks</p>
+      <p class="text-sm text-gray-600 mt-1">Most liked recent videos</p>
     </div>
 
     <!-- Content -->
@@ -55,9 +55,9 @@
 
     <!-- Video Player Modal -->
     <VideoPlayerShorts
-      v-if="showVideoPlayer"
+      v-if="route.query.videoId"
       :get-videos="getPlayerVideos"
-      :initial-video-id="videosForPlayer[currentVideoIndex]?.id"
+      :initial-video-id="route.query.videoId"
       :title="'Trending Videos'"
       @close="closeVideoPlayer"
     />
@@ -66,15 +66,17 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ascentService } from '@/services/ascentService';
 import { getVideoUrlFromAscent } from '@/services/videoService';
 import VideoPlayerShorts from './VideoPlayerShorts.vue';
 import VideoGridItem from './VideoGridItem.vue';
 
+const route = useRoute();
+const router = useRouter();
+
 const ascents = ref([]);
 const loading = ref(true);
-const showVideoPlayer = ref(false);
-const currentVideoIndex = ref(0);
 
 // Transform ascents to video format for VideoPlayerShorts
 const videosForPlayer = computed(() => {
@@ -120,12 +122,23 @@ const getPlayerVideos = async () => {
 };
 
 const openVideoPlayer = (index) => {
-  currentVideoIndex.value = index;
-  showVideoPlayer.value = true;
+  const video = videosForPlayer.value[index];
+  if (video && (video.url || video.downloadUrl)) {
+    // Add videoId to URL to open the player
+    router.push({
+      query: {
+        ...route.query,
+        videoId: video.id,
+      },
+    });
+  }
 };
 
 const closeVideoPlayer = () => {
-  showVideoPlayer.value = false;
+  // Remove videoId from URL when closing player
+  const query = { ...route.query };
+  delete query.videoId;
+  router.push({ query });
 };
 onMounted(loadTrendingAscents);
 </script>
