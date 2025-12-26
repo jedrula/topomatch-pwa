@@ -25,14 +25,14 @@
     <!-- Info overlay -->
     <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
       <!-- Problem info -->
-      <div v-if="problemName" class="text-white text-sm mb-1">
+      <div v-if="problemName" class="text-white text-sm">
         <div class="font-medium line-clamp-1">{{ problemName }}</div>
         <div v-if="problemGrade && typeof problemGrade === 'string'" class="text-xs text-gray-300">{{ problemGrade }}</div>
       </div>
 
       <!-- User and like count -->
       <div class="flex items-center justify-between text-xs text-white/90">
-        <span class="line-clamp-1">{{ userName }}</span>
+        <span class="line-clamp-1" style="line-height: 16px;">{{ userName }}</span>
         <div class="flex items-center space-x-1">
           <span class="text-base">💪</span>
           <span class="font-medium">{{ formatLikeCount(likeCount) }}</span>

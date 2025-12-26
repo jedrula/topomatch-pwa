@@ -46,7 +46,7 @@
           :thumbnail-url="video.thumbnailBase64"
           :problem-name="video.problemSnapshot?.name"
           :problem-grade="video.problemSnapshot?.grade"
-          :user-name="video.userName"
+          :user-name="video.uploadedBy"
           :like-count="video.likeCount"
           @click="openVideoPlayer(index)"
         />
@@ -88,12 +88,12 @@ const videosForPlayer = computed(() => {
       url: videoUrl,
       downloadUrl: videoUrl,
       thumbnailBase64: ascent.video.thumbnailBase64,
-      title: ascent.problemSnapshot?.name || 'Untitled',
+      name: ascent.problemSnapshot?.name || 'Untitled', // Changed from title to name
       locationId: ascent.locationId,
       problemId: ascent.problemId,
-      userName: ascent.userName,
+      uploadedBy: ascent.userName, // Changed from userName to uploadedBy
       userId: ascent.userId,
-      date: ascent.date,
+      uploadedAt: ascent.date?.toDate?.() || ascent.date, // Changed from date to uploadedAt
       likeCount: ascent.likeCount || 0,
       likedByUserIds: ascent.likedByUserIds || [],
       problemSnapshot: ascent.problemSnapshot,
