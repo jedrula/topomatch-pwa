@@ -184,7 +184,7 @@
       <!-- Comment button -->
       <button
         @click="openComments"
-        class="flex flex-col items-center space-y-1 text-white hover:scale-110 transition-transform"
+        class="flex flex-col items-center space-y-1 text-white hover:scale-110 transition-transform cursor-pointer"
       >
         <div class="relative">
           <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

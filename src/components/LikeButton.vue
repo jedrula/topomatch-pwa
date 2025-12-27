@@ -22,12 +22,10 @@
       </span>
       
       <!-- Pulse animation on like -->
-      <transition name="pulse">
-        <div 
-          v-if="showPulse" 
-          class="absolute inset-0 rounded-full bg-orange-500 opacity-50 animate-ping"
-        ></div>
-      </transition>
+      <div 
+        v-if="showPulse" 
+        class="absolute inset-0 rounded-full bg-orange-500 opacity-0 pulse-once"
+      ></div>
     </div>
     
     <!-- Like count -->
@@ -79,20 +77,31 @@ const handleClick = async () => {
 
   if (loading.value) return;
 
+  // Optimistic update - determine the new state before server call
+  const willBeLiked = !isLiked.value;
+  const currentCount = props.ascent?.likeCount || 0;
+  const optimisticCount = willBeLiked ? currentCount + 1 : currentCount - 1;
+  
+  // Show animation immediately (optimistic)
+  if (willBeLiked) {
+    showPulse.value = true;
+    setTimeout(() => {
+      showPulse.value = false;
+    }, 600);
+  }
+  
+  // Emit optimistic update immediately for instant UI feedback
+  emit('update', {
+    liked: willBeLiked,
+    likeCount: optimisticCount
+  });
+
   try {
     loading.value = true;
     
     const result = await toggleLike(props.ascent.id);
     
-    // Show pulse animation on like
-    if (result.liked) {
-      showPulse.value = true;
-      setTimeout(() => {
-        showPulse.value = false;
-      }, 600);
-    }
-    
-    // Emit update event so parent can refresh ascent data
+    // Update with actual server response (in case it differs)
     emit('update', {
       liked: result.liked,
       likeCount: result.likeCount
@@ -100,6 +109,13 @@ const handleClick = async () => {
     
   } catch (error) {
     console.error('Failed to toggle like:', error);
+    
+    // Rollback on error
+    emit('update', {
+      liked: !willBeLiked,
+      likeCount: currentCount
+    });
+    
     alert('Failed to update like. Please try again.');
   } finally {
     loading.value = false;
@@ -121,21 +137,17 @@ const handleClick = async () => {
   cursor: pointer;
 }
 
-.pulse-enter-active {
-  animation: pulse-animation 0.6s ease-out;
+.pulse-once {
+  animation: pulse-animation 0.5s ease-out;
 }
 
 @keyframes pulse-animation {
   0% {
-    transform: scale(0.8);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 0.4;
+    transform: scale(1);
+    opacity: 0.6;
   }
   100% {
-    transform: scale(1.5);
+    transform: scale(2);
     opacity: 0;
   }
 }
