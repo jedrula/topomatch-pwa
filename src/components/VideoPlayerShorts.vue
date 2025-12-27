@@ -51,10 +51,11 @@
     <!-- Video container with swipe and scroll support -->
     <div 
       ref="videoContainer"
-      class="relative overflow-y-auto overflow-x-hidden"
+      class="relative overflow-x-hidden"
+      :class="showComments ? 'overflow-hidden' : 'overflow-y-auto'"
       :style="{
         height: showComments ? '35vh' : '100vh',
-        scrollSnapType: 'y mandatory',
+        scrollSnapType: showComments ? 'none' : 'y mandatory',
         scrollbarWidth: 'none',
         msOverflowStyle: 'none'
       }"
@@ -382,6 +383,17 @@ const setupIntersectionObserver = () => {
   );
 };
 
+// Observe all video containers with the intersection observer
+const observeVideoContainers = () => {
+  const container = videoContainer.value;
+  if (container && intersectionObserver) {
+    const videoContainers = container.querySelectorAll('[data-video-index]');
+    videoContainers.forEach(element => {
+      intersectionObserver.observe(element);
+    });
+  }
+};
+
 const handleScroll = () => {
   // Scroll handler is now simplified - Intersection Observer does the heavy lifting
 };
@@ -617,13 +629,7 @@ const initializePlayer = async () => {
   await nextTick();
   
   // Observe all video containers
-  const container = videoContainer.value;
-  if (container) {
-    const videoContainers = container.querySelectorAll('[data-video-index]');
-    videoContainers.forEach(element => {
-      intersectionObserver.observe(element);
-    });
-  }
+  observeVideoContainers();
   
   const currentVideoId = route.query.videoId || props.initialVideoId;
   const isValidVideoId = currentVideoId && videos.value.some(v => v.id === currentVideoId);
@@ -665,10 +671,27 @@ const handleLikeUpdate = ({ liked, likeCount }) => {
 // Comment functions
 const openComments = () => {
   showComments.value = true;
+  // Lock scroll position to current video before container resizes
+  nextTick(() => {
+    const container = videoContainer.value;
+    if (container) {
+      // Ensure we're perfectly aligned to the current video
+      const targetScrollTop = currentVideoIndex.value * container.clientHeight;
+      container.scrollTop = targetScrollTop;
+    }
+  });
 };
 
 const closeComments = () => {
   showComments.value = false;
+  // Restore scroll position to current video after container resizes back
+  nextTick(() => {
+    const container = videoContainer.value;
+    if (container) {
+      const targetScrollTop = currentVideoIndex.value * container.clientHeight;
+      container.scrollTop = targetScrollTop;
+    }
+  });
 };
 
 const handleCommentUpdate = (commentCount) => {
