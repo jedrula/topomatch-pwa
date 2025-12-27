@@ -82,6 +82,7 @@
         <div
           v-for="(video, index) in videos"
           :key="video.id || index"
+          :data-video-index="index"
           class="w-full flex items-center justify-center relative"
           :style="{ 
             height: '100vh',
@@ -300,43 +301,57 @@ const stopProgressTracking = () => {
   }
 };
 
-let scrollTimeout = null;
+// Intersection Observer to detect which video is actually visible
+let intersectionObserver = null;
 
-// Scroll handling
-const handleScroll = () => {
-  // Clear existing timeout
-  if (scrollTimeout) {
-    clearTimeout(scrollTimeout);
+const setupIntersectionObserver = () => {
+  if (intersectionObserver) {
+    intersectionObserver.disconnect();
   }
-  
-  // Debounce scroll events to determine which video is in view
-  scrollTimeout = setTimeout(() => {
-    const container = videoContainer.value;
-    if (!container) return;
-    
-    const scrollTop = container.scrollTop;
-    const containerHeight = container.clientHeight;
-    
-    // Calculate which video should be considered "current" based on scroll position
-    const newIndex = Math.round(scrollTop / containerHeight);
-    
-    if (newIndex !== currentVideoIndex.value && newIndex >= 0 && newIndex < videos.value.length) {
-      // Update URL with new video ID
-      const newVideo = videos.value[newIndex];
-      if (newVideo && newVideo.id) {
-        setCurrentVideoId(newVideo.id);
-        nextTick(() => {
-          pauseOtherVideos(newIndex);
-          const video = videoElements.value[newIndex];
-          if (video && video.paused) {
-            video.muted = isMuted.value;
-            video.play().catch(err => console.log('Autoplay failed:', err));
-            startProgressTracking();
+
+  intersectionObserver = new IntersectionObserver(
+    (entries) => {
+      // Find the entry that has the largest intersection ratio (most visible)
+      let mostVisibleEntry = null;
+      let maxRatio = 0;
+
+      entries.forEach(entry => {
+        if (entry.intersectionRatio > maxRatio) {
+          maxRatio = entry.intersectionRatio;
+          mostVisibleEntry = entry;
+        }
+      });
+
+      // Only update if we have a clearly visible video (> 50% visible)
+      if (mostVisibleEntry && maxRatio > 0.5) {
+        const newIndex = parseInt(mostVisibleEntry.target.dataset.videoIndex);
+        
+        if (newIndex !== currentVideoIndex.value && newIndex >= 0 && newIndex < videos.value.length) {
+          const newVideo = videos.value[newIndex];
+          if (newVideo && newVideo.id) {
+            setCurrentVideoId(newVideo.id);
+            nextTick(() => {
+              pauseOtherVideos(newIndex);
+              const video = videoElements.value[newIndex];
+              if (video && video.paused) {
+                video.muted = isMuted.value;
+                video.play().catch(err => console.log('Autoplay failed:', err));
+                startProgressTracking();
+              }
+            });
           }
-        });
+        }
       }
+    },
+    {
+      root: null,
+      threshold: [0, 0.25, 0.5, 0.75, 1.0] // Check at multiple thresholds
     }
-  }, 100);
+  );
+};
+
+const handleScroll = () => {
+  // Scroll handler is now simplified - Intersection Observer does the heavy lifting
 };
 
 // Pause all videos except the current one
@@ -564,6 +579,20 @@ const initializePlayer = async () => {
   if (videos.value.length === 0) return;
   
   await nextTick();
+  
+  // Set up Intersection Observer to watch video containers
+  setupIntersectionObserver();
+  await nextTick();
+  
+  // Observe all video containers
+  const container = videoContainer.value;
+  if (container) {
+    const videoContainers = container.querySelectorAll('[data-video-index]');
+    videoContainers.forEach(element => {
+      intersectionObserver.observe(element);
+    });
+  }
+  
   const currentVideoId = route.query.videoId || props.initialVideoId;
   const isValidVideoId = currentVideoId && videos.value.some(v => v.id === currentVideoId);
   
@@ -611,6 +640,9 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown);
   stopProgressTracking();
+  if (intersectionObserver) {
+    intersectionObserver.disconnect();
+  }
 });
 
 // Expose initializePlayer so parent can call it when videos load

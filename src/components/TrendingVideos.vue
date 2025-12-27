@@ -55,7 +55,7 @@
 
     <!-- Video Player Modal -->
     <VideoPlayerShorts
-      v-if="route.query.videoId"
+      v-if="route.query.videoId && !loading && ascents.length > 0"
       :get-videos="getPlayerVideos"
       :initial-video-id="route.query.videoId"
       :title="'Trending Videos'"
