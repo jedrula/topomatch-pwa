@@ -91,14 +91,18 @@
         >
           <!-- Video element -->
           <video
-            :ref="el => videoElements[index] = el"
+            :ref="el => {
+              if (el) {
+                videoElements[index] = el;
+                setupVideoListeners(el, index);
+              }
+            }"
             :src="video.url || video.downloadUrl"
             :poster="video.thumbnailBase64"
             :controls="false"
             :muted="false"
             class="w-full h-full object-contain"
             :class="{ 'pointer-events-none': index !== currentVideoIndex }"
-            @loadedmetadata="handleVideoLoaded(index)"
             @ended="onVideoEnded"
             playsinline
             preload="metadata"
@@ -116,9 +120,19 @@
               :style="getVideoContentDimensions(index)"
               @click="togglePlayPause"
             >
-              <!-- Play/Pause overlay (center of actual video) -->
+              <!-- Loading/buffering spinner -->
               <div 
-                v-if="!isVideoPlaying(index)"
+                v-if="videoState[index] === 'loading' || videoState[index] === 'buffering'"
+                class="absolute inset-0 flex items-center justify-center pointer-events-none"
+              >
+                <div class="bg-black/50 rounded-full p-4">
+                  <div class="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                </div>
+              </div>
+              
+              <!-- Play button (when paused or ready) -->
+              <div 
+                v-else-if="videoState[index] === 'paused' || videoState[index] === 'ready'"
                 class="absolute inset-0 flex items-center justify-center pointer-events-none"
               >
                 <div class="bg-black/50 rounded-full p-4">
@@ -146,44 +160,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Mobile swipe indicators -->
-      <div class="md:hidden absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-center pointer-events-none">
-        <div class="bg-black/50 rounded-full px-4 py-2">
-          <div class="flex flex-col items-center space-y-1">
-            <svg v-if="currentVideoIndex > 0" class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-            </svg>
-            <span class="text-xs">{{ currentVideoIndex + 1 }}/{{ videos.length }}</span>
-            <svg v-if="currentVideoIndex < videos.length - 1" class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Peek of next/previous videos (mobile only) -->
-      <template v-if="videos.length > 1">
-        <!-- Previous video peek (top) -->
-        <div 
-          v-if="currentVideoIndex > 0"
-          class="md:hidden absolute top-0 left-0 right-0 h-16 overflow-hidden opacity-50 pointer-events-none"
-        >
-          <div class="h-full bg-gradient-to-b from-gray-800 to-transparent flex items-center justify-center">
-            <span class="text-white text-xs">Previous video</span>
-          </div>
-        </div>
-
-        <!-- Next video peek (bottom) -->
-        <div 
-          v-if="currentVideoIndex < videos.length - 1"
-          class="md:hidden absolute bottom-0 left-0 right-0 h-16 overflow-hidden opacity-50 pointer-events-none"
-        >
-          <div class="h-full bg-gradient-to-t from-gray-800 to-transparent flex items-center justify-center">
-            <span class="text-white text-xs">Next video</span>
-          </div>
-        </div>
-      </template>
     </div>
 
     <!-- Bottom info bar -->
@@ -249,7 +225,8 @@ const videoContainer = ref(null);
 const videoElements = ref({});
 const isMuted = ref(true); // Start muted by default
 const videoProgress = ref({});
-const isPlaying = ref({});
+// Single source of truth for video states: 'loading', 'ready', 'playing', 'paused', 'buffering'
+const videoState = ref({});
 
 // Computed current video index based on videoId from URL
 const currentVideoIndex = computed(() => {
@@ -281,7 +258,6 @@ const updateVideoProgress = () => {
     if (video && video.duration) {
       const progress = (video.currentTime / video.duration) * 100;
       videoProgress.value[index] = progress;
-      isPlaying.value[index] = !video.paused;
     }
   });
 };
@@ -299,6 +275,32 @@ const stopProgressTracking = () => {
     clearInterval(progressInterval);
     progressInterval = null;
   }
+};
+
+// Set up event listeners for video element to track state
+const setupVideoListeners = (video, index) => {
+  if (!video || video.dataset.listenersAdded) return;
+  video.dataset.listenersAdded = 'true';
+  
+  video.addEventListener('loadstart', () => {
+    videoState.value[index] = 'loading';
+  });
+  
+  video.addEventListener('loadeddata', () => {
+    videoState.value[index] = 'ready';
+  });
+  
+  video.addEventListener('playing', () => {
+    videoState.value[index] = 'playing';
+  });
+  
+  video.addEventListener('pause', () => {
+    videoState.value[index] = 'paused';
+  });
+  
+  video.addEventListener('waiting', () => {
+    videoState.value[index] = 'buffering';
+  });
 };
 
 // Intersection Observer to detect which video is actually visible
@@ -375,7 +377,7 @@ const scrollToVideo = (index) => {
   const targetScrollTop = index * container.clientHeight;
   container.scrollTo({
     top: targetScrollTop,
-    behavior: 'smooth'
+    behavior: 'auto' // Instant scroll, no animation
   });
 };
 
@@ -422,7 +424,7 @@ const playCurrentVideo = async (resetTime = true) => {
   if (currentVideo) {
     try {
       if (resetTime) {
-        currentVideo.currentTime = 0; // Reset to beginning
+        currentVideo.currentTime = 0;
       }
       currentVideo.muted = isMuted.value;
       await currentVideo.play();
@@ -431,9 +433,6 @@ const playCurrentVideo = async (resetTime = true) => {
       console.log('Video play failed:', error);
     }
   }
-};
-
-const handleVideoLoaded = () => {
 };
 
 const onVideoEnded = () => {
@@ -467,7 +466,7 @@ const togglePlayPause = () => {
   const currentVideo = videoElements.value[currentVideoIndex.value];
   if (currentVideo) {
     if (currentVideo.paused) {
-      currentVideo.play();
+      currentVideo.play().catch(err => console.log('Play failed:', err));
     } else {
       currentVideo.pause();
     }
@@ -481,10 +480,6 @@ const toggleMute = () => {
       video.muted = isMuted.value;
     }
   });
-};
-
-const isVideoPlaying = (index) => {
-  return isPlaying.value[index] || false;
 };
 
 const getVideoProgress = (index) => {
