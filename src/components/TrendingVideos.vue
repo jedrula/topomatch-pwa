@@ -96,6 +96,7 @@ const videosForPlayer = computed(() => {
       uploadedAt: ascent.date?.toDate?.() || ascent.date, // Changed from date to uploadedAt
       likeCount: ascent.likeCount || 0,
       likedByUserIds: ascent.likedByUserIds || [],
+      commentCount: ascent.commentCount || 0,
       problemSnapshot: ascent.problemSnapshot,
       userGrade: ascent.userGrade,
       attemptType: ascent.attemptType,

@@ -171,3 +171,36 @@ export const formatDateRelative = (date) => {
     return formatDateShort(date);
   }
 };
+
+/**
+ * Format time ago in short format (e.g., "2m ago", "3h ago", "5d ago")
+ * @param {Date|Object|string|number} date - The date to format
+ * @returns {string} Formatted time string
+ */
+export const formatTimeAgo = (date) => {
+  if (!date) return '';
+  
+  let dateObj;
+  if (date.toDate) {
+    dateObj = date.toDate();
+  } else if (date._seconds !== undefined) {
+    dateObj = new Date(date._seconds * 1000 + (date._nanoseconds || 0) / 1000000);
+  } else {
+    dateObj = new Date(date);
+  }
+
+  if (isNaN(dateObj.getTime())) {
+    return '';
+  }
+  
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - dateObj) / 1000);
+  
+  if (diffInSeconds < 60) return 'just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)}w ago`;
+  if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
+  return `${Math.floor(diffInSeconds / 31536000)}y ago`;
+};

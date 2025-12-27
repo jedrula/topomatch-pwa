@@ -14,7 +14,7 @@ import { getCurrentUser } from './authService';
  * @param {string} storagePath - The storage path (e.g., "videos/raw/userId/video.mp4")
  * @returns {string} The download URL
  */
-function constructStorageUrl(storagePath) {
+export function constructStorageUrl(storagePath) {
   const useEmulators = import.meta.env.MODE === 'development' || import.meta.env.VITE_USE_EMULATORS === 'true';
   
   if (useEmulators) {
@@ -27,6 +27,27 @@ function constructStorageUrl(storagePath) {
     const encodedPath = encodeURIComponent(storagePath);
     return `https://firebasestorage.googleapis.com/v0/b/topomatch-pwa.firebasestorage.app/o/${encodedPath}?alt=media`;
   }
+}
+
+/**
+ * Get video URL from ascent video data
+ * @param {Object} video - The video object from ascent
+ * @returns {string} The video URL
+ */
+export function getVideoUrlFromAscent(video) {
+  if (!video) return null;
+  
+  // If direct URL exists, use it
+  if (video.downloadUrl || video.url) {
+    return video.downloadUrl || video.url;
+  }
+  
+  // Otherwise construct from path
+  const videoPath = video.status === 'ready'
+    ? (video.transcodedPath || video.originalPath)
+    : video.originalPath;
+  
+  return videoPath ? constructStorageUrl(videoPath) : null;
 }
 
 export const videoService = {
@@ -76,6 +97,9 @@ export const videoService = {
         problemName: data.problemSnapshot?.name || 'Unknown Problem',
         routesetting: data.routesetting || null, // For filtering unassigned videos
         thumbnailBase64: data.video.thumbnailBase64, // Include thumbnail if available
+        likeCount: data.likeCount || 0, // Like count from ascent document
+        likedByUserIds: data.likedByUserIds || [], // Array of user IDs who liked
+        commentCount: data.commentCount || 0, // Comment count from ascent document
         metadata: {
           problemName: data.problemSnapshot?.name,
           problemGrade: data.problemSnapshot?.grade,
@@ -241,10 +265,10 @@ export const videoService = {
         throw new Error('File must be a video');
       }
 
-      // Validate file size (limit to 100MB for beta videos)
-      const maxSize = 100 * 1024 * 1024; // 100MB
+      // Validate file size (limit to 150MB for beta videos)
+      const maxSize = 150 * 1024 * 1024; // 150MB
       if (videoFile.size > maxSize) {
-        throw new Error('Video file size must be less than 100MB');
+        throw new Error('Video file size must be less than 150MB');
       }
 
       // Generate unique video ID

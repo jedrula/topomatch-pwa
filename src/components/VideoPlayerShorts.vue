@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 bg-black z-[10000] flex flex-col">
+  <div class="fixed inset-0 bg-black z-[10000] flex flex-col" :class="{ 'comments-open': showComments }">
     <!-- Header with close button and info -->
     <div class="absolute top-0 left-0 right-0 z-[100] bg-gradient-to-b from-black/80 to-transparent p-4">
       <div class="flex items-center justify-between text-white">
@@ -51,8 +51,13 @@
     <!-- Video container with swipe and scroll support -->
     <div 
       ref="videoContainer"
-      class="flex-1 relative overflow-y-auto overflow-x-hidden"
-      style="scroll-snap-type: y mandatory; scrollbar-width: none; -ms-overflow-style: none;"
+      class="relative overflow-y-auto overflow-x-hidden"
+      :style="{
+        height: showComments ? '35vh' : '100vh',
+        scrollSnapType: 'y mandatory',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none'
+      }"
       @scroll="handleScroll"
     >
       <!-- Loading state -->
@@ -78,14 +83,14 @@
       </div>
 
       <!-- Video slides container -->
-      <div v-else class="relative">
+      <div v-else class="relative h-full">
         <div
           v-for="(video, index) in videos"
           :key="video.id || index"
           :data-video-index="index"
           class="w-full flex items-center justify-center relative"
           :style="{ 
-            height: '100vh',
+            height: '100%',
             scrollSnapAlign: 'start'
           }"
         >
@@ -175,6 +180,20 @@
         :ascent="currentVideo" 
         @update="handleLikeUpdate"
       />
+      
+      <!-- Comment button -->
+      <button
+        @click="openComments"
+        class="flex flex-col items-center space-y-1 text-white hover:scale-110 transition-transform"
+      >
+        <div class="relative">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <span class="text-xs font-medium">{{ currentVideo.commentCount || 0 }}</span>
+      </button>
+      
       <!-- Future: Add comment button here -->
       <!-- Future: Add share button here -->
     </div>
@@ -183,6 +202,15 @@
     <div v-if="currentVideo" class="absolute bottom-1 right-0.5 max-w-[200px] pointer-events-auto z-[70]">
       <VideoMetadata :video="currentVideo" />
     </div>
+
+    <!-- Comment Section -->
+    <CommentSection
+      v-if="showComments && currentVideo"
+      :ascent-id="currentVideo.id"
+      class="z-[100]"
+      @close="closeComments"
+      @update="handleCommentUpdate"
+    />
   </div>
 </template>
 
@@ -192,6 +220,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/userStore';
 import VideoMetadata from './VideoMetadata.vue';
 import LikeButton from './LikeButton.vue';
+import CommentSection from './CommentSection.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -227,6 +256,7 @@ const isMuted = ref(true); // Start muted by default
 const videoProgress = ref({});
 // Single source of truth for video states: 'loading', 'ready', 'playing', 'paused', 'buffering'
 const videoState = ref({});
+const showComments = ref(false);
 
 // Computed current video index based on videoId from URL
 const currentVideoIndex = computed(() => {
@@ -632,6 +662,23 @@ const handleLikeUpdate = ({ liked, likeCount }) => {
   }
 };
 
+// Comment functions
+const openComments = () => {
+  showComments.value = true;
+};
+
+const closeComments = () => {
+  showComments.value = false;
+};
+
+const handleCommentUpdate = (commentCount) => {
+  // Update comment count locally
+  const video = videos.value[currentVideoIndex.value];
+  if (video) {
+    video.commentCount = commentCount;
+  }
+};
+
 // Lifecycle
 onMounted(async () => {
   document.addEventListener('keydown', handleKeyDown);
@@ -680,8 +727,4 @@ video {
   }
 }
 
-/* Smooth transitions */
-.transition-transform {
-  transition: transform 0.3s ease-out;
-}
 </style>
