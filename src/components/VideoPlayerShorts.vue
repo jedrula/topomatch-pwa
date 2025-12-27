@@ -668,30 +668,28 @@ const handleLikeUpdate = ({ liked, likeCount }) => {
   }
 };
 
-// Comment functions
-const openComments = () => {
-  showComments.value = true;
-  // Lock scroll position to current video before container resizes
+// Helper to align scroll position to current video
+const alignScrollToCurrentVideo = () => {
   nextTick(() => {
     const container = videoContainer.value;
     if (container) {
-      // Ensure we're perfectly aligned to the current video
       const targetScrollTop = currentVideoIndex.value * container.clientHeight;
       container.scrollTop = targetScrollTop;
     }
   });
 };
 
+// Comment functions
+const openComments = () => {
+  showComments.value = true;
+  // Lock scroll position to current video before container resizes
+  alignScrollToCurrentVideo();
+};
+
 const closeComments = () => {
   showComments.value = false;
   // Restore scroll position to current video after container resizes back
-  nextTick(() => {
-    const container = videoContainer.value;
-    if (container) {
-      const targetScrollTop = currentVideoIndex.value * container.clientHeight;
-      container.scrollTop = targetScrollTop;
-    }
-  });
+  alignScrollToCurrentVideo();
 };
 
 const handleCommentUpdate = (commentCount) => {
