@@ -51,7 +51,7 @@
     <!-- Video container with swipe and scroll support -->
     <div 
       ref="videoContainer"
-      class="flex-1 relative overflow-y-auto overflow-x-hidden scroll-smooth"
+      class="flex-1 relative overflow-y-auto overflow-x-hidden"
       style="scroll-snap-type: y mandatory; scrollbar-width: none; -ms-overflow-style: none;"
       @scroll="handleScroll"
     >
@@ -368,17 +368,24 @@ const pauseOtherVideos = (currentIndex) => {
 };
 
 // Scroll to specific video
-const scrollToVideo = (index) => {
+const scrollToVideo = (index, instant = false) => {
   const container = videoContainer.value;
   if (!container) return;
   
   pauseOtherVideos(index);
   
   const targetScrollTop = index * container.clientHeight;
-  container.scrollTo({
-    top: targetScrollTop,
-    behavior: 'auto' // Instant scroll, no animation
-  });
+  
+  if (instant) {
+    // Direct positioning for initialization - no animation
+    container.scrollTop = targetScrollTop;
+  } else {
+    // Smooth scroll for user navigation
+    container.scrollTo({
+      top: targetScrollTop,
+      behavior: 'smooth'
+    });
+  }
 };
 
 // Navigation methods
@@ -595,13 +602,13 @@ const initializePlayer = async () => {
     // Set first video as current
     setCurrentVideoId(videos.value[0].id);
     await nextTick();
-    scrollToVideo(currentVideoIndex.value);
+    scrollToVideo(currentVideoIndex.value, true); // instant = true for initialization
     await nextTick();
     playCurrentVideo();
   }
   else if (isValidVideoId) {
     await nextTick();
-    scrollToVideo(currentVideoIndex.value);
+    scrollToVideo(currentVideoIndex.value, true); // instant = true for initialization
     await nextTick();
     playCurrentVideo();
   }
