@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 bg-black z-[10000] flex flex-col" :class="{ 'comments-open': showComments }">
+  <div class="fixed inset-0 bg-black z-[10000] flex flex-col">
     <!-- Header with close button and info -->
     <div class="absolute top-0 left-0 right-0 z-[100] bg-gradient-to-b from-black/80 to-transparent p-4">
       <div class="flex items-center justify-between text-white">
@@ -52,9 +52,9 @@
     <div 
       ref="videoContainer"
       class="relative overflow-x-hidden"
-      :class="showComments ? 'overflow-hidden' : 'overflow-y-auto'"
+      :class="showComments ? 'flex-shrink-0 overflow-hidden' : 'flex-1 overflow-y-auto'"
       :style="{
-        height: showComments ? '35vh' : '100vh',
+        height: showComments ? '35vh' : 'auto',
         scrollSnapType: showComments ? 'none' : 'y mandatory',
         scrollbarWidth: 'none',
         msOverflowStyle: 'none'
@@ -84,16 +84,13 @@
       </div>
 
       <!-- Video slides container -->
-      <div v-else class="relative h-full">
+      <div v-else class="relative w-full h-full">
         <div
           v-for="(video, index) in videos"
           :key="video.id || index"
           :data-video-index="index"
-          class="w-full flex items-center justify-center relative"
-          :style="{ 
-            height: '100%',
-            scrollSnapAlign: 'start'
-          }"
+          class="w-full h-full flex items-center justify-center relative"
+          :style="{ scrollSnapAlign: 'start' }"
         >
           <!-- Video element -->
           <video
@@ -208,7 +205,7 @@
     <CommentSection
       v-if="showComments && currentVideo"
       :ascent-id="currentVideo.id"
-      class="z-[100]"
+      class="flex-1 z-[100]"
       @close="closeComments"
       @update="handleCommentUpdate"
     />
@@ -668,28 +665,35 @@ const handleLikeUpdate = ({ liked, likeCount }) => {
   }
 };
 
-// Helper to align scroll position to current video
-const alignScrollToCurrentVideo = () => {
-  nextTick(() => {
-    const container = videoContainer.value;
-    if (container) {
-      const targetScrollTop = currentVideoIndex.value * container.clientHeight;
-      container.scrollTop = targetScrollTop;
-    }
-  });
-};
-
 // Comment functions
-const openComments = () => {
+const openComments = async () => {
   showComments.value = true;
-  // Lock scroll position to current video before container resizes
-  alignScrollToCurrentVideo();
+  // Disconnect Intersection Observer to prevent video switching when container resizes
+  if (intersectionObserver) {
+    intersectionObserver.disconnect();
+  }
+  // Wait for DOM to update with new container height
+  await nextTick();
+  await nextTick();
+  // Scroll to position current video at the top of the visible area
+  const container = videoContainer.value;
+  if (container) {
+    container.scrollTop = currentVideoIndex.value * container.clientHeight;
+  }
 };
 
-const closeComments = () => {
+const closeComments = async () => {
   showComments.value = false;
-  // Restore scroll position to current video after container resizes back
-  alignScrollToCurrentVideo();
+  // Wait for DOM to update with full container height
+  await nextTick();
+  await nextTick();
+  // Scroll to position current video correctly
+  const container = videoContainer.value;
+  if (container) {
+    container.scrollTop = currentVideoIndex.value * container.clientHeight;
+  }
+  // Reconnect Intersection Observer when comments close
+  observeVideoContainers();
 };
 
 const handleCommentUpdate = (commentCount) => {
