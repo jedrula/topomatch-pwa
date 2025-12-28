@@ -491,6 +491,26 @@ const onVideoEnded = () => {
 
 // Keyboard navigation
 const handleKeyDown = (event) => {
+  // Ignore keyboard shortcuts when user is typing in an input field
+  const activeElement = document.activeElement;
+  const isTyping = activeElement && (
+    activeElement.tagName === 'INPUT' ||
+    activeElement.tagName === 'TEXTAREA' ||
+    activeElement.isContentEditable
+  );
+  
+  // Allow Escape to work even when typing (to close comments/modals)
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closePlayer();
+    return;
+  }
+  
+  // Ignore other shortcuts when typing
+  if (isTyping) {
+    return;
+  }
+  
   switch (event.key) {
     case 'ArrowUp':
       event.preventDefault();
@@ -499,10 +519,6 @@ const handleKeyDown = (event) => {
     case 'ArrowDown':
       event.preventDefault();
       nextVideo();
-      break;
-    case 'Escape':
-      event.preventDefault();
-      closePlayer();
       break;
     case ' ':
       event.preventDefault();
