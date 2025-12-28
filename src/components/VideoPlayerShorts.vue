@@ -52,9 +52,12 @@
     <div 
       ref="videoContainer"
       class="relative overflow-x-hidden"
-      :class="showComments ? 'flex-shrink-0 overflow-hidden' : 'flex-1 overflow-y-auto'"
+      :class="[
+        showComments 
+          ? 'h-[35vh] flex-shrink-0 overflow-hidden'
+          : 'flex-1 overflow-y-auto'
+      ]"
       :style="{
-        height: showComments ? '35vh' : 'auto',
         scrollSnapType: showComments ? 'none' : 'y mandatory',
         scrollbarWidth: 'none',
         msOverflowStyle: 'none'

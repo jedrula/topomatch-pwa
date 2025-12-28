@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col bg-white h-full">
-    <!-- Header -->
-    <div class="flex items-center justify-between p-4 border-b border-gray-200">
+    <!-- Header with close button -->
+    <div class="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
       <h3 class="text-lg font-semibold text-gray-900">
         Comments <span class="text-gray-500">({{ comments.length }})</span>
       </h3>
@@ -15,8 +15,39 @@
       </button>
     </div>
 
-      <!-- Comments list -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-4">
+    <!-- Comment input at top -->
+    <div class="flex-shrink-0 border-b border-gray-200 p-4 bg-gray-50">
+      <form @submit.prevent="submitComment" class="flex space-x-3">
+        <div class="flex-shrink-0">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold text-sm">
+            {{ userInitials }}
+          </div>
+        </div>
+        <div class="flex-1">
+          <textarea
+            ref="commentInput"
+            v-model="newComment"
+            placeholder="Add a comment..."
+            rows="2"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white"
+            style="font-size: 16px;"
+            :disabled="submitting"
+          />
+          <div class="flex justify-end mt-2">
+            <button
+              type="submit"
+              :disabled="!newComment.trim() || submitting"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {{ submitting ? 'Posting...' : 'Post' }}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Comments list -->
+    <div class="flex-1 overflow-y-auto p-4 space-y-4">
         <!-- Loading state -->
         <div v-if="loading" class="text-center py-8">
           <div class="mx-auto w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
@@ -51,35 +82,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Comment input -->
-      <div class="border-t border-gray-200 p-4">
-        <form @submit.prevent="submitComment" class="flex space-x-3">
-          <div class="flex-shrink-0">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold text-sm">
-              {{ userInitials }}
-            </div>
-          </div>
-          <div class="flex-1">
-            <textarea
-              v-model="newComment"
-              placeholder="Add a comment..."
-              rows="2"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-              :disabled="submitting"
-            />
-            <div class="flex justify-end mt-2">
-              <button
-                type="submit"
-                :disabled="!newComment.trim() || submitting"
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {{ submitting ? 'Posting...' : 'Post' }}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
   </div>
 </template>
 
@@ -103,6 +105,7 @@ const comments = ref([]);
 const loading = ref(true);
 const newComment = ref('');
 const submitting = ref(false);
+const commentInput = ref(null);
 
 const userInitials = computed(() => {
   if (!userStore.user) return '?';
