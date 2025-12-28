@@ -1,63 +1,70 @@
 <template>
-  <div class="min-h-screen bg-gray-100">
-    <div class="max-w-7xl mx-auto p-4">
+  <div class="min-h-screen bg-gray-50">
+    <div class="container py-6 sm:py-8">
       <!-- Profile Header -->
-      <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-        <div class="flex items-center gap-4">
+      <div class="card mb-6">
+        <div class="flex items-center gap-4 mb-6">
           <!-- User Avatar/Initial -->
-          <div class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+          <div class="w-16 h-16 bg-gray-900 rounded-full flex items-center justify-center text-white text-xl font-semibold">
             {{ userInitial }}
           </div>
           
           <!-- User Info -->
           <div>
-            <h1 class="text-2xl font-bold text-gray-900">{{ userName }}</h1>
-            <p class="text-gray-600">{{ userEmail }}</p>
+            <h1 class="text-[20px] font-semibold text-gray-900">{{ userName }}</h1>
+            <p v-if="userEmail" class="text-[13px] text-gray-600 mt-0.5">{{ userEmail }}</p>
           </div>
         </div>
 
         <!-- Stats -->
-        <div class="grid grid-cols-3 gap-4 mt-6 pt-6 border-t">
+        <div class="grid grid-cols-3 gap-4 pt-6 border-t border-gray-200/60">
           <div class="text-center">
-            <div class="text-3xl font-bold text-blue-600">{{ totalAscents }}</div>
-            <div class="text-sm text-gray-600">Total Sends</div>
+            <div class="text-[24px] font-semibold text-gray-900">{{ totalAscents }}</div>
+            <div class="text-[13px] text-gray-600 mt-0.5">Total Sends</div>
           </div>
           <div class="text-center">
-            <div class="text-3xl font-bold text-green-600">{{ videoCount }}</div>
-            <div class="text-sm text-gray-600">Beta Videos</div>
+            <div class="text-[24px] font-semibold text-gray-900">{{ videoCount }}</div>
+            <div class="text-[13px] text-gray-600 mt-0.5">Beta Videos</div>
           </div>
           <div class="text-center">
-            <div class="text-3xl font-bold text-purple-600">{{ uniqueProblems }}</div>
-            <div class="text-sm text-gray-600">Problems</div>
+            <div class="text-[24px] font-semibold text-gray-900">{{ uniqueProblems }}</div>
+            <div class="text-[13px] text-gray-600 mt-0.5">Problems</div>
           </div>
         </div>
       </div>
 
       <!-- Beta Videos Section -->
-      <div class="bg-white rounded-lg shadow-lg p-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Beta Videos</h2>
+      <div class="card">
+        <div class="pb-4 border-b border-gray-200/60 mb-4">
+          <h2 class="text-[15px] font-semibold text-gray-900">Beta Videos</h2>
+          <p v-if="!loading && videos.length > 0" class="text-[13px] text-gray-600 mt-0.5">
+            {{ videos.length }} {{ videos.length === 1 ? 'video' : 'videos' }}
+          </p>
+        </div>
         
         <!-- Loading State -->
         <div v-if="loading" class="text-center py-12">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p class="mt-4 text-gray-600">Loading videos...</p>
+          <div class="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-3"></div>
+          <p class="text-gray-600 text-[13px]">Loading videos...</p>
         </div>
 
         <!-- Empty State -->
         <div v-else-if="videos.length === 0" class="text-center py-12">
-          <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-          </svg>
-          <h3 class="text-lg font-medium text-gray-900 mb-2">No beta videos yet</h3>
-          <p class="text-gray-600">Start recording your sends!</p>
+          <div class="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z"></path>
+            </svg>
+          </div>
+          <h3 class="text-[15px] font-semibold text-gray-900 mb-1">No beta videos yet</h3>
+          <p class="text-gray-600 text-[13px]">Start recording your sends!</p>
         </div>
 
         <!-- Video Grid -->
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           <div
             v-for="(video, index) in videos"
             :key="video.id"
-            class="aspect-video bg-gray-100 rounded-lg overflow-hidden relative group cursor-pointer"
+            class="aspect-video bg-gray-50 rounded-lg overflow-hidden relative group cursor-pointer hover:ring-2 hover:ring-gray-900/10 transition-all"
             @click="openVideoPlayer(video.id)"
           >
             <video
@@ -70,9 +77,9 @@
             />
 
             <!-- Video info overlay -->
-            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-3">
-              <p class="text-white text-sm font-medium truncate">{{ video.problemName }}</p>
-              <p class="text-white text-xs opacity-75">{{ formatDate(video.uploadedAt) }}</p>
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+              <p class="text-white text-[13px] font-medium truncate">{{ video.problemName }}</p>
+              <p class="text-white/75 text-[11px] mt-0.5">{{ formatDate(video.uploadedAt) }}</p>
             </div>
           </div>
         </div>
