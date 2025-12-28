@@ -11,4 +11,4 @@ writeFileSync('public/inferenceWorker.combined.js', onnxCode + '\n' + inferenceW
 const poseDetectionWorker = readFileSync('src/workers/poseDetectionWorker.js', 'utf-8');
 writeFileSync('public/poseDetectionWorker.combined.js', onnxCode + '\n' + poseDetectionWorker);
 
-console.log('✅ Image matching and pose detection workers built successfully');
+console.log('✅ Image matching and pose detection workers built successfully (OLD concatenated versions with iOS optimizations)');

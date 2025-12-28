@@ -191,11 +191,14 @@ export const validateVideoFile = (file) => {
     return result;
   }
 
-  // Check file size (limit to 100MB)
-  const maxSize = 100 * 1024 * 1024; // 100MB
+  // Check file size (limit to 150MB)
+  const maxSize = 150 * 1024 * 1024; // 150MB
+  const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+  console.log(`📊 Video file size: ${fileSizeMB}MB (${file.size} bytes, limit: 150MB)`);
+  
   if (file.size > maxSize) {
     result.isValid = false;
-    result.errors.push('Video file size must be less than 100MB');
+    result.errors.push(`Video file size must be less than 150MB (current: ${fileSizeMB}MB)`);
   }
 
   // Check if file size is very small (might be corrupted)

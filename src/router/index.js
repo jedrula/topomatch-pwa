@@ -1,12 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
+// Only import the home view statically for fastest initial load
 import BrowseLocationsView from '../views/BrowseLocationsView.vue';
-import HoldDetectionServerView from '../views/HoldDetectionServerView.vue';
-import AddLocationView from '../views/AddLocationView.vue';
-import LocationDetailView from '../views/LocationDetailView.vue';
-import EditLocationView from '../views/EditLocationView.vue';
-import BoulderProblemDetailView from '../views/BoulderProblemDetailView.vue';
-import UserProfileView from '../views/UserProfileView.vue';
-import AdminView from '../views/AdminView.vue';
+// All other views use lazy loading (route-level code splitting)
 import { useUserStore } from '../stores/userStore.js';
 
 const router = createRouter({
@@ -20,13 +15,13 @@ const router = createRouter({
     {
       path: '/add-location',
       name: 'add-location',
-      component: AddLocationView,
+      component: () => import('../views/AddLocationView.vue'),
       meta: { requiresAdmin: true },
     },
     {
       path: '/admin',
       name: 'admin',
-      component: AdminView,
+      component: () => import('../views/AdminView.vue'),
       meta: { requiresAdmin: true },
     },
     {
@@ -36,20 +31,20 @@ const router = createRouter({
     {
       path: '/location/:locationId',
       name: 'location-detail',
-      component: LocationDetailView,
+      component: () => import('../views/LocationDetailView.vue'),
       props: true,
     },
     {
       path: '/location/:locationId/edit',
       name: 'location-edit',
-      component: EditLocationView,
+      component: () => import('../views/EditLocationView.vue'),
       props: true,
       meta: { requiresAdmin: true },
     },
     {
       path: '/location/:locationId/holds-server',
       name: 'location-hold-detection-server',
-      component: HoldDetectionServerView,
+      component: () => import('../views/HoldDetectionServerView.vue'),
       props: true,
     },
     {
@@ -61,19 +56,19 @@ const router = createRouter({
     {
       path: '/location/:locationId/problem/:problemId',
       name: 'boulder-problem-detail',
-      component: BoulderProblemDetailView,
+      component: () => import('../views/BoulderProblemDetailView.vue'),
       props: true,
     },
     {
       path: '/profile',
       name: 'profile',
-      component: UserProfileView,
+      component: () => import('../views/UserProfileView.vue'),
       meta: { requiresAuth: true },
     },
     {
       path: '/user/:userId',
       name: 'user-profile',
-      component: UserProfileView,
+      component: () => import('../views/UserProfileView.vue'),
       props: true,
     },
   ],
@@ -101,6 +96,15 @@ router.beforeEach(async (to, from, next) => {
   }
 
   next();
+});
+
+// Handle chunk loading errors (e.g., after deployment when cached files reference old chunks)
+router.onError((error) => {
+  if (/Failed to fetch dynamically imported module|Importing a module script failed/.test(error.message)) {
+    console.warn('Chunk loading failed, reloading page:', error);
+    // Force reload to clear cached chunks
+    window.location.href = window.location.href;
+  }
 });
 
 export default router;
