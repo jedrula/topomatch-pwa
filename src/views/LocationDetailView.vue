@@ -1,41 +1,38 @@
 <template>
-  <div class="min-h-screen bg-gray-50 px-3 sm:px-4 py-4 sm:py-8">
+  <div class="min-h-screen">
     <!-- Toast Notification -->
     <ToastNotification />
 
-    <div class="max-w-4xl mx-auto">
+    <div class="container py-6 sm:py-8">
       <!-- Loading state -->
-      <div v-if="isLoading" class="flex items-center justify-center py-12">
-        <div class="text-gray-600">Loading location...</div>
+      <div v-if="isLoading" class="flex items-center justify-center py-20">
+        <div class="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
       </div>
 
       <!-- Error state -->
-      <div
-        v-else-if="error"
-        class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6"
-      >
+      <div v-else-if="error" class="px-3 py-2.5 bg-red-50 border border-red-200 text-red-700 text-[13px] rounded-md mb-6">
         {{ error }}
       </div>
 
       <!-- Location content -->
-      <div v-else-if="location" class="space-y-4 sm:space-y-6">
+      <div v-else-if="location" class="space-y-6">
 
         <!-- Location info -->
-        <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div class="card">
           <!-- Grid layout with template areas -->
-          <div class="grid gap-4 sm:gap-6 location-grid">
+          <div class="grid gap-6 location-grid">
             <!-- Hero Image -->
-            <div v-if="location.heroImageUrl" class="hero-image relative h-32 sm:h-48 rounded-lg overflow-hidden">
+            <div v-if="location.heroImageUrl" class="hero-image relative h-40 sm:h-48 rounded-lg overflow-hidden bg-gray-50">
               <img
                 :src="fixLocalhostUrl(location.heroImageUrl)"
                 :alt="location.name"
-                class="w-full h-full object-contain"
+                class="w-full h-full object-cover"
                 crossorigin="anonymous"
               />
             </div>
             
             <!-- Location Name -->
-            <h1 class="location-name text-2xl sm:text-3xl font-bold leading-tight text-gray-900">
+            <h1 class="location-name text-xl sm:text-2xl font-semibold text-gray-900">
               {{ location.name }}
             </h1>
             
@@ -44,13 +41,13 @@
               <button
                 v-if="userStore.canEditLocations"
                 @click="editLocation"
-                class="px-3 py-1.5 text-sm text-blue-600 border border-blue-600 rounded hover:bg-blue-50 transition-colors"
+                class="btn-secondary h-8 px-3 text-[13px]"
               >
                 Edit
               </button>
               <router-link
                 :to="`/location/${locationId}/jobs`"
-                class="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-colors inline-block text-center"
+                class="btn-secondary h-8 px-3 text-[13px] inline-flex items-center"
                 title="View background analysis jobs"
               >
                 Jobs
@@ -61,13 +58,13 @@
             <div class="description">
               <p 
                 v-if="location.description" 
-                class="text-gray-700 text-base sm:text-lg leading-relaxed"
+                class="text-[14px] text-gray-700 leading-relaxed"
               >
                 {{ location.description }}
               </p>
               <p 
                 v-else 
-                class="text-gray-500 italic"
+                class="text-[13px] text-gray-500 italic"
               >
                 No description provided
               </p>
@@ -75,31 +72,28 @@
           </div>
 
           <!-- Upload Beta Video CTA -->
-          <div class="border-t border-gray-200 pt-4 sm:pt-6 mt-4 sm:mt-6">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div class="border-t border-gray-200/60 pt-6 mt-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div class="flex-1">
-                <h3 class="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <span class="text-green-600">🎬</span>
+                <h3 class="text-[15px] font-semibold text-gray-900 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
                   Share Your Beta
                 </h3>
-                <p class="text-sm text-gray-600">
+                <p class="text-[13px] text-gray-600 mt-1">
                   Upload a climbing video and we'll identify the problem automatically
                 </p>
               </div>
               <button
                 type="button"
                 @click="handleBetaUploadClick"
-                class="px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all font-medium flex items-center justify-center gap-2 flex-shrink-0 shadow-md hover:shadow-lg"
+                class="h-10 px-4 sm:px-5 bg-green-600 text-white text-[14px] font-medium rounded-md hover:bg-green-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2 flex-shrink-0"
               >
-                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
-                <span class="text-sm sm:text-base">Upload Beta</span>
+                Upload Beta
               </button>
             </div>
           </div>
@@ -147,8 +141,8 @@
         />
 
         <!-- Subtle metadata at bottom -->
-        <div class="mt-6 sm:mt-8 pt-3 sm:pt-4 border-t border-gray-100">
-          <div class="text-xs text-gray-400 space-y-1 text-center sm:text-left">
+        <div class="pt-4 border-t border-gray-200/60">
+          <div class="text-[12px] text-gray-500 space-y-0.5 text-center sm:text-left">
             <div>Created {{ formatDate(location.createdAt) }}</div>
             <div
               v-if="location.updatedAt && !isSameDateTime(location.createdAt, location.updatedAt)"
