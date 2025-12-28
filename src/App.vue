@@ -36,7 +36,7 @@ provide('authModal', {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen">
     <!-- Global header -->
     <AppHeader />
 
@@ -54,5 +54,3 @@ provide('authModal', {
     <VideoAnalysisIndicator />
   </div>
 </template>
-
-<style scoped></style>

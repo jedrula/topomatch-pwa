@@ -34,6 +34,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@headlessui/vue": "^1.7.23",
     "@huggingface/transformers": "^3.7.1",
     "@tailwindcss/vite": "^4.1.11",
     "@techstark/opencv-js": "^4.12.0-release.1",
