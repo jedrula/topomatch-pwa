@@ -562,6 +562,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  modelValueProblemName: {
+    type: String,
+    default: '',
+  },
+  modelValueSelectedGrade: {
+    type: String,
+    default: '',
+  },
 });
 
 const emit = defineEmits([
@@ -570,6 +578,8 @@ const emit = defineEmits([
   'stop-editing',
   'tool-selection-change',
   'filtered-problems-change',
+  'update:modelValueProblemName',
+  'update:modelValueSelectedGrade',
 ]);
 
 const route = useRoute();
@@ -577,9 +587,15 @@ const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
 const serverStore = useHoldDetectionServerStore();
 
-// Local reactive state for the form
-const problemName = ref('');
-const selectedGrade = ref('');
+// Local reactive state for the form - synced with parent via v-model
+const problemName = computed({
+  get: () => props.modelValueProblemName,
+  set: (value) => emit('update:modelValueProblemName', value)
+});
+const selectedGrade = computed({
+  get: () => props.modelValueSelectedGrade,
+  set: (value) => emit('update:modelValueSelectedGrade', value)
+});
 
 // Expandable grade sections state
 const expandedGrades = ref(new Set());

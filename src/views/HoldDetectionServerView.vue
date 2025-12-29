@@ -198,8 +198,11 @@
 
                 <!-- Fullscreen Boulder Problems Manager - inside image container for fullscreen visibility -->
                 <BoulderProblemsManager
-                  v-if="isFullscreen && route.params.locationId"
+                  v-show="isFullscreen"
+                  v-if="route.params.locationId"
                   v-bind="boulderProblemsManagerProps"
+                  v-model:model-value-problem-name="sharedProblemName"
+                  v-model:model-value-selected-grade="sharedSelectedGrade"
                   :is-fullscreen="true"
                   v-on="boulderProblemsManagerEvents"
                 />
@@ -408,8 +411,11 @@
         <div class="space-y-6">
           <!-- Boulder Problems Manager -->
           <BoulderProblemsManager
-            v-if="route.params.locationId && !isFullscreen"
+            v-show="!isFullscreen"
+            v-if="route.params.locationId"
             v-bind="boulderProblemsManagerProps"
+            v-model:model-value-problem-name="sharedProblemName"
+            v-model:model-value-selected-grade="sharedSelectedGrade"
             :is-fullscreen="false"
             v-on="boulderProblemsManagerEvents"
           />
@@ -671,6 +677,10 @@ const imageLoadError = ref(null);
 
 // Fullscreen state
 const isFullscreen = ref(false)
+
+// Shared state for boulder problem form (persists across fullscreen toggle)
+const sharedProblemName = ref('');
+const sharedSelectedGrade = ref('');
 
 // Hold interaction state
 const hoveredProblemId = ref(null);
