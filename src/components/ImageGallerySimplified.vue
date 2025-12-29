@@ -65,6 +65,7 @@
         @touchstart="handleTouchStart"
         @touchmove="handleTouchMove" 
         @touchend="handleTouchEnd"
+        @click="handleBackgroundClick"
       >
         <!-- Loading state -->
         <!-- Loading spinner while image loads -->
@@ -121,7 +122,7 @@
                   :interaction="getHoldInteraction(problem)"
                   :interaction-allowed="'selectable'"
                   :color="problem.color || '#3b82f6'"
-                  @click="() => handleProblemClick(problem)"
+                  @click="(event) => handleProblemClick(problem, event)"
                   @hover="(isEntering, event) => handleProblemHover(problem, isEntering, event)"
                 />
               </template>
@@ -165,15 +166,6 @@
       @mouse-enter="handleFloatingCardMouseEnter"
       @mouse-leave="handleFloatingCardMouseLeave"
     />
-
-    <!-- Video Player Shorts -->
-    <VideoPlayerShorts
-      v-if="route.query.showVideosForProblem"
-      :get-videos="getVideosForProblem"
-      :video-id="route.query.showVideosForProblem"
-      :title="problemVideosTitle"
-      @close="handleVideoPlayerClose"
-    />
   </div>
 </template>
 
@@ -183,7 +175,6 @@ import { useRoute, useRouter } from 'vue-router';
 import ImageWithHolds from './ImageWithHolds.vue';
 import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
-import VideoPlayerShorts from './VideoPlayerShorts.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
 import { getOptimalImageUrl } from '@/utils/imageResize.js';
@@ -440,31 +431,29 @@ const handleFloatingCardToggleVisibility = (problem) => {
   }
 };
 
-const handleFloatingCardShowVideos = (problemId) => {
+const handleFloatingCardShowVideos = async (problemId) => {
+  console.log('handleFloatingCardShowVideos called with problemId:', problemId);
+  
   // Hide the floating card when opening video player
   hideFloatingCard();
   
-  // Update URL with showVideosForProblem query param
-  router.push({
-    query: {
-      ...route.query,
-      showVideosForProblem: problemId,
-    },
-  });
-};
-
-// Create getVideos function for VideoPlayerShorts
-const getVideosForProblem = async (problemId) => {
-  return videoService.getProblemVideos(props.locationId, problemId);
-};
-
-// Video player event handlers
-const handleVideoPlayerClose = () => {
-  // Remove both showVideosForProblem and videoId from URL
-  const query = { ...route.query };
-  delete query.showVideosForProblem;
-  delete query.videoId;
-  router.push({ query });
+  // Load videos for this problem
+  console.log('Loading videos for problem:', problemId, 'locationId:', props.locationId);
+  const videos = await videoService.getProblemVideos(props.locationId, problemId);
+  console.log('Loaded videos:', videos);
+  
+  // If there are videos, open the player with the first video
+  if (videos && videos.length > 0) {
+    console.log('Opening video player with first video:', videos[0].id);
+    router.push({
+      query: {
+        ...route.query,
+        videoId: videos[0].id,
+      },
+    });
+  } else {
+    console.log('No videos found for problem:', problemId);
+  }
 };
 
 const handleFloatingCardMouseEnter = () => {
@@ -482,8 +471,42 @@ const handleFloatingCardMouseLeave = () => {
 };
 
 // Boulder problem interaction handlers
-const handleProblemClick = () => {
-  // For now, just log the click - could add navigation or edit functionality
+const handleProblemClick = (problem, event) => {
+  // On mobile/touch devices, clicking a hold should show the floating card
+  // (since hover doesn't work on touch screens)
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    // Stop propagation so it doesn't trigger handleBackgroundClick
+    event?.stopPropagation();
+    
+    // If this problem's card is already visible, hide it (toggle behavior)
+    if (floatingCard.value.visible && floatingCard.value.problem?.id === problem.id) {
+      floatingCard.value.visible = false;
+      hoveredProblemId.value = null;
+    } else {
+      // Show the floating card for this problem
+      hoveredProblemId.value = problem.id;
+      floatingCard.value = {
+        visible: true,
+        problem: problem,
+        position: {
+          x: event?.clientX || window.innerWidth / 2,
+          y: event?.clientY || window.innerHeight / 2,
+        },
+      };
+    }
+  }
+};
+
+const handleBackgroundClick = (event) => {
+  // Close floating card when clicking on the background (not on a hold)
+  // Only on touch devices where the card stays open
+  if (('ontouchstart' in window || navigator.maxTouchPoints > 0) && floatingCard.value.visible) {
+    // Check if the click is not on an SVG element (holds)
+    if (!event.target.closest('svg') && !event.target.closest('g')) {
+      floatingCard.value.visible = false;
+      hoveredProblemId.value = null;
+    }
+  }
 };
 
 const handleProblemHover = (problem, isEntering, event) => {

@@ -61,27 +61,17 @@
 
         <!-- Video Grid -->
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          <div
+          <VideoGridItem
             v-for="(video, index) in videos"
             :key="video.id"
-            class="aspect-video bg-gray-50 rounded-lg overflow-hidden relative group cursor-pointer hover:ring-2 hover:ring-gray-900/10 transition-all"
+            :video-url="video.downloadUrl"
+            :thumbnail-url="video.thumbnailBase64 || defaultPoster"
+            :problem-name="video.problemName"
+            :problem-grade="video.metadata?.problemGrade"
+            :user-name="userName"
+            :like-count="video.likeCount || 0"
             @click="openVideoPlayer(video.id)"
-          >
-            <video
-              :src="video.downloadUrl"
-              :poster="video.thumbnailBase64 || defaultPoster"
-              class="w-full h-full object-cover"
-              muted
-              preload="none"
-              crossorigin="anonymous"
-            />
-
-            <!-- Video info overlay -->
-            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-              <p class="text-white text-[13px] font-medium truncate">{{ video.problemName }}</p>
-              <p class="text-white/75 text-[11px] mt-0.5">{{ formatDate(video.uploadedAt) }}</p>
-            </div>
-          </div>
+          />
         </div>
       </div>
     </div>
@@ -104,6 +94,7 @@ import { ascentService } from '@/services/ascentService';
 import { videoService } from '@/services/videoService';
 import { getDefaultVideoPoster } from '@/utils/videoUtils';
 import VideoPlayerShorts from '@/components/VideoPlayerShorts.vue';
+import VideoGridItem from '@/components/VideoGridItem.vue';
 
 const route = useRoute();
 const router = useRouter();

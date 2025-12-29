@@ -1,6 +1,6 @@
 <template>
   <div
-    class="aspect-video bg-gray-100 rounded-lg overflow-hidden relative group cursor-pointer"
+    class="aspect-video bg-gray-50 rounded-lg overflow-hidden relative group cursor-pointer hover:ring-2 hover:ring-gray-900/10 transition-all"
     @click="$emit('click')"
   >
     <!-- Video thumbnail -->
@@ -14,28 +14,32 @@
     />
 
     <!-- Play button overlay -->
-    <div class="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
-      <div class="w-12 h-12 bg-white/90 group-hover:bg-white rounded-full flex items-center justify-center transition-colors">
-        <svg class="w-6 h-6 text-gray-900 ml-0.5" fill="currentColor" viewBox="0 0 20 20">
+    <div class="absolute inset-0 flex items-center justify-center group-hover:bg-black/20 transition-all">
+      <div class="w-12 h-12 bg-white/90 group-hover:bg-white group-hover:scale-110 rounded-full flex items-center justify-center transition-all shadow-lg opacity-0 group-hover:opacity-100">
+        <svg class="w-5 h-5 text-gray-900 ml-0.5" fill="currentColor" viewBox="0 0 20 20">
           <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
         </svg>
       </div>
     </div>
 
     <!-- Info overlay -->
-    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-      <!-- Problem info -->
-      <div v-if="problemName" class="text-white text-sm">
-        <div class="font-medium line-clamp-1">{{ problemName }}</div>
-        <div v-if="problemGrade && typeof problemGrade === 'string'" class="text-xs text-gray-300">{{ problemGrade }}</div>
-      </div>
-
-      <!-- User and like count -->
-      <div class="flex items-center justify-between text-xs text-white/90">
-        <span class="line-clamp-1" style="line-height: 16px;">{{ userName }}</span>
-        <div class="flex items-center space-x-1">
-          <span class="text-base">💪</span>
-          <span class="font-medium">{{ formatLikeCount(likeCount) }}</span>
+    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+      <div class="flex items-end justify-between gap-2">
+        <!-- Left: Problem and user info -->
+        <div class="min-w-0 flex-1">
+          <!-- Problem name -->
+          <div v-if="problemName" class="text-[13px] font-medium text-white line-clamp-1">
+            {{ problemName }}
+            <span v-if="problemGrade && typeof problemGrade === 'string'" class="text-[11px] text-white/60 ml-1">{{ problemGrade }}</span>
+          </div>
+          <!-- User name -->
+          <div class="text-[11px] text-white/90 line-clamp-1 leading-4 mt-0.5">{{ userName }}</div>
+        </div>
+        
+        <!-- Right: Likes -->
+        <div v-if="likeCount > 0" class="flex items-center gap-1 bg-black/30 px-2 py-0.5 rounded-full flex-shrink-0">
+          <span class="text-[13px]">💪</span>
+          <span class="font-medium text-[11px] text-white">{{ formatLikeCount(likeCount) }}</span>
         </div>
       </div>
     </div>

@@ -153,8 +153,10 @@
       :visible="floatingCard.visible"
       :problem="floatingCard.problem"
       :position="floatingCard.position"
+      :location-id="locationId"
       @edit="handleFloatingCardEdit"
       @toggle-visibility="handleFloatingCardToggleVisibility"
+      @show-videos="handleFloatingCardShowVideos"
       @mouse-enter="handleFloatingCardMouseEnter"
       @mouse-leave="handleFloatingCardMouseLeave"
     />
@@ -540,5 +542,18 @@ const handleFloatingCardMouseLeave = () => {
     floatingCard.value.visible = false;
     hoveredProblemId.value = null;
   }, 200); // Shorter delay when leaving tooltip
+};
+
+const handleFloatingCardShowVideos = (problemId) => {
+  // Hide the floating card when opening video player
+  floatingCard.value.visible = false;
+  
+  // Update URL with showVideosForProblem query param
+  router.push({
+    query: {
+      ...route.query,
+      showVideosForProblem: problemId,
+    },
+  });
 };
 </script>

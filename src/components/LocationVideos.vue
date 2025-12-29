@@ -155,7 +155,7 @@
 
     <!-- Video Player Shorts -->
     <VideoPlayerShorts
-      v-if="route.query.videoId && !route.query.showVideosForProblem"
+      v-if="route.query.videoId"
       :get-videos="getPlayerVideos"
       title="Beta Videos"
       @close="closeVideoPlayer"
