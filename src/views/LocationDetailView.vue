@@ -46,6 +46,17 @@
                 Edit
               </button>
               <router-link
+                v-if="allRoutesettings.length > 0"
+                :to="{ path: `/location/${locationId}/routesettings`, query: { routesetting: currentRoutesetting } }"
+                class="btn-secondary h-8 px-3 text-[13px] inline-flex items-center gap-1"
+                title="Manage routesetting versions"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Routesettings
+              </router-link>
+              <router-link
                 :to="`/location/${locationId}/jobs`"
                 class="btn-secondary h-8 px-3 text-[13px] inline-flex items-center"
                 title="View background analysis jobs"
@@ -99,15 +110,33 @@
           </div>
         </div>
 
-        <!-- Routesetting Selector -->
-        <RoutesettingSelector
-          v-if="allRoutesettings.length > 0"
-          :location-id="locationId"
-          :all-routesettings="allRoutesettings"
-          :current-routesetting="currentRoutesetting"
-          :can-edit="userStore.canEditLocations"
-          @routesetting-changed="handleRoutesettingChanged"
-        />
+        <!-- Historical Routesetting Banner (only shown when NOT viewing latest) -->
+        <div 
+          v-if="allRoutesettings.length > 0 && currentRoutesetting !== allRoutesettings[0]"
+          class="card border-amber-200/60 bg-amber-50/30"
+        >
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <div class="text-[13px] font-medium text-amber-900">
+                  Viewing historical routesetting: <strong>{{ formatRoutesettingDate(currentRoutesetting) }}</strong>
+                </div>
+                <div class="text-[12px] text-amber-700 mt-0.5">
+                  Go to <router-link :to="{ path: `/location/${locationId}/routesettings`, query: { routesetting: currentRoutesetting } }" class="underline hover:text-amber-900">routesetting management</router-link> to switch to latest or other versions
+                </div>
+              </div>
+            </div>
+            <router-link
+              :to="{ path: `/location/${locationId}/routesettings`, query: { routesetting: currentRoutesetting } }"
+              class="h-8 px-3 text-[13px] text-amber-700 border border-amber-700 rounded-md hover:bg-amber-100 transition-all flex-shrink-0 flex items-center"
+            >
+              Manage
+            </router-link>
+          </div>
+        </div>
 
         <!-- Images section -->
         <LocationImages
@@ -209,7 +238,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, inject, nextTick, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, inject, provide, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
 import { routesettingService } from '../services/routesettingService.js';
@@ -223,7 +252,6 @@ import ToastNotification from '../components/ToastNotification.vue';
 import LocationImages from '../components/LocationImages.vue';
 import LocationVideos from '../components/LocationVideos.vue';
 import LocationBoulderProblems from '../components/LocationBoulderProblems.vue';
-import RoutesettingSelector from '../components/RoutesettingSelector.vue';
 import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
@@ -256,6 +284,28 @@ const {
 
 // Inject auth modal controls
 const authModal = inject('authModal');
+
+// Provide method for child components to update video assignments
+const updateVideoAssignment = (videoId, problemId, problemName, problemGrade) => {
+  // Update in videos.value (server videos loaded from Firestore)
+  const serverVideo = videos.value.find(v => v.id === videoId || v.ascentId === videoId);
+  if (serverVideo) {
+    serverVideo.problemId = problemId;
+    if (serverVideo.metadata) {
+      serverVideo.metadata.problemName = problemName;
+      serverVideo.metadata.problemGrade = problemGrade;
+    } else {
+      serverVideo.metadata = { problemName, problemGrade };
+    }
+  }
+  
+  // Also update in upload queue (for freshly uploaded videos not yet in Firestore)
+  const upload = uploadQueue.uploads[videoId];
+  if (upload) {
+    upload.problemId = problemId;
+  }
+};
+provide('updateVideoAssignment', updateVideoAssignment);
 
 const betaUploadModalRef = ref(null);
 const location = ref(null);
@@ -718,20 +768,16 @@ const handleBetaUploadClick = () => {
   }
 };
 
-const handleRoutesettingChanged = async (newRoutesetting) => {
-  // Reload routesettings (in case a new one was created)
-  allRoutesettings.value = await routesettingService.getRoutesettings(locationId.value);
-  
-  // Update URL query parameter (source of truth)
-  await router.push({
-    query: {
-      ...route.query,
-      routesetting: newRoutesetting
-    }
+// Format routesetting date for display
+const formatRoutesettingDate = (dateStr) => {
+  const date = new Date(dateStr);
+  return date.toLocaleString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   });
-  
-  // Reload images for new routesetting (currentRoutesetting computed will update automatically)
-  await loadLocationImages();
 };
 
 // Wrapper to minimize modal instead of closing when detection needed
@@ -822,10 +868,8 @@ const handleDeleteImage = async (image) => {
 };
 
 const closeGallery = () => {
-  // Remove imageId query parameter to close gallery
-  const query = { ...route.query };
-  delete query.imageId;
-  router.push({ query });
+  // Navigation is handled by the child component (ImageGallerySimplified)
+  // This is just a placeholder for any parent-side cleanup if needed
 };
 
 const navigateToImage = (direction) => {

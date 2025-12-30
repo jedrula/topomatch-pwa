@@ -35,6 +35,12 @@ const router = createRouter({
       props: true,
     },
     {
+      path: '/location/:locationId/routesettings',
+      name: 'location-routesettings',
+      component: () => import('../views/LocationRoutesettingsView.vue'),
+      props: true,
+    },
+    {
       path: '/location/:locationId/edit',
       name: 'location-edit',
       component: () => import('../views/EditLocationView.vue'),
