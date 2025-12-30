@@ -541,7 +541,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onUnmounted } from 'vue';
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore';
@@ -956,6 +956,19 @@ const initializeGradeFilterFromQuery = () => {
   gradeRange.value = newRange;
 };
 
+// Initialize component state when mounted
+onMounted(() => {
+  // Initialize grade range once grades are available
+  if (boulderProblemsStore.grades && boulderProblemsStore.grades.length > 0) {
+    gradeRange.value = [0, boulderProblemsStore.grades.length - 1];
+    initializeGradeFilterFromQuery();
+    initializeDefaultGrade();
+  }
+  
+  // Emit initial filtered problems
+  emit('filtered-problems-change', filteredProblems.value);
+});
+
 // Cancel edit mode when starting to create a new problem
 watch(
   () => boulderProblemsStore.isCreatingProblem,
@@ -981,31 +994,7 @@ watch(
       problemName.value = '';
       initializeDefaultGrade();
     }
-  },
-  { immediate: true }
-);
-
-// Watch for changes in the grading system to update default grade
-watch(
-  () => boulderProblemsStore.grades,
-  () => {
-    // Initialize default grade when grading system changes
-    if (!selectedGrade.value || !boulderProblemsStore.grades.includes(selectedGrade.value)) {
-      initializeDefaultGrade();
-    }
-    // Update grade range max when grades change
-    gradeRange.value = [0, boulderProblemsStore.grades.length - 1];
-  },
-  { immediate: true }
-);
-
-// Initialize grade filter from URL on mount
-watch(
-  () => route.query,
-  () => {
-    initializeGradeFilterFromQuery();
-  },
-  { immediate: true }
+  }
 );
 
 // Watch filtered problems and emit them to parent for hold highlighting
@@ -1013,8 +1002,7 @@ watch(
   filteredProblems,
   (newFilteredProblems) => {
     emit('filtered-problems-change', newFilteredProblems);
-  },
-  { immediate: true }
+  }
 );
 
 // Reset panel position when entering/exiting fullscreen
