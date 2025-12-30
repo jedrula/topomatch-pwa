@@ -79,16 +79,16 @@
             </div>
           </div>
 
-          <!-- Video thumbnail (show if URL available) -->
+          <!-- Video thumbnail (show if URL available OR if it's a failed video needing re-analysis) -->
           <VideoGridItem
             v-else
-            :video-url="video.url || video.downloadUrl"
+            :video-url="video.url || video.downloadUrl || ''"
             :thumbnail-url="video.thumbnailBase64 || defaultPoster"
             :problem-name="video.metadata?.problemName"
             :problem-grade="video.metadata?.problemGrade"
             :user-name="video.uploadedBy"
             :like-count="video.likeCount"
-            @click="openVideoPlayer(index)"
+            @click="(video.url || video.downloadUrl) ? openVideoPlayer(index) : null"
           >
             <template #actions>
               <!-- Analyzing indicator (show when video is uploading or analyzing) -->
@@ -103,44 +103,47 @@
                 </svg>
               </div>
 
-              <!-- Delete button (only for video owner, not shown when analyzing) -->
-              <button
-                v-else-if="canDeleteVideo(video)"
-                @click.stop="handleDeleteClick(video)"
-                class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-red-600 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
-                :aria-label="`Delete video ${index + 1}`"
-                title="Delete video"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-              </button>
+              <!-- Action buttons (only shown when NOT analyzing) -->
+              <template v-else>
+                <!-- Delete button (only for video owner) -->
+                <button
+                  v-if="canDeleteVideo(video)"
+                  @click.stop="handleDeleteClick(video)"
+                  class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-red-600 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
+                  :aria-label="`Delete video ${index + 1}`"
+                  title="Delete video"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                  </svg>
+                </button>
 
-              <!-- Re-process button (only for unclassified videos that belong to user, not shown when analyzing) -->
-              <button
-                v-else-if="canReprocessVideo(video)"
-                @click.stop="handleReprocessClick(video)"
-                class="absolute top-2 right-12 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
-                :aria-label="`Re-process video ${index + 1}`"
-                title="Re-analyze video to detect problem"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-              </button>
+                <!-- Re-process button (only for unclassified videos that belong to user) -->
+                <button
+                  v-if="canReprocessVideo(video)"
+                  @click.stop="handleReprocessClick(video)"
+                  class="absolute top-2 right-12 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
+                  :aria-label="`Re-process video ${index + 1}`"
+                  title="Re-analyze video to detect problem"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                </button>
 
-              <!-- Manual assign button (only for unclassified videos that belong to user, not shown when analyzing) -->
-              <button
-                v-else-if="canReprocessVideo(video)"
-                @click.stop="handleManualAssignClick(video)"
-                class="absolute top-2 right-[88px] w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-blue-600 hover:text-blue-700 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
-                :aria-label="`Manually assign problem to video ${index + 1}`"
-                title="Pick a problem from images"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"></path>
-                </svg>
-              </button>
+                <!-- Manual assign button (only for unclassified videos that belong to user) -->
+                <button
+                  v-if="canReprocessVideo(video)"
+                  @click.stop="handleManualAssignClick(video)"
+                  class="absolute top-2 right-[88px] w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-blue-600 hover:text-blue-700 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
+                  :aria-label="`Manually assign problem to video ${index + 1}`"
+                  title="Pick a problem from images"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"></path>
+                  </svg>
+                </button>
+              </template>
             </template>
           </VideoGridItem>
         </div>

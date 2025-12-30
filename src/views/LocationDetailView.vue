@@ -320,30 +320,45 @@ const displayVideos = computed(() => {
   // Create video objects from uploading files (show immediately with local blob URL!)
   const uploadingVideos = locationUploads
     .filter(upload => {
-      // Don't show uploads that have errored in analysis
+      // Check if this upload has errored in analysis
       const completion = completionRegistry[upload.ascentId];
       if (completion && completion.status === 'error') {
-        return false;
+        // Check if server video has loaded for this ascent
+        const serverVideoLoaded = videos.value.some(v => v.ascentId === upload.ascentId);
+        if (serverVideoLoaded) {
+          // Server video is here, hide the upload placeholder
+          return false;
+        }
+        // Server video not loaded yet, KEEP showing upload even though it errored
+        // (Otherwise video disappears between error and server load)
+        return true;
       }
       
       // Show video during upload AND after completion (until server video loads)
       return upload.status === 'uploading' || upload.status === 'pending' || upload.status === 'completed';
     })
     .map(upload => {
+      // Check if this upload has errored in analysis
+      const completion = completionRegistry[upload.ascentId];
+      const hasErrored = completion && completion.status === 'error';
+      
       // Get current step for progress message
-      const currentStep = analyzingAscentIds.has(upload.ascentId)
+      const isCurrentlyAnalyzing = analyzingAscentIds.has(upload.ascentId) && !hasErrored;
+      const currentStep = isCurrentlyAnalyzing
         ? getCurrentStep(activeJobs.find(j => j.ascentId === upload.ascentId)?.progress || 0)
         : null;
       
       return {
         id: upload.ascentId,
         ascentId: upload.ascentId,
+        userId: userStore.user?.uid,  // Current user is the uploader
+        problemId: upload.problemId || null,
         url: upload.localUrl,  // ✨ Reuse blob URL from upload queue!
         thumbnailBase64: upload.thumbnailBase64,  // ✨ Use extracted thumbnail as poster!
         isLocalVideo: true,  // Flag to know this is temporary
-        isUploading: true,
-        isAnalyzing: analyzingAscentIds.has(upload.ascentId),
-        progress: analyzingAscentIds.has(upload.ascentId) 
+        isUploading: upload.status === 'uploading' || upload.status === 'pending',
+        isAnalyzing: isCurrentlyAnalyzing,
+        progress: isCurrentlyAnalyzing 
           ? activeJobs.find(j => j.ascentId === upload.ascentId)?.progress || 0
           : upload.progress || 0,
         status: upload.status,
@@ -386,17 +401,37 @@ const displayVideos = computed(() => {
   // Clean up completed uploads when server video arrives
   const serverAscentIds = new Set(videos.value.map(v => v.ascentId).filter(Boolean));
   locationUploads.forEach(upload => {
-    if (upload.status === 'completed' && serverAscentIds.has(upload.ascentId)) {
-      // Server video is here, remove the upload record
+    if (serverAscentIds.has(upload.ascentId)) {
+      // Server video is here, remove the upload record (whether completed or errored)
       uploadQueue.cancelUpload(upload.ascentId);
+    }
+  });
+  
+  // Clean up error entries in completion registry when server video loads
+  // (This allows failed videos to show up after refresh)
+  serverAscentIds.forEach(ascentId => {
+    if (completionRegistry[ascentId] && completionRegistry[ascentId].status === 'error') {
+      delete completionRegistry[ascentId];
     }
   });
   
   // Filter out server videos that are still uploading (show local version instead)
   const uploadingAscentIds = new Set(locationUploads.map(u => u.ascentId));
-  const serverVideos = videos.value.filter(video => 
-    !uploadingAscentIds.has(video.ascentId) && !completedJobs.some(j => j.ascentId === video.ascentId)
-  );
+  const serverVideos = videos.value
+    .filter(video => 
+      !uploadingAscentIds.has(video.ascentId) && !completedJobs.some(j => j.ascentId === video.ascentId)
+    )
+    .map(video => {
+      // Check if this server video is currently being re-analyzed
+      const isReanalyzing = analyzingAscentIds.has(video.ascentId);
+      
+      return {
+        ...video,
+        // Explicitly set these flags - check if re-analyzing
+        isUploading: false,
+        isAnalyzing: isReanalyzing,
+      };
+    });
   
   // 4. Filter videos by current routesetting
   // - Assigned videos: show if problem's image is in current routesetting
@@ -573,6 +608,9 @@ const handleVideoDeleted = async (videoId) => {
 const handleReprocessVideo = async (video) => {
   try {
     console.log('🔄 Re-processing video:', video.id);
+    
+    // Clear any error state from previous analysis
+    analysisStore.clearCompletionError(video.ascentId);
     
     // Open the beta upload modal minimized (same as short circuit mode)
     currentUploadSessionId.value = generateUUID();

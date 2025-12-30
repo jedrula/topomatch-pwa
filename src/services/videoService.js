@@ -66,18 +66,21 @@ export const videoService = {
     try {
       // Get video URL
       // Use transcoded path if ready, otherwise use original (for emulator)
+      // Note: In emulator, transcoding doesn't run, so videos stay at status='transcoding'
+      // and we play them using originalPath
       const videoPath = data.video.status === 'ready'
         ? (data.video.transcodedPath || data.video.originalPath)
         : data.video.originalPath;
       
-      // Handle corrupted data: video object exists but no path (use optional chaining)
-      if (!videoPath?.trim()) {
-        console.warn(`Ascent ${docSnapshot.id} has video object but no valid path:`, data.video);
-        return null;
+      // Handle corrupted data or videos that failed during upload
+      // Still return the ascent object even without a valid path (for re-analysis UI)
+      let videoUrl = null;
+      if (videoPath?.trim()) {
+        // Construct URL directly without network request
+        videoUrl = constructStorageUrl(videoPath);
+      } else {
+        console.warn(`Ascent ${docSnapshot.id} has no valid video path (status: ${data.video.status})`);
       }
-      
-      // Construct URL directly without network request
-      const videoUrl = constructStorageUrl(videoPath);
       
       return {
         id: docSnapshot.id,

@@ -1265,6 +1265,16 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     );
   };
 
+  /**
+   * Clear completion error for an ascent (when re-processing)
+   */
+  const clearCompletionError = (ascentId) => {
+    if (completionRegistry.value[ascentId]) {
+      console.log(`🧹 Clearing completion error for ascent ${ascentId}`);
+      delete completionRegistry.value[ascentId];
+    }
+  };
+
   return {
     // State
     jobs,
@@ -1284,6 +1294,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     getActiveJobsForLocation,     // Get active jobs for location
     getCompletedJobsForLocation,  // Get completed jobs not yet loaded
     cancelJob,      // Cancel job
+    clearCompletionError,  // Clear completion error (for re-processing)
     clearAll,       // Clear all jobs (testing)
     onJobComplete,  // Register completion callback (returns unregister function)
     
