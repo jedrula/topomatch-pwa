@@ -308,6 +308,9 @@ const displayVideos = computed(() => {
   const activeJobs = analysisStore.getActiveJobsForLocation(locationId.value);
   const analyzingAscentIds = new Set(activeJobs.map(job => job.ascentId));
   
+  // Check completion registry for errors
+  const completionRegistry = analysisStore.completionRegistry;
+  
   // 2. Get UPLOAD progress and create INSTANT video objects from local files
   const allUploads = uploadQueue.uploads;
   const locationUploads = Object.values(allUploads).filter(
@@ -316,10 +319,16 @@ const displayVideos = computed(() => {
   
   // Create video objects from uploading files (show immediately with local blob URL!)
   const uploadingVideos = locationUploads
-    .filter(upload => 
+    .filter(upload => {
+      // Don't show uploads that have errored in analysis
+      const completion = completionRegistry[upload.ascentId];
+      if (completion && completion.status === 'error') {
+        return false;
+      }
+      
       // Show video during upload AND after completion (until server video loads)
-      (upload.status === 'uploading' || upload.status === 'pending' || upload.status === 'completed')
-    )
+      return upload.status === 'uploading' || upload.status === 'pending' || upload.status === 'completed';
+    })
     .map(upload => {
       // Get current step for progress message
       const currentStep = analyzingAscentIds.has(upload.ascentId)
@@ -339,6 +348,7 @@ const displayVideos = computed(() => {
           : upload.progress || 0,
         status: upload.status,
         statusMessage: currentStep?.message || 'Uploading video...',
+        uploadedBy: userStore.user?.displayName || userStore.user?.email || 'Analyzing...',
         metadata: {
           duration: null,
           problemName: upload.problemId ? 
@@ -358,6 +368,7 @@ const displayVideos = computed(() => {
     progress: 100,
     status: 'complete',
     statusMessage: 'Processing complete',
+    uploadedBy: userStore.user?.displayName || userStore.user?.email || 'Processing...',
     metadata: {
       duration: null,
       problemName: job.detectedProblemId ? 
