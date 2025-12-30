@@ -475,9 +475,11 @@ const handleAssignProblem = async (problemId) => {
     // Hide the floating card
     floatingCard.value.visible = false;
     
-    // Navigate back to location page (remove assignVideoId query param)
+    // Navigate back to location page (remove assignVideoId but keep other query params like routesetting)
+    const { assignVideoId, imageId, videoId: _videoId, ...remainingQuery } = route.query;
     router.push({
       path: `/location/${props.locationId}`,
+      query: remainingQuery,
     });
   } catch (error) {
     console.error('Error assigning problem to video:', error);
