@@ -524,7 +524,8 @@ const createHoldFromPath = async () => {
       .map((point, index) => (index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`))
       .join(' ') + ' Z'; // Z closes the path
 
-  const svgMarkup = `<path d="${pathData}" fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2"/>`;
+  // Create SVG without styling - HoldSvg component will handle all styling based on interaction state
+  const svgMarkup = `<path d="${pathData}" fill="transparent" stroke="transparent" stroke-width="2"/>`;
 
   // Calculate bounding box
   const xs = pathPoints.map((p) => p.x);
