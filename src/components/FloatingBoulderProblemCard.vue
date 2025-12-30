@@ -10,8 +10,9 @@
     >
       <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-3 max-w-xs hover:shadow-xl transition-shadow">
         <div class="flex items-center gap-2">
-          <!-- Camera button on the left -->
+          <!-- Camera/Assign button on the left -->
           <button
+            v-if="!assignmentMode"
             @click.stop="handleShowVideos"
             class="w-8 h-8 flex items-center justify-center rounded transition-all bg-gray-900 text-white hover:bg-gray-800 shadow-sm flex-shrink-0 cursor-pointer"
             title="Show beta videos"
@@ -21,6 +22,22 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z"
+              />
+            </svg>
+          </button>
+          
+          <!-- Assign button for assignment mode -->
+          <button
+            v-else
+            @click.stop="handleAssignProblem"
+            class="w-8 h-8 flex items-center justify-center rounded transition-all bg-green-600 text-white hover:bg-green-700 shadow-sm flex-shrink-0 cursor-pointer"
+            title="Assign this problem to video"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M5 13l4 4L19 7"
               />
             </svg>
           </button>
@@ -93,9 +110,13 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  assignmentMode: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['edit', 'toggle-visibility', 'mouse-enter', 'mouse-leave', 'show-videos']);
+const emit = defineEmits(['edit', 'toggle-visibility', 'mouse-enter', 'mouse-leave', 'show-videos', 'assign-problem']);
 
 // Check if user can edit (admin only)
 const canEdit = computed(() => userStore.isAdmin);
@@ -213,6 +234,13 @@ const handleShowVideos = () => {
     emit('show-videos', props.problem.id);
   } else {
     console.log('FloatingBoulderProblemCard: handleShowVideos called but no problem available');
+  }
+};
+
+const handleAssignProblem = () => {
+  if (props.problem) {
+    console.log('FloatingBoulderProblemCard: emitting assign-problem with problemId:', props.problem.id);
+    emit('assign-problem', props.problem.id);
   }
 };
 

@@ -128,6 +128,7 @@
           :loading="videosLoading"
           @video-deleted="handleVideoDeleted"
           @reprocess-video="handleReprocessVideo"
+          @open-manual-assign="handleOpenManualAssign"
         />
 
         <!-- Boulder Problems Summary -->
@@ -581,6 +582,25 @@ const handleReprocessVideo = async (video) => {
     console.error('❌ Error re-processing video:', error);
     alert('Failed to re-process video: ' + error.message);
   }
+};
+
+// Handle opening manual assignment mode
+const handleOpenManualAssign = (videoId) => {
+  // Get the first image to open the gallery
+  const firstImage = images.value[0];
+  if (!firstImage) {
+    alert('No images available. Please upload images first.');
+    return;
+  }
+  
+  // Navigate to image gallery with assignVideoId and first image
+  router.push({
+    query: {
+      ...route.query,
+      assignVideoId: videoId,
+      imageId: firstImage.imageId,
+    },
+  });
 };
 
 // Method to get video count for a specific problem

@@ -576,6 +576,42 @@ export const videoService = {
       throw error;
     }
   },
+
+  /**
+   * Manually assign a problem to a video/ascent
+   * @param {string} ascentId - The ascent/video ID
+   * @param {string} problemId - The problem ID to assign
+   * @param {string} locationId - The location ID
+   * @returns {Promise<void>}
+   */
+  async assignProblemToVideo(ascentId, problemId, locationId) {
+    try {
+      const { doc, updateDoc, getDoc } = await import('firebase/firestore');
+      const { boulderProblemsServiceV2 } = await import('./boulderProblemsServiceV2.js');
+      
+      // Get the problem details to create a snapshot
+      const problem = await boulderProblemsServiceV2.getBoulderProblem(locationId, problemId);
+      if (!problem) {
+        throw new Error('Problem not found');
+      }
+      
+      // Update the ascent document
+      const ascentRef = doc(db, 'ascents', ascentId);
+      await updateDoc(ascentRef, {
+        problemId: problemId,
+        locationId: locationId,
+        problemSnapshot: {
+          name: problem.name,
+          grade: problem.grade,
+        },
+      });
+      
+      console.log(`✅ Successfully assigned problem ${problemId} to video ${ascentId}`);
+    } catch (error) {
+      console.error('Error assigning problem to video:', error);
+      throw error;
+    }
+  },
 };
 
 export default videoService;

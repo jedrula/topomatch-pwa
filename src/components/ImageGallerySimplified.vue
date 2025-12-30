@@ -160,9 +160,11 @@
       :problem="floatingCard.problem"
       :position="floatingCard.position"
       :location-id="locationId"
+      :assignment-mode="isAssignmentMode"
       @edit="handleFloatingCardEdit"
       @toggle-visibility="handleFloatingCardToggleVisibility"
       @show-videos="handleFloatingCardShowVideos"
+      @assign-problem="handleAssignProblem"
       @mouse-enter="handleFloatingCardMouseEnter"
       @mouse-leave="handleFloatingCardMouseLeave"
     />
@@ -209,6 +211,9 @@ const emit = defineEmits(['close', 'navigate', 'navigate-next', 'navigate-previo
 const route = useRoute();
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
+
+// Assignment mode detection
+const isAssignmentMode = computed(() => !!route.query.assignVideoId);
 
 // Video player state
 const problemVideosTitle = computed(() => {
@@ -453,6 +458,30 @@ const handleFloatingCardShowVideos = async (problemId) => {
     });
   } else {
     console.log('No videos found for problem:', problemId);
+  }
+};
+
+const handleAssignProblem = async (problemId) => {
+  // Get the video ID from the query param
+  const videoId = route.query.assignVideoId;
+  if (!videoId) return;
+
+  console.log('Assigning problem', problemId, 'to video', videoId);
+  
+  try {
+    // Update the video's problemId in Firestore
+    await videoService.assignProblemToVideo(videoId, problemId, props.locationId);
+    
+    // Hide the floating card
+    floatingCard.value.visible = false;
+    
+    // Navigate back to location page (remove assignVideoId query param)
+    router.push({
+      path: `/location/${props.locationId}`,
+    });
+  } catch (error) {
+    console.error('Error assigning problem to video:', error);
+    alert(`Failed to assign problem: ${error.message}`);
   }
 };
 
