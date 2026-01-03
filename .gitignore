@@ -34,6 +34,8 @@ ui-debug.log
 server/lib/
 server/*.js
 server/*.js.map
+server/migrations/*.js
+server/migrations/*.js.map
 
 /cypress/videos/
 /cypress/screenshots/

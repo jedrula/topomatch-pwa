@@ -1091,6 +1091,36 @@ watch(currentRoutesetting, async (newRoutesetting, oldRoutesetting) => {
   }
 });
 
+// Watch for location ID changes (e.g., from notification navigation)
+watch(() => route.params.locationId, async (newLocationId, oldLocationId) => {
+  if (newLocationId && newLocationId !== oldLocationId) {
+    console.log('[LocationDetailView] Location ID changed:', oldLocationId, '→', newLocationId);
+    
+    // Reset state
+    location.value = null;
+    videos.value = [];
+    images.value = [];
+    error.value = '';
+    isLoading.value = true;
+    
+    // Unregister old job callback
+    if (unregisterJobCallback) {
+      unregisterJobCallback();
+      unregisterJobCallback = null;
+    }
+    
+    // Reload all data for new location
+    await Promise.all([
+      loadLocation(),
+      loadLocationVideos(),
+      loadOpenCV(),
+    ]);
+    
+    // Register new job callback
+    unregisterJobCallback = analysisStore.onJobComplete(locationId.value, handleJobComplete);
+  }
+});
+
 onMounted(async () => {
   // Load location data, videos, and OpenCV in parallel - they're independent
   await Promise.all([

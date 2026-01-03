@@ -34,7 +34,7 @@ messaging.onBackgroundMessage((payload) => {
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Handle notification clicks (standard PWA pattern)
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
@@ -50,18 +50,24 @@ self.addEventListener('notificationclick', (event) => {
       : self.location.origin;
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if target URL is already open
-      for (const client of clientList) {
-        if (client.url === targetUrl) {
-          return client.focus();
+    (async () => {
+      const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      
+      // Check if any window from our origin is open
+      for (const client of allClients) {
+        if (client.url.startsWith(self.location.origin)) {
+          // Focus window and send message to navigate
+          await client.focus();
+          client.postMessage({
+            type: 'NOTIFICATION_CLICK',
+            url: dataUrl || `/location/${locationId}` || '/'
+          });
+          return;
         }
       }
       
-      // Open target URL (Chrome will intelligently reuse windows)
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
-    })
+      // No existing window - open new one
+      await clients.openWindow(targetUrl);
+    })()
   );
 });

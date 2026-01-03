@@ -106,6 +106,31 @@ import { useUserStore } from './stores/userStore';
 // Set up foreground message listener immediately
 setupForegroundMessageListener();
 
+// Listen for navigation messages from service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    console.log('[main.js] Received message from service worker:', event.data);
+    
+    if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+      console.log('[main.js] Notification click detected, navigating to:', event.data.url);
+      
+      // Navigate to the URL specified in the notification
+      router.push(event.data.url)
+        .then(() => {
+          console.log('[main.js] Successfully navigated to:', event.data.url);
+        })
+        .catch(err => {
+          console.error('[main.js] Failed to navigate from notification click:', err);
+        });
+    } else {
+      console.log('[main.js] Message is not a notification click, ignoring');
+    }
+  });
+  console.log('[main.js] Service worker message listener registered');
+} else {
+  console.warn('[main.js] Service workers not supported in this browser');
+}
+
 // Request permission after auth initializes
 router.isReady().then(() => {
   const userStore = useUserStore();
