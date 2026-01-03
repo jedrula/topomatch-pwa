@@ -26,7 +26,7 @@
               <img
                 :src="fixLocalhostUrl(location.heroImageUrl)"
                 :alt="location.name"
-                class="w-full h-full object-cover"
+                class="w-full h-full object-contain"
                 crossorigin="anonymous"
               />
             </div>
@@ -44,6 +44,22 @@
                 class="btn-secondary h-8 px-3 text-[13px]"
               >
                 Edit
+              </button>
+              <button
+                v-if="userStore.canEditLocations"
+                @click="publishRoutesetting"
+                :disabled="isPublishing"
+                class="btn-primary h-8 px-3 text-[13px] inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Notify all users about new routesetting"
+              >
+                <svg v-if="!isPublishing" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {{ isPublishing ? 'Publishing...' : 'Publish Routesetting' }}
               </button>
               <router-link
                 v-if="allRoutesettings.length > 0"
@@ -320,6 +336,7 @@ const showUploadModal = ref(false);
 const showBetaUploadModal = ref(false);
 const isBetaModalMinimized = ref(false); // Track if modal is minimized
 const currentUploadSessionId = ref(null); // Each upload session gets unique ID for component reset
+const isPublishing = ref(false); // Track publishing state
 
 // Upload tracking state
 const pendingMetadataSaves = ref(0);
@@ -718,8 +735,15 @@ const openProblemVideos = async (problem) => {
       return;
     }
 
-    // TODO: Open VideoPlayerShorts with filtered videos for this problem
-    console.log('Open problem videos:', problem.name, problemVideos);
+    // Open VideoPlayerShorts with the first video and problemId filter
+    router.push({
+      path: route.path,
+      query: {
+        ...route.query,
+        videoId: problemVideos[0].id,
+        problemId: problem.id, // Add problemId to filter videos in player
+      },
+    });
   } catch (error) {
     console.error('Error loading problem videos:', error);
   }
@@ -826,6 +850,25 @@ if (typeof window !== 'undefined') {
 const editLocation = () => {
   // Navigate to edit form (could be same AddLocationView in edit mode)
   router.push(`/location/${locationId.value}/edit`);
+};
+
+const publishRoutesetting = async () => {
+  if (!location.value) return;
+  
+  isPublishing.value = true;
+  try {
+    // Import the push notification service
+    const { notifyNewRoutesetting } = await import('@/services/pushNotificationService');
+    
+    await notifyNewRoutesetting(locationId.value, location.value.name);
+    
+    toast.success('🔔 Routesetting announcement sent to all users!');
+  } catch (error) {
+    console.error('Error publishing routesetting:', error);
+    toast.error('❌ Failed to send notification');
+  } finally {
+    isPublishing.value = false;
+  }
 };
 
 const openImageModal = (image) => {

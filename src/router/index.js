@@ -25,6 +25,12 @@ const router = createRouter({
       meta: { requiresAdmin: true },
     },
     {
+      path: '/push-test',
+      name: 'push-test',
+      component: () => import('../views/PushNotificationTestView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
       path: '/browse-locations',
       redirect: '/', // Redirect old browse-locations route to root
     },

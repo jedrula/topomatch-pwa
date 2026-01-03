@@ -455,9 +455,11 @@ const handleFloatingCardShowVideos = async (problemId) => {
   if (videos && videos.length > 0) {
     console.log('Opening video player with first video:', videos[0].id);
     router.push({
+      path: route.path,
       query: {
         ...route.query,
         videoId: videos[0].id,
+        problemId: problemId, // Add problemId to filter videos in player
       },
     });
   } else {

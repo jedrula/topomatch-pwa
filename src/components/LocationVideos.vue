@@ -185,14 +185,14 @@
     <VideoPlayerShorts
       v-if="route.query.videoId"
       :get-videos="getPlayerVideos"
-      title="Beta Videos"
+      :title="videoPlayerTitle"
       @close="closeVideoPlayer"
     />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { videoService } from '@/services/videoService';
 import { getCurrentUser } from '@/services/authService';
@@ -364,15 +364,37 @@ const openVideoPlayer = (index) => {
 };
 
 const closeVideoPlayer = () => {
-  // Remove videoId from URL to close the player
+  // Remove videoId and problemId from URL to close the player
   const query = { ...route.query };
   delete query.videoId;
+  delete query.problemId;
   router.push({ query });
 };
 
+// Computed title for video player
+const videoPlayerTitle = computed(() => {
+  const problemId = route.query.problemId;
+  if (problemId) {
+    // Find a video with this problemId to get the problem name
+    const problemVideo = props.videos.find(video => video.problemId === problemId);
+    if (problemVideo?.metadata?.problemName) {
+      return `${problemVideo.metadata.problemName} Videos`;
+    }
+  }
+  return 'Beta Videos';
+});
+
 // Function to provide videos to VideoPlayerShorts
 const getPlayerVideos = async () => {
-  // Return videos that have a URL (local or server)
-  return props.videos.filter(video => video.url || video.downloadUrl);
+  // Get videos that have a URL (local or server)
+  let filteredVideos = props.videos.filter(video => video.url || video.downloadUrl);
+  
+  // If problemId is in query params, filter to only that problem's videos
+  const problemId = route.query.problemId;
+  if (problemId) {
+    filteredVideos = filteredVideos.filter(video => video.problemId === problemId);
+  }
+  
+  return filteredVideos;
 };
 </script>

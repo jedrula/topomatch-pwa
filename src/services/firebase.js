@@ -6,34 +6,16 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
 // Firebase configuration based on environment
 const getFirebaseConfig = () => {
-  // Check if we're in development mode or should use emulators
-  // Be explicit: only use emulators in development OR if explicitly enabled
-  const useEmulators =
-    import.meta.env.MODE === 'development' || import.meta.env.VITE_USE_EMULATORS === 'true';
-
-
-  if (useEmulators) {
-    // Development/Emulator configuration
-    // Use the same bucket name as production for consistency
-    return {
-      apiKey: 'demo-api-key',
-      authDomain: 'topomatch-pwa.firebaseapp.com',
-      projectId: 'topomatch-pwa',
-      storageBucket: 'topomatch-pwa.firebasestorage.app',
-      messagingSenderId: '123456789',
-      appId: 'demo-app-id',
-    };
-  } else {
-    // Production configuration
-    return {
-      projectId: 'topomatch-pwa',
-      appId: '1:592023645230:web:0de421f7ba777652ef43bf',
-      storageBucket: 'topomatch-pwa.firebasestorage.app',
-      apiKey: 'AIzaSyD2LND6HuSMwEFL70ke48mJczTP5uScMW0',
-      authDomain: 'topomatch-pwa.firebaseapp.com',
-      messagingSenderId: '592023645230',
-    };
-  }
+  // Always use real credentials (required for FCM even with emulators)
+  // Production configuration
+  return {
+    projectId: 'topomatch-pwa',
+    appId: '1:592023645230:web:0de421f7ba777652ef43bf',
+    storageBucket: 'topomatch-pwa.firebasestorage.app',
+    apiKey: 'AIzaSyD2LND6HuSMwEFL70ke48mJczTP5uScMW0',
+    authDomain: 'topomatch-pwa.firebaseapp.com',
+    messagingSenderId: '592023645230',
+  };
 };
 
 // Initialize Firebase

@@ -5,7 +5,8 @@ import {
   onAuthStateChanged,
   updateProfile,
 } from 'firebase/auth';
-import { auth } from './firebase.js';
+import { auth, db } from './firebase.js';
+import { doc, setDoc } from 'firebase/firestore';
 
 class AuthService {
   constructor() {
@@ -68,6 +69,15 @@ class AuthService {
       if (displayName) {
         await updateProfile(userCredential.user, { displayName });
       }
+
+      // Create user document in Firestore
+      const userRef = doc(db, 'users', userCredential.user.uid);
+      await setDoc(userRef, {
+        email: userCredential.user.email,
+        displayName: displayName || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
       // Fetch custom claims and attach them (new users won't have admin claims yet)
       const claims = await this.getUserClaims(userCredential.user);

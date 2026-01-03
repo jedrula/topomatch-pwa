@@ -99,4 +99,41 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'test' || import.meta.env.VI
   console.log('🧪 Test API enabled - access via window.__TEST_API__');
 }
 
+// Initialize push notifications after user logs in
+import { requestNotificationPermission, setupForegroundMessageListener } from './services/pushNotificationService';
+import { useUserStore } from './stores/userStore';
+
+// Set up foreground message listener immediately
+setupForegroundMessageListener();
+
+// Request permission after auth initializes
+router.isReady().then(() => {
+  const userStore = useUserStore();
+  let lastUserId = null; // Track last user to prevent duplicate calls
+  
+  // Watch for user login/logout and request notification permission when logged in
+  userStore.$subscribe((mutation, state) => {
+    // When user logs in (was loading, now has user) AND it's a different user
+    if (!state.isLoading && state.user && state.user.uid !== lastUserId) {
+      lastUserId = state.user.uid;
+      requestNotificationPermission().catch(err => {
+        console.error('Failed to initialize push notifications:', err);
+      });
+    }
+    
+    // Clear tracking when user logs out
+    if (!state.user) {
+      lastUserId = null;
+    }
+  });
+  
+  // Also request on initial load if user is already logged in
+  // This handles page refresh and new tab cases
+  if (!userStore.isLoading && userStore.user) {
+    requestNotificationPermission().catch(err => {
+      console.error('Failed to initialize push notifications on load:', err);
+    });
+  }
+});
+
 app.mount('#app');
