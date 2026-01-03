@@ -37,6 +37,10 @@ server/*.js.map
 server/migrations/*.js
 server/migrations/*.js.map
 
+# Firebase service account credentials (NEVER commit these!)
+server/*firebase-adminsdk*.json
+*firebase-adminsdk*.json
+
 /cypress/videos/
 /cypress/screenshots/
 
