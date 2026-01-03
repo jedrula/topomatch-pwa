@@ -98,8 +98,9 @@ export async function deleteFCMToken(userId, token) {
 /**
  * Set up foreground message listener
  * This handles notifications when the app is in the foreground
+ * NOTE: router is passed in to enable navigation on click
  */
-export function setupForegroundMessageListener() {
+export function setupForegroundMessageListener(router) {
   try {
     const messaging = getMessaging();
     
@@ -108,12 +109,33 @@ export function setupForegroundMessageListener() {
       
       // Show notification manually when app is in foreground
       if (payload.notification) {
-        new Notification(payload.notification.title || 'New notification', {
+        const notification = new Notification(payload.notification.title || 'New notification', {
           body: payload.notification.body,
           icon: payload.notification.icon || '/pwa-192x192.png',
           badge: '/pwa-192x192.png',
           data: payload.data,
+          tag: payload.data?.locationId || 'default',
         });
+        
+        // Handle notification click
+        notification.onclick = () => {
+          console.log('[Foreground] Notification clicked:', payload.data);
+          
+          // Construct URL from notification data
+          const url = payload.data?.url || 
+                     (payload.data?.locationId ? `/location/${payload.data.locationId}` : '/');
+          
+          // Focus window and navigate using router
+          window.focus();
+          
+          if (router) {
+            router.push(url).catch(err => {
+              console.error('[Foreground] Failed to navigate:', err);
+            });
+          }
+          
+          notification.close();
+        };
       }
     });
   } catch (error) {

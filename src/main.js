@@ -103,8 +103,8 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'test' || import.meta.env.VI
 import { requestNotificationPermission, setupForegroundMessageListener } from './services/pushNotificationService';
 import { useUserStore } from './stores/userStore';
 
-// Set up foreground message listener immediately
-setupForegroundMessageListener();
+// Set up foreground message listener immediately (pass router for navigation)
+setupForegroundMessageListener(router);
 
 // Listen for navigation messages from service worker
 if ('serviceWorker' in navigator) {
