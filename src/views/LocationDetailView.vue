@@ -1084,6 +1084,32 @@ const loadOpenCV = async () => {
 // Store unregister function for cleanup
 let unregisterJobCallback = null;
 
+// Centralized initialization function
+const initializeLocationData = async () => {
+  // Reset state
+  location.value = null;
+  videos.value = [];
+  images.value = [];
+  error.value = '';
+  isLoading.value = true;
+  
+  // Unregister old job callback if it exists
+  if (unregisterJobCallback) {
+    unregisterJobCallback();
+    unregisterJobCallback = null;
+  }
+  
+  // Load location data, videos, and OpenCV in parallel
+  await Promise.all([
+    loadLocation(),
+    loadLocationVideos(),
+    loadOpenCV(),
+  ]);
+  
+  // Register callback for job completions at this location
+  unregisterJobCallback = analysisStore.onJobComplete(locationId.value, handleJobComplete);
+};
+
 // Watch currentRoutesetting and reload problems when it changes
 watch(currentRoutesetting, async (newRoutesetting, oldRoutesetting) => {
   if (newRoutesetting !== oldRoutesetting && locationId.value) {
@@ -1095,42 +1121,12 @@ watch(currentRoutesetting, async (newRoutesetting, oldRoutesetting) => {
 watch(() => route.params.locationId, async (newLocationId, oldLocationId) => {
   if (newLocationId && newLocationId !== oldLocationId) {
     console.log('[LocationDetailView] Location ID changed:', oldLocationId, '→', newLocationId);
-    
-    // Reset state
-    location.value = null;
-    videos.value = [];
-    images.value = [];
-    error.value = '';
-    isLoading.value = true;
-    
-    // Unregister old job callback
-    if (unregisterJobCallback) {
-      unregisterJobCallback();
-      unregisterJobCallback = null;
-    }
-    
-    // Reload all data for new location
-    await Promise.all([
-      loadLocation(),
-      loadLocationVideos(),
-      loadOpenCV(),
-    ]);
-    
-    // Register new job callback
-    unregisterJobCallback = analysisStore.onJobComplete(locationId.value, handleJobComplete);
+    await initializeLocationData();
   }
 });
 
 onMounted(async () => {
-  // Load location data, videos, and OpenCV in parallel - they're independent
-  await Promise.all([
-    loadLocation(),
-    loadLocationVideos(),
-    loadOpenCV(),
-  ]);
-
-  // Register callback for job completions at this location
-  unregisterJobCallback = analysisStore.onJobComplete(locationId.value, handleJobComplete);
+  await initializeLocationData();
 
   // Listen for maximize event from global indicator
   window.addEventListener('maximize-analysis-modal', handleMaximizeModal);
