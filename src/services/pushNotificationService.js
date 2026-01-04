@@ -1,9 +1,22 @@
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { getCurrentUser } from './authService';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
+
+/**
+ * Check if Firebase Cloud Messaging is supported in this browser
+ * iOS Safari and some other browsers don't support FCM even if they support Push API
+ */
+export async function isFCMSupported() {
+  try {
+    return await isSupported();
+  } catch (error) {
+    console.log('FCM not supported:', error);
+    return false;
+  }
+}
 
 /**
  * Request notification permission and get FCM token
@@ -14,6 +27,13 @@ export async function requestNotificationPermission() {
     const user = getCurrentUser();
     if (!user) {
       console.log('No user logged in, skipping notification permission request');
+      return null;
+    }
+
+    // Check if Firebase Cloud Messaging is supported (iOS Safari doesn't support FCM)
+    const fcmSupported = await isFCMSupported();
+    if (!fcmSupported) {
+      console.log('Firebase Cloud Messaging is not supported in this browser');
       return null;
     }
 
@@ -39,10 +59,32 @@ export async function requestNotificationPermission() {
     }
 
     // Get FCM token
-    const messaging = getMessaging();
-    const token = await getToken(messaging, {
-      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
-    });
+    try {
+      const messaging = getMessaging();
+      const token = await getToken(messaging, {
+        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+      });
+      
+      if (token) {
+        console.log('FCM token received:', token);
+        
+        // Store token in Firestore
+        await saveFCMToken(user.uid, token);
+        
+        return token;
+      } else {
+        console.log('No registration token available');
+        return null;
+      }
+    } catch (messagingError) {
+      console.error('FCM messaging error (browser may not support FCM):', messagingError);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error getting notification permission:', error);
+    return null;
+  }
+}
 
     if (token) {
       console.log('FCM token received:', token);
