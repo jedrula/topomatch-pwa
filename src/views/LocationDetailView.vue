@@ -37,48 +37,77 @@
             </h1>
             
             <!-- Action buttons -->
-            <div class="action-buttons flex gap-2">
+            <div class="action-buttons flex items-center gap-2">
+              <!-- Primary Actions - Always Visible -->
               <button
                 v-if="userStore.canEditLocations"
                 @click="editLocation"
-                class="btn-secondary h-8 px-3 text-[13px]"
+                class="btn-secondary h-9 px-3.5 text-sm inline-flex items-center gap-1.5 shrink-0 font-medium rounded-lg transition-all hover:scale-105"
               >
-                Edit
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span class="hidden xs:inline">Edit</span>
               </button>
+              
               <button
                 v-if="userStore.canEditLocations"
                 @click="publishRoutesetting"
                 :disabled="isPublishing"
-                class="btn-primary h-8 px-3 text-[13px] inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="btn-primary h-9 px-3.5 text-sm inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 font-medium rounded-lg shadow-sm hover:shadow-md transition-all hover:scale-105"
                 title="Notify all users about new routesetting"
               >
-                <svg v-if="!isPublishing" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <svg v-if="!isPublishing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                {{ isPublishing ? 'Publishing...' : 'Publish Routesetting' }}
+                <span class="hidden xs:inline">{{ isPublishing ? 'Publishing...' : 'Publish' }}</span>
               </button>
-              <router-link
-                v-if="allRoutesettings.length > 0"
-                :to="{ path: `/location/${locationId}/routesettings`, query: { routesetting: currentRoutesetting } }"
-                class="btn-secondary h-8 px-3 text-[13px] inline-flex items-center gap-1"
-                title="Manage routesetting versions"
-              >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Routesettings
-              </router-link>
-              <router-link
-                :to="`/location/${locationId}/jobs`"
-                class="btn-secondary h-8 px-3 text-[13px] inline-flex items-center"
-                title="View background analysis jobs"
-              >
-                Jobs
-              </router-link>
+
+              <!-- More Menu -->
+              <div class="relative" v-if="userStore.canEditLocations || allRoutesettings.length > 0">
+                <button
+                  @click.stop="showMoreMenu = !showMoreMenu"
+                  class="btn-secondary h-9 w-9 inline-flex items-center justify-center shrink-0 rounded-lg transition-all hover:scale-105"
+                  title="More options"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  </svg>
+                </button>
+                
+                <!-- Dropdown Menu -->
+                <div
+                  v-if="showMoreMenu"
+                  @click.stop
+                  class="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                >
+                  <router-link
+                    v-if="allRoutesettings.length > 0"
+                    :to="{ path: `/location/${locationId}/routesettings`, query: { routesetting: currentRoutesetting } }"
+                    @click="showMoreMenu = false"
+                    class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    History
+                  </router-link>
+                  <router-link
+                    :to="`/location/${locationId}/jobs`"
+                    @click="showMoreMenu = false"
+                    class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    Jobs
+                  </router-link>
+                </div>
+              </div>
             </div>
             
             <!-- Description -->
@@ -337,6 +366,7 @@ const showBetaUploadModal = ref(false);
 const isBetaModalMinimized = ref(false); // Track if modal is minimized
 const currentUploadSessionId = ref(null); // Each upload session gets unique ID for component reset
 const isPublishing = ref(false); // Track publishing state
+const showMoreMenu = ref(false); // Track more menu visibility
 
 // Upload tracking state
 const pendingMetadataSaves = ref(0);
@@ -1130,6 +1160,11 @@ onMounted(async () => {
 
   // Listen for maximize event from global indicator
   window.addEventListener('maximize-analysis-modal', handleMaximizeModal);
+  
+  // Close more menu when clicking outside
+  document.addEventListener('click', () => {
+    showMoreMenu.value = false;
+  });
 });
 
 onUnmounted(() => {
@@ -1138,8 +1173,11 @@ onUnmounted(() => {
     unregisterJobCallback();
   }
 
-  // Clean up event listener
+  // Clean up event listeners
   window.removeEventListener('maximize-analysis-modal', handleMaximizeModal);
+  document.removeEventListener('click', () => {
+    showMoreMenu.value = false;
+  });
 });
 </script>
 
