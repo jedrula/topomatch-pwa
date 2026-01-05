@@ -47,7 +47,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
-                <span class="hidden xs:inline">Edit</span>
+                <span class="hidden sm:inline">Edit</span>
               </button>
               
               <button
@@ -64,7 +64,7 @@
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span class="hidden xs:inline">{{ isPublishing ? 'Publishing...' : 'Publish' }}</span>
+                <span class="hidden sm:inline">{{ isPublishing ? 'Publishing...' : 'Notify 🔔' }}</span>
               </button>
 
               <!-- More Menu -->
@@ -214,9 +214,8 @@
           :get-problem-video-count="getProblemVideoCount"
           @open-problem-videos="openProblemVideos"
         />
-
         <!-- Subtle metadata at bottom -->
-        <div class="pt-4 border-t border-gray-200/60">
+        <div class="pt-1 border-t border-gray-200/60 mb-12">
           <div class="text-[12px] text-gray-500 space-y-0.5 text-center sm:text-left">
             <div>Created {{ formatDate(location.createdAt) }}</div>
             <div

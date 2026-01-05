@@ -42,13 +42,13 @@ export default defineConfig({
     vueDevTools(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate', // Auto-update in background, users see changes after 1-2 refreshes
+      registerType: 'prompt', // Show prompt when update is available
       workbox: {
         maximumFileSizeToCacheInBytes: 70 * 1024 * 1024,
         navigateFallback: null, // Disable since we have rewrites in firebase.json
         cleanupOutdatedCaches: true, // Auto-cleanup old caches on update
         clientsClaim: true, // Take control immediately on activation
-        skipWaiting: true, // Activate new service worker immediately
+        // skipWaiting removed - only skip when user accepts update
         // Import Firebase messaging for push notifications
         importScripts: ['/firebase-messaging-sw.js'],
         globIgnores: [
