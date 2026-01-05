@@ -1,28 +1,11 @@
-// Firebase Cloud Messaging Service Worker
-// This runs in the background to receive push notifications
-// Also handles standard Web Push for Safari/iOS
+// Web Push Service Worker
+// Handles standard Web Push notifications for all browsers
+// Works in Chrome, Firefox, Edge, Safari (desktop and iOS)
 
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
-
-// Initialize Firebase app in the service worker
-// These values MUST match your Firebase config in firebase.js
-firebase.initializeApp({
-  projectId: 'topomatch-pwa',
-  appId: '1:592023645230:web:0de421f7ba777652ef43bf',
-  storageBucket: 'topomatch-pwa.firebasestorage.app',
-  apiKey: 'AIzaSyD2LND6HuSMwEFL70ke48mJczTP5uScMW0',
-  authDomain: 'topomatch-pwa.firebaseapp.com',
-  messagingSenderId: '592023645230',
-});
-
-// ONLY handle standard Web Push - unified for all browsers
-// Don't use FCM's onBackgroundMessage to avoid duplicate handlers
-// FCM will still deliver via standard push events
-
-// Handle standard Web Push messages (works for both FCM and Safari Web Push)
+// Handle standard Web Push messages
 self.addEventListener('push', (event) => {
   console.log('[firebase-messaging-sw.js] Received standard push event:', event);
+  console.log('[firebase-messaging-sw.js] Notification permission:', Notification.permission);
   
   try {
     // Parse the push payload
@@ -43,6 +26,8 @@ self.addEventListener('push', (event) => {
     
     event.waitUntil(
       self.registration.showNotification(notificationTitle, notificationOptions)
+        .then(() => console.log('[firebase-messaging-sw.js] Notification shown successfully'))
+        .catch(error => console.error('[firebase-messaging-sw.js] Error showing notification:', error))
     );
   } catch (error) {
     console.error('[firebase-messaging-sw.js] Error handling push event:', error);

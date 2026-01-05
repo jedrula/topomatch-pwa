@@ -5,22 +5,34 @@ let vapidConfigured = false;
 
 /**
  * Configure web-push with VAPID keys (lazy initialization)
+ * Uses FCM VAPID keys since Chrome/Firefox/Edge use FCM endpoints
  */
 function ensureVapidConfigured() {
   if (vapidConfigured) return;
   
+  // Use the same VAPID keys that frontend uses for subscription
+  // Chrome/Firefox/Edge use FCM endpoints, so these should be FCM VAPID keys
   const publicKey = process.env.WEB_PUSH_VAPID_PUBLIC_KEY;
   const privateKey = process.env.WEB_PUSH_VAPID_PRIVATE_KEY;
   const contact = process.env.WEB_PUSH_CONTACT || 'mailto:support@topomatch.app';
   
+  console.log('VAPID Debug Info:', {
+    publicKeyExists: !!publicKey,
+    publicKeyLength: publicKey?.length,
+    publicKeyStartsWith: publicKey?.substring(0, 10),
+    publicKeyHasEquals: publicKey?.includes('='),
+    privateKeyExists: !!privateKey,
+    privateKeyLength: privateKey?.length,
+  });
+  
   if (!publicKey || !privateKey) {
-    console.warn('Web Push VAPID keys not configured. Web Push notifications will not be sent.');
+    console.warn('Web Push VAPID keys not configured. Notifications will not be sent.');
     return;
   }
   
   webPush.setVapidDetails(contact, publicKey, privateKey);
   vapidConfigured = true;
-  console.log('Web Push VAPID keys configured');
+  console.log('Web Push configured with VAPID keys');
 }
 
 export interface WebPushNotificationPayload {

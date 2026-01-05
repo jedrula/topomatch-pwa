@@ -100,11 +100,11 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'test' || import.meta.env.VI
 }
 
 // Initialize push notifications after user logs in
-import { requestNotificationPermission, setupForegroundMessageListener } from './services/pushNotificationService';
+import { requestNotificationPermission } from './services/pushNotificationService';
 import { useUserStore } from './stores/userStore';
 
-// Set up foreground message listener immediately (pass router for navigation)
-setupForegroundMessageListener(router);
+// No need for foreground message listener with Web Push
+// Service worker handles all notifications
 
 // Listen for navigation messages from service worker
 if ('serviceWorker' in navigator) {

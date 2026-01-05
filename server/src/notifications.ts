@@ -1,13 +1,13 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import {getFirestore} from "firebase-admin/firestore";
-import {getMessaging} from "firebase-admin/messaging";
 import * as logger from "firebase-functions/logger";
 import {sendWebPushToUsers} from "./services/webPushService";
 
 const REGION = "europe-west1";
 
-// Define secrets for Web Push
+// Define secrets for Web Push VAPID keys
+// Chrome/Firefox/Edge use FCM endpoints, so we use FCM VAPID keys here
 const webPushVapidPublicKey = defineSecret("WEB_PUSH_VAPID_PUBLIC_KEY");
 const webPushVapidPrivateKey = defineSecret("WEB_PUSH_VAPID_PRIVATE_KEY");
 
@@ -72,133 +72,16 @@ export const notifyNewRoutesetting = onCall(
         },
       };
 
-      // Send Web Push notifications (Safari/iOS)
+      // Send Web Push notifications (all browsers)
       logger.info(`Sending Web Push to ${userIds.length} users`);
       const webPushResults = await sendWebPushToUsers(userIds, notificationPayload);
       logger.info(`Web Push: ${webPushResults.totalSuccess} success, ${webPushResults.totalFailed} failed`);
 
-      // Get all FCM tokens
-      const tokens: string[] = [];
-      for (const userDoc of usersSnapshot.docs) {
-        const tokensSnapshot = await db
-          .collection("users")
-          .doc(userDoc.id)
-          .collection("fcmTokens")
-          .get();
-
-        tokensSnapshot.docs.forEach((tokenDoc) => {
-          tokens.push(tokenDoc.data().token);
-        });
-      }
-
-      logger.info(`Found ${tokens.length} FCM tokens`);
-
-      if (tokens.length === 0) {
-        return {
-          success: true,
-          message: webPushResults.totalSuccess > 0 ? "Web Push sent, no FCM tokens" : "No users to notify",
-          webPush: webPushResults,
-          fcm: { sent: 0, failed: 0, total: 0 },
-        };
-      }
-
-      // Prepare the notification message
-      const message = {
-        notification: {
-          title: "🧗 New Routesetting!",
-          body: `Fresh problems are now up at ${locationName}!`,
-        },
-        data: {
-          locationId: locationId,
-          type: "new-routesetting",
-          url: `/location/${locationId}`,
-        },
-        // Web-specific options (icon goes here, not in notification)
-        webpush: {
-          notification: {
-            icon: "/pwa-192x192.png",
-            badge: "/pwa-192x192.png",
-          },
-        },
-        // Android-specific options
-        android: {
-          priority: "high" as const,
-          notification: {
-            channelId: "routesetting-updates",
-            priority: "high" as const,
-            defaultSound: true,
-            defaultVibrateTimings: true,
-            icon: "/pwa-192x192.png",
-          },
-        },
-        // iOS-specific options
-        apns: {
-          payload: {
-            aps: {
-              sound: "default",
-              badge: 1,
-            },
-          },
-        },
-      };
-
-      // Send notifications in batches (FCM limit is 500 per batch)
-      const batchSize = 500;
-      let successCount = 0;
-      let failureCount = 0;
-
-      for (let i = 0; i < tokens.length; i += batchSize) {
-        const batch = tokens.slice(i, i + batchSize);
-
-        try {
-          const response = await getMessaging().sendEachForMulticast({
-            tokens: batch,
-            ...message,
-          });
-
-          successCount += response.successCount;
-          failureCount += response.failureCount;
-
-          // Log any failures
-          if (response.failureCount > 0) {
-            response.responses.forEach((resp, idx) => {
-              if (!resp.success) {
-                logger.warn(
-                  `Failed to send to token ${batch[idx]}: ${resp.error?.message}`
-                );
-
-                // Clean up invalid tokens
-                if (
-                  resp.error?.code === "messaging/invalid-registration-token" ||
-                  resp.error?.code === "messaging/registration-token-not-registered"
-                ) {
-                  // TODO: Delete invalid token from Firestore
-                  logger.info(`Marking token for cleanup: ${batch[idx]}`);
-                }
-              }
-            });
-          }
-        } catch (error) {
-          logger.error(`Error sending batch: ${error}`);
-          failureCount += batch.length;
-        }
-      }
-
-      logger.info(
-        `FCM sent - Success: ${successCount}, Failed: ${failureCount}`
-      );
-
       return {
         success: true,
-        webPush: {
-          sent: webPushResults.totalSuccess,
-          failed: webPushResults.totalFailed,
-        },
-        fcm: {
-          sent: successCount,
-          failed: failureCount,
-          total: tokens.length,
-        },
+        sent: webPushResults.totalSuccess,
+        failed: webPushResults.totalFailed,
+        total: userIds.length,
       };
     } catch (error) {
       logger.error("Error sending notifications:", error);
