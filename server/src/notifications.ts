@@ -1,16 +1,25 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {defineSecret} from "firebase-functions/params";
 import {getFirestore} from "firebase-admin/firestore";
 import {getMessaging} from "firebase-admin/messaging";
 import * as logger from "firebase-functions/logger";
+import {sendWebPushToUsers} from "./services/webPushService";
 
 const REGION = "europe-west1";
+
+// Define secrets for Web Push
+const webPushVapidPublicKey = defineSecret("WEB_PUSH_VAPID_PUBLIC_KEY");
+const webPushVapidPrivateKey = defineSecret("WEB_PUSH_VAPID_PRIVATE_KEY");
 
 /**
  * Send push notification to all users about new routesetting at a location
  * In future, this will be filtered to only users following the location
  */
 export const notifyNewRoutesetting = onCall(
-  {region: REGION},
+  {
+    region: REGION,
+    secrets: [webPushVapidPublicKey, webPushVapidPrivateKey],
+  },
   async (request) => {
     const db = getFirestore();
     
@@ -46,13 +55,30 @@ export const notifyNewRoutesetting = onCall(
     logger.info(`Sending routesetting notification for location: ${locationName}`);
 
     try {
-      // Get all FCM tokens from all users
+      // Get all users
       // TODO: In the future, filter by users following this location
       const usersSnapshot = await db.collection("users").get();
+      const userIds = usersSnapshot.docs.map((doc) => doc.id);
 
+      // Prepare notification payload
+      const notificationPayload = {
+        title: "🧗 New Routesetting!",
+        body: `Fresh problems are now up at ${locationName}!`,
+        icon: "/pwa-192x192.png",
+        data: {
+          locationId: locationId,
+          type: "new-routesetting",
+          url: `/location/${locationId}`,
+        },
+      };
+
+      // Send Web Push notifications (Safari/iOS)
+      logger.info(`Sending Web Push to ${userIds.length} users`);
+      const webPushResults = await sendWebPushToUsers(userIds, notificationPayload);
+      logger.info(`Web Push: ${webPushResults.totalSuccess} success, ${webPushResults.totalFailed} failed`);
+
+      // Get all FCM tokens
       const tokens: string[] = [];
-
-      // Collect all tokens from all users
       for (const userDoc of usersSnapshot.docs) {
         const tokensSnapshot = await db
           .collection("users")
@@ -70,8 +96,9 @@ export const notifyNewRoutesetting = onCall(
       if (tokens.length === 0) {
         return {
           success: true,
-          message: "No users to notify",
-          sent: 0,
+          message: webPushResults.totalSuccess > 0 ? "Web Push sent, no FCM tokens" : "No users to notify",
+          webPush: webPushResults,
+          fcm: { sent: 0, failed: 0, total: 0 },
         };
       }
 
@@ -158,14 +185,20 @@ export const notifyNewRoutesetting = onCall(
       }
 
       logger.info(
-        `Notification sent - Success: ${successCount}, Failed: ${failureCount}`
+        `FCM sent - Success: ${successCount}, Failed: ${failureCount}`
       );
 
       return {
         success: true,
-        sent: successCount,
-        failed: failureCount,
-        total: tokens.length,
+        webPush: {
+          sent: webPushResults.totalSuccess,
+          failed: webPushResults.totalFailed,
+        },
+        fcm: {
+          sent: successCount,
+          failed: failureCount,
+          total: tokens.length,
+        },
       };
     } catch (error) {
       logger.error("Error sending notifications:", error);

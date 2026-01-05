@@ -1,5 +1,6 @@
 // Firebase Cloud Messaging Service Worker
 // This runs in the background to receive push notifications
+// Also handles standard Web Push for Safari/iOS
 
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
@@ -15,23 +16,45 @@ firebase.initializeApp({
   messagingSenderId: '592023645230',
 });
 
-const messaging = firebase.messaging();
+// ONLY handle standard Web Push - unified for all browsers
+// Don't use FCM's onBackgroundMessage to avoid duplicate handlers
+// FCM will still deliver via standard push events
 
-// Handle background messages
-messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message:', payload);
-
-  const notificationTitle = payload.notification?.title || 'New notification';
-  const notificationOptions = {
-    body: payload.notification?.body || '',
-    icon: payload.notification?.icon || '/pwa-192x192.png',
-    badge: '/pwa-192x192.png',
-    data: payload.data || {},
-    tag: payload.data?.locationId || 'default', // Group notifications by location
-    requireInteraction: false,
-  };
-
-  return self.registration.showNotification(notificationTitle, notificationOptions);
+// Handle standard Web Push messages (works for both FCM and Safari Web Push)
+self.addEventListener('push', (event) => {
+  console.log('[firebase-messaging-sw.js] Received standard push event:', event);
+  
+  try {
+    // Parse the push payload
+    const data = event.data ? event.data.json() : {};
+    console.log('[firebase-messaging-sw.js] Push data:', data);
+    
+    const notificationTitle = data.notification?.title || data.title || 'New notification';
+    const notificationOptions = {
+      body: data.notification?.body || data.body || '',
+      icon: data.notification?.icon || data.icon || '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
+      data: data.data || data,
+      tag: data.data?.locationId || data.locationId || 'default',
+      requireInteraction: false,
+    };
+    
+    console.log('[firebase-messaging-sw.js] Showing notification:', notificationTitle, notificationOptions);
+    
+    event.waitUntil(
+      self.registration.showNotification(notificationTitle, notificationOptions)
+    );
+  } catch (error) {
+    console.error('[firebase-messaging-sw.js] Error handling push event:', error);
+    // Show a fallback notification to prevent unsubscription
+    event.waitUntil(
+      self.registration.showNotification('New notification', {
+        body: 'You have a new notification',
+        icon: '/pwa-192x192.png',
+        badge: '/pwa-192x192.png',
+      })
+    );
+  }
 });
 
 // Handle notification clicks

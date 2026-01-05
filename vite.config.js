@@ -49,6 +49,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true, // Auto-cleanup old caches on update
         clientsClaim: true, // Take control immediately on activation
         skipWaiting: true, // Activate new service worker immediately
+        // Import Firebase messaging for push notifications
+        importScripts: ['/firebase-messaging-sw.js'],
         globIgnores: [
           // Note: Removed opencv*.js exclusion - now that Vite optimizes it properly, we can cache it
         ],

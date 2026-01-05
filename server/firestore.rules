@@ -25,6 +25,11 @@ service cloud.firestore {
       match /fcmTokens/{tokenId} {
         allow read, write: if isOwner(userId);
       }
+      
+      // Web Push subscriptions subcollection - users can manage their own subscriptions
+      match /webPushSubscriptions/{subscriptionId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // Locations collection
