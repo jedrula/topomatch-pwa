@@ -19,6 +19,13 @@
 - Only add code/sections when actually needed, not "just in case"
 - **Use `crypto.randomUUID()` for generating unique IDs** (ascentId, imageId, etc.) - NOT `Math.random()`
 
+### Debugging Philosophy
+- **Avoid defensive/ugly workarounds** unless absolutely necessary
+- **Understand root causes** before implementing fixes
+- **Solve problems cleanly** rather than patching symptoms
+- Use logging for diagnosis, not as permanent code
+- Remove setTimeout hacks and race condition workarounds when possible
+
 ### Documentation
 - **DO NOT create .md documentation files** (e.g., `FEATURE_NAME.md`, `FIX_DESCRIPTION.md`)
 - Conversation explanations are sufficient - user doesn't read the markdown files

@@ -12,6 +12,12 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'always',
     limitsNavigationsToAppBoundDomains: false // Allow Firebase Auth redirects
+  },
+  plugins: {
+    FirebaseAuthentication: {
+      skipNativeAuth: false,
+      providers: []
+    }
   }
 };
 

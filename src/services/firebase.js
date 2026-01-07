@@ -31,8 +31,9 @@ const functions = getFunctions(app, 'europe-west1');
 // Initialize Firestore
 const db = getFirestore(app);
 
-// Initialize Firebase Auth
-const auth = getAuth(app);
+// Initialize Firebase Auth (only for web - Capacitor uses native plugin)
+const isCapacitor = window.Capacitor !== undefined;
+const auth = isCapacitor ? null : getAuth(app);
 
 // Connect to emulator if in development or explicitly enabled
 const useEmulators =
@@ -88,12 +89,14 @@ if (useEmulators) {
     }
   }
 
-  try {
-    connectAuthEmulator(auth, `http://${emulatorHost}:9099`);
-  } catch (error) {
-    // Emulator might already be connected
-    if (error.code !== 'auth/emulator-config-failed') {
-      console.warn('Auth emulator connection error:', error);
+  if (!isCapacitor) {
+    try {
+      connectAuthEmulator(auth, `http://${emulatorHost}:9099`);
+    } catch (error) {
+      // Emulator might already be connected
+      if (error.code !== 'auth/emulator-config-failed') {
+        console.warn('Auth emulator connection error:', error);
+      }
     }
   }
 } else {
