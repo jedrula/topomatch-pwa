@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getAuth, connectAuthEmulator, initializeAuth, indexedDBLocalPersistence } from 'firebase/auth';
 
 // Firebase configuration based on environment
 const getFirebaseConfig = () => {
@@ -31,9 +31,12 @@ const functions = getFunctions(app, 'europe-west1');
 // Initialize Firestore
 const db = getFirestore(app);
 
-// Initialize Firebase Auth (only for web - Capacitor uses native plugin)
+// Initialize Firebase Auth
+// In Capacitor, use indexedDBLocalPersistence to persist auth state
 const isCapacitor = window.Capacitor !== undefined;
-const auth = isCapacitor ? null : getAuth(app);
+const auth = isCapacitor 
+  ? initializeAuth(app, { persistence: indexedDBLocalPersistence })
+  : getAuth(app);
 
 // Connect to emulator if in development or explicitly enabled
 const useEmulators =

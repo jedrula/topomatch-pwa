@@ -1,5 +1,7 @@
 import {
   signInWithEmailAndPassword,
+  signInWithCredential,
+  EmailAuthProvider,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
@@ -31,7 +33,9 @@ const authAdapter = {
       try {
         console.log('[authAdapter] Calling signInWithEmailAndPassword...');
         const result = await FirebaseAuthPlugin.signInWithEmailAndPassword({ email, password });
-        console.log('[authAdapter] Sign in successful, user:', result.user);
+        console.log('[authAdapter] Sign in successful, full result:', result);
+        console.log('[authAdapter] User object:', result.user);
+        console.log('[authAdapter] User uid:', result.user?.uid);
         return result.user;
       } catch (error) {
         console.error('[authAdapter] Sign in failed:', error);
@@ -162,7 +166,22 @@ class AuthService {
   async signIn(email, password) {
     try {
       const user = await authAdapter.signIn(email, password);
+      console.log('[authService] User after sign in:', user);
+      console.log('[authService] Setting currentUser with uid:', user?.uid);
       this.currentUser = user;
+      
+      // If in Capacitor, also sign in to Firebase JS SDK for Firestore access
+      if (isCapacitor && auth) {
+        try {
+          console.log('[authService] Signing in to Firebase JS SDK with email/password credential');
+          const credential = EmailAuthProvider.credential(email, password);
+          await signInWithCredential(auth, credential);
+          console.log('[authService] Successfully signed in to Firebase JS SDK');
+        } catch (error) {
+          console.error('[authService] Error signing in to Firebase JS SDK:', error);
+        }
+      }
+      
       return this._attachClaims(user);
     } catch (error) {
       console.error('Sign in error:', error);
