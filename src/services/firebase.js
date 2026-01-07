@@ -38,6 +38,8 @@ const auth = getAuth(app);
 const useEmulators =
   import.meta.env.MODE === 'development' || import.meta.env.VITE_USE_EMULATORS === 'true';
 
+console.log('[Firebase] MODE:', import.meta.env.MODE, 'useEmulators:', useEmulators);
+
 if (useEmulators) {
 
   // Determine the emulator host - use localhost if running on the same machine,

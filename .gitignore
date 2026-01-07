@@ -15,6 +15,16 @@ dist-ssr
 coverage
 *.local
 
+# Capacitor / iOS
+ios/App/Pods
+ios/App/App/public
+ios/App/App/capacitor.config.json
+ios/App/*.xcworkspace
+ios/App/build
+*.xcuserstate
+*.xcuserdatad
+.build/
+
 # Firebase emulator data (keep structure but not the actual data)
 firebase-emulator-data/*
 !firebase-emulator-data/README.md
