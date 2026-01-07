@@ -1,6 +1,6 @@
 <template>
-  <header class="sticky top-0 z-50 bg-white border-b border-gray-200/60">
-    <nav class="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+  <header class="app-header bg-white border-b border-gray-200/60">
+    <nav class="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
       <!-- Logo -->
       <router-link 
         to="/" 

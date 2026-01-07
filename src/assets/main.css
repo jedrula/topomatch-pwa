@@ -1,6 +1,27 @@
 @import "tailwindcss";
 
 /* ============================================
+   Fixed Layout - Header + Scrollable Content
+   ============================================ */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height for mobile */
+  overflow: hidden; /* Prevent scroll on container */
+}
+
+.app-header {
+  flex-shrink: 0; /* Fixed height, don't shrink */
+}
+
+.app-content {
+  flex: 1; /* Take remaining space */
+  overflow-y: auto; /* Scroll only content */
+  overflow-x: hidden;
+}
+
+/* ============================================
    Design System Tokens - Modern SaaS Style
    Inspired by: Stripe, Linear, Vercel
    ============================================ */

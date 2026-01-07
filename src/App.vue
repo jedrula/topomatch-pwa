@@ -102,7 +102,7 @@ provide('authModal', {
 </script>
 
 <template>
-  <div class="min-h-screen">
+  <div class="app-container">
     <!-- PWA Update Prompt -->
     <div
       v-if="needRefresh"
@@ -139,8 +139,10 @@ provide('authModal', {
     <!-- Global header -->
     <AppHeader />
 
-    <!-- Main content -->
-    <RouterView />
+    <!-- Main content - scrollable area -->
+    <main class="app-content">
+      <RouterView />
+    </main>
 
     <!-- App-wide footer with version -->
     <div class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t border-gray-200/60 py-2 z-10">

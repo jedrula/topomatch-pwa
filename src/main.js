@@ -9,6 +9,27 @@ import FloatingVue from 'floating-vue';
 import App from './App.vue';
 import router from './router';
 
+// Capacitor: Disable zoom for native platform (better UX, no pinch-zoom needed)
+// Browser: Keep zoom enabled for accessibility
+if (window.Capacitor?.isNativePlatform()) {
+  const meta = document.querySelector('meta[name=viewport]');
+  if (meta) {
+    meta.setAttribute(
+      'content',
+      'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'
+    );
+  }
+  
+  // Initialize StatusBar - content starts below status bar (no overlay)
+  import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+    StatusBar.setOverlaysWebView({ overlay: false });
+    StatusBar.setStyle({ style: Style.Light }); // Dark text for white header
+    console.log('[main.js] StatusBar configured: overlay=false, style=Light');
+  }).catch(err => {
+    console.log('[main.js] StatusBar not available:', err.message);
+  });
+}
+
 // import * as ort from "onnxruntime-web/dist/ort-web.min.js";
 
 // import wasm from "onnxruntime-web/dist/ort-wasm.wasm?url";
