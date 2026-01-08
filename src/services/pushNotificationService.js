@@ -4,12 +4,23 @@ import { getCurrentUser } from './authService';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
 
+// Platform detection
+const isCapacitor = !!window.Capacitor?.isNativePlatform();
+
 /**
  * Check if standard Web Push is supported
- * Works in Chrome, Firefox, Edge, Safari (desktop and iOS)
+ * Works in Chrome, Firefox, Edge, Safari (desktop and iOS in browser)
  */
 export function isWebPushSupported() {
-  return 'serviceWorker' in navigator && 'PushManager' in window;
+  return !isCapacitor && 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
+/**
+ * Check if Capacitor Push Notifications are available
+ * Works in Capacitor iOS/Android native apps
+ */
+function isCapacitorPushAvailable() {
+  return isCapacitor;
 }
 
 /**
@@ -37,8 +48,10 @@ async function requestPermission() {
 
 /**
  * Request notification permission and set up push notifications
- * Uses standard Web Push API (works in all modern browsers)
- * Stores subscription in Firestore for the current user
+ * Automatically detects platform:
+ * - Capacitor (iOS/Android): Uses native @capacitor/push-notifications
+ * - Web: Uses standard Web Push API (works in all modern browsers)
+ * Stores subscription/token in Firestore for the current user
  */
 export async function requestNotificationPermission() {
   try {
@@ -48,20 +61,25 @@ export async function requestNotificationPermission() {
       return null;
     }
 
-    // Request permission first
-    const permission = await requestPermission();
-    if (permission !== 'granted') {
-      console.log('Notification permission not granted');
-      return null;
+    // Capacitor native (iOS/Android)
+    if (isCapacitorPushAvailable()) {
+      console.log('Using Capacitor Push Notifications (native)');
+      return await registerCapacitorPush(user.uid);
     }
 
-    // Use Web Push (works in Chrome, Firefox, Edge, Safari)
+    // Web Push (browser)
     if (isWebPushSupported()) {
+      const permission = await requestPermission();
+      if (permission !== 'granted') {
+        console.log('Notification permission not granted');
+        return null;
+      }
+      
       console.log('Using standard Web Push API');
       return await subscribeWebPush(user.uid);
     }
 
-    console.log('Web Push not supported in this browser');
+    console.log('Push notifications not supported in this environment');
     return null;
   } catch (error) {
     console.error('Error requesting notification permission:', error);
@@ -99,6 +117,72 @@ async function subscribeWebPush(userId) {
   } catch (error) {
     console.error('Web Push subscription error:', error);
     return null;
+  }
+}
+
+/**
+ * Register for Capacitor native push notifications (iOS/Android)
+ * Uses @capacitor-firebase/messaging to get FCM tokens (works with Firebase Admin SDK)
+ */
+async function registerCapacitorPush(userId) {
+  try {
+    const { FirebaseMessaging } = await import('@capacitor-firebase/messaging');
+    
+    // Request permissions
+    const permResult = await FirebaseMessaging.requestPermissions();
+    
+    if (permResult.receive !== 'granted') {
+      console.log('Push notification permission denied');
+      return null;
+    }
+    
+    console.log('Push notification permission granted');
+    
+    // Get FCM token (works with Firebase Admin SDK)
+    const result = await FirebaseMessaging.getToken();
+    console.log('FCM token received:', result.token.substring(0, 30) + '...');
+    await saveCapacitorToken(userId, result.token);
+    
+    // Listen for token refresh
+    await FirebaseMessaging.addListener('tokenReceived', async (event) => {
+      console.log('New FCM token received:', event.token.substring(0, 30) + '...');
+      await saveCapacitorToken(userId, event.token);
+    });
+    
+    // Listen for notifications received while app is in foreground
+    await FirebaseMessaging.addListener('notificationReceived', (event) => {
+      console.log('Push notification received:', event.notification);
+    });
+    
+    // Listen for notification actions (when user taps notification)
+    await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
+      console.log('Push notification action performed:', event.notification);
+    });
+    
+    return { type: 'capacitor-firebase', token: result.token };
+  } catch (error) {
+    console.error('Capacitor Firebase Messaging registration error:', error);
+    return null;
+  }
+}
+
+/**
+ * Save Capacitor push token to Firestore (FCM token)
+ */
+async function saveCapacitorToken(userId, token) {
+  try {
+    const tokenRef = doc(db, 'users', userId, 'pushTokens', token);
+    await setDoc(tokenRef, {
+      token,
+      platform: isCapacitor ? (window.Capacitor.getPlatform()) : 'unknown',
+      type: 'capacitor-firebase', // Using Firebase Messaging for FCM tokens
+      createdAt: new Date(),
+      lastUsed: new Date(),
+    }, { merge: true });
+    console.log('FCM token saved to Firestore');
+  } catch (error) {
+    console.error('Error saving Capacitor push token:', error);
+    throw error;
   }
 }
 

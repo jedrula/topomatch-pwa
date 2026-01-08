@@ -26,6 +26,11 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
       
+      // Push tokens subcollection (iOS/Android) - users can manage their own tokens
+      match /pushTokens/{token} {
+        allow read, write: if isOwner(userId);
+      }
+      
       // Web Push subscriptions subcollection - users can manage their own subscriptions
       match /webPushSubscriptions/{subscriptionId} {
         allow read, write: if isOwner(userId);

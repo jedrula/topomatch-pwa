@@ -2,7 +2,7 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import {getFirestore} from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
-import {sendWebPushToUsers} from "./services/webPushService";
+import {sendPushToUsers} from "./services/webPushService";
 
 const REGION = "europe-west1";
 
@@ -72,16 +72,24 @@ export const notifyNewRoutesetting = onCall(
         },
       };
 
-      // Send Web Push notifications (all browsers)
-      logger.info(`Sending Web Push to ${userIds.length} users`);
-      const webPushResults = await sendWebPushToUsers(userIds, notificationPayload);
-      logger.info(`Web Push: ${webPushResults.totalSuccess} success, ${webPushResults.totalFailed} failed`);
+      // Send push notifications to all platforms (web + iOS/Android)
+      logger.info(`Sending push notifications to ${userIds.length} users`);
+      const pushResults = await sendPushToUsers(userIds, notificationPayload);
+      
+      const totalSent = pushResults.totalWebSuccess + pushResults.totalCapacitorSuccess;
+      const totalFailed = pushResults.totalWebFailed + pushResults.totalCapacitorFailed;
+      
+      logger.info(`Push sent: ${totalSent} success (${pushResults.totalWebSuccess} web, ${pushResults.totalCapacitorSuccess} mobile), ${totalFailed} failed`);
 
       return {
         success: true,
-        sent: webPushResults.totalSuccess,
-        failed: webPushResults.totalFailed,
+        sent: totalSent,
+        failed: totalFailed,
         total: userIds.length,
+        details: {
+          web: { success: pushResults.totalWebSuccess, failed: pushResults.totalWebFailed },
+          mobile: { success: pushResults.totalCapacitorSuccess, failed: pushResults.totalCapacitorFailed },
+        },
       };
     } catch (error) {
       logger.error("Error sending notifications:", error);

@@ -43,6 +43,37 @@ export interface WebPushNotificationPayload {
 }
 
 /**
+ * Send push notification to iOS/Android device using FCM
+ */
+async function sendCapacitorPushNotification(
+  token: string,
+  payload: WebPushNotificationPayload
+): Promise<void> {
+  try {
+    await admin.messaging().send({
+      token,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
+      data: payload.data || {},
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+    });
+    console.log('Capacitor push notification sent successfully to token:', token.substring(0, 20) + '...');
+  } catch (error) {
+    console.error('Error sending Capacitor push notification:', error);
+    throw error;
+  }
+}
+
+/**
  * Send Web Push notification to a single subscription
  */
 export async function sendWebPushNotification(
@@ -142,29 +173,162 @@ export async function sendWebPushToUser(
 }
 
 /**
- * Send Web Push to multiple users
+ * Send Capacitor push notification to all iOS/Android tokens for a user
  */
-export async function sendWebPushToUsers(
+export async function sendCapacitorPushToUser(
+  userId: string,
+  payload: WebPushNotificationPayload
+): Promise<{ success: number; failed: number }> {
+  const db = admin.firestore();
+  let success = 0;
+  let failed = 0;
+
+  try {
+    // Get all Capacitor push tokens for the user
+    const tokensSnapshot = await db
+      .collection('users')
+      .doc(userId)
+      .collection('pushTokens')
+      .get();
+
+    if (tokensSnapshot.empty) {
+      console.log(`No Capacitor push tokens found for user ${userId}`);
+      return { success, failed };
+    }
+
+    // Send to all tokens
+    const sendPromises = tokensSnapshot.docs.map(async (doc) => {
+      try {
+        const tokenData = doc.data();
+        const token = tokenData.token;
+
+        await sendCapacitorPushNotification(token, payload);
+        
+        // Update lastUsed timestamp
+        await doc.ref.update({ lastUsed: admin.firestore.FieldValue.serverTimestamp() });
+        
+        success++;
+      } catch (error) {
+        console.error(`Failed to send Capacitor push to token ${doc.id}:`, error);
+        failed++;
+        
+        // Delete invalid tokens
+        if ((error as any)?.code === 'messaging/registration-token-not-registered') {
+          console.log(`Deleting invalid token ${doc.id}`);
+          await doc.ref.delete();
+        }
+      }
+    });
+
+    await Promise.all(sendPromises);
+    console.log(`Capacitor push sent to user ${userId}: ${success} success, ${failed} failed`);
+    
+    return { success, failed };
+  } catch (error) {
+    console.error(`Error sending Capacitor push to user ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Check if user has push notifications enabled
+ */
+async function isPushNotificationEnabled(userId: string): Promise<boolean> {
+  const db = admin.firestore();
+  
+  try {
+    const userDoc = await db.collection('users').doc(userId).get();
+    
+    if (!userDoc.exists) {
+      console.log(`User ${userId} not found, skipping push notification`);
+      return false;
+    }
+    
+    const userData = userDoc.data();
+    
+    // Check if pushNotificationsEnabled field exists, default to false if not set
+    const enabled = userData?.pushNotificationsEnabled ?? false;
+    
+    if (!enabled) {
+      console.log(`Push notifications disabled for user ${userId}`);
+    }
+    
+    return enabled;
+  } catch (error) {
+    console.error(`Error checking push notification preference for user ${userId}:`, error);
+    return false; // Default to disabled on error
+  }
+}
+
+/**
+ * Send push notification to user on ALL platforms (web + iOS/Android)
+ */
+export async function sendPushToUser(
+  userId: string,
+  payload: WebPushNotificationPayload
+): Promise<{ webSuccess: number; webFailed: number; capacitorSuccess: number; capacitorFailed: number }> {
+  // Check if user has push notifications enabled
+  const enabled = await isPushNotificationEnabled(userId);
+  
+  if (!enabled) {
+    console.log(`Skipping push notification for user ${userId} (disabled by user preference)`);
+    return {
+      webSuccess: 0,
+      webFailed: 0,
+      capacitorSuccess: 0,
+      capacitorFailed: 0,
+    };
+  }
+  
+  // Send to both web and mobile in parallel
+  const [webResult, capacitorResult] = await Promise.all([
+    sendWebPushToUser(userId, payload),
+    sendCapacitorPushToUser(userId, payload),
+  ]);
+
+  console.log(`Push notification sent to user ${userId}:`, {
+    web: webResult,
+    capacitor: capacitorResult,
+  });
+
+  return {
+    webSuccess: webResult.success,
+    webFailed: webResult.failed,
+    capacitorSuccess: capacitorResult.success,
+    capacitorFailed: capacitorResult.failed,
+  };
+}
+
+/**
+ * Send push notification to multiple users on ALL platforms
+ */
+export async function sendPushToUsers(
   userIds: string[],
   payload: WebPushNotificationPayload
-): Promise<{ totalSuccess: number; totalFailed: number }> {
-  let totalSuccess = 0;
-  let totalFailed = 0;
+): Promise<{ totalWebSuccess: number; totalWebFailed: number; totalCapacitorSuccess: number; totalCapacitorFailed: number }> {
+  let totalWebSuccess = 0;
+  let totalWebFailed = 0;
+  let totalCapacitorSuccess = 0;
+  let totalCapacitorFailed = 0;
 
   const sendPromises = userIds.map(async (userId) => {
     try {
-      const result = await sendWebPushToUser(userId, payload);
-      totalSuccess += result.success;
-      totalFailed += result.failed;
+      const result = await sendPushToUser(userId, payload);
+      totalWebSuccess += result.webSuccess;
+      totalWebFailed += result.webFailed;
+      totalCapacitorSuccess += result.capacitorSuccess;
+      totalCapacitorFailed += result.capacitorFailed;
     } catch (error) {
-      console.error(`Error sending Web Push to user ${userId}:`, error);
-      // Count as failed if we can't even fetch subscriptions
-      totalFailed++;
+      console.error(`Error sending push to user ${userId}:`, error);
     }
   });
 
   await Promise.all(sendPromises);
   
-  console.log(`Web Push batch complete: ${totalSuccess} success, ${totalFailed} failed`);
-  return { totalSuccess, totalFailed };
+  console.log(`Push batch complete:`, {
+    web: { success: totalWebSuccess, failed: totalWebFailed },
+    capacitor: { success: totalCapacitorSuccess, failed: totalCapacitorFailed },
+  });
+  
+  return { totalWebSuccess, totalWebFailed, totalCapacitorSuccess, totalCapacitorFailed };
 }
