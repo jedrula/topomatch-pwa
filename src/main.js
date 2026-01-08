@@ -8,6 +8,11 @@ import FloatingVue from 'floating-vue';
 
 import App from './App.vue';
 import router from './router';
+import { initPushNotificationListener, consumePendingRoute, setRouter } from './services/deepLinkHandler';
+
+// Initialize push notification listener BEFORE app mounts
+// This captures notifications that launched the app
+initPushNotificationListener();
 
 // Capacitor: Disable zoom for native platform (better UX, no pinch-zoom needed)
 // Browser: Keep zoom enabled for accessibility
@@ -182,4 +187,24 @@ router.isReady().then(() => {
   }
 });
 
-app.mount('#app');
+// Handle deep link from push notification BEFORE mounting
+// This prevents flash of default route before navigating
+router.isReady().then(() => {
+  const pendingRoute = consumePendingRoute();
+  
+  if (pendingRoute) {
+    console.log('[main.js] Navigating to pending route:', pendingRoute);
+    router.replace(pendingRoute).then(() => {
+      console.log('[main.js] Navigation complete, mounting app');
+      setRouter(router); // Enable foreground navigation
+      app.mount('#app');
+    }).catch(err => {
+      console.error('[main.js] Navigation failed:', err);
+      setRouter(router); // Enable foreground navigation even if navigation fails
+      app.mount('#app');
+    });
+  } else {
+    setRouter(router); // Enable foreground navigation
+    app.mount('#app');
+  }
+});

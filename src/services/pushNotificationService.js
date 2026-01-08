@@ -3,6 +3,7 @@ import { db } from './firebase';
 import { getCurrentUser } from './authService';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
+import { setPendingRoute } from './deepLinkHandler';
 
 // Platform detection
 const isCapacitor = !!window.Capacitor?.isNativePlatform();
@@ -155,8 +156,16 @@ async function registerCapacitorPush(userId) {
     });
     
     // Listen for notification actions (when user taps notification)
-    await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
-      console.log('Push notification action performed:', event.notification);
+    await FirebaseMessaging.addListener('notificationActionPerformed', async (event) => {
+      console.log('Push notification action performed:', event);
+      
+      // Store route for navigation - will be handled by router after it's ready
+      const notification = event.notification;
+      const data = notification.data || {};
+      
+      if (data.url) {
+        setPendingRoute(data.url);
+      }
     });
     
     return { type: 'capacitor-firebase', token: result.token };
