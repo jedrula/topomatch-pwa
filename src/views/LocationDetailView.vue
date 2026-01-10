@@ -141,6 +141,15 @@
                   Upload a climbing video and we'll identify the problem automatically
                 </p>
               </div>
+              <!-- Hidden file input -->
+              <input
+                ref="betaVideoInput"
+                type="file"
+                accept="video/*"
+                @change="handleVideoFileSelected"
+                class="hidden"
+              />
+              
               <button
                 type="button"
                 @click="handleBetaUploadClick"
@@ -328,6 +337,8 @@ const {
 
 // Inject auth modal controls
 const authModal = inject('authModal');
+
+const betaVideoInput = ref(null);
 
 // Provide method for child components to update video assignments
 const updateVideoAssignment = (videoId, problemId, problemName, problemGrade) => {
@@ -779,45 +790,58 @@ const openProblemVideos = async (problem) => {
 };
 
 const handleBetaUploadClick = () => {
-  try {
-    console.log('🎬 Beta upload clicked');
-    
-    if (!userStore.user) {
-      console.log('❌ User not authenticated, opening auth modal');
-      authModal.open();
-      return;
-    }
+  if (!userStore.user) {
+    console.log('❌ User not authenticated, opening auth modal');
+    authModal.open();
+    return;
+  }
+  
+  // Trigger file picker directly
+  if (betaVideoInput.value) {
+    betaVideoInput.value.click();
+  }
+};
 
-    // 🎯 SHORT CIRCUIT MODE: Controlled by VITE_BETA_UPLOAD_SHORT_CIRCUIT env variable
-    // When true: Open modal minimized and trigger file input directly (hides Record Video feature)
-    // When false: Show full modal with "Upload File" / "Record Video" toggle
-    const useShortCircuit = import.meta.env.VITE_BETA_UPLOAD_SHORT_CIRCUIT === 'true';
-    console.log('⚙️ Short circuit mode:', useShortCircuit);
+// Handle video file selection
+const handleVideoFileSelected = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  try {
+    console.log('📹 Video selected:', file.name);
     
+    // Extract thumbnail from video
+    const { extractVideoThumbnail, getBase64Size } = await import('@/utils/videoThumbnail');
+    const thumbnailBase64 = await extractVideoThumbnail(file, 1, 320);
+    const thumbnailSizeKB = getBase64Size(thumbnailBase64);
+    console.log(`✅ Thumbnail extracted: ${thumbnailSizeKB.toFixed(1)} KB`);
+    
+    // Attach thumbnail to file
+    file.thumbnailBase64 = thumbnailBase64;
+    
+    // Generate new session ID
     currentUploadSessionId.value = generateUUID();
     console.log('🆔 Session ID:', currentUploadSessionId.value);
     
+    // Open modal minimized
     showBetaUploadModal.value = true;
-    console.log('✅ Modal opened');
-
-    nextTick(() => {
-      if (useShortCircuit) {
-        console.log('🔄 Minimizing modal (short circuit)');
-        isBetaModalMinimized.value = true;
-        
-        // Trigger file input after modal is mounted and minimized
-        nextTick(() => {
-          if (betaUploadModalRef.value) {
-            console.log('📁 Triggering file input');
-            betaUploadModalRef.value.triggerFileInput();
-          } else {
-            console.error('❌ Modal ref not available');
-          }
-        });
-      }
-    });
+    isBetaModalMinimized.value = true;
+    
+    // Wait for modal to mount, then trigger video processing
+    await nextTick();
+    await nextTick();
+    
+    if (betaUploadModalRef.value && betaUploadModalRef.value.handleVideoSelected) {
+      betaUploadModalRef.value.handleVideoSelected(file);
+    } else {
+      console.error('❌ Modal ref or handleVideoSelected method not available');
+    }
   } catch (error) {
-    console.error('❌ Error in handleBetaUploadClick:', error);
+    console.error('❌ Error handling video selection:', error);
+    alert('Failed to process video. Please try again.');
+  } finally {
+    // Clear input so same file can be selected again
+    event.target.value = '';
   }
 };
 

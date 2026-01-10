@@ -8,21 +8,11 @@
       :class="debugMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400'"
       title="Toggle debug information"
     >
-      �
+      🐛
     </button>
 
-    <!-- Video Upload/Record Selector -->
-    <VideoUploadSelector
-      ref="videoSelectorRef"
-      v-if="!selectedVideo"
-      :title="title"
-      :subtitle="subtitle"
-      :is-disabled="isProcessing"
-      @video-selected="handleVideoSelected"
-    />
-
     <!-- Video Selected and Processing -->
-    <div v-else class="space-y-6">
+    <div v-if="selectedVideo" class="space-y-6">
       <!-- Video Info -->
       <div v-if="debugMode" class="bg-gray-50 rounded-lg p-4">
         <div class="flex items-center justify-between">
@@ -249,7 +239,6 @@
 
 <script setup>
 import { ref, computed, onUnmounted, watch } from 'vue';
-import VideoUploadSelector from './VideoUploadSelector.vue';
 import AscentForm from './AscentForm.vue';
 import FeatureMatchVisualization from './FeatureMatchVisualization.vue';
 import { validateVideoFile } from '@/utils/videoFrameUtils';
@@ -259,8 +248,6 @@ import { ascentService, generateAscentId } from '@/services/ascentService';
 import { getCurrentUser } from '@/services/authService';
 import { useVideoUploadQueueStore } from '@/stores/videoUploadQueueStore';
 import { useVideoAnalysisQueueStore } from '@/stores/videoAnalysisQueueStore';
-
-const videoSelectorRef = ref(null);
 
 // Props
 const props = defineProps({
@@ -642,9 +629,8 @@ const triggerFileInput = () => {
   }
 };
 
-// Expose method for parent component
+// Expose method for parent component (for re-processing existing videos)
 defineExpose({
-  triggerFileInput,
   analyzeExistingVideo: async (video) => {
     try {
       console.log('🔄 Re-processing existing video:', video);
@@ -669,7 +655,9 @@ defineExpose({
       console.error('❌ Error re-processing video:', err);
       error.value = err.message;
     }
-  }
+  },
+  // Expose handleVideoSelected for parent to call directly
+  handleVideoSelected
 });
 </script>
 

@@ -1,37 +1,8 @@
 <template>
   <div>
-    <!-- Recording/Upload Mode Selection -->
-    <div class="mb-4">
-      <div class="flex items-center justify-center space-x-1 bg-gray-100 rounded-lg p-1">
-        <button
-          @click="mode = 'upload'"
-          :class="[
-            'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
-            mode === 'upload'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          ]"
-        >
-          📁 Upload File
-        </button>
-        <button
-          @click="mode = 'record'"
-          :class="[
-            'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
-            mode === 'record'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          ]"
-        >
-          🎥 Record Video
-        </button>
-      </div>
-    </div>
-
-    <!-- Video File Selection or Recording -->
+    <!-- Video File Selection -->
     <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
-      <!-- Upload Mode -->
-      <div v-if="mode === 'upload'" class="text-center">
+      <div class="text-center">
         <svg
           class="w-12 h-12 text-gray-400 mx-auto mb-4"
           fill="none"
@@ -78,20 +49,12 @@
 
         <p class="text-xs text-gray-500 mt-2">MP4, WebM, MOV up to 100MB</p>
       </div>
-
-      <!-- Record Mode -->
-      <VideoRecorder 
-        v-else-if="mode === 'record'"
-        @video-recorded="handleVideoRecorded"
-        @recording-cancelled="mode = 'upload'"
-      />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
-import VideoRecorder from './VideoRecorder.vue';
 import { extractVideoThumbnail, getBase64Size } from '@/utils/videoThumbnail';
 
 defineProps({
@@ -112,7 +75,6 @@ defineProps({
 const emit = defineEmits(['video-selected']);
 
 const fileInput = ref(null);
-const mode = ref('upload'); // 'upload' or 'record'
 
 const handleFileChange = async (event) => {
   const file = event.target.files[0];
@@ -137,24 +99,8 @@ const handleFileChange = async (event) => {
   event.target.value = '';
 };
 
-const handleVideoRecorded = async (file) => {
-  try {
-    // Extract thumbnail from recorded video
-    console.log('📸 Extracting thumbnail from recorded video...');
-    const thumbnailBase64 = await extractVideoThumbnail(file, 1, 320);
-    const thumbnailSizeKB = getBase64Size(thumbnailBase64);
-    console.log(`✅ Thumbnail extracted: ${thumbnailSizeKB.toFixed(1)} KB`);
-    
-    file.thumbnailBase64 = thumbnailBase64;
-    emit('video-selected', file);
-  } catch (error) {
-    console.warn('⚠️ Failed to extract thumbnail, continuing without it:', error);
-    emit('video-selected', file);
-  }
-};
-
 /**
- * Trigger file input programmatically (for short-circuit mode)
+ * Trigger file input programmatically
  */
 const triggerFileInput = () => {
   if (fileInput.value) {

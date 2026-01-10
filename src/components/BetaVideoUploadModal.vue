@@ -374,11 +374,11 @@ const handleAscentCreated = ({ ascentId }) => {
 };
 
 /**
- * Trigger file input programmatically (for short-circuit mode)
+ * Handle video selected from parent (LocationDetailView)
  */
-const triggerFileInput = () => {
-  if (videoMatcherRef.value && videoMatcherRef.value.triggerFileInput) {
-    videoMatcherRef.value.triggerFileInput();
+const handleVideoSelected = (video) => {
+  if (videoMatcherRef.value && videoMatcherRef.value.handleVideoSelected) {
+    videoMatcherRef.value.handleVideoSelected(video);
   }
 };
 
@@ -393,7 +393,7 @@ const reprocessExistingVideo = (video) => {
 
 // Expose methods for parent component
 defineExpose({
-  triggerFileInput,
+  handleVideoSelected,
   reprocessExistingVideo
 });
 </script>
