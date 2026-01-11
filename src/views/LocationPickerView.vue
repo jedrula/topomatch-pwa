@@ -58,7 +58,7 @@
         </div>
       </div>
 
-      <!-- Liked Locations / All Locations -->
+      <!-- Favorite Locations / All Locations -->
       <div v-if="!isSearching || !searchQuery">
         <!-- Loading -->
         <div v-if="isLoading" class="flex justify-center py-12">
@@ -75,7 +75,7 @@
         <!-- Locations List -->
         <div v-else-if="locations.length > 0">
           <h2 class="text-[15px] font-semibold text-gray-900 mb-4">
-            Liked Locations <!-- TODO: Will be "Liked Locations" when we add like feature -->
+            Favorite Locations
           </h2>
           <LocationGrid :locations="locations" />
         </div>
@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { locationService } from '../services/locationService.js';
 import LocationGrid from '../components/LocationGrid.vue';
 
@@ -106,6 +106,7 @@ const isLoading = ref(true);
 const error = ref('');
 const locations = ref([]);
 const searchResults = ref([]);
+let searchDebounceTimer = null;
 
 // TODO: This will use a different endpoint or add `liked: true` param when like feature is implemented
 const loadLocations = async () => {
@@ -124,17 +125,31 @@ const loadLocations = async () => {
 };
 
 const handleSearchInput = () => {
-  // Auto-search on desktop as user types (debounced)
+  // Clear existing timer
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer);
+  }
+
+  // If query is empty, clear results immediately
   if (searchQuery.value.length === 0) {
     isSearching.value = false;
     searchResults.value = [];
+    return;
+  }
+
+  // Only search if 3+ characters
+  if (searchQuery.value.length >= 3) {
+    // Debounce: wait 300ms after user stops typing
+    searchDebounceTimer = setTimeout(() => {
+      handleSearch();
+    }, 300);
   }
 };
 
 const handleSearch = async () => {
   const query = searchQuery.value.trim();
   
-  if (!query) {
+  if (!query || query.length < 3) {
     isSearching.value = false;
     searchResults.value = [];
     return;
@@ -163,4 +178,11 @@ const clearSearch = () => {
 };
 
 onMounted(loadLocations);
+
+onUnmounted(() => {
+  // Clean up debounce timer
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer);
+  }
+});
 </script>

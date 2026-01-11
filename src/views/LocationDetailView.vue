@@ -15,10 +15,10 @@
       </div>
 
       <!-- Location content -->
-      <div v-else-if="location" class="space-y-6">
+      <div v-else-if="location" class="space-y-8">
 
         <!-- Location info -->
-        <div class="card">
+        <div>
           <!-- Grid layout with template areas -->
           <div class="grid gap-6 location-grid">
             <!-- Hero Image -->
@@ -127,40 +127,36 @@
             </div>
           </div>
 
-          <!-- Upload Beta Video CTA -->
-          <div class="border-t border-gray-200/60 pt-6 mt-6">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div class="flex-1">
-                <h3 class="text-[15px] font-semibold text-gray-900 flex items-center gap-2">
-                  <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Share Your Beta
-                </h3>
-                <p class="text-[13px] text-gray-600 mt-1">
-                  Upload a climbing video and we'll identify the problem automatically
-                </p>
-              </div>
-              
-              <button
-                type="button"
-                @click="handleBetaUploadClick"
-                data-add-beta-button
-                class="h-10 px-4 sm:px-5 bg-green-600 text-white text-[14px] font-medium rounded-md hover:bg-green-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2 flex-shrink-0"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Upload Beta
-              </button>
+        </div>
+
+        <!-- Upload Beta Video CTA -->
+        <div>
+          <h3 class="section-header mb-4">Share your beta</h3>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex-1">
+              <p class="text-[13px] text-gray-600">
+                Upload a climbing video and we'll identify the problem automatically
+              </p>
             </div>
+              
+            <button
+              type="button"
+              @click="handleBetaUploadClick"
+              data-add-beta-button
+              class="h-10 px-4 sm:px-5 bg-green-600 text-white text-[14px] font-medium rounded-md hover:bg-green-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2 flex-shrink-0"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Upload Beta
+            </button>
           </div>
         </div>
 
         <!-- Historical Routesetting Banner (only shown when NOT viewing latest) -->
         <div 
           v-if="allRoutesettings.length > 0 && currentRoutesetting !== allRoutesettings[0]"
-          class="card border-amber-200/60 bg-amber-50/30"
+          class="border border-amber-200 bg-amber-50 rounded-lg p-4"
         >
           <div class="flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">

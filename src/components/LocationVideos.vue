@@ -1,19 +1,17 @@
 <template>
-  <div class="card">
+  <div>
     <!-- Header -->
-    <div class="flex items-center justify-between pb-4 border-b border-gray-200/60">
-      <div>
-        <h2 class="text-[15px] font-semibold text-gray-900">Beta Videos</h2>
-        <p v-if="!loading && videos.length > 0" class="text-[13px] text-gray-600 mt-0.5">
-          {{ videos.length }} {{ videos.length === 1 ? 'video' : 'videos' }}
-        </p>
-      </div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="section-header">
+        Beta videos
+        <span v-if="!loading && videos.length > 0" class="section-header-count ml-1.5">({{ videos.length }})</span>
+      </h2>
       
       <!-- Delete All Button (Admin Only) -->
       <button
         v-if="userStore.isAdmin && !loading && videos.length > 0"
         @click="confirmDeleteAll"
-        class="h-9 px-3 text-[13px] text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 hover:border-red-300 rounded-md transition-all active:scale-[0.98] inline-flex items-center gap-1.5 font-medium"
+        class="h-8 px-3 text-[12px] text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 hover:border-red-300 rounded-md transition-all inline-flex items-center gap-1.5 font-medium"
         :disabled="isDeletingAll"
       >
         <span v-if="!isDeletingAll" class="flex items-center gap-1.5">
@@ -33,7 +31,7 @@
     </div>
 
     <!-- Content -->
-    <div class="pt-4">
+    <div>
       <!-- Loading state -->
       <div v-if="loading" class="text-center py-12">
         <div class="mx-auto w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-3"></div>

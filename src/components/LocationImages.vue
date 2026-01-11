@@ -1,29 +1,26 @@
 <template>
-  <div class="card">
+  <div>
     <!-- Header -->
-    <div class="flex items-center justify-between pb-4 border-b border-gray-200/60">
-      <div>
-        <h2 class="text-[15px] font-semibold text-gray-900">Photos</h2>
-        <p v-if="images.length > 0" class="text-[13px] text-gray-600 mt-0.5">
-          {{ images.length }} {{ images.length === 1 ? 'photo' : 'photos' }}
-        </p>
-      </div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="section-header">
+        Photos
+        <span v-if="images.length > 0" class="section-header-count ml-1.5">({{ images.length }})</span>
+      </h2>
       <button
         v-if="canUpload"
         @click="$emit('upload')"
-        class="h-9 px-4 bg-gray-900 text-white text-[13px] font-medium rounded-md hover:bg-gray-800 transition-all active:scale-[0.98] inline-flex items-center gap-1.5"
+        class="h-8 px-3 bg-gray-900 text-white text-[12px] font-medium rounded-md hover:bg-gray-800 transition-all inline-flex items-center gap-1.5"
         :aria-label="images.length === 0 ? 'Upload your first photos' : 'Upload more photos'"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
-        <span class="hidden sm:inline">Add Photos</span>
-        <span class="sm:hidden">Add</span>
+        <span class="hidden sm:inline">Add</span>
       </button>
     </div>
 
     <!-- Content -->
-    <div class="pt-4">
+    <div>
       <!-- Empty state -->
       <div v-if="images.length === 0" class="text-center py-12">
         <div class="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">

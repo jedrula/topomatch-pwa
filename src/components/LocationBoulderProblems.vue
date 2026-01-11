@@ -1,17 +1,13 @@
 <template>
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+  <div>
     <!-- Header -->
-    <div class="flex items-center justify-between p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100">
-      <div>
-        <h2 class="text-base sm:text-lg font-semibold text-gray-900">Boulder Problems</h2>
-        <p v-if="totalProblems > 0" class="text-sm text-gray-600 mt-1">
-          {{ totalProblems }} {{ totalProblems === 1 ? 'problem' : 'problems' }} total
-        </p>
-      </div>
-    </div>
+    <h2 class="section-header mb-4">
+      Boulder problems
+      <span v-if="totalProblems > 0" class="section-header-count ml-1.5">({{ totalProblems }})</span>
+    </h2>
 
     <!-- Content -->
-    <div class="p-4 sm:p-6 pt-3 sm:pt-4">
+    <div>
       <!-- Expandable Grade Groups -->
       <div v-if="totalProblems > 0" class="space-y-3">
         <div

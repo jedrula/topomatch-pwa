@@ -14,7 +14,7 @@
 
     <!-- Empty State -->
     <div v-else-if="locations.length === 0" class="container py-16 text-center">
-      <div class="card max-w-md mx-auto">
+      <div class="max-w-md mx-auto">
         <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
           <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -37,7 +37,7 @@
       <!-- Pick Location CTA -->
       <router-link
         to="/pick-location"
-        class="card mb-8 block hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group"
+        class="mb-8 block p-4 bg-white border border-gray-100 rounded-lg hover:border-gray-200 hover:shadow-sm transition-all cursor-pointer group"
       >
         <div class="flex items-center gap-4">
           <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">

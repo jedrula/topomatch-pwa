@@ -153,7 +153,7 @@ provide('authModal', {
     <AppHeader v-if="!isNativePlatform" />
 
     <!-- Main content - scrollable area -->
-    <main class="app-content" :class="{ 'with-bottom-nav': isNativePlatform }">
+    <main class="app-content">
       <RouterView />
     </main>
 

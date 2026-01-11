@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-gray-50">
     <div class="container py-6 sm:py-8">
       <!-- Profile Header -->
-      <div class="card mb-6">
+      <div class="mb-8">
         <div class="flex items-center gap-4 mb-6">
           <!-- User Avatar/Initial -->
           <div class="w-16 h-16 bg-gray-900 rounded-full flex items-center justify-center text-white text-xl font-semibold">
@@ -17,7 +17,7 @@
         </div>
 
         <!-- Stats -->
-        <div class="grid grid-cols-3 gap-4 pt-6 border-t border-gray-200/60">
+        <div class="grid grid-cols-3 gap-4 pt-6">
           <div class="text-center">
             <div class="text-[24px] font-semibold text-gray-900">{{ totalAscents }}</div>
             <div class="text-[13px] text-gray-600 mt-0.5">Total Sends</div>
@@ -34,13 +34,11 @@
       </div>
 
       <!-- Beta Videos Section -->
-      <div class="card">
-        <div class="pb-4 border-b border-gray-200/60 mb-4">
-          <h2 class="text-[15px] font-semibold text-gray-900">Beta Videos</h2>
-          <p v-if="!loading && videos.length > 0" class="text-[13px] text-gray-600 mt-0.5">
-            {{ videos.length }} {{ videos.length === 1 ? 'video' : 'videos' }}
-          </p>
-        </div>
+      <div>
+        <h2 class="section-header mb-4">
+          Beta videos
+          <span v-if="!loading && videos.length > 0" class="section-header-count ml-1.5">({{ videos.length }})</span>
+        </h2>
         
         <!-- Loading State -->
         <div v-if="loading" class="text-center py-12">
@@ -76,13 +74,13 @@
       </div>
 
       <!-- Account Settings (iOS style) -->
-      <div class="card mt-6">
-        <h2 class="text-[15px] font-semibold text-gray-900 mb-4">Account</h2>
+      <div class="mt-8">
+        <h2 class="section-header mb-4">Account</h2>
         
         <!-- Logout Button -->
         <button
           @click="handleLogout"
-          class="w-full flex items-center justify-between py-3 px-4 -mx-4 text-[15px] text-red-600 hover:bg-red-50 transition-colors rounded-lg"
+          class="w-full flex items-center justify-between py-3 px-4 text-[15px] text-red-600 hover:bg-red-50 transition-colors rounded-lg border border-red-100"
         >
           <span class="font-medium">Log Out</span>
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -212,7 +210,7 @@ const loadUserData = async () => {
 // Logout handler
 const handleLogout = async () => {
   try {
-    await userStore.logout();
+    await userStore.signOut();
     router.push('/');
   } catch (error) {
     console.error('Error logging out:', error);
