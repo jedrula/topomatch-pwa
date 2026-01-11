@@ -6,6 +6,7 @@ export const useUserStore = defineStore('user', {
     user: null,
     isLoggedIn: false,
     isLoading: true, // Loading state for auth initialization
+    authReadyPromise: null, // Promise that resolves when auth is initialized
   }),
 
   getters: {
@@ -39,14 +40,17 @@ export const useUserStore = defineStore('user', {
   actions: {
     // Initialize auth listener
     initAuth() {
-      return new Promise((resolve) => {
-        authService.onAuthStateChanged((user) => {
-          this.user = user;
-          this.isLoggedIn = !!user;
-          this.isLoading = false;
-          resolve(user);
+      if (!this.authReadyPromise) {
+        this.authReadyPromise = new Promise((resolve) => {
+          authService.onAuthStateChanged((user) => {
+            this.user = user;
+            this.isLoggedIn = !!user;
+            this.isLoading = false;
+            resolve(user);
+          });
         });
-      });
+      }
+      return this.authReadyPromise;
     },
 
     // Sign in

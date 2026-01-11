@@ -37,7 +37,7 @@
       <div>
         <h2 class="section-header mb-4">
           Beta videos
-          <span v-if="!loading && videos.length > 0" class="section-header-count ml-1.5">({{ videos.length }})</span>
+          <span v-if="!loading && videoCount > 0" class="section-header-count ml-1.5">({{ videoCount }})</span>
         </h2>
         
         <!-- Loading State -->
@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/userStore';
 import { ascentService } from '@/services/ascentService';
@@ -116,7 +116,7 @@ const userStore = useUserStore();
 
 const loading = ref(true);
 const videos = ref([]);
-const ascents = ref([]);
+const stats = ref({ totalAscents: 0, videoCount: 0, uniqueProblems: 0 });
 
 // Default poster image (gray placeholder with play icon)
 const defaultPoster = getDefaultVideoPoster();
@@ -130,7 +130,7 @@ const userName = computed(() => {
     return userStore.user?.displayName || 'You';
   }
   // TODO: Fetch user data for other users
-  return ascents.value[0]?.userName || 'User';
+  return videos.value[0]?.userName || 'User';
 });
 
 const userEmail = computed(() => {
@@ -145,12 +145,9 @@ const userInitial = computed(() => {
 });
 
 // Stats
-const totalAscents = computed(() => ascents.value.length);
-const videoCount = computed(() => videos.value.length);
-const uniqueProblems = computed(() => {
-  const problemIds = new Set(ascents.value.map(a => a.problemId));
-  return problemIds.size;
-});
+const totalAscents = computed(() => stats.value.totalAscents);
+const videoCount = computed(() => stats.value.videoCount);
+const uniqueProblems = computed(() => stats.value.uniqueProblems);
 
 // Video player handlers
 const openVideoPlayer = (videoId) => {
@@ -191,12 +188,14 @@ const loadUserData = async () => {
   try {
     loading.value = true;
 
-    // Load only ascents (videos are derived from ascents)
-    const ascentsData = await ascentService.getUserAscents(userId.value, 8);
+    // Load stats (efficient with count aggregation)
+    const [statsData, ascentsData] = await Promise.all([
+      ascentService.getUserStats(userId.value),
+      ascentService.getUserAscents(userId.value, 20) // Load 20 most recent
+    ]);
     
-    ascents.value = ascentsData;
-    // Videos are just ascents with video data - filter to those that have videos
-    videos.value = ascentsData.filter(ascent => ascent.video?.downloadUrl);
+    stats.value = statsData;
+    videos.value = ascentsData; // All ascents have videos
 
   } catch (error) {
     console.error('Error loading user data:', error);
@@ -216,6 +215,15 @@ const handleLogout = async () => {
 };
 
 onMounted(() => {
-  loadUserData();
+  if (userId.value) {
+    loadUserData();
+  }
+});
+
+// Watch userId for when auth initializes on page load
+watch(userId, (newId) => {
+  if (newId && videos.value.length === 0) {
+    loadUserData();
+  }
 });
 </script>

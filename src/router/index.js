@@ -91,14 +91,21 @@ const router = createRouter({
   ],
 });
 
-// Route guard to protect admin-only routes
+// Route guard to protect authenticated and admin routes
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore();
 
-  // In Capacitor, don't wait for auth on initial navigation - let routes load
-  // Auth will initialize separately via App.vue's onMounted
-  // Only enforce admin check if auth is already loaded
-  if (!userStore.isLoading && to.meta.requiresAdmin && !userStore.canEditLocations) {
+  // Wait for auth to initialize
+  await userStore.initAuth();
+
+  // Check if route requires authentication
+  if (to.meta.requiresAuth && !userStore.user) {
+    next('/');
+    return;
+  }
+
+  // Check if route requires admin
+  if (to.meta.requiresAdmin && !userStore.canEditLocations) {
     next('/');
     return;
   }

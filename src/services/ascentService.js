@@ -6,9 +6,11 @@ import {
   deleteDoc,
   getDocs,
   getDoc,
+  getCountFromServer,
   query,
   orderBy,
   where,
+  limit,
   serverTimestamp,
   collectionGroup,
   setDoc,
@@ -130,11 +132,12 @@ export const ascentService = {
   },
 
   /**
-   * Get all ascents for a specific user (across all locations/problems)
+   * Get all ascents for a specific user (across all locations/problems) - paginated
    * @param {string} userId - The user ID (optional, defaults to current user)
+   * @param {number} limitCount - Maximum number of ascents to fetch
    * @returns {Promise<Array>} Array of ascent records
    */
-  async getUserAscents(userId = null) {
+  async getUserAscents(userId = null, limitCount = 20) {
     try {
       const user = getCurrentUser();
       const targetUserId = userId || user?.uid;
@@ -147,7 +150,8 @@ export const ascentService = {
       const q = query(
         ascentsRef,
         where('userId', '==', targetUserId),
-        orderBy('date', 'desc')
+        orderBy('date', 'desc'),
+        limit(limitCount)
       );
 
       const querySnapshot = await getDocs(q);
@@ -163,6 +167,54 @@ export const ascentService = {
       return ascents;
     } catch (error) {
       console.error('Error fetching user ascents:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get user's ascent statistics (using count aggregation)
+   * @param {string} userId - The user ID (optional, uses current user if not provided)
+   * @returns {Promise<{totalAscents: number, videoCount: number, uniqueProblems: number}>}
+   */
+  async getUserStats(userId = null) {
+    try {
+      const user = getCurrentUser();
+      const targetUserId = userId || user?.uid;
+
+      if (!targetUserId) {
+        throw new Error('User ID is required');
+      }
+
+      const ascentsRef = collection(db, 'ascents');
+      
+      // Get total ascent count
+      const allAscentsQuery = query(
+        ascentsRef,
+        where('userId', '==', targetUserId)
+      );
+      const totalSnapshot = await getCountFromServer(allAscentsQuery);
+      const totalAscents = totalSnapshot.data().count;
+
+      // For unique problems, we need to fetch all ascents (no count aggregation for distinct)
+      // But we only need problemId field
+      const problemsQuery = query(
+        ascentsRef,
+        where('userId', '==', targetUserId)
+      );
+      const problemsSnapshot = await getDocs(problemsQuery);
+      const problemIds = new Set();
+      problemsSnapshot.forEach((doc) => {
+        const problemId = doc.data().problemId;
+        if (problemId) problemIds.add(problemId);
+      });
+
+      return {
+        totalAscents,
+        videoCount: totalAscents, // All ascents have videos
+        uniqueProblems: problemIds.size,
+      };
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
       throw error;
     }
   },
