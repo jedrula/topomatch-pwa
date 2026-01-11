@@ -135,9 +135,10 @@ export const ascentService = {
    * Get all ascents for a specific user (across all locations/problems) - paginated
    * @param {string} userId - The user ID (optional, defaults to current user)
    * @param {number} limitCount - Maximum number of ascents to fetch
+   * @param {number} offset - Number of records to skip for pagination
    * @returns {Promise<Array>} Array of ascent records
    */
-  async getUserAscents(userId = null, limitCount = 20) {
+  async getUserAscents(userId = null, limitCount = 20, offset = 0) {
     try {
       const user = getCurrentUser();
       const targetUserId = userId || user?.uid;
@@ -151,7 +152,7 @@ export const ascentService = {
         ascentsRef,
         where('userId', '==', targetUserId),
         orderBy('date', 'desc'),
-        limit(limitCount)
+        limit(offset + limitCount)
       );
 
       const querySnapshot = await getDocs(q);
@@ -164,7 +165,8 @@ export const ascentService = {
         });
       });
 
-      return ascents;
+      // Return only the requested page
+      return ascents.slice(offset);
     } catch (error) {
       console.error('Error fetching user ascents:', error);
       throw error;

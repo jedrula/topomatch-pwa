@@ -71,6 +71,17 @@
             @click="openVideoPlayer(video.id)"
           />
         </div>
+        
+        <!-- Show More Button -->
+        <div v-if="!loading && videos.length > 0 && videos.length < videoCount" class="text-center py-6">
+          <button 
+            @click="loadMore"
+            :disabled="loadingMore"
+            class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {{ loadingMore ? 'Loading...' : 'Show More' }}
+          </button>
+        </div>
       </div>
 
       <!-- Account Settings (iOS style) -->
@@ -115,8 +126,10 @@ const router = useRouter();
 const userStore = useUserStore();
 
 const loading = ref(true);
+const loadingMore = ref(false);
 const videos = ref([]);
 const stats = ref({ totalAscents: 0, videoCount: 0, uniqueProblems: 0 });
+const pageSize = 8;
 
 // Default poster image (gray placeholder with play icon)
 const defaultPoster = getDefaultVideoPoster();
@@ -191,7 +204,7 @@ const loadUserData = async () => {
     // Load stats (efficient with count aggregation)
     const [statsData, ascentsData] = await Promise.all([
       ascentService.getUserStats(userId.value),
-      ascentService.getUserAscents(userId.value, 20) // Load 20 most recent
+      ascentService.getUserAscents(userId.value, pageSize) // Load first page
     ]);
     
     stats.value = statsData;
@@ -201,6 +214,21 @@ const loadUserData = async () => {
     console.error('Error loading user data:', error);
   } finally {
     loading.value = false;
+  }
+};
+
+// Load more videos
+const loadMore = async () => {
+  if (loadingMore.value || videos.value.length >= videoCount.value) return;
+  
+  try {
+    loadingMore.value = true;
+    const moreVideos = await ascentService.getUserAscents(userId.value, pageSize, videos.value.length);
+    videos.value = [...videos.value, ...moreVideos];
+  } catch (error) {
+    console.error('Error loading more videos:', error);
+  } finally {
+    loadingMore.value = false;
   }
 };
 
