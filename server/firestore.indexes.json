@@ -89,16 +89,6 @@
       ]
     },
     {
-      "collectionGroup": "locations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "name_lowercase",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "comments",
       "queryScope": "COLLECTION",
       "fields": [

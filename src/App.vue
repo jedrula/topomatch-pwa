@@ -12,7 +12,7 @@ import { useRegisterSW } from 'virtual:pwa-register/vue';
 
 const userStore = useUserStore();
 const showAuthModal = ref(false);
-const isNativePlatform = Capacitor.isNativePlatform() || true; // TODO: Remove || true after testing (keep native-only)
+const isNativePlatform = Capacitor.isNativePlatform();
 
 // PWA update prompt
 const {
@@ -150,7 +150,7 @@ provide('authModal', {
     </div>
 
     <!-- Global header -->
-    <AppHeader />
+    <AppHeader v-if="!isNativePlatform" />
 
     <!-- Main content - scrollable area -->
     <main class="app-content" :class="{ 'with-bottom-nav': isNativePlatform }">

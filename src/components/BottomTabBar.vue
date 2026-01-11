@@ -1,9 +1,9 @@
 <template>
   <nav 
     v-if="isNativePlatform"
-    class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom z-50"
+    class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50"
   >
-    <div class="flex items-center justify-around h-16">
+    <div class="flex items-center justify-around h-16" style="padding-bottom: env(safe-area-inset-bottom);">
       <!-- Home Tab -->
       <router-link
         to="/"
@@ -50,7 +50,7 @@ import { useRoute } from 'vue-router';
 import { Capacitor } from '@capacitor/core';
 
 const route = useRoute();
-const isNativePlatform = Capacitor.isNativePlatform() || true; // TODO: Remove || true after testing (keep native-only)
+const isNativePlatform = Capacitor.isNativePlatform();
 
 const isActive = (path) => {
   if (path === '/') {
@@ -61,8 +61,5 @@ const isActive = (path) => {
 </script>
 
 <style scoped>
-/* iOS safe area support */
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
+/* No additional styles needed - safe area handled inline */
 </style>
