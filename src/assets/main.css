@@ -51,6 +51,11 @@
   overflow-x: hidden;
 }
 
+/* Add bottom padding when bottom nav is present (native apps only) */
+.app-content.with-bottom-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom)); /* 64px + safe area */
+}
+
 /* ============================================
    Design System Tokens - Modern SaaS Style
    Inspired by: Stripe, Linear, Vercel

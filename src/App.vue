@@ -2,13 +2,17 @@
 import { onMounted, ref, watch } from 'vue';
 import { RouterView } from 'vue-router';
 import { useUserStore } from './stores/userStore.js';
+import { Capacitor } from '@capacitor/core';
 import AppHeader from './components/AppHeader.vue';
 import AuthModal from './components/AuthModal.vue';
 import VideoAnalysisIndicator from './components/VideoAnalysisIndicator.vue';
+import BottomTabBar from './components/BottomTabBar.vue';
+import FloatingActionButton from './components/FloatingActionButton.vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 
 const userStore = useUserStore();
 const showAuthModal = ref(false);
+const isNativePlatform = Capacitor.isNativePlatform() || true; // TODO: Remove || true after testing (keep native-only)
 
 // PWA update prompt
 const {
@@ -93,6 +97,15 @@ const onAuthSuccess = () => {
   closeAuthModal();
 };
 
+// FAB click handler - scroll to "Add Beta" section on location page
+const handleFabClick = () => {
+  // Find the "Add Beta" button and click it
+  const addBetaButton = document.querySelector('[data-add-beta-button]');
+  if (addBetaButton) {
+    addBetaButton.click();
+  }
+};
+
 // Provide the auth modal methods globally
 import { provide } from 'vue';
 provide('authModal', {
@@ -140,16 +153,15 @@ provide('authModal', {
     <AppHeader />
 
     <!-- Main content - scrollable area -->
-    <main class="app-content">
+    <main class="app-content" :class="{ 'with-bottom-nav': isNativePlatform }">
       <RouterView />
     </main>
 
-    <!-- App-wide footer with version -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t border-gray-200/60 py-2 z-10">
-      <div class="text-center text-[11px] text-gray-400">
-        v2.3.0 | needRefresh: {{ needRefresh }}
-      </div>
-    </div>
+    <!-- Bottom Tab Bar (native only) -->
+    <BottomTabBar />
+
+    <!-- Floating Action Button (native only, location pages) -->
+    <FloatingActionButton @click="handleFabClick" />
 
     <!-- Global Auth Modal - direct child of app root -->
     <AuthModal 

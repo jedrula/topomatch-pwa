@@ -141,18 +141,11 @@
                   Upload a climbing video and we'll identify the problem automatically
                 </p>
               </div>
-              <!-- Hidden file input -->
-              <input
-                ref="betaVideoInput"
-                type="file"
-                accept="video/*"
-                @change="handleVideoFileSelected"
-                class="hidden"
-              />
               
               <button
                 type="button"
                 @click="handleBetaUploadClick"
+                data-add-beta-button
                 class="h-10 px-4 sm:px-5 bg-green-600 text-white text-[14px] font-medium rounded-md hover:bg-green-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2 flex-shrink-0"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -337,8 +330,6 @@ const {
 
 // Inject auth modal controls
 const authModal = inject('authModal');
-
-const betaVideoInput = ref(null);
 
 // Provide method for child components to update video assignments
 const updateVideoAssignment = (videoId, problemId, problemName, problemGrade) => {
@@ -796,15 +787,18 @@ const handleBetaUploadClick = () => {
     return;
   }
   
-  // Trigger file picker directly
-  if (betaVideoInput.value) {
-    betaVideoInput.value.click();
-  }
+  // Use HTML file input - iOS will show native picker with "Take Video" and "Photo Library" options
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'video/*';
+  // No capture attribute = iOS shows picker with both record and library options
+  input.onchange = handleVideoFileSelected;
+  input.click();
 };
 
-// Handle video file selection
+// Handle video file selection (fallback for web platform)
 const handleVideoFileSelected = async (event) => {
-  const file = event.target.files[0];
+  const file = event.target?.files?.[0];
   if (!file) return;
   
   try {
