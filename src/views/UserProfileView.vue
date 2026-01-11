@@ -60,15 +60,10 @@
         <!-- Video Grid -->
         <div v-else class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
           <VideoGridItem
-            v-for="(video, index) in videos"
-            :key="video.id"
-            :video-url="video.downloadUrl"
-            :thumbnail-url="video.thumbnailBase64 || defaultPoster"
-            :problem-name="video.problemName"
-            :problem-grade="video.metadata?.problemGrade"
-            :user-name="userName"
-            :like-count="video.likeCount || 0"
-            @click="openVideoPlayer(video.id)"
+            v-for="ascent in videos"
+            :key="ascent.ascentId || ascent.id"
+            :ascent="ascent"
+            @click="() => navigateToVideoPlayer(ascent.ascentId || ascent.id)"
           />
         </div>
         

@@ -50,34 +50,40 @@
 </template>
 
 <script setup>
-defineProps({
-  videoUrl: {
-    type: String,
+import { computed } from 'vue';
+import { getDefaultVideoPoster } from '@/utils/videoUtils';
+
+const props = defineProps({
+  ascent: {
+    type: Object,
     required: true
-  },
-  thumbnailUrl: {
-    type: String,
-    default: null
-  },
-  problemName: {
-    type: String,
-    default: null
-  },
-  problemGrade: {
-    type: [String, Object],
-    default: null
-  },
-  userName: {
-    type: String,
-    default: 'Unknown'
-  },
-  likeCount: {
-    type: Number,
-    default: 0
   }
 });
 
 defineEmits(['click']);
+
+// Extract data from canonical ascent structure
+const videoUrl = computed(() => {
+  return props.ascent.video?.transcodedPath || props.ascent.video?.originalPath || '';
+});
+
+const thumbnailUrl = computed(() => {
+  return props.ascent.video?.thumbnailBase64 || getDefaultVideoPoster();
+});
+
+const problemName = computed(() => {
+  return props.ascent.problemSnapshot?.name || null;
+});
+
+const problemGrade = computed(() => {
+  return props.ascent.problemSnapshot?.grade || null;
+});
+
+const userName = computed(() => {
+  return props.ascent.userName || 'Unknown';
+});
+
+const likeCount = computed(() => props.ascent.likeCount || 0);
 
 const formatLikeCount = (count) => {
   if (!count) return '0';

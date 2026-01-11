@@ -80,13 +80,8 @@
           <!-- Video thumbnail (show if URL available OR if it's a failed video needing re-analysis) -->
           <VideoGridItem
             v-else
-            :video-url="video.url || video.downloadUrl || ''"
-            :thumbnail-url="video.thumbnailBase64 || defaultPoster"
-            :problem-name="video.metadata?.problemName"
-            :problem-grade="video.metadata?.problemGrade"
-            :user-name="video.uploadedBy"
-            :like-count="video.likeCount"
-            @click="(video.url || video.downloadUrl) ? openVideoPlayer(index) : null"
+            :ascent="normalizeToAscent(video)"
+            @click="(video.url || video.downloadUrl || video.video?.transcodedPath) ? openVideoPlayer(index) : null"
           >
             <template #actions>
               <!-- Analyzing indicator (show when video is uploading or analyzing) -->
@@ -226,6 +221,30 @@ const isDeletingAll = ref(false);
 const defaultPoster = getDefaultVideoPoster();
 
 const formatDuration = formatVideoDuration;
+
+// Normalize upload queue objects to canonical ascent structure
+const normalizeToAscent = (video) => {
+  // If it's already in ascent format (has video nested object), return as-is
+  if (video.video && typeof video.video === 'object') {
+    return video;
+  }
+  
+  // Transform flat upload structure to canonical ascent structure
+  return {
+    ...video,
+    video: {
+      transcodedPath: video.url || video.downloadUrl || null,
+      originalPath: video.url || video.downloadUrl || null,
+      thumbnailBase64: video.thumbnailBase64 || null,
+    },
+    problemSnapshot: video.metadata ? {
+      name: video.metadata.problemName || null,
+      grade: video.metadata.problemGrade || null,
+      color: video.metadata.problemColor || null,
+    } : null,
+    userName: video.uploadedBy || video.userName || 'Unknown',
+  };
+};
 
 const canDeleteVideo = (video) => {
   const currentUser = getCurrentUser();
