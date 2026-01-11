@@ -2,7 +2,7 @@
 import { onMounted, ref, watch } from 'vue';
 import { RouterView } from 'vue-router';
 import { useUserStore } from './stores/userStore.js';
-import { Capacitor } from '@capacitor/core';
+import { isNative } from './utils/platform.js';
 import AppHeader from './components/AppHeader.vue';
 import AuthModal from './components/AuthModal.vue';
 import VideoAnalysisIndicator from './components/VideoAnalysisIndicator.vue';
@@ -12,7 +12,7 @@ import { useRegisterSW } from 'virtual:pwa-register/vue';
 
 const userStore = useUserStore();
 const showAuthModal = ref(false);
-const isNativePlatform = Capacitor.isNativePlatform();
+const isNativePlatform = ref(false);
 
 // PWA update prompt
 const {
@@ -81,6 +81,7 @@ const updateApp = () => {
 
 // Initialize authentication when app starts
 onMounted(() => {
+  isNativePlatform.value = isNative();
   userStore.initAuth();
 });
 

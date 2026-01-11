@@ -47,10 +47,10 @@
 <script setup>
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { Capacitor } from '@capacitor/core';
+import { isNative } from '../utils/platform.js';
 
 const route = useRoute();
-const isNativePlatform = Capacitor.isNativePlatform();
+const isNativePlatform = isNative();
 
 const isActive = (path) => {
   if (path === '/') {

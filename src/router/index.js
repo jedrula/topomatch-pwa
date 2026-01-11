@@ -1,11 +1,8 @@
-alert('xww - router loading');
 import { createRouter, createWebHistory } from 'vue-router';
 // Only import the home view statically for fastest initial load
 import BrowseLocationsView from '../views/BrowseLocationsView.vue';
 // All other views use lazy loading (route-level code splitting)
 import { useUserStore } from '../stores/userStore.js';
-alert('xww - all imports loaded');
-console.log('[router] Creating router with BASE_URL:', import.meta.env.BASE_URL);
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -96,26 +93,20 @@ const router = createRouter({
 
 // Route guard to protect admin-only routes
 router.beforeEach(async (to, from, next) => {
-  console.log('[router] beforeEach: navigating to', to.path, 'from', from.path);
   const userStore = useUserStore();
 
   // In Capacitor, don't wait for auth on initial navigation - let routes load
   // Auth will initialize separately via App.vue's onMounted
   // Only enforce admin check if auth is already loaded
   if (!userStore.isLoading && to.meta.requiresAdmin && !userStore.canEditLocations) {
-    console.warn('[router] Access denied: Admin permissions required');
     next('/');
     return;
   }
 
-  console.log('[router] Allowing navigation to', to.path);
   next();
 });
 
-// Debug: Log all route changes
 router.afterEach((to, from) => {
-  console.log('[router] Navigated to:', to.path, 'from:', from.path);
-  
   // Scroll the main content container to top on route change
   const appContent = document.querySelector('.app-content');
   if (appContent) {
