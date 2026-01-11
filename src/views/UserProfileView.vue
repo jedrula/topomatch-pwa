@@ -191,14 +191,12 @@ const loadUserData = async () => {
   try {
     loading.value = true;
 
-    // Load ascents and videos in parallel
-    const [ascentsData, videosData] = await Promise.all([
-      ascentService.getUserAscents(userId.value),
-      videoService.getUserVideos(userId.value)
-    ]);
-
+    // Load only ascents (videos are derived from ascents)
+    const ascentsData = await ascentService.getUserAscents(userId.value, 8);
+    
     ascents.value = ascentsData;
-    videos.value = videosData;
+    // Videos are just ascents with video data - filter to those that have videos
+    videos.value = ascentsData.filter(ascent => ascent.video?.downloadUrl);
 
   } catch (error) {
     console.error('Error loading user data:', error);
