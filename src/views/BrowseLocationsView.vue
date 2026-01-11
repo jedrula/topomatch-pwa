@@ -34,73 +34,46 @@
 
     <!-- Locations Grid -->
     <div v-else class="container py-6 sm:py-8">
+      <!-- Pick Location CTA -->
+      <router-link
+        to="/pick-location"
+        class="card mb-8 block hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group"
+      >
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h2 class="text-[15px] font-semibold text-gray-900 whitespace-nowrap group-hover:text-blue-600 transition-colors">Pick a Location</h2>
+            <p class="text-[13px] text-gray-500 whitespace-nowrap">
+              {{ locations.length }} available
+            </p>
+          </div>
+          <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </router-link>
+
       <!-- Trending Videos Section -->
       <div class="mb-8">
         <TrendingVideos />
       </div>
 
-      <!-- Section Header -->
-      <div class="mb-6 flex items-center justify-between">
-        <div>
-          <h2 class="text-[15px] font-semibold text-gray-900">Locations</h2>
-          <p class="text-[13px] text-gray-600 mt-0.5">Pick a location to view problems</p>
-        </div>
-        
-        <!-- Add Location Button -->
+      <!-- Admin Add Location Button -->
+      <div v-if="userStore.canCreateLocations" class="mt-8 text-center">
         <router-link
-          v-if="userStore.canCreateLocations"
           to="/add-location"
-          class="btn inline-flex items-center"
+          class="btn-secondary inline-flex items-center gap-2"
         >
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          Add Location
+          Add New Location
         </router-link>
-      </div>
-
-      <!-- Locations Grid -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <div
-          v-for="location in locations"
-          :key="location.id"
-          class="group bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer overflow-hidden"
-          @click="goToLocation(location.id)"
-        >
-          <!-- Hero Image -->
-          <div class="relative h-40 bg-gray-50">
-            <img
-              v-if="location.heroImageUrl"
-              :src="fixLocalhostUrl(location.heroImageUrl)"
-              :alt="location.name"
-              class="w-full h-full object-cover"
-              crossorigin="anonymous"
-            />
-            <div v-else class="w-full h-full flex items-center justify-center">
-              <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-          </div>
-
-          <!-- Location Info -->
-          <div class="p-4">
-            <h3 class="text-[14px] font-semibold text-gray-900 mb-1 line-clamp-1">
-              {{ location.name }}
-            </h3>
-            <p v-if="location.description" class="text-[13px] text-gray-600 line-clamp-2 mb-3">
-              {{ location.description }}
-            </p>
-            <div class="flex items-center justify-between text-[12px] text-gray-500">
-              <span v-if="location.createdAt">
-                Added {{ formatDateShort(location.createdAt) }}
-              </span>
-              <svg class="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>

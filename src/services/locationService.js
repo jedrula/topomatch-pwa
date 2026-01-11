@@ -111,6 +111,20 @@ class LocationService {
       throw error;
     }
   }
+
+  // Search locations by name prefix (case-insensitive)
+  // Uses Firestore range query trick: https://firebase.google.com/docs/firestore/solutions/search
+  async searchLocationsByPrefix(searchText) {
+    try {
+      const result = await callFunction('searchLocations', { 
+        prefix: searchText.toLowerCase() 
+      });
+      return result;
+    } catch (error) {
+      console.error('Error searching locations:', error);
+      throw error;
+    }
+  }
 }
 
 export const locationService = new LocationService();

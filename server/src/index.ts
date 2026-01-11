@@ -158,6 +158,7 @@ interface GradingSystem {
 interface Location {
   id?: string;
   name: string;
+  name_lowercase?: string; // For prefix search
   description?: string;
   heroImageUrl?: string;
   gradingSystem?: GradingSystem;
@@ -196,6 +197,7 @@ export const createLocation = onCall({region: REGION}, async (request) => {
 
     const locationData: Location = {
       name,
+      name_lowercase: name.toLowerCase(), // For prefix search
       description: description || "",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -242,6 +244,43 @@ export const getLocations = onCall({region: REGION}, async (request) => {
   } catch (error) {
     logger.error("Error getting locations:", error);
     throw new Error("Failed to get locations");
+  }
+});
+
+// Search locations by name prefix (case-insensitive)
+// Uses Firestore range query: https://firebase.google.com/docs/firestore/solutions/search
+export const searchLocations = onCall({region: REGION}, async (request) => {
+  try {
+    const {prefix} = request.data;
+
+    if (!prefix || typeof prefix !== "string") {
+      throw new Error("prefix parameter is required");
+    }
+
+    const searchPrefix = prefix.toLowerCase().trim();
+    
+    // Firestore range query trick for prefix search:
+    // Query for documents where name_lowercase >= prefix and name_lowercase < prefix + '\uf8ff'
+    // \uf8ff is the highest UTF-8 character, so this gives us all documents starting with the prefix
+    const snapshot = await db.collection("locations")
+      .where("name_lowercase", ">=", searchPrefix)
+      .where("name_lowercase", "<", searchPrefix + "\uf8ff")
+      .limit(20) // Limit results to prevent huge result sets
+      .get();
+
+    const locations: Location[] = [];
+
+    snapshot.forEach((doc) => {
+      locations.push({
+        id: doc.id,
+        ...doc.data(),
+      } as Location);
+    });
+
+    return locations;
+  } catch (error) {
+    logger.error("Error searching locations:", error);
+    throw new Error("Failed to search locations");
   }
 });
 
@@ -309,6 +348,7 @@ export const updateLocation = onCall({region: REGION}, async (request) => {
 
     const updateData: Partial<Location> = {
       name,
+      name_lowercase: name.toLowerCase(), // Update lowercase version for prefix search
       description: description || "",
       updatedAt: new Date(),
     };

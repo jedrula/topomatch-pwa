@@ -49,5 +49,13 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>To record climbing videos and capture beta footage</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>To record audio with climbing videos</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>To select climbing videos from your library</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>To save video thumbnails and processed media</string>
 </dict>
 </plist>

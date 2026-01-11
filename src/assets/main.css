@@ -1,6 +1,36 @@
 @import "tailwindcss";
 
 /* ============================================
+   Global Focus Styles - Tailwind Base Layer
+   ============================================ */
+
+@layer base {
+  input,
+  textarea,
+  select {
+    @apply
+      border
+      border-gray-300
+      rounded-md
+      px-3
+      py-2
+      transition
+      duration-150
+      ease-in-out
+      focus:outline-none
+      focus:ring-2
+      focus:ring-blue-500/30
+      focus:border-blue-500;
+  }
+  
+  /* Buttons and links get subtle ring */
+  button:focus-visible,
+  a:focus-visible {
+    @apply outline-none ring-2 ring-blue-500/50 ring-offset-2;
+  }
+}
+
+/* ============================================
    Fixed Layout - Header + Scrollable Content
    ============================================ */
 .app-container {
@@ -108,17 +138,6 @@ a {
   text-decoration: none;
 }
 
-/* Focus states - Consistent outline */
-*:focus-visible {
-  outline: 2px solid var(--color-gray-900);
-  outline-offset: 2px;
-}
-
-/* Remove default focus for mouse users */
-*:focus:not(:focus-visible) {
-  outline: none;
-}
-
 /* ============================================
    Utility Classes - Common Patterns
    ============================================ */
@@ -170,19 +189,7 @@ a {
   line-height: 1.5;
   color: var(--color-gray-900);
   background: white;
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
-  transition: all 0.15s ease;
-}
-
-.input:hover {
-  border-color: var(--color-gray-400);
-}
-
-.input:focus {
-  outline: none;
-  border-color: var(--color-gray-900);
-  box-shadow: 0 0 0 3px rgba(23, 23, 23, 0.1);
+  /* Border and focus styles come from @layer base */
 }
 
 .input::placeholder {
