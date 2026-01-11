@@ -3,7 +3,7 @@
     <!-- Toast Notification -->
     <ToastNotification />
 
-    <div class="container py-6 sm:py-8">
+    <div class="container py-2 sm:py-4">
       <!-- Loading state -->
       <div v-if="isLoading" class="flex items-center justify-center py-20">
         <div class="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
@@ -17,140 +17,123 @@
       <!-- Location content -->
       <div v-else-if="location" class="space-y-8">
 
-        <!-- Location info -->
-        <div>
-          <!-- Grid layout with template areas -->
-          <div class="grid gap-6 location-grid">
-            <!-- Hero Image -->
-            <div v-if="location.heroImageUrl" class="hero-image relative h-40 sm:h-48 rounded-lg overflow-hidden bg-gray-50">
-              <img
-                :src="fixLocalhostUrl(location.heroImageUrl)"
-                :alt="location.name"
-                class="w-full h-full object-contain"
-                crossorigin="anonymous"
-              />
+        <!-- Location Header -->
+        <div class="flex gap-2 items-center">
+          <!-- Location Image (true rectangle) -->
+          <div class="w-28 aspect-[4/3] sm:w-36 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+            <img
+              v-if="location.heroImageUrl"
+              :src="fixLocalhostUrl(location.heroImageUrl)"
+              :alt="location.name"
+              class="w-full h-full object-cover"
+              crossorigin="anonymous"
+            />
+            <div v-else class="w-full h-full flex items-center justify-center">
+              <svg class="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
             </div>
-            
-            <!-- Location Name -->
-            <h1 class="location-name text-xl sm:text-2xl font-semibold text-gray-900">
+          </div>
+          
+          <!-- Location Info -->
+          <div class="flex-1 min-w-0">
+            <div class="text-lg font-semibold text-gray-900 line-clamp-1">
               {{ location.name }}
-            </h1>
+            </div>
+            <p v-if="location.address" class="text-[11px] sm:text-[12px] text-gray-500 line-clamp-2 mt-0.5">
+              {{ location.address }}
+            </p>
+            <p v-if="location.description" class="text-[11px] sm:text-[12px] text-gray-400 line-clamp-2 mt-1">
+              {{ location.description }}
+            </p>
+          </div>
+          
+          <!-- Actions: Heart + Three Dots -->
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <!-- Like Button -->
+            <button
+              class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              title="Like this location"
+            >
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </button>
             
-            <!-- Action buttons -->
-            <div class="action-buttons flex items-center gap-2">
-              <!-- Primary Actions - Always Visible -->
+            <!-- More Menu -->
+            <div class="relative" v-if="userStore.canEditLocations || allRoutesettings.length > 0">
               <button
-                v-if="userStore.canEditLocations"
-                @click="editLocation"
-                class="btn-secondary h-9 px-3.5 text-sm inline-flex items-center gap-1.5 shrink-0 font-medium rounded-lg transition-all hover:scale-105"
+                @click.stop="showMoreMenu = !showMoreMenu"
+                class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                title="More options"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                 </svg>
-                <span class="hidden sm:inline">Edit</span>
               </button>
               
-              <button
-                v-if="userStore.canEditLocations"
-                @click="publishRoutesetting"
-                :disabled="isPublishing"
-                class="btn-primary h-9 px-3.5 text-sm inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 font-medium rounded-lg shadow-sm hover:shadow-md transition-all hover:scale-105"
-                title="Notify all users about new routesetting"
+              <!-- Dropdown Menu -->
+              <div
+                v-if="showMoreMenu"
+                @click.stop
+                class="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
               >
-                <svg v-if="!isPublishing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span class="hidden sm:inline">{{ isPublishing ? 'Publishing...' : 'Notify 🔔' }}</span>
-              </button>
-
-              <!-- More Menu -->
-              <div class="relative" v-if="userStore.canEditLocations || allRoutesettings.length > 0">
-                <button
-                  @click.stop="showMoreMenu = !showMoreMenu"
-                  class="btn-secondary h-9 w-9 inline-flex items-center justify-center shrink-0 rounded-lg transition-all hover:scale-105"
-                  title="More options"
+                <router-link
+                  v-if="allRoutesettings.length > 0"
+                  :to="{ path: `/location/${locationId}/routesettings`, query: { routesetting: currentRoutesetting } }"
+                  @click="showMoreMenu = false"
+                  class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                </button>
-                
-                <!-- Dropdown Menu -->
-                <div
-                  v-if="showMoreMenu"
-                  @click.stop
-                  class="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                  History
+                </router-link>
+                <router-link
+                  :to="`/location/${locationId}/jobs`"
+                  @click="showMoreMenu = false"
+                  class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  <router-link
-                    v-if="allRoutesettings.length > 0"
-                    :to="{ path: `/location/${locationId}/routesettings`, query: { routesetting: currentRoutesetting } }"
-                    @click="showMoreMenu = false"
-                    class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    History
-                  </router-link>
-                  <router-link
-                    :to="`/location/${locationId}/jobs`"
-                    @click="showMoreMenu = false"
-                    class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    Jobs
-                  </router-link>
-                </div>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Jobs
+                </router-link>
               </div>
             </div>
-            
-            <!-- Description -->
-            <div class="description">
-              <p 
-                v-if="location.description" 
-                class="text-[14px] text-gray-700 leading-relaxed"
-              >
-                {{ location.description }}
-              </p>
-              <p 
-                v-else 
-                class="text-[13px] text-gray-500 italic"
-              >
-                No description provided
-              </p>
-            </div>
           </div>
-
         </div>
 
-        <!-- Upload Beta Video CTA -->
-        <div>
-          <h3 class="section-header mb-4">Share your beta</h3>
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="flex-1">
-              <p class="text-[13px] text-gray-600">
-                Upload a climbing video and we'll identify the problem automatically
-              </p>
-            </div>
-              
-            <button
-              type="button"
-              @click="handleBetaUploadClick"
-              data-add-beta-button
-              class="h-10 px-4 sm:px-5 bg-green-600 text-white text-[14px] font-medium rounded-md hover:bg-green-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2 flex-shrink-0"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Upload Beta
-            </button>
-          </div>
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <!-- Primary Actions - Always Visible -->
+          <button
+            v-if="userStore.canEditLocations"
+            @click="editLocation"
+            class="btn-secondary h-9 px-3.5 text-sm inline-flex items-center gap-1.5 shrink-0 font-medium rounded-lg transition-all hover:scale-105"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span class="hidden sm:inline">Edit</span>
+          </button>
+          
+          <button
+            v-if="userStore.canEditLocations"
+            @click="publishRoutesetting"
+            :disabled="isPublishing"
+            class="btn-primary h-9 px-3.5 text-sm inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 font-medium rounded-lg shadow-sm hover:shadow-md transition-all hover:scale-105"
+            title="Notify all users about new routesetting"
+          >
+            <svg v-if="!isPublishing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="hidden sm:inline">{{ isPublishing ? 'Publishing...' : 'Notify 🔔' }}</span>
+          </button>
         </div>
 
         <!-- Historical Routesetting Banner (only shown when NOT viewing latest) -->
@@ -276,11 +259,14 @@
       @navigate-previous="navigatePrevious"
     />
 
+    <!-- Floating Action Button -->
+    <FloatingActionButton @click="handleBetaUploadClick" />
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, inject, provide, nextTick, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, inject, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
 import { routesettingService } from '../services/routesettingService.js';
@@ -288,6 +274,7 @@ import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
 import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
 import { useToast } from '../composables/useToast.js';
 import ImageUploadModal from '../components/ImageUploadModal.vue';
+import FloatingActionButton from '../components/FloatingActionButton.vue';
 import ImageGallerySimplified from '../components/ImageGallerySimplified.vue';
 import BetaVideoUploadModal from '../components/BetaVideoUploadModal.vue';
 import ToastNotification from '../components/ToastNotification.vue';
@@ -326,28 +313,6 @@ const {
 
 // Inject auth modal controls
 const authModal = inject('authModal');
-
-// Provide method for child components to update video assignments
-const updateVideoAssignment = (videoId, problemId, problemName, problemGrade) => {
-  // Update in videos.value (server videos loaded from Firestore)
-  const serverVideo = videos.value.find(v => v.id === videoId || v.ascentId === videoId);
-  if (serverVideo) {
-    serverVideo.problemId = problemId;
-    if (serverVideo.metadata) {
-      serverVideo.metadata.problemName = problemName;
-      serverVideo.metadata.problemGrade = problemGrade;
-    } else {
-      serverVideo.metadata = { problemName, problemGrade };
-    }
-  }
-  
-  // Also update in upload queue (for freshly uploaded videos not yet in Firestore)
-  const upload = uploadQueue.uploads[videoId];
-  if (upload) {
-    upload.problemId = problemId;
-  }
-};
-provide('updateVideoAssignment', updateVideoAssignment);
 
 const betaUploadModalRef = ref(null);
 const location = ref(null);
@@ -1195,42 +1160,19 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Mobile layout - Stack vertically */
-.location-grid {
-  grid-template-areas:
-    "heroimage heroimage"
-    "locationname editbutton"
-    "description description";
-  grid-template-columns: 1fr auto;
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* Desktop layout - Name left, edit right, hero center, description full width */
-@media (min-width: 640px) {
-  .location-grid {
-    grid-template-areas:
-      "locationname . editbutton"
-      "heroimage heroimage heroimage"
-      "description description description";
-    grid-template-columns: 1fr 1fr 1fr;
-    align-items: start;
-  }
-}
-
-/* Assign grid areas to elements */
-.hero-image {
-  grid-area: heroimage;
-}
-
-.location-name {
-  grid-area: locationname;
-}
-
-.action-buttons {
-  grid-area: editbutton;
-  justify-self: end;
-}
-
-.description {
-  grid-area: description;
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

@@ -3,7 +3,7 @@
     <div class="max-w-2xl mx-auto">
       <div class="bg-white rounded-lg shadow p-6">
         <LocationForm
-          :initial="{ name: '', description: '', heroImageUrl: '', gradingSystem: null }"
+          :initial="{ name: '', address: '', description: '', heroImageUrl: '', gradingSystem: null }"
           mode="add"
           @submit="handleAddSubmit"
           @cancel="handleCancel"
@@ -30,6 +30,7 @@ const handleAddSubmit = async (form) => {
     // You may want to handle heroImageFile upload here
     const location = await locationService.createLocation({
       name: form.name,
+      address: form.address,
       description: form.description,
       heroImageUrl: form.heroImageUrl, // If uploaded
       gradingSystem: form.gradingSystem, // Include grading system

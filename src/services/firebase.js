@@ -39,8 +39,8 @@ const auth = isCapacitor
   : getAuth(app);
 
 // Connect to emulator if in development or explicitly enabled
-const useEmulators =
-  import.meta.env.MODE === 'development' || import.meta.env.VITE_USE_EMULATORS === 'true';
+import { isUsingEmulators } from '../utils/platform.js';
+const useEmulators = isUsingEmulators();
 
 console.log('[Firebase] MODE:', import.meta.env.MODE, 'useEmulators:', useEmulators);
 

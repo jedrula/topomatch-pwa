@@ -58,7 +58,7 @@
         </div>
 
         <!-- Video Grid -->
-        <div v-else class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+        <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <VideoGridItem
             v-for="ascent in videos"
             :key="ascent.ascentId || ascent.id"

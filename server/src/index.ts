@@ -159,6 +159,7 @@ interface Location {
   id?: string;
   name: string;
   name_lowercase?: string; // For prefix search
+  address?: string;
   description?: string;
   heroImageUrl?: string;
   gradingSystem?: GradingSystem;
@@ -189,7 +190,7 @@ type AddLocationImageRequest = Omit<LocationImage, 'uploadedAt' | 'routesettings
 // Create a new location
 export const createLocation = onCall({region: REGION}, async (request) => {
   try {
-    const { name, description, heroImageUrl, gradingSystem } = request.data as Location;
+    const { name, address, description, heroImageUrl, gradingSystem } = request.data as Location;
 
     if (!name) {
       throw new Error("Name is required");
@@ -198,6 +199,7 @@ export const createLocation = onCall({region: REGION}, async (request) => {
     const locationData: Location = {
       name,
       name_lowercase: name.toLowerCase(), // For prefix search
+      address: address || "",
       description: description || "",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -314,7 +316,7 @@ export const getLocation = onCall({region: REGION}, async (request) => {
 // Update a location
 export const updateLocation = onCall({region: REGION}, async (request) => {
   try {
-    const { locationId, name, description, heroImageUrl, gradingSystem } = request.data;
+    const { locationId, name, address, description, heroImageUrl, gradingSystem } = request.data;
 
     if (!locationId) {
       throw new Error("Location ID is required");
@@ -349,6 +351,7 @@ export const updateLocation = onCall({region: REGION}, async (request) => {
     const updateData: Partial<Location> = {
       name,
       name_lowercase: name.toLowerCase(), // Update lowercase version for prefix search
+      address: address || "",
       description: description || "",
       updatedAt: new Date(),
     };
@@ -362,6 +365,8 @@ export const updateLocation = onCall({region: REGION}, async (request) => {
     if (gradingSystem !== undefined) {
       updateData.gradingSystem = gradingSystem;
     }
+
+    console.log("Updating location with data:", updateData);
 
     await db.collection("locations").doc(locationId).update(updateData);
 

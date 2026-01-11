@@ -23,13 +23,10 @@
       </div>
 
       <!-- Location Info -->
-      <div class="p-4">
-        <h3 class="text-[14px] font-semibold text-gray-900 mb-1 line-clamp-1">
+      <div class="p-2 sm:p-4">
+        <h3 class="text-[14px] font-semibold text-gray-900 line-clamp-1">
           {{ location.name }}
         </h3>
-        <p v-if="location.description" class="text-[13px] text-gray-600 line-clamp-2 mb-3">
-          {{ location.description }}
-        </p>
         <div class="flex items-center justify-between text-[12px] text-gray-500">
           <span v-if="location.createdAt">
             Added {{ formatDateShort(location.createdAt) }}

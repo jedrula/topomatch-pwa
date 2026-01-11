@@ -14,6 +14,15 @@
       />
     </div>
     <div>
+      <label class="block font-medium mb-1">Address</label>
+      <input
+        v-model="form.address"
+        type="text"
+        class="w-full border rounded px-4 py-2"
+        :placeholder="mode === 'edit' ? 'Edit address' : 'Enter location address'"
+      />
+    </div>
+    <div>
       <label class="block font-medium mb-1">Description</label>
       <textarea
         v-model="form.description"
@@ -79,7 +88,7 @@ import GradingSystemManager from './GradingSystemManager.vue';
 const props = defineProps({
   initial: {
     type: Object,
-    default: () => ({ name: '', description: '', heroImageUrl: '', gradingSystem: null }),
+    default: () => ({ name: '', address: '', description: '', heroImageUrl: '', gradingSystem: null }),
   },
   mode: {
     type: String,

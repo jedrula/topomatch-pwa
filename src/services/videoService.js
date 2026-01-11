@@ -14,8 +14,10 @@ import { getCurrentUser } from './authService';
  * @param {string} storagePath - The storage path (e.g., "videos/raw/userId/video.mp4")
  * @returns {string} The download URL
  */
+import { isUsingEmulators } from '../utils/platform.js';
+
 export function constructStorageUrl(storagePath) {
-  const useEmulators = import.meta.env.MODE === 'development' || import.meta.env.VITE_USE_EMULATORS === 'true';
+  const useEmulators = isUsingEmulators();
   
   if (useEmulators) {
     // Emulator URL format

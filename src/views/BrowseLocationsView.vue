@@ -1,19 +1,14 @@
 <template>
   <div class="min-h-screen">
-    <!-- Loading State -->
-    <div v-if="isLoading" class="flex justify-center items-center py-20">
-      <div class="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div>
-    </div>
-
     <!-- Error State -->
-    <div v-else-if="error" class="container py-8">
+    <div v-if="error" class="container py-8">
       <div class="px-3 py-2.5 bg-red-50 border border-red-200 text-red-700 text-[13px] rounded-md">
         {{ error }}
       </div>
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="locations.length === 0" class="container py-16 text-center">
+    <div v-else-if="!isLoading && locations.length === 0" class="container py-16 text-center">
       <div class="max-w-md mx-auto">
         <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
           <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -47,10 +42,7 @@
             </svg>
           </div>
           <div class="flex-1 min-w-0">
-            <h2 class="text-[15px] font-semibold text-gray-900 whitespace-nowrap group-hover:text-blue-600 transition-colors">Pick a Location</h2>
-            <p class="text-[13px] text-gray-500 whitespace-nowrap">
-              {{ locations.length }} available
-            </p>
+            <h2 class="text-[15px] font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">Pick a Location</h2>
           </div>
           <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />

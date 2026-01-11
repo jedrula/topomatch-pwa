@@ -1,6 +1,6 @@
 <template>
   <div
-    class="aspect-[3/4] bg-gray-50 rounded-lg overflow-hidden relative group cursor-pointer hover:ring-2 hover:ring-gray-900/10 transition-all"
+    class="aspect-square bg-gray-50 rounded-lg overflow-hidden relative group cursor-pointer hover:ring-2 hover:ring-gray-900/10 transition-all"
     @click="$emit('click')"
   >
     <!-- Video thumbnail -->

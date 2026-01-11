@@ -212,19 +212,8 @@ const route = useRoute();
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
 
-// Inject method to update video assignment in parent
-const updateVideoAssignment = inject('updateVideoAssignment', null);
-
 // Assignment mode detection
 const isAssignmentMode = computed(() => !!route.query.assignVideoId);
-
-// Video player state
-const problemVideosTitle = computed(() => {
-  const problemId = route.query.showVideosForProblem;
-  if (!problemId) return 'Videos';
-  const problem = boulderProblemsStore.boulderProblems.find(p => p.id === problemId);
-  return problem?.name || 'Boulder Videos';
-});
 
 // Touch/swipe handling
 const touchStartX = ref(0);
@@ -477,12 +466,6 @@ const handleAssignProblem = async (problemId) => {
   try {
     // Update the video's problemId in Firestore
     await videoService.assignProblemToVideo(videoId, problemId, props.locationId);
-    
-    // Update local state immediately (if parent provided the method)
-    if (updateVideoAssignment) {
-      const problem = boulderProblemsStore.boulderProblems.find(p => p.id === problemId);
-      updateVideoAssignment(videoId, problemId, problem?.name, problem?.grade);
-    }
     
     // Hide the floating card
     floatingCard.value.visible = false;

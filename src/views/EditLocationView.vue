@@ -26,7 +26,7 @@ import LocationForm from '../components/LocationForm.vue';
 const route = useRoute();
 const router = useRouter();
 const error = ref('');
-const locationFormData = ref({ name: '', description: '', heroImageUrl: '', gradingSystem: null });
+const locationFormData = ref({ name: '', address: '', description: '', heroImageUrl: '', gradingSystem: null });
 const locationId = route.params.locationId;
 
 const loadLocation = async () => {
@@ -34,6 +34,7 @@ const loadLocation = async () => {
     const loc = await locationService.getLocation(locationId);
     locationFormData.value = {
       name: loc.name || '',
+      address: loc.address || '',
       description: loc.description || '',
       heroImageUrl: loc.heroImageUrl || '',
       gradingSystem: loc.gradingSystem || null,
@@ -49,6 +50,7 @@ const handleEditSubmit = async (form) => {
     // You may want to handle heroImageFile upload here if changed
     await locationService.updateLocation(locationId, {
       name: form.name,
+      address: form.address,
       description: form.description,
       heroImageUrl: form.heroImageUrl, // If changed/uploaded
       gradingSystem: form.gradingSystem, // Include grading system

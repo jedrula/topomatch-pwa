@@ -7,7 +7,6 @@ import AppHeader from './components/AppHeader.vue';
 import AuthModal from './components/AuthModal.vue';
 import VideoAnalysisIndicator from './components/VideoAnalysisIndicator.vue';
 import BottomTabBar from './components/BottomTabBar.vue';
-import FloatingActionButton from './components/FloatingActionButton.vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 
 const userStore = useUserStore();
@@ -98,15 +97,6 @@ const onAuthSuccess = () => {
   closeAuthModal();
 };
 
-// FAB click handler - scroll to "Add Beta" section on location page
-const handleFabClick = () => {
-  // Find the "Add Beta" button and click it
-  const addBetaButton = document.querySelector('[data-add-beta-button]');
-  if (addBetaButton) {
-    addBetaButton.click();
-  }
-};
-
 // Provide the auth modal methods globally
 import { provide } from 'vue';
 provide('authModal', {
@@ -160,9 +150,6 @@ provide('authModal', {
 
     <!-- Bottom Tab Bar (native only) -->
     <BottomTabBar />
-
-    <!-- Floating Action Button (native only, location pages) -->
-    <FloatingActionButton @click="handleFabClick" />
 
     <!-- Global Auth Modal - direct child of app root -->
     <AuthModal 
