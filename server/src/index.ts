@@ -1,6 +1,6 @@
 import {onCall} from "firebase-functions/v2/https";
 import {initializeApp} from "firebase-admin/app";
-import {getFirestore} from "firebase-admin/firestore";
+import {getFirestore, FieldValue} from "firebase-admin/firestore";
 import {getStorage} from "firebase-admin/storage";
 import {getAuth} from "firebase-admin/auth";
 import * as logger from "firebase-functions/logger";
@@ -206,7 +206,7 @@ export const toggleLocationLike = onCall({region: REGION}, async (request) => {
     const likeRef = db.collection("likes").doc(likeId);
     const locationRef = db.collection("locations").doc(locationId);
 
-    // Use transaction to ensure atomic like count update
+    // Use transaction to ensure atomic operations
     const result = await db.runTransaction(async (transaction) => {
       const likeDoc = await transaction.get(likeRef);
       const locationDoc = await transaction.get(locationRef);
@@ -215,32 +215,39 @@ export const toggleLocationLike = onCall({region: REGION}, async (request) => {
         throw new Error("Location not found");
       }
 
-      const locationData = locationDoc.data() as Location;
-      const currentLikes = locationData.likesCount || 0;
-
       if (likeDoc.exists) {
-        // Unlike: Remove like document and decrement count
+        // Unlike: Remove like document and decrement count atomically
         transaction.delete(likeRef);
         transaction.update(locationRef, {
-          likesCount: Math.max(0, currentLikes - 1),
+          likesCount: FieldValue.increment(-1),
         });
+        
+        // Get current count for response (it will be decremented)
+        const locationData = locationDoc.data() as Location;
+        const newCount = Math.max(0, (locationData.likesCount || 0) - 1);
+        
         return {
           isLiked: false,
-          likesCount: Math.max(0, currentLikes - 1),
+          likesCount: newCount,
         };
       } else {
-        // Like: Create like document and increment count
+        // Like: Create like document and increment count atomically
         transaction.set(likeRef, {
           userId,
           locationId,
           createdAt: new Date(),
         });
         transaction.update(locationRef, {
-          likesCount: currentLikes + 1,
+          likesCount: FieldValue.increment(1),
         });
+        
+        // Get current count for response (it will be incremented)
+        const locationData = locationDoc.data() as Location;
+        const newCount = (locationData.likesCount || 0) + 1;
+        
         return {
           isLiked: true,
-          likesCount: currentLikes + 1,
+          likesCount: newCount,
         };
       }
     });
@@ -345,6 +352,73 @@ export const getLocations = onCall({region: REGION}, async (request) => {
   } catch (error) {
     logger.error("Error getting locations:", error);
     throw new Error("Failed to get locations");
+  }
+});
+
+// Get locations for picker (liked locations if authenticated, most liked otherwise)
+// Single endpoint that handles both authenticated and unauthenticated users
+// NOTE: Migration v0.0.13__add_likes_count_to_locations ensures all locations have likesCount: 0
+export const getPickerLocations = onCall({region: REGION}, async (request) => {
+  try {
+    // If user is authenticated, try to return their liked locations (max 10)
+    if (request.auth) {
+      const userId = request.auth.uid;
+      
+      // Get up to 10 likes for this user
+      const likesSnapshot = await db
+        .collection("likes")
+        .where("userId", "==", userId)
+        .limit(10)
+        .get();
+
+      const likedLocationIds: string[] = [];
+      likesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.locationId) {
+          likedLocationIds.push(data.locationId);
+        }
+      });
+
+      // If user has liked locations, fetch them in one query
+      if (likedLocationIds.length > 0) {
+        const locationsSnapshot = await db
+          .collection("locations")
+          .where("__name__", "in", likedLocationIds)
+          .get();
+
+        const locations: Location[] = [];
+        locationsSnapshot.forEach((doc) => {
+          locations.push({
+            id: doc.id,
+            ...doc.data(),
+          } as Location);
+        });
+
+        logger.info(`Retrieved ${locations.length} liked locations for user ${userId}`);
+        return { locations, type: "liked" };
+      }
+    }
+
+    // No user or no liked locations - return 10 most liked
+    const snapshot = await db
+      .collection("locations")
+      .orderBy("likesCount", "desc")
+      .limit(10)
+      .get();
+
+    const locations: Location[] = [];
+    snapshot.forEach((doc) => {
+      locations.push({
+        id: doc.id,
+        ...doc.data(),
+      } as Location);
+    });
+
+    logger.info(`Retrieved ${locations.length} most liked locations`);
+    return { locations, type: "mostLiked" };
+  } catch (error) {
+    logger.error("Error getting picker locations:", error);
+    throw new Error("Failed to get picker locations");
   }
 });
 

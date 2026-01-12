@@ -125,6 +125,17 @@ class LocationService {
       throw error;
     }
   }
+
+  // Get locations for picker (liked if authenticated, most liked otherwise)
+  async getPickerLocations() {
+    try {
+      const result = await callFunction('getPickerLocations');
+      return result;
+    } catch (error) {
+      console.error('Error getting picker locations:', error);
+      throw error;
+    }
+  }
 }
 
 export const locationService = new LocationService();

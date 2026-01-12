@@ -75,7 +75,7 @@
         <!-- Locations List -->
         <div v-else-if="locations.length > 0">
           <h2 class="text-[15px] font-semibold text-gray-900 mb-4">
-            Favorite Locations
+            {{ showingLikedLocations ? 'Your Favorite Locations' : 'Most Liked Locations' }}
           </h2>
           <LocationGrid :locations="locations" />
         </div>
@@ -97,8 +97,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { locationService } from '../services/locationService.js';
+import { useUserStore } from '../stores/userStore.js';
 import LocationGrid from '../components/LocationGrid.vue';
 
+const userStore = useUserStore();
 const searchQuery = ref('');
 const isSearching = ref(false);
 const isSearchLoading = ref(false);
@@ -106,16 +108,18 @@ const isLoading = ref(true);
 const error = ref('');
 const locations = ref([]);
 const searchResults = ref([]);
+const showingLikedLocations = ref(false); // Track if showing liked or most liked
 let searchDebounceTimer = null;
 
-// TODO: This will use a different endpoint or add `liked: true` param when like feature is implemented
 const loadLocations = async () => {
   try {
     isLoading.value = true;
     error.value = '';
-    // For now, just load all locations (will be filtered by likes later)
-    const data = await locationService.getLocations();
-    locations.value = data;
+    
+    // Single call that handles both authenticated and unauthenticated users
+    const result = await locationService.getPickerLocations();
+    locations.value = result.locations;
+    showingLikedLocations.value = result.type === 'liked';
   } catch (err) {
     console.error('Error loading locations:', err);
     error.value = 'Failed to load locations. Please try again.';
