@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { authService } from '../services/authService.js';
+import { useLocationLikesStore } from './locationLikesStore.js';
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -42,10 +43,17 @@ export const useUserStore = defineStore('user', {
     initAuth() {
       if (!this.authReadyPromise) {
         this.authReadyPromise = new Promise((resolve) => {
-          authService.onAuthStateChanged((user) => {
+          authService.onAuthStateChanged(async (user) => {
             this.user = user;
             this.isLoggedIn = !!user;
             this.isLoading = false;
+            
+            // Load user's likes when they sign in
+            if (user) {
+              const likesStore = useLocationLikesStore();
+              await likesStore.loadUserLikes();
+            }
+            
             resolve(user);
           });
         });
@@ -85,6 +93,10 @@ export const useUserStore = defineStore('user', {
         await authService.signOut();
         this.user = null;
         this.isLoggedIn = false;
+        
+        // Clear likes on sign out
+        const likesStore = useLocationLikesStore();
+        likesStore.clear();
       } catch (error) {
         console.error('Sign out failed:', error);
         throw error;
