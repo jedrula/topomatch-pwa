@@ -173,18 +173,17 @@ const closeVideoPlayer = () => {
 };
 
 // Function to provide videos to VideoPlayerShorts
-// Reuses cached promise to avoid duplicate API calls
+// Returns all currently loaded videos, waiting for initial load if needed
 const getPlayerVideos = async () => {
   if (!userId.value) return [];
   
-  // Reuse existing promise if available
+  // Wait for any ongoing loading to complete
   if (videosPromise.value) {
-    return await videosPromise.value;
+    await videosPromise.value;
   }
   
-  // Create and cache the promise (fetch first page)
-  videosPromise.value = videoService.getUserVideos(userId.value, pageSize);
-  return await videosPromise.value;
+  // Return all videos that have been loaded (including from "Show More")
+  return videos.value;
 };
 
 // Load user's ascents and videos
@@ -198,16 +197,15 @@ const loadUserData = async () => {
   try {
     loading.value = true;
 
-    // Create the videos promise if not already cached
-    if (!videosPromise.value) {
-      videosPromise.value = videoService.getUserVideos(userId.value, pageSize);
-    }
-
-    // Load stats and wait for videos (reusing cached promise)
-    const [statsData, videosData] = await Promise.all([
+    // Create and store the loading promise
+    const loadingPromise = Promise.all([
       ascentService.getUserStats(userId.value),
-      videosPromise.value
+      videoService.getUserVideos(userId.value, pageSize)
     ]);
+    
+    videosPromise.value = loadingPromise;
+    
+    const [statsData, videosData] = await loadingPromise;
     
     stats.value = statsData;
     videos.value = videosData;
@@ -225,7 +223,12 @@ const loadMore = async () => {
   
   try {
     loadingMore.value = true;
-    const moreVideos = await videoService.getUserVideos(userId.value, pageSize, videos.value.length);
+    
+    // Create and store the loading promise
+    const loadingPromise = videoService.getUserVideos(userId.value, pageSize, videos.value.length);
+    videosPromise.value = loadingPromise;
+    
+    const moreVideos = await loadingPromise;
     videos.value = [...videos.value, ...moreVideos];
   } catch (error) {
     console.error('Error loading more videos:', error);
