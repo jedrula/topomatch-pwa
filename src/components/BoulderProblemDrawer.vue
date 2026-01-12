@@ -48,25 +48,9 @@
               </router-link>
             </div>
 
-            <!-- Watch videos button -->
+            <!-- Assign button - only in assignment mode -->
             <button
-              v-if="!assignmentMode"
-              @click.stop="handleShowVideos"
-              class="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all shadow-sm text-sm font-medium flex-shrink-0"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z"
-                />
-              </svg>
-              <span class="hidden sm:inline">Videos</span>
-            </button>
-
-            <!-- Assign button for assignment mode -->
-            <button
-              v-else
+              v-if="assignmentMode"
               @click.stop="handleAssignProblem"
               class="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-sm text-sm font-medium flex-shrink-0"
             >
@@ -77,7 +61,7 @@
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              <span class="hidden sm:inline">Assign</span>
+              <span>Assign</span>
             </button>
 
             <!-- Edit button -->
@@ -95,6 +79,55 @@
                 />
               </svg>
             </button>
+          </div>
+
+          <!-- Video Posters Section -->
+          <div v-if="!assignmentMode" class="mt-4 pt-4 border-t border-gray-200">
+            <!-- Loading state -->
+            <div v-if="videosLoading" class="flex items-center gap-2 text-sm text-gray-500">
+              <div class="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+              <span>Loading videos...</span>
+            </div>
+            
+            <!-- No videos message -->
+            <div v-else-if="videos.length === 0" class="text-xs text-gray-400 italic">
+              No beta videos yet
+            </div>
+            
+            <!-- Videos grid -->
+            <div v-else>
+              <div class="text-xs text-gray-500 mb-2">
+                {{ videos.length }} video{{ videos.length === 1 ? '' : 's' }}
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <div
+                  v-for="video in videos"
+                  :key="video.id"
+                  @click="handleVideoClick(video.id)"
+                  class="relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                >
+                  <!-- Thumbnail image -->
+                  <img
+                    v-if="video.thumbnailBase64 || video.poster"
+                    :src="video.thumbnailBase64 || video.poster"
+                    :alt="video.userName || 'Video thumbnail'"
+                    class="w-full h-full object-cover"
+                  />
+                  <!-- Fallback if no thumbnail -->
+                  <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  
+                  <!-- Duration badge if available -->
+                  <div v-if="video.duration" class="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-[10px] px-1 py-0.5 rounded">
+                    {{ formatDuration(video.duration) }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -118,6 +151,14 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  videos: {
+    type: Array,
+    default: () => [],
+  },
+  videosLoading: {
+    type: Boolean,
+    default: false,
+  },
   locationId: {
     type: String,
     required: true,
@@ -128,7 +169,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['close', 'edit', 'show-videos', 'assign-problem']);
+const emit = defineEmits(['close', 'edit', 'show-videos', 'video-click', 'assign-problem']);
 
 const canEdit = computed(() => userStore.isAdmin);
 
@@ -187,8 +228,20 @@ const handleShowVideos = () => {
   emit('show-videos', props.problem.id);
 };
 
+const handleVideoClick = (videoId) => {
+  emit('video-click', videoId, props.problem.id);
+};
+
 const handleAssignProblem = () => {
   emit('assign-problem', props.problem.id);
+};
+
+// Format duration from seconds to MM:SS
+const formatDuration = (seconds) => {
+  if (!seconds) return '';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 </script>
 

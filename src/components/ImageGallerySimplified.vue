@@ -163,11 +163,14 @@
       v-if="isTouchDevice"
       :visible="floatingCard.visible"
       :problem="floatingCard.problem"
+      :videos="floatingCard.problem ? (problemVideosCache.get(floatingCard.problem.id) || []) : []"
+      :videos-loading="floatingCard.problem ? loadingVideos.has(floatingCard.problem.id) : false"
       :location-id="locationId"
       :assignment-mode="isAssignmentMode"
       @close="hideFloatingCard"
       @edit="handleFloatingCardEdit"
       @show-videos="handleFloatingCardShowVideos"
+      @video-click="handleVideoClick"
       @assign-problem="handleAssignProblem"
     />
   </div>
@@ -293,6 +296,39 @@ const hideFloatingCard = () => {
   hoveredProblemId.value = null;
 };
 
+// Fetch and cache videos for a problem
+const fetchProblemVideos = async (problemId) => {
+  // Return cached if available
+  if (problemVideosCache.value.has(problemId)) {
+    return problemVideosCache.value.get(problemId);
+  }
+  
+  // Avoid duplicate fetches
+  if (loadingVideos.value.has(problemId)) {
+    // Wait for the ongoing fetch to complete
+    return new Promise((resolve) => {
+      const checkInterval = setInterval(() => {
+        if (!loadingVideos.value.has(problemId)) {
+          clearInterval(checkInterval);
+          resolve(problemVideosCache.value.get(problemId) || []);
+        }
+      }, 100);
+    });
+  }
+  
+  try {
+    loadingVideos.value.add(problemId);
+    const videos = await videoService.getProblemVideos(props.locationId, problemId);
+    problemVideosCache.value.set(problemId, videos);
+    return videos;
+  } catch (error) {
+    console.error('Error fetching videos for problem:', problemId, error);
+    return [];
+  } finally {
+    loadingVideos.value.delete(problemId);
+  }
+};
+
 // Navigation methods
 const navigateNext = () => {
   if (props.images.length > 1) {
@@ -320,6 +356,10 @@ const floatingCard = ref({
   problem: null,
   position: { x: 0, y: 0 },
 });
+
+// Video caching for problems
+const problemVideosCache = ref(new Map()); // Map<problemId, videos[]>
+const loadingVideos = ref(new Set()); // Set<problemId> for tracking ongoing fetches
 
 // Timeout for tooltip hiding
 let tooltipHideTimeout = null;
@@ -469,19 +509,14 @@ const handleFloatingCardToggleVisibility = (problem) => {
 };
 
 const handleFloatingCardShowVideos = async (problemId) => {
-  console.log('handleFloatingCardShowVideos called with problemId:', problemId);
-  
   // Hide the floating card when opening video player
   hideFloatingCard();
   
-  // Load videos for this problem
-  console.log('Loading videos for problem:', problemId, 'locationId:', props.locationId);
-  const videos = await videoService.getProblemVideos(props.locationId, problemId);
-  console.log('Loaded videos:', videos);
+  // Fetch videos (will use cache if available)
+  const videos = await fetchProblemVideos(problemId);
   
   // If there are videos, open the player with the first video
   if (videos && videos.length > 0) {
-    console.log('Opening video player with first video:', videos[0].id);
     router.push({
       path: route.path,
       query: {
@@ -493,6 +528,21 @@ const handleFloatingCardShowVideos = async (problemId) => {
   } else {
     console.log('No videos found for problem:', problemId);
   }
+};
+
+const handleVideoClick = (videoId, problemId) => {
+  // Hide the floating card when opening video player
+  hideFloatingCard();
+  
+  // Navigate to video player with this specific video
+  router.push({
+    path: route.path,
+    query: {
+      ...route.query,
+      videoId: videoId,
+      problemId: problemId,
+    },
+  });
 };
 
 const handleAssignProblem = async (problemId) => {
@@ -548,6 +598,9 @@ const handleProblemClick = (problem, event) => {
       floatingCard.value.visible = false;
       hoveredProblemId.value = null;
     } else {
+      // Pre-fetch videos for this problem (non-blocking)
+      fetchProblemVideos(problem.id);
+      
       // Show the floating card for this problem
       hoveredProblemId.value = problem.id;
       floatingCard.value = {
@@ -578,6 +631,9 @@ const handleProblemHover = (problem, isEntering, event) => {
       clearTimeout(tooltipHideTimeout);
       tooltipHideTimeout = null;
     }
+    
+    // Pre-fetch videos for this problem (non-blocking)
+    fetchProblemVideos(problem.id);
     
     // Show floating card immediately
     hoveredProblemId.value = problem.id;
@@ -643,6 +699,7 @@ watch(
   currentImage,
   () => {
     hideFloatingCard(); // Hide floating card when switching images
+    problemVideosCache.value.clear(); // Clear video cache when changing images
   }
 );
 
