@@ -64,19 +64,21 @@ defineEmits(['click']);
 
 // Extract data from canonical ascent structure
 const videoUrl = computed(() => {
-  return props.ascent.video?.transcodedPath || props.ascent.video?.originalPath || '';
+  // Handle both flat (transformed) and nested (raw) structures
+  return props.ascent.downloadUrl || props.ascent.url || props.ascent.video?.transcodedPath || props.ascent.video?.originalPath || '';
 });
 
 const thumbnailUrl = computed(() => {
-  return props.ascent.video?.thumbnailBase64 || getDefaultVideoPoster();
+  // Handle both flat (transformed) and nested (raw) structures
+  return props.ascent.thumbnailBase64 || props.ascent.video?.thumbnailBase64 || getDefaultVideoPoster();
 });
 
 const problemName = computed(() => {
-  return props.ascent.problemSnapshot?.name || null;
+  return props.ascent.problemSnapshot?.name || props.ascent.problemName || null;
 });
 
 const problemGrade = computed(() => {
-  return props.ascent.problemSnapshot?.grade || null;
+  return props.ascent.problemSnapshot?.grade || props.ascent.metadata?.problemGrade || null;
 });
 
 const userName = computed(() => {

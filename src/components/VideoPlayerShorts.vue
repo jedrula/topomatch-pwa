@@ -222,6 +222,7 @@ import { useUserStore } from '@/stores/userStore';
 import VideoMetadata from './VideoMetadata.vue';
 import LikeButton from './LikeButton.vue';
 import CommentSection from './CommentSection.vue';
+import { query } from 'firebase/firestore';
 
 const route = useRoute();
 const router = useRouter();
@@ -624,7 +625,8 @@ const handleProgressBarClick = (event) => {
 const loadVideos = async () => {
   try {
     loading.value = true;
-    videos.value = await props.getVideos(props.videoId);
+    videos.value = await props.getVideos(props.videoId || route.query.videoId);
+    console.log(`Loaded videos for ${props.videoId || route.query.videoId}:`, videos.value);
   } catch (error) {
     console.error('Error loading videos:', error);
     videos.value = [];

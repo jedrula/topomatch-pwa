@@ -124,10 +124,9 @@ const loading = ref(true);
 const loadingMore = ref(false);
 const videos = ref([]);
 const stats = ref({ totalAscents: 0, videoCount: 0, uniqueProblems: 0 });
+const videosPromise = ref(null); // Cache the promise to avoid duplicate API calls
 const pageSize = 8;
 
-// Default poster image (gray placeholder with play icon)
-const defaultPoster = getDefaultVideoPoster();
 
 // Get userId from route or use current user
 const userId = computed(() => route.params.userId || userStore.user?.uid);
@@ -174,15 +173,18 @@ const closeVideoPlayer = () => {
 };
 
 // Function to provide videos to VideoPlayerShorts
+// Reuses cached promise to avoid duplicate API calls
 const getPlayerVideos = async () => {
-  return videos.value;
-};
-
-// Format date for display
-const formatDate = (date) => {
-  if (!date) return '';
-  const d = date instanceof Date ? date : date.toDate?.() || new Date(date);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (!userId.value) return [];
+  
+  // Reuse existing promise if available
+  if (videosPromise.value) {
+    return await videosPromise.value;
+  }
+  
+  // Create and cache the promise (fetch first page)
+  videosPromise.value = videoService.getUserVideos(userId.value, pageSize);
+  return await videosPromise.value;
 };
 
 // Load user's ascents and videos
@@ -196,14 +198,19 @@ const loadUserData = async () => {
   try {
     loading.value = true;
 
-    // Load stats (efficient with count aggregation)
+    // Create the videos promise if not already cached
+    if (!videosPromise.value) {
+      videosPromise.value = videoService.getUserVideos(userId.value, pageSize);
+    }
+
+    // Load stats and wait for videos (reusing cached promise)
     const [statsData, videosData] = await Promise.all([
       ascentService.getUserStats(userId.value),
-      videoService.getUserVideos(userId.value) // Transformed to video format
+      videosPromise.value
     ]);
     
     stats.value = statsData;
-    videos.value = videosData; // All ascents transformed to flat video structure
+    videos.value = videosData;
 
   } catch (error) {
     console.error('Error loading user data:', error);
@@ -218,7 +225,7 @@ const loadMore = async () => {
   
   try {
     loadingMore.value = true;
-    const moreVideos = await ascentService.getUserAscents(userId.value, pageSize, videos.value.length);
+    const moreVideos = await videoService.getUserVideos(userId.value, pageSize, videos.value.length);
     videos.value = [...videos.value, ...moreVideos];
   } catch (error) {
     console.error('Error loading more videos:', error);
@@ -245,6 +252,9 @@ onMounted(() => {
 
 // Watch userId for when auth initializes on page load
 watch(userId, (newId) => {
+  // Clear cached promise when userId changes
+  videosPromise.value = null;
+  
   if (newId && videos.value.length === 0) {
     loadUserData();
   }

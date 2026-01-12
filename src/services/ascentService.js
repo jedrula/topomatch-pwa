@@ -11,6 +11,7 @@ import {
   orderBy,
   where,
   limit,
+  startAfter,
   serverTimestamp,
   collectionGroup,
   setDoc,
@@ -149,12 +150,38 @@ export const ascentService = {
       }
 
       const ascentsRef = collection(db, 'ascents');
-      const q = query(
+      let q = query(
         ascentsRef,
         where('userId', '==', targetUserId),
         orderBy('date', 'desc'),
-        limit(offset + limitCount)
+        limit(limitCount)
       );
+
+      // Handle pagination with offset using startAfter
+      if (offset > 0) {
+        // Fetch documents to skip
+        const skipQuery = query(
+          ascentsRef,
+          where('userId', '==', targetUserId),
+          orderBy('date', 'desc'),
+          limit(offset)
+        );
+        const skipSnapshot = await getDocs(skipQuery);
+        const lastVisible = skipSnapshot.docs[skipSnapshot.docs.length - 1];
+        
+        if (lastVisible) {
+          q = query(
+            ascentsRef,
+            where('userId', '==', targetUserId),
+            orderBy('date', 'desc'),
+            startAfter(lastVisible),
+            limit(limitCount)
+          );
+        } else {
+          // No more documents to paginate
+          return [];
+        }
+      }
 
       const querySnapshot = await getDocs(q);
       const ascents = [];
@@ -166,8 +193,7 @@ export const ascentService = {
         });
       });
 
-      // Return only the requested page
-      return ascents.slice(offset);
+      return ascents;
     } catch (error) {
       console.error('Error fetching user ascents:', error);
       throw error;

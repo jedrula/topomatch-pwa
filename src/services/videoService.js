@@ -8,6 +8,7 @@ import {
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { storage, db } from './firebase';
 import { getCurrentUser } from './authService';
+import { ascentService } from './ascentService';
 
 /**
  * Construct Firebase Storage download URL without network request
@@ -129,22 +130,25 @@ export const videoService = {
   /**
    * Get all videos for a specific user
    * @param {string} userId - The user ID
+   * @param {number} limitCount - Maximum number of videos to fetch
+   * @param {number} offset - Number of videos to skip (for pagination)
    * @returns {Promise<Array>} Array of video objects with metadata
    */
-  async getUserVideos(userId) {
+  async getUserVideos(userId, limitCount = 20, offset = 0) {
     try {
-      const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
+      // Reuse getUserAscents from ascentService and transform the results
+      const ascents = await ascentService.getUserAscents(userId, limitCount, offset);
       
-      const ascentsRef = collection(db, 'ascents');
-      const q = query(
-        ascentsRef,
-        where('userId', '==', userId),
-        orderBy('date', 'desc')
-      );
-
-      const querySnapshot = await getDocs(q);
-      const videos = querySnapshot.docs
-        .map(doc => this._transformAscentToVideo(doc))
+      // Transform each ascent to video format
+      const videos = ascents
+        .map(ascent => {
+          // Create a mock doc object for the transform function
+          const mockDoc = {
+            id: ascent.id,
+            data: () => ascent
+          };
+          return this._transformAscentToVideo(mockDoc);
+        })
         .filter(v => v !== null);
 
       return videos;
