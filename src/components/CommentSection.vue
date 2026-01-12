@@ -1,20 +1,5 @@
 <template>
-  <div class="flex flex-col bg-white h-full">
-    <!-- Header with close button -->
-    <div class="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
-      <h3 class="text-lg font-semibold text-gray-900">
-        Comments <span class="text-gray-500">({{ comments.length }})</span>
-      </h3>
-      <button
-        @click="$emit('close')"
-        class="text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
-
+  <BaseDrawer :is-open="isOpen" :title="`Comments (${comments.length})`" @close="$emit('close')">
     <!-- Comment input at top -->
     <div class="flex-shrink-0 border-b border-gray-200 p-4 bg-gray-50">
       <form @submit.prevent="submitComment" class="flex space-x-3">
@@ -48,50 +33,55 @@
 
     <!-- Comments list -->
     <div class="flex-1 overflow-y-auto p-4 space-y-4">
-        <!-- Loading state -->
-        <div v-if="loading" class="text-center py-8">
-          <div class="mx-auto w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-          <p class="text-gray-500 text-sm mt-2">Loading comments...</p>
+      <!-- Loading state -->
+      <div v-if="loading" class="text-center py-8">
+        <div class="mx-auto w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+        <p class="text-gray-500 text-sm mt-2">Loading comments...</p>
+      </div>
+
+      <!-- Empty state -->
+      <div v-else-if="comments.length === 0" class="text-center py-12">
+        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        <p class="text-gray-500">No comments yet</p>
+        <p class="text-gray-400 text-sm mt-1">Be the first to comment!</p>
+      </div>
+
+      <!-- Comment list -->
+      <div v-else v-for="comment in comments" :key="comment.id" class="flex space-x-3">
+        <!-- Avatar -->
+        <div class="flex-shrink-0">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">
+            {{ getInitials(comment.userName) }}
+          </div>
         </div>
 
-        <!-- Empty state -->
-        <div v-else-if="comments.length === 0" class="text-center py-12">
-          <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          <p class="text-gray-500">No comments yet</p>
-          <p class="text-gray-400 text-sm mt-1">Be the first to comment!</p>
-        </div>
-
-        <!-- Comment list -->
-        <div v-else v-for="comment in comments" :key="comment.id" class="flex space-x-3">
-          <!-- Avatar -->
-          <div class="flex-shrink-0">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">
-              {{ getInitials(comment.userName) }}
-            </div>
+        <!-- Comment content -->
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center space-x-2">
+            <span class="font-medium text-gray-900 text-sm">{{ comment.userName }}</span>
+            <span class="text-gray-400 text-xs">{{ formatTimeAgo(comment.createdAt) }}</span>
           </div>
-
-          <!-- Comment content -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center space-x-2">
-              <span class="font-medium text-gray-900 text-sm">{{ comment.userName }}</span>
-              <span class="text-gray-400 text-xs">{{ formatTimeAgo(comment.createdAt) }}</span>
-            </div>
-            <p class="text-gray-700 text-sm mt-1 whitespace-pre-wrap break-words">{{ comment.text }}</p>
-          </div>
+          <p class="text-gray-700 text-sm mt-1 whitespace-pre-wrap break-words">{{ comment.text }}</p>
         </div>
       </div>
-  </div>
+    </div>
+  </BaseDrawer>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useUserStore } from '@/stores/userStore';
 import { commentService } from '@/services/commentService';
 import { formatTimeAgo } from '@/utils/dateUtils';
+import BaseDrawer from './BaseDrawer.vue';
 
 const props = defineProps({
+  isOpen: {
+    type: Boolean,
+    default: false
+  },
   ascentId: {
     type: String,
     required: true
@@ -133,6 +123,13 @@ const loadComments = async () => {
   }
 };
 
+// Watch for drawer opening
+watch(() => props.isOpen, (newValue) => {
+  if (newValue) {
+    loadComments();
+  }
+});
+
 const submitComment = async () => {
   if (!newComment.value.trim() || submitting.value) return;
 
@@ -155,10 +152,6 @@ const submitComment = async () => {
     submitting.value = false;
   }
 };
-
-onMounted(() => {
-  loadComments();
-});
 </script>
 
 <style scoped>

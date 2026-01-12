@@ -214,9 +214,8 @@
 
     <!-- Comment Section -->
     <CommentSection
-      v-if="showComments && currentVideo"
-      :ascent-id="currentVideo.id"
-      class="flex-1 z-[100]"
+      :is-open="showComments"
+      :ascent-id="currentVideo?.id"
       @close="closeComments"
       @update="handleCommentUpdate"
     />
