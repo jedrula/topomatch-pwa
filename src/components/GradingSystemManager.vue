@@ -86,11 +86,40 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 
+const props = defineProps({
+  initialSystem: {
+    type: Object,
+    default: null,
+  },
+});
+
 const emit = defineEmits(['system-selected']);
 
 // Simple system types
 const selectedSystemType = ref('v-scale');
 const numericMaxLevel = ref(8);
+
+// Watch for changes to initialSystem prop and update refs accordingly
+watch(
+  () => props.initialSystem,
+  (system) => {
+    if (!system) {
+      selectedSystemType.value = 'v-scale';
+      numericMaxLevel.value = 8;
+      return;
+    }
+    
+    if (system.id === 'v-scale') {
+      selectedSystemType.value = 'v-scale';
+    } else if (system.id === 'fontainebleau') {
+      selectedSystemType.value = 'fontainebleau';
+    } else if (system.id && system.id.startsWith('numeric-')) {
+      selectedSystemType.value = 'numeric';
+      numericMaxLevel.value = system.maxLevel || parseInt(system.id.split('-')[1], 10) || 8;
+    }
+  },
+  { immediate: true } // Run immediately on mount
+);
 
 // Predefined systems
 const vScaleGrades = [
