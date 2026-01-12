@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <div class="container py-6 sm:py-8">
+    <div class="container py-2 sm:py-4">
       <!-- Search Input -->
       <div class="mb-8">
         <form @submit.prevent="handleSearch" class="relative">
@@ -111,6 +111,9 @@ const searchResults = ref([]);
 const showingLikedLocations = ref(false); // Track if showing liked or most liked
 let searchDebounceTimer = null;
 
+// Minimum characters required to trigger search
+const MIN_SEARCH_LENGTH = 2;
+
 const loadLocations = async () => {
   try {
     isLoading.value = true;
@@ -141,8 +144,8 @@ const handleSearchInput = () => {
     return;
   }
 
-  // Only search if 2+ characters
-  if (searchQuery.value.length >= 2) {
+  // Only search if minimum characters met
+  if (searchQuery.value.length >= MIN_SEARCH_LENGTH) {
     // Debounce: wait 300ms after user stops typing
     searchDebounceTimer = setTimeout(() => {
       handleSearch();
@@ -153,7 +156,7 @@ const handleSearchInput = () => {
 const handleSearch = async () => {
   const query = searchQuery.value.trim();
   
-  if (!query || query.length < 3) {
+  if (!query || query.length < MIN_SEARCH_LENGTH) {
     isSearching.value = false;
     searchResults.value = [];
     return;

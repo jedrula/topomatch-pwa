@@ -28,23 +28,24 @@
     </div>
 
     <!-- Locations Grid -->
-    <div v-else class="container py-6 sm:py-8">
+    <div v-else class="container py-2 sm:py-4">
       <!-- Pick Location CTA -->
       <router-link
         to="/pick-location"
-        class="mb-8 block p-4 bg-white border border-gray-100 rounded-lg hover:border-gray-200 hover:shadow-sm transition-all cursor-pointer group"
+        class="mb-8 block p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer group"
       >
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
-            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-gray-200 transition-colors">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </div>
           <div class="flex-1 min-w-0">
-            <h2 class="text-[15px] font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">Pick a Location</h2>
+            <h2 class="text-base font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">Pick Location</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Browse problems & beta videos</p>
           </div>
-          <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <svg class="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </div>

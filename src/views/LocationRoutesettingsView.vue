@@ -2,7 +2,7 @@
   <div class="min-h-screen pb-20">
     <ToastNotification />
 
-    <div class="container py-6 sm:py-8">
+    <div class="container py-2 sm:py-4">
       <!-- Back Button -->
       <button
         @click="goBack"

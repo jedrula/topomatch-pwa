@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <div class="container py-6 sm:py-8">
+    <div class="container py-2 sm:py-4">
       <!-- Profile Header -->
       <div class="mb-8">
         <div class="flex items-center gap-4 mb-6">
