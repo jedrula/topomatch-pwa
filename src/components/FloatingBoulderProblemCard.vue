@@ -45,22 +45,19 @@
           <!-- Problem info -->
           <div class="flex items-center gap-2 min-w-0 flex-1">
             <div
-              class="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+              class="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
               :style="{ backgroundColor: problem?.color }"
-            ></div>
-            <div class="flex items-baseline gap-1 min-w-0">
-              <router-link
-                v-if="problem"
-                :to="`/location/${locationId}/problem/${problem.id}`"
-                class="font-medium text-gray-900 truncate text-sm hover:text-blue-600 transition-colors"
-                @click.stop
-              >
-                {{ problem.name }}
-              </router-link>
-              <span v-if="problem" class="text-xs text-gray-500 flex-shrink-0">
-                ({{ getGradeLabel(problem.grade) }})
-              </span>
+            >
+              {{ getGradeLabel(problem.grade) }}
             </div>
+            <router-link
+              v-if="problem"
+              :to="`/location/${locationId}/problem/${problem.id}`"
+              class="font-medium text-gray-900 truncate text-sm hover:text-blue-600 transition-colors min-w-0"
+              @click.stop
+            >
+              {{ problem.name }}
+            </router-link>
           </div>
 
           <!-- Edit button on the right -->

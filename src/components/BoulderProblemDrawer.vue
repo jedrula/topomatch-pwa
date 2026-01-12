@@ -28,11 +28,13 @@
         <div class="px-4 pb-6">
           <!-- Single row with all elements -->
           <div class="flex items-center gap-3">
-            <!-- Color indicator -->
+            <!-- Color indicator with grade -->
             <div
-              class="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"
+              class="w-8 h-8 rounded-full border-2 border-gray-300 flex-shrink-0 flex items-center justify-center text-xs font-bold text-white shadow-sm"
               :style="{ backgroundColor: problem?.color }"
-            ></div>
+            >
+              {{ getGradeLabel(problem.grade) }}
+            </div>
 
             <!-- Problem info -->
             <div class="flex-1 min-w-0">
@@ -44,11 +46,6 @@
               >
                 {{ problem.name }}
               </router-link>
-            </div>
-
-            <!-- Grade -->
-            <div class="text-sm text-gray-600 font-medium flex-shrink-0">
-              {{ getGradeLabel(problem.grade) }}
             </div>
 
             <!-- Watch videos button -->
