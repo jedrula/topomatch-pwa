@@ -178,6 +178,7 @@
         <!-- Images section -->
         <LocationImages
           :images="images"
+          :loading="imagesLoading"
           :location-name="location?.name"
           :can-upload="userStore.canUploadImages"
           :can-edit-holds="userStore.canEditLocations"
@@ -333,6 +334,7 @@ const allRoutesettings = ref([]); // All routesettings for this location
 const images = ref([]); // Placeholder for location images
 const videos = ref([]); // Beta videos for location
 const videosLoading = ref(false);
+const imagesLoading = ref(false);
 const problemVideoCounts = ref({}); // Cache for video counts per problem
 const isLoading = ref(true);
 const error = ref('');
@@ -577,31 +579,48 @@ const initialImageIndex = computed(() => {
   return index !== -1 ? index : 0;
 });
 
-const loadLocation = async () => {
+// Load critical data needed for initial page render (just header)
+// Manages isLoading state internally
+const loadCriticalData = async () => {
+  isLoading.value = true;
+  
   try {
-    isLoading.value = true;
-    error.value = '';
-
-    // Load location data first (needed for display)
-    location.value = await locationService.getLocation(locationId.value);
-    
-    // Load all routesettings for this location
-    allRoutesettings.value = await routesettingService.getRoutesettings(locationId.value);
-
-    // Initialize boulder problems store (quick operation)
-    await boulderProblemsStore.initializeForLocation(locationId.value);
-
-    // Load everything else in parallel - they don't depend on each other
+    // Load ONLY what's needed for the location header
+    // (name, address, description, heroImage)
     await Promise.all([
-      boulderProblemsStore.loadBoulderProblems(locationId.value, null, currentRoutesetting.value),
-      loadLocationImages(),
+      loadLocationMetadata(),
+      loadRoutesettings(),
     ]);
-  } catch (err) {
-    console.error('Error loading location:', err);
-    error.value = 'Failed to load location. Please try again.';
   } finally {
+    // Show page immediately with header - images/problems load in background
     isLoading.value = false;
   }
+};
+
+// Load images and problems after page is visible
+const loadImagesAndProblems = async () => {
+  imagesLoading.value = true;
+  
+  try {
+    // Initialize boulder problems store (needs to be done once)
+    await boulderProblemsStore.initializeForLocation(locationId.value);
+    
+    // Load images and problems in parallel (both use currentRoutesetting)
+    await Promise.all([
+      loadLocationImages(),
+      boulderProblemsStore.loadBoulderProblems(locationId.value, null, currentRoutesetting.value),
+    ]);
+  } finally {
+    imagesLoading.value = false;
+  }
+};
+
+const loadLocationMetadata = async () => {
+  location.value = await locationService.getLocation(locationId.value);
+};
+
+const loadRoutesettings = async () => {
+  allRoutesettings.value = await routesettingService.getRoutesettings(locationId.value);
 };
 
 const loadLocationImages = async () => {
@@ -1141,7 +1160,6 @@ const initializeLocationData = async () => {
   videos.value = [];
   images.value = [];
   error.value = '';
-  isLoading.value = true;
   
   // Unregister old job callback if it exists
   if (unregisterJobCallback) {
@@ -1149,15 +1167,30 @@ const initializeLocationData = async () => {
     unregisterJobCallback = null;
   }
   
-  // Load location data, videos, and OpenCV in parallel
-  await Promise.all([
-    loadLocation(),
-    loadLocationVideos(),
-    loadOpenCV(),
-  ]);
-  
-  // Register callback for job completions at this location
-  unregisterJobCallback = analysisStore.onJobComplete(locationId.value, handleJobComplete);
+  try {
+    // Load critical data (just header - manages isLoading internally)
+    await loadCriticalData();
+    
+    // Load images and problems (shows empty states while loading)
+    loadImagesAndProblems().catch(err => {
+      console.error('Error loading images/problems:', err);
+    });
+    
+    // Load non-critical resources in background
+    loadLocationVideos().catch(err => {
+      console.error('Error loading videos in background:', err);
+    });
+    
+    loadOpenCV().catch(err => {
+      console.error('Error loading OpenCV in background:', err);
+    });
+    
+    // Register callback for job completions at this location
+    unregisterJobCallback = analysisStore.onJobComplete(locationId.value, handleJobComplete);
+  } catch (err) {
+    console.error('Error loading location:', err);
+    error.value = 'Failed to load location. Please try again.';
+  }
 };
 
 // Watch currentRoutesetting and reload problems when it changes

@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between mb-4">
       <h2 class="section-header">
         Photos
-        <span v-if="images.length > 0" class="section-header-count ml-1.5">({{ images.length }})</span>
+        <span v-if="!loading && images.length > 0" class="section-header-count ml-1.5">({{ images.length }})</span>
       </h2>
       <button
         v-if="canUpload"
@@ -21,8 +21,14 @@
 
     <!-- Content -->
     <div>
+      <!-- Loading state -->
+      <div v-if="loading" class="text-center py-12">
+        <div class="mx-auto w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mb-3"></div>
+        <p class="text-gray-600 text-[13px]">Loading photos...</p>
+      </div>
+
       <!-- Empty state -->
-      <div v-if="images.length === 0" class="text-center py-12">
+      <div v-else-if="images.length === 0" class="text-center py-12">
         <div class="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
           <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z" />
@@ -158,6 +164,10 @@ defineProps({
     type: Array,
     required: true,
     default: () => []
+  },
+  loading: {
+    type: Boolean,
+    default: false
   },
   locationName: {
     type: String,
