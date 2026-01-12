@@ -102,11 +102,12 @@
           <template #image>
             <img
               ref="climbingImage"
-              :src="getOptimalImageUrl(currentImage.url)"
+              :src="optimalImageUrl"
               :alt="currentImage.name || 'Climbing route'"
               class="w-full h-auto object-contain block max-h-full"
-              crossorigin="anonymous"
               @load="onImageLoad"
+              @error="(e) => e.target.src = fallbackImageUrl"
+              crossorigin="anonymous"
             />
           </template>
           <template #overlay>
@@ -144,11 +145,12 @@
         <div v-else class="flex items-center justify-center">
           <img
             ref="climbingImage"
-            :src="getOptimalImageUrl(currentImage.url)"
+            :src="optimalImageUrl"
             :alt="currentImage.name || 'Climbing route'"
             class="w-full h-auto object-contain block max-h-full"
-            crossorigin="anonymous"
             @load="onImageLoad"
+            @error="(e) => e.target.src = fallbackImageUrl"
+            crossorigin="anonymous"
           />
         </div>
       </div>
@@ -179,7 +181,7 @@ import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
-import { getOptimalImageUrl } from '@/utils/imageResize.js';
+import { getResponsiveImageUrls } from '@/utils/imageResize.js';
 import { boulderProblemsServiceV2 } from '@/services/boulderProblemsServiceV2.js';
 import { videoService } from '@/services/videoService.js';
 
@@ -320,6 +322,30 @@ const currentImage = computed(() => {
   }
 
   return props.images[props.initialIndex] || props.images[0];
+});
+
+// Get responsive image URLs for current image
+const currentImageUrls = computed(() => {
+  if (!currentImage.value) return null;
+  return getResponsiveImageUrls(currentImage.value.url);
+});
+
+// Get optimal image URL based on screen size
+// Mobile: 800x600, Desktop: 1920x1440 (original for very large screens)
+const optimalImageUrl = computed(() => {
+  if (!currentImageUrls.value) return '';
+  
+  // Use mobile size on small screens, desktop on larger screens
+  const isMobile = window.innerWidth < 768;
+  return isMobile ? currentImageUrls.value.mobile : currentImageUrls.value.desktop;
+});
+
+// Get fallback URL (use JPEG version of same size, or original as last resort)
+const fallbackImageUrl = computed(() => {
+  if (!currentImageUrls.value) return '';
+  
+  const isMobile = window.innerWidth < 768;
+  return isMobile ? currentImageUrls.value.mobileJpeg : currentImageUrls.value.desktopJpeg;
 });
 
 // Get viewBox from metadata - NO DEFAULTS!
