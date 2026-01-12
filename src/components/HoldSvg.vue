@@ -90,6 +90,20 @@ const handleHover = (isEntering, event) => {
   fill: transparent;
 }
 
+/* Enlarge hit area by making all paths have thick transparent stroke */
+.hold-svg.allowed-selectable :deep(path),
+.hold-svg.allowed-selectable :deep(circle),
+.hold-svg.allowed-selectable :deep(ellipse),
+.hold-svg.allowed-selectable :deep(polygon),
+.hold-svg.allowed-selectable :deep(polyline),
+.hold-svg.allowed-selectable :deep(rect) {
+  stroke: transparent;
+  stroke-width: 50;
+  paint-order: stroke fill;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
 .selectable {
   cursor: pointer;
   pointer-events: auto;
