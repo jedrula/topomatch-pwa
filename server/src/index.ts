@@ -358,7 +358,9 @@ export const getLocations = onCall({region: REGION}, async (request) => {
 // Get locations for picker (liked locations if authenticated, most liked otherwise)
 // Single endpoint that handles both authenticated and unauthenticated users
 // NOTE: Migration v0.0.13__add_likes_count_to_locations ensures all locations have likesCount: 0
-export const getPickerLocations = onCall({region: REGION}, async (request) => {
+export const getPickerLocations = onCall(
+  { region: REGION, invoker: "public" },
+  async (request) => {
   try {
     // If user is authenticated, try to return their liked locations (max 10)
     if (request.auth) {

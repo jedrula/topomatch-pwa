@@ -110,7 +110,7 @@
               >
                 <button
                   v-if="userStore.canEditLocations"
-                  @click="editLocation; showMoreMenu = false"
+                  @click="editLocation(); showMoreMenu = false"
                   class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
