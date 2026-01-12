@@ -48,7 +48,7 @@
             </p>
           </div>
           
-          <!-- Actions: Heart + Three Dots -->
+          <!-- Actions: Heart + Notify + Three Dots -->
           <div class="flex items-center gap-1 flex-shrink-0">
             <!-- Like Button -->
             <button
@@ -57,6 +57,23 @@
             >
               <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </button>
+            
+            <!-- Notify Button (Bell Icon) -->
+            <button
+              v-if="userStore.canEditLocations"
+              @click="publishRoutesetting"
+              :disabled="isPublishing"
+              class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Notify all users about new routesetting"
+            >
+              <svg v-if="!isPublishing" class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <svg v-else class="w-4 h-4 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             </button>
             
@@ -78,6 +95,16 @@
                 @click.stop
                 class="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
               >
+                <button
+                  v-if="userStore.canEditLocations"
+                  @click="editLocation; showMoreMenu = false"
+                  class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit
+                </button>
                 <router-link
                   v-if="allRoutesettings.length > 0"
                   :to="{ path: `/location/${locationId}/routesettings`, query: { routesetting: currentRoutesetting } }"
@@ -90,6 +117,7 @@
                   History
                 </router-link>
                 <router-link
+                  v-if="userStore.canEditLocations"
                   :to="`/location/${locationId}/jobs`"
                   @click="showMoreMenu = false"
                   class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -104,37 +132,7 @@
           </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="flex items-center gap-2 flex-wrap">
-          <!-- Primary Actions - Always Visible -->
-          <button
-            v-if="userStore.canEditLocations"
-            @click="editLocation"
-            class="btn-secondary h-9 px-3.5 text-sm inline-flex items-center gap-1.5 shrink-0 font-medium rounded-lg transition-all hover:scale-105"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            <span class="hidden sm:inline">Edit</span>
-          </button>
-          
-          <button
-            v-if="userStore.canEditLocations"
-            @click="publishRoutesetting"
-            :disabled="isPublishing"
-            class="btn-primary h-9 px-3.5 text-sm inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 font-medium rounded-lg shadow-sm hover:shadow-md transition-all hover:scale-105"
-            title="Notify all users about new routesetting"
-          >
-            <svg v-if="!isPublishing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span class="hidden sm:inline">{{ isPublishing ? 'Publishing...' : 'Notify 🔔' }}</span>
-          </button>
-        </div>
+
 
         <!-- Historical Routesetting Banner (only shown when NOT viewing latest) -->
         <div 
