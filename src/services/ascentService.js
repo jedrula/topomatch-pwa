@@ -18,6 +18,7 @@ import {
 import { db } from './firebase';
 import { getCurrentUser } from './authService';
 import { generateUUID } from '../utils/uuid';
+import { videoService } from './videoService';
 
 /**
  * Generate a unique ascent ID on the client
@@ -383,20 +384,10 @@ export const ascentService = {
       const ascents = [];
 
       querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        // Only include ascents with videos that have a path or URL
-        // Check for transcodedPath, originalPath, downloadUrl, or url (same as videoService)
-        if (data.video && (
-          data.video.transcodedPath ||
-          data.video.originalPath ||
-          data.video.downloadUrl ||
-          data.video.url
-        )) {
-          ascents.push({
-            id: doc.id,
-            ...data,
-            likeCount: data.likeCount || 0,
-          });
+        // Use videoService transform for consistent structure
+        const transformed = videoService._transformAscentToVideo(doc);
+        if (transformed) {
+          ascents.push(transformed);
         }
       });
 

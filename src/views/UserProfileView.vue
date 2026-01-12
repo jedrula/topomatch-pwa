@@ -63,7 +63,7 @@
             v-for="ascent in videos"
             :key="ascent.ascentId || ascent.id"
             :ascent="ascent"
-            @click="() => navigateToVideoPlayer(ascent.ascentId || ascent.id)"
+            @click="() => openVideoPlayer(ascent.ascentId || ascent.id)"
           />
         </div>
         
@@ -197,13 +197,13 @@ const loadUserData = async () => {
     loading.value = true;
 
     // Load stats (efficient with count aggregation)
-    const [statsData, ascentsData] = await Promise.all([
+    const [statsData, videosData] = await Promise.all([
       ascentService.getUserStats(userId.value),
-      ascentService.getUserAscents(userId.value, pageSize) // Load first page
+      videoService.getUserVideos(userId.value) // Transformed to video format
     ]);
     
     stats.value = statsData;
-    videos.value = ascentsData; // All ascents have videos
+    videos.value = videosData; // All ascents transformed to flat video structure
 
   } catch (error) {
     console.error('Error loading user data:', error);

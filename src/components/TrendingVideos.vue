@@ -72,31 +72,10 @@ const router = useRouter();
 const ascents = ref([]);
 const loading = ref(true);
 
-// Transform ascents to video format for VideoPlayerShorts
+// getTrendingAscents already returns flattened video objects via _transformAscentToVideo
+// No need to map them again - use them directly
 const videosForPlayer = computed(() => {
-  return ascents.value.map(ascent => {
-    const videoUrl = getVideoUrlFromAscent(ascent.video);
-    
-    return {
-      id: ascent.id,
-      url: videoUrl,
-      downloadUrl: videoUrl,
-      thumbnailBase64: ascent.video.thumbnailBase64,
-      name: ascent.problemSnapshot?.name || 'Untitled', // Changed from title to name
-      locationId: ascent.locationId,
-      problemId: ascent.problemId,
-      uploadedBy: ascent.userName, // Changed from userName to uploadedBy
-      userId: ascent.userId,
-      uploadedAt: ascent.date?.toDate?.() || ascent.date, // Changed from date to uploadedAt
-      likeCount: ascent.likeCount || 0,
-      likedByUserIds: ascent.likedByUserIds || [],
-      commentCount: ascent.commentCount || 0,
-      problemSnapshot: ascent.problemSnapshot,
-      userGrade: ascent.userGrade,
-      attemptType: ascent.attemptType,
-      notes: ascent.notes,
-    };
-  });
+  return ascents.value;
 });
 
 const loadTrendingAscents = async () => {

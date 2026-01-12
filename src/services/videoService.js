@@ -492,34 +492,6 @@ export const videoService = {
   },
 
   /**
-   * Get all videos for a specific user
-   * @param {string} userId - The user ID
-   * @returns {Promise<Array>} Array of video objects with metadata
-   */
-  async getUserVideos(userId) {
-    try {
-      const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
-      
-      const ascentsRef = collection(db, 'ascents');
-      const q = query(
-        ascentsRef,
-        where('userId', '==', userId),
-        orderBy('date', 'desc')
-      );
-
-      const querySnapshot = await getDocs(q);
-      const videos = querySnapshot.docs
-        .map(doc => this._transformAscentToVideo(doc))
-        .filter(v => v !== null);
-
-      return videos;
-    } catch (error) {
-      console.error('Error fetching user videos:', error);
-      throw error;
-    }
-  },
-
-  /**
    * Get video count for a specific problem
    * @param {string} locationId - The location ID
    * @param {string} problemId - The boulder problem ID
