@@ -68,35 +68,21 @@
         @click="handleBackgroundClick"
       >
         <!-- Loading state -->
-        <!-- Loading spinner while image loads -->
+        <!-- Loading skeleton while image loads -->
         <div
-          v-if="currentImage && !imageLoaded"
-          class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-30"
+          v-if="!imageLoaded"
+          class="absolute inset-0 flex items-center justify-center bg-gray-900"
         >
-          <div class="text-center text-white">
-            <div
-              class="w-12 h-12 border-4 border-gray-300 border-t-white rounded-full animate-spin mx-auto mb-4"
-            ></div>
-            <p class="text-lg">Loading image...</p>
-          </div>
-        </div>
-
-        <!-- No current image fallback -->
-        <div
-          v-if="!currentImage"
-          class="w-full h-64 flex items-center justify-center"
-        >
-          <div class="text-center text-white">
-            <div
-              class="w-8 h-8 border-4 border-gray-300 border-t-white rounded-full animate-spin mx-auto mb-4"
-            ></div>
-            <p>Loading image...</p>
+          <div class="w-full h-full max-w-4xl max-h-[80vh] bg-gray-800 animate-pulse flex items-center justify-center">
+            <svg class="w-16 h-16 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
           </div>
         </div>
 
         <!-- Image with Holds Overlay -->
         <ImageWithHolds
-          v-else-if="imageViewBox"
+          v-if="currentImage && imageViewBox"
           :viewBox="imageViewBox"
         >
           <template #image>
@@ -142,7 +128,7 @@
         </ImageWithHolds>
 
         <!-- Fallback: Show image without holds if no viewBox available -->
-        <div v-else class="flex items-center justify-center">
+        <div v-else-if="currentImage" class="flex items-center justify-center">
           <img
             ref="climbingImage"
             :src="optimalImageUrl"
