@@ -113,6 +113,8 @@ import { useUserStore } from '@/stores/userStore';
 import { ascentService } from '@/services/ascentService';
 import { videoService } from '@/services/videoService';
 import { getDefaultVideoPoster } from '@/utils/videoUtils';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/services/firebase';
 import VideoPlayerShorts from '@/components/VideoPlayerShorts.vue';
 import VideoGridItem from '@/components/VideoGridItem.vue';
 
@@ -125,6 +127,7 @@ const loadingMore = ref(false);
 const videos = ref([]);
 const stats = ref({ totalAscents: 0, videoCount: 0, uniqueProblems: 0 });
 const videosPromise = ref(null); // Cache the promise to avoid duplicate API calls
+const profileUser = ref(null); // Store other user's data
 const pageSize = 8;
 
 
@@ -136,15 +139,14 @@ const userName = computed(() => {
   if (userId.value === userStore.user?.uid) {
     return userStore.user?.displayName || 'You';
   }
-  // TODO: Fetch user data for other users
-  return videos.value[0]?.userName || 'User';
+  return profileUser.value?.displayName || videos.value[0]?.userName || 'User';
 });
 
 const userEmail = computed(() => {
   if (userId.value === userStore.user?.uid) {
     return userStore.user?.email;
   }
-  return null;
+  return profileUser.value?.email || null;
 });
 
 const userInitial = computed(() => {
@@ -191,6 +193,23 @@ const getPlayerVideos = async () => {
   return videos.value;
 };
 
+// Fetch other user's profile data
+const loadProfileUser = async () => {
+  if (!userId.value || userId.value === userStore.user?.uid) {
+    profileUser.value = null;
+    return;
+  }
+  
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId.value));
+    if (userDoc.exists()) {
+      profileUser.value = { id: userDoc.id, ...userDoc.data() };
+    }
+  } catch (error) {
+    console.error('Error loading profile user:', error);
+  }
+};
+
 // Load user's ascents and videos
 const loadUserData = async () => {
   if (!userId.value) {
@@ -204,13 +223,14 @@ const loadUserData = async () => {
 
     // Create and store the loading promise
     const loadingPromise = Promise.all([
+      loadProfileUser(),
       ascentService.getUserStats(userId.value),
       videoService.getUserVideos(userId.value, pageSize)
     ]);
     
     videosPromise.value = loadingPromise;
     
-    const [statsData, videosData] = await loadingPromise;
+    const [, statsData, videosData] = await loadingPromise;
     
     stats.value = statsData;
     videos.value = videosData;
@@ -260,8 +280,9 @@ onMounted(() => {
 
 // Watch userId for when auth initializes on page load
 watch(userId, (newId) => {
-  // Clear cached promise when userId changes
+  // Clear cached promise and profile data when userId changes
   videosPromise.value = null;
+  profileUser.value = null;
   
   if (newId && videos.value.length === 0) {
     loadUserData();
