@@ -50,15 +50,28 @@
           
           <!-- Actions: Heart + Notify + Three Dots -->
           <div class="flex items-center gap-1 flex-shrink-0">
-            <!-- Like Button -->
-            <button
-              class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-              title="Like this location"
-            >
-              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </button>
+            <!-- Like Button with count badge -->
+            <div class="relative">
+              <button
+                @click="handleToggleLike"
+                :disabled="!userStore.user"
+                class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:cursor-not-allowed"
+                :title="userStore.user ? (isLocationLiked ? 'Unlike this location' : 'Like this location') : 'Sign in to like'"
+              >
+                <!-- Filled heart when liked -->
+                <svg v-if="isLocationLiked" class="w-5 h-5 sm:w-6 sm:h-6 text-red-500" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                <!-- Outline heart when not liked -->
+                <svg v-else class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+              <!-- Like count badge (positioned absolutely) -->
+              <span v-if="location.likesCount > 0" class="absolute -bottom-0.5 -right-0.5 text-[10px] text-gray-500 bg-white rounded-full px-1 min-w-[1rem] text-center border border-gray-200">
+                {{ location.likesCount }}
+              </span>
+            </div>
             
             <!-- Notify Button (Bell Icon) -->
             <button
@@ -282,6 +295,7 @@ import LocationBoulderProblems from '../components/LocationBoulderProblems.vue';
 import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
+import { useLocationLikesStore } from '../stores/locationLikesStore.js';
 import { generateUUID } from '../utils/uuid.js';
 import { useVideoAnalysisQueueStore, getCurrentStep } from '../stores/videoAnalysisQueueStore.js';
 import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
@@ -292,6 +306,7 @@ import { getResizedImageUrl } from '../utils/imageResize.js';
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const locationLikesStore = useLocationLikesStore();
 const boulderProblemsStore = useBoulderProblemsStore();
 const analysisStore = useVideoAnalysisQueueStore();
 const uploadQueue = useVideoUploadQueueStore();
@@ -333,6 +348,11 @@ const pendingMetadataSaves = ref(0);
 const totalUploadsExpected = ref(0);
 
 const locationId = computed(() => route.params.locationId);
+
+// Check if current user has liked this location
+const isLocationLiked = computed(() => {
+  return locationLikesStore.isLocationLiked(locationId.value);
+});
 
 // Current routesetting from query param (or latest if not specified)
 const currentRoutesetting = computed(() => {
@@ -858,6 +878,30 @@ const editLocation = () => {
   router.push(`/location/${locationId.value}/edit`);
 };
 
+const handleToggleLike = async () => {
+  if (!userStore.user) {
+    authModal.open();
+    return;
+  }
+
+  try {
+    const result = await locationLikesStore.toggleLike(locationId.value);
+    
+    // Update local location object with new count
+    if (location.value) {
+      location.value.likesCount = result.likesCount;
+    }
+    
+    // Show subtle feedback
+    if (result.isLiked) {
+      toast.success('❤️ Added to favorites');
+    }
+  } catch (error) {
+    console.error('Error toggling like:', error);
+    toast.error('Failed to update like');
+  }
+};
+
 const publishRoutesetting = async () => {
   if (!location.value) return;
   
@@ -1133,6 +1177,11 @@ watch(() => route.params.locationId, async (newLocationId, oldLocationId) => {
 
 onMounted(async () => {
   await initializeLocationData();
+
+  // Load user's liked locations if authenticated
+  if (userStore.user) {
+    locationLikesStore.loadUserLikes();
+  }
 
   // Listen for maximize event from global indicator
   window.addEventListener('maximize-analysis-modal', handleMaximizeModal);

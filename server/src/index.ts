@@ -164,6 +164,7 @@ interface Location {
   heroImageUrl?: string;
   gradingSystem?: GradingSystem;
   routesettings?: string[]; // Array of ISO timestamps, last one is current
+  likesCount?: number; // Total number of likes
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -187,6 +188,103 @@ type AddLocationImageRequest = Omit<LocationImage, 'uploadedAt' | 'routesettings
   routesetting: string; // Single routesetting when creating (converted to array server-side)
 };
 
+// Toggle location like (add/remove)
+export const toggleLocationLike = onCall({region: REGION}, async (request) => {
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+
+  const { locationId } = request.data;
+  const userId = request.auth.uid;
+
+  if (!locationId) {
+    throw new Error("Location ID is required");
+  }
+
+  try {
+    const likeId = `${userId}_${locationId}`;
+    const likeRef = db.collection("likes").doc(likeId);
+    const locationRef = db.collection("locations").doc(locationId);
+
+    // Use transaction to ensure atomic like count update
+    const result = await db.runTransaction(async (transaction) => {
+      const likeDoc = await transaction.get(likeRef);
+      const locationDoc = await transaction.get(locationRef);
+
+      if (!locationDoc.exists) {
+        throw new Error("Location not found");
+      }
+
+      const locationData = locationDoc.data() as Location;
+      const currentLikes = locationData.likesCount || 0;
+
+      if (likeDoc.exists) {
+        // Unlike: Remove like document and decrement count
+        transaction.delete(likeRef);
+        transaction.update(locationRef, {
+          likesCount: Math.max(0, currentLikes - 1),
+        });
+        return {
+          isLiked: false,
+          likesCount: Math.max(0, currentLikes - 1),
+        };
+      } else {
+        // Like: Create like document and increment count
+        transaction.set(likeRef, {
+          userId,
+          locationId,
+          createdAt: new Date(),
+        });
+        transaction.update(locationRef, {
+          likesCount: currentLikes + 1,
+        });
+        return {
+          isLiked: true,
+          likesCount: currentLikes + 1,
+        };
+      }
+    });
+
+    logger.info(`User ${userId} ${result.isLiked ? 'liked' : 'unliked'} location ${locationId}`);
+    return result;
+  } catch (error) {
+    logger.error("Error toggling location like:", error);
+    throw new Error("Failed to toggle location like");
+  }
+});
+
+// Get user's liked locations
+export const getUserLikes = onCall({region: REGION}, async (request) => {
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+
+  const userId = request.auth.uid;
+  logger.info(`getUserLikes called for user ${userId}`);
+
+  try {
+    const likesSnapshot = await db
+      .collection("likes")
+      .where("userId", "==", userId)
+      .get();
+
+    const likedLocationIds: string[] = [];
+    likesSnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.locationId) {
+        likedLocationIds.push(data.locationId);
+      }
+    });
+
+    logger.info(`Retrieved ${likedLocationIds.length} likes for user ${userId}`);
+    return { likedLocationIds };
+  } catch (error) {
+    logger.error("Error getting user likes:", error);
+    logger.error("Error details:", JSON.stringify(error));
+    throw new Error(`Failed to get user likes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+});
+
 // Create a new location
 export const createLocation = onCall({region: REGION}, async (request) => {
   try {
@@ -201,6 +299,7 @@ export const createLocation = onCall({region: REGION}, async (request) => {
       name_lowercase: name.toLowerCase(), // For prefix search
       address: address || "",
       description: description || "",
+      likesCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
