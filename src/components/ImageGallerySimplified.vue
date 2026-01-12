@@ -142,8 +142,9 @@
       </div>
     </div>
 
-    <!-- Floating boulder problem card -->
+    <!-- Desktop: Floating boulder problem card -->
     <FloatingBoulderProblemCard
+      v-if="!isTouchDevice"
       :visible="floatingCard.visible"
       :problem="floatingCard.problem"
       :position="floatingCard.position"
@@ -156,6 +157,19 @@
       @mouse-enter="handleFloatingCardMouseEnter"
       @mouse-leave="handleFloatingCardMouseLeave"
     />
+
+    <!-- Mobile: Bottom drawer -->
+    <BoulderProblemDrawer
+      v-if="isTouchDevice"
+      :visible="floatingCard.visible"
+      :problem="floatingCard.problem"
+      :location-id="locationId"
+      :assignment-mode="isAssignmentMode"
+      @close="hideFloatingCard"
+      @edit="handleFloatingCardEdit"
+      @show-videos="handleFloatingCardShowVideos"
+      @assign-problem="handleAssignProblem"
+    />
   </div>
 </template>
 
@@ -165,6 +179,7 @@ import { useRoute, useRouter } from 'vue-router';
 import ImageWithHolds from './ImageWithHolds.vue';
 import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
+import BoulderProblemDrawer from './BoulderProblemDrawer.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
 import { getResponsiveImageUrls } from '@/utils/imageResize.js';
@@ -203,6 +218,9 @@ const boulderProblemsStore = useBoulderProblemsStore();
 // Assignment mode detection
 const isAssignmentMode = computed(() => !!route.query.assignVideoId);
 
+// Detect mobile/touch device (reuse existing logic from handleProblemClick)
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
 // Touch/swipe handling
 const touchStartX = ref(0);
 const touchStartY = ref(0);
@@ -233,8 +251,17 @@ const handleTouchStart = (event) => {
 };
 
 const handleTouchMove = (event) => {
-  // Prevent default to avoid scrolling
-  event.preventDefault();
+  // Calculate deltas to determine if this is a horizontal swipe
+  const currentX = event.touches[0].clientX;
+  const currentY = event.touches[0].clientY;
+  const deltaX = Math.abs(currentX - touchStartX.value);
+  const deltaY = Math.abs(currentY - touchStartY.value);
+  
+  // Only prevent default if horizontal swipe is more significant than vertical
+  // This allows vertical scrolling while enabling horizontal image navigation
+  if (deltaX > deltaY && deltaX > 10) {
+    event.preventDefault();
+  }
 };
 
 const handleTouchEnd = (event) => {
@@ -510,9 +537,9 @@ const handleFloatingCardMouseLeave = () => {
 
 // Boulder problem interaction handlers
 const handleProblemClick = (problem, event) => {
-  // On mobile/touch devices, clicking a hold should show the floating card
+  // On mobile/touch devices, clicking a hold should show the drawer
   // (since hover doesn't work on touch screens)
-  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+  if (isTouchDevice) {
     // Stop propagation so it doesn't trigger handleBackgroundClick
     event?.stopPropagation();
     
@@ -536,14 +563,11 @@ const handleProblemClick = (problem, event) => {
 };
 
 const handleBackgroundClick = (event) => {
-  // Close floating card when clicking on the background (not on a hold)
-  // Only on touch devices where the card stays open
-  if (('ontouchstart' in window || navigator.maxTouchPoints > 0) && floatingCard.value.visible) {
-    // Check if the click is not on an SVG element (holds)
-    if (!event.target.closest('svg') && !event.target.closest('g')) {
-      floatingCard.value.visible = false;
-      hoveredProblemId.value = null;
-    }
+  // Close the drawer on mobile when clicking anywhere that isn't a hold
+  // Holds use .stop on their events, so if this handler fires, it's not a hold
+  if (isTouchDevice && floatingCard.value.visible) {
+    floatingCard.value.visible = false;
+    hoveredProblemId.value = null;
   }
 };
 

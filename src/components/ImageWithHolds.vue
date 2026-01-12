@@ -8,7 +8,7 @@
     <!-- SVG overlay positioned absolutely over the image -->
     <div class="overlay-container absolute inset-0 pointer-events-none">
       <svg 
-        class="w-full h-full"
+        class="w-full h-full pointer-events-auto"
         :viewBox="props.viewBox"
         preserveAspectRatio="xMidYMid meet"
       >

@@ -3,6 +3,7 @@
     :class="holdClasses"
     :style="holdStyles"
     @click.stop="handleClick"
+    @touchend.stop.prevent="handleTouchEnd"
     @mouseenter="handleHover(true, $event)"
     @mouseleave="handleHover(false, $event)"
     v-html="svgMarkup"
@@ -68,6 +69,13 @@ const holdStyles = computed(() => {
 const handleClick = () => {
   if (props.interactionAllowed === 'selectable') {
     emit('click');
+  }
+};
+
+const handleTouchEnd = (event) => {
+  // On touch devices, touchend should trigger the click behavior
+  if (props.interactionAllowed === 'selectable') {
+    emit('click', event);
   }
 };
 
