@@ -141,8 +141,8 @@ const handleSearchInput = () => {
     return;
   }
 
-  // Only search if 3+ characters
-  if (searchQuery.value.length >= 3) {
+  // Only search if 2+ characters
+  if (searchQuery.value.length >= 2) {
     // Debounce: wait 300ms after user stops typing
     searchDebounceTimer = setTimeout(() => {
       handleSearch();

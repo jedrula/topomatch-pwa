@@ -177,6 +177,11 @@ const closeVideoPlayer = () => {
 const getPlayerVideos = async () => {
   if (!userId.value) return [];
   
+  // If no loading has started yet, trigger it
+  if (!videosPromise.value && videos.value.length === 0) {
+    await loadUserData();
+  }
+  
   // Wait for any ongoing loading to complete
   if (videosPromise.value) {
     await videosPromise.value;

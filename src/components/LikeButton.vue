@@ -29,7 +29,15 @@
     </div>
     
     <!-- Like count -->
+    <button
+      v-if="displayCount > 0"
+      @click.stop="$emit('count-click')"
+      class="text-xs font-medium text-white hover:scale-110 transition-transform cursor-pointer"
+    >
+      {{ displayCount }}
+    </button>
     <span 
+      v-else
       class="text-xs font-medium text-white"
     >
       {{ displayCount }}
@@ -49,7 +57,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update']);
+const emit = defineEmits(['update', 'count-click']);
 
 const userStore = useUserStore();
 const loading = ref(false);

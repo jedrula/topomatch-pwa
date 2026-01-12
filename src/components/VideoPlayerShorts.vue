@@ -177,9 +177,11 @@
 
     <!-- Right side action buttons -->
     <div v-if="currentVideo" class="absolute top-1/2 -translate-y-1/2 right-3 flex flex-col space-y-6 pointer-events-auto z-[70]">
+      <!-- Like button -->
       <LikeButton 
         :ascent="currentVideo" 
         @update="handleLikeUpdate"
+        @count-click="openLikes"
       />
       
       <!-- Comment button -->
@@ -195,7 +197,13 @@
         <span class="text-xs font-medium">{{ currentVideo.commentCount || 0 }}</span>
       </button>
       
-      <!-- Future: Add comment button here -->
+
+    <!-- Likes Drawer -->
+    <LikesDrawer
+      :is-open="showLikes"
+      :user-ids="currentVideo?.likedByUserIds || []"
+      @close="closeLikes"
+    />
       <!-- Future: Add share button here -->
     </div>
 
@@ -222,6 +230,7 @@ import { useUserStore } from '@/stores/userStore';
 import VideoMetadata from './VideoMetadata.vue';
 import LikeButton from './LikeButton.vue';
 import CommentSection from './CommentSection.vue';
+import LikesDrawer from './LikesDrawer.vue';
 import { query } from 'firebase/firestore';
 
 const route = useRoute();
@@ -259,6 +268,7 @@ const videoProgress = ref({});
 // Single source of truth for video states: 'loading', 'ready', 'playing', 'paused', 'buffering'
 const videoState = ref({});
 const showComments = ref(false);
+const showLikes = ref(false);
 
 // Computed current video index based on videoId from URL
 const currentVideoIndex = computed(() => {
@@ -703,6 +713,16 @@ const openComments = async () => {
   }
 };
 
+// Likes drawer functions
+const openLikes = () => {
+  showLikes.value = true;
+};
+
+const closeLikes = () => {
+  showLikes.value = false;
+};
+
+// Comments drawer functions
 const closeComments = async () => {
   showComments.value = false;
   // Wait for DOM to update with full container height
