@@ -193,6 +193,8 @@ const handleTouchMove = (event) => {
   if (deltaY > 0 && drawerElement.value) {
     // Prevent default only when we're actually dragging down
     event.preventDefault();
+    // Remove any transition during drag for instant feedback
+    drawerElement.value.style.transition = 'none';
     drawerElement.value.style.transform = `translateY(${deltaY}px)`;
   }
 };
@@ -202,13 +204,34 @@ const handleTouchEnd = () => {
   
   const deltaY = touchCurrentY.value - touchStartY.value;
   
-  if (drawerElement.value) {
-    drawerElement.value.style.transform = '';
-  }
-  
   // If dragged down more than 100px, close the drawer
   if (deltaY > 100) {
-    handleClose();
+    // Keep the current transform and let the close transition handle it
+    // Add a transition for smooth animation
+    if (drawerElement.value) {
+      drawerElement.value.style.transition = 'transform 0.3s ease-out';
+      drawerElement.value.style.transform = 'translateY(100%)';
+      
+      // After transition completes, emit close
+      setTimeout(() => {
+        handleClose();
+      }, 300);
+    } else {
+      handleClose();
+    }
+  } else {
+    // Snap back to original position
+    if (drawerElement.value) {
+      drawerElement.value.style.transition = 'transform 0.2s ease-out';
+      drawerElement.value.style.transform = '';
+      
+      // Clean up transition after animation
+      setTimeout(() => {
+        if (drawerElement.value) {
+          drawerElement.value.style.transition = '';
+        }
+      }, 200);
+    }
   }
   
   isDragging.value = false;
