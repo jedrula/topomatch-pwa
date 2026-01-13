@@ -21,6 +21,7 @@ export const extractVideoFrame = (videoFile, timeInSeconds = 5) => {
 
       // Seek to the specified time (or middle of video if shorter)
       const seekTime = Math.min(timeInSeconds, video.duration / 2);
+      console.log(`Seeking to ${seekTime}s for frame extraction (requested: ${timeInSeconds}s, duration: ${video.duration}s)`);
       video.currentTime = seekTime;
 
       // Store seekTime for later use

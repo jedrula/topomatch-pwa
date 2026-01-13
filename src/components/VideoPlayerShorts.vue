@@ -51,6 +51,20 @@
       </div>
     </div>
 
+    <!-- DEBUG: Video state info -->
+    <div 
+      v-if="currentVideo" 
+      class="absolute top-20 left-1/2 -translate-x-1/2 z-[101] bg-black/80 text-white text-xs p-2 rounded font-mono"
+    >
+      <div>Time: {{ videoElements[currentVideoIndex]?.currentTime?.toFixed(2) || 0 }} / {{ videoElements[currentVideoIndex]?.duration?.toFixed(2) || 0 }}s</div>
+      <div>Paused: {{ videoElements[currentVideoIndex]?.paused }}</div>
+      <div>Ended: {{ videoElements[currentVideoIndex]?.ended }}</div>
+      <div>Progress: {{ getVideoProgress(currentVideoIndex).toFixed(1) }}%</div>
+      <div>State: {{ videoState[currentVideoIndex] || 'unknown' }}</div>
+      <div>ReadyState: {{ videoElements[currentVideoIndex]?.readyState }} ({{ ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA', 'HAVE_FUTURE_DATA', 'HAVE_ENOUGH_DATA'][videoElements[currentVideoIndex]?.readyState || 0] }})</div>
+      <div>NetworkState: {{ videoElements[currentVideoIndex]?.networkState }} ({{ ['NETWORK_EMPTY', 'NETWORK_IDLE', 'NETWORK_LOADING', 'NETWORK_NO_SOURCE'][videoElements[currentVideoIndex]?.networkState || 0] }})</div>
+    </div>
+
     <!-- Video container with swipe and scroll support -->
     <div 
       ref="videoContainer"
@@ -123,7 +137,9 @@
             class="absolute inset-0 flex items-center justify-center z-[60] pointer-events-none"
           >
             <!-- Controls container that matches the actual video content size -->
+            <!-- Only show when video dimensions are loaded to prevent layout shift -->
             <div 
+              v-if="videoElements[index]?.videoWidth && videoElements[index]?.videoHeight"
               class="relative pointer-events-auto"
               :style="getVideoContentDimensions(index)"
               @click="togglePlayPause"
@@ -150,26 +166,58 @@
                 </div>
               </div>
               
+              <!-- Video metadata overlay (bottom left, above progress bar) -->
+              <div 
+                class="absolute left-1 max-w-[250px] pointer-events-auto z-10"
+                :class="isTouchDevice ? 'bottom-6' : 'bottom-4'"
+              >
+                <VideoMetadata :video="currentVideo" />
+              </div>
+
+              <!-- HD error badge (bottom right, above progress bar) -->
+              <div 
+                v-if="!currentVideo.isTranscoded" 
+                class="absolute right-1 pointer-events-auto z-10"
+                :class="isTouchDevice ? 'bottom-6' : 'bottom-4'"
+              >
+                <div class="inline-flex items-center gap-1 bg-red-500/20 text-red-300 px-2 py-1 rounded">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span class="text-xs">HD</span>
+                </div>
+              </div>
+              
               <!-- Bottom progress bar (at the very bottom edge of video content) -->
               <div 
                 ref="progressBarContainer"
                 class="absolute bottom-0 left-0 right-0 group/progress cursor-pointer"
                 @mousedown="handleProgressMouseDown"
+                @touchstart="handleProgressTouchStart"
                 @click.stop="handleProgressBarClick"
               >
-                <!-- Larger hit area for easier interaction -->
-                <div class="bg-white/20 h-1 group-hover/progress:h-1.5 transition-all relative">
-                  <!-- Larger clickable/hoverable overlay -->
-                  <div class="absolute -top-3 -bottom-3 left-0 right-0"></div>
+                <!-- Larger hit area for easier interaction (bigger on mobile) -->
+                <div 
+                  class="bg-white/20 transition-all relative"
+                  :class="isTouchDevice ? 'h-1.5' : 'h-1 group-hover/progress:h-1.5'"
+                >
+                  <!-- Larger clickable/hoverable overlay (extra large on mobile) -->
+                  <div 
+                    class="absolute left-0 right-0"
+                    :class="isTouchDevice ? '-top-4 -bottom-4' : '-top-3 -bottom-3'"
+                  ></div>
                   
                   <!-- Progress fill -->
                   <div 
                     class="bg-white h-full transition-all duration-100 ease-linear relative"
                     :style="{ width: `${getVideoProgress(index)}%` }"
                   >
-                    <!-- Draggable handle (appears on hover) -->
+                    <!-- Draggable handle (always visible on mobile, appears on hover on desktop) -->
                     <div 
-                      class="absolute w-3 h-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity shadow-lg"
+                      class="absolute bg-white rounded-full transition-opacity shadow-lg"
+                      :class="[
+                        isTouchDevice ? 'w-4 h-4 opacity-100' : 'w-3 h-3 opacity-0 group-hover/progress:opacity-100'
+                      ]"
                       style="right: 0; top: 50%; transform: translate(50%, -50%)"
                     ></div>
                   </div>
@@ -215,21 +263,6 @@
       <!-- Future: Add share button here -->
     </div>
 
-    <!-- Video metadata overlay (bottom left) -->
-    <div v-if="currentVideo" class="absolute bottom-1 left-1 max-w-[250px] pointer-events-auto z-[70]">
-      <VideoMetadata :video="currentVideo" />
-    </div>
-
-    <!-- HD error badge (bottom right) -->
-    <div v-if="currentVideo && !currentVideo.isTranscoded" class="absolute bottom-1 right-1 pointer-events-auto z-[70]">
-      <div class="inline-flex items-center gap-1 bg-red-500/20 text-red-300 px-2 py-1 rounded">
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-        <span class="text-xs">HD</span>
-      </div>
-    </div>
-
     <!-- Comment Section -->
     <CommentSection
       :is-open="showComments"
@@ -248,6 +281,7 @@ import VideoMetadata from './VideoMetadata.vue';
 import LikeButton from './LikeButton.vue';
 import CommentSection from './CommentSection.vue';
 import LikesDrawer from './LikesDrawer.vue';
+import { isTouchDevice as detectTouchDevice } from '@/utils/platform';
 import { query } from 'firebase/firestore';
 
 const route = useRoute();
@@ -288,6 +322,7 @@ const showComments = ref(false);
 const showLikes = ref(false);
 const isDraggingProgress = ref(false);
 const progressBarContainer = ref(null);
+const isTouchDevice = computed(() => detectTouchDevice());
 
 // Computed current video index based on videoId from URL
 const currentVideoIndex = computed(() => {
@@ -313,32 +348,15 @@ const setCurrentVideoId = (videoId) => {
   });
 };
 
-// Update progress for all videos
-const updateVideoProgress = () => {
-  Object.entries(videoElements.value).forEach(([index, video]) => {
-    if (video && video.duration) {
-      const progress = (video.currentTime / video.duration) * 100;
-      videoProgress.value[index] = progress;
-    }
-  });
-};
-
-// Set up progress tracking interval
-let progressInterval = null;
-
-const startProgressTracking = () => {
-  if (progressInterval) clearInterval(progressInterval);
-  progressInterval = setInterval(updateVideoProgress, 100);
-};
-
-const stopProgressTracking = () => {
-  if (progressInterval) {
-    clearInterval(progressInterval);
-    progressInterval = null;
+// Update progress - called by timeupdate event
+const updateVideoProgress = (index, video) => {
+  if (video && video.duration) {
+    const progress = (video.currentTime / video.duration) * 100;
+    videoProgress.value[index] = progress;
   }
 };
 
-// Set up event listeners for video element to track state
+// Set up event listeners for video element
 const setupVideoListeners = (video, index) => {
   if (!video || video.dataset.listenersAdded) return;
   video.dataset.listenersAdded = 'true';
@@ -361,6 +379,15 @@ const setupVideoListeners = (video, index) => {
   
   video.addEventListener('waiting', () => {
     videoState.value[index] = 'buffering';
+  });
+  
+  video.addEventListener('timeupdate', () => {
+    updateVideoProgress(index, video);
+  });
+  
+  video.addEventListener('error', (e) => {
+    console.error(`Video ${index} error:`, e);
+    videoState.value[index] = 'error';
   });
 };
 
@@ -399,7 +426,6 @@ const setupIntersectionObserver = () => {
               if (video && video.paused) {
                 video.muted = isMuted.value;
                 video.play().catch(err => console.log('Autoplay failed:', err));
-                startProgressTracking();
               }
             });
           }
@@ -503,7 +529,6 @@ const playCurrentVideo = async (resetTime = true) => {
       }
       currentVideo.muted = isMuted.value;
       await currentVideo.play();
-      startProgressTracking();
     } catch (error) {
       console.log('Video play failed:', error);
     }
@@ -627,12 +652,10 @@ const getVideoContentDimensions = (index) => {
 
 const closePlayer = () => {
   pauseCurrentVideo();
-  stopProgressTracking();
   emit('close');
 };
 
 const handleProgressBarClick = (event) => {
-  // Don't seek if we just finished dragging
   if (isDraggingProgress.value) return;
   
   event.preventDefault();
@@ -641,30 +664,31 @@ const handleProgressBarClick = (event) => {
   const currentVideo = videoElements.value[currentVideoIndex.value];
   if (!currentVideo || !currentVideo.duration) return;
   
-  const progressBar = event.currentTarget;
-  const rect = progressBar.getBoundingClientRect();
-  const clickX = event.clientX - rect.left;
-  const progressBarWidth = rect.width;
+  const wasPlaying = !currentVideo.paused;
   
-  // Calculate the percentage clicked
-  const clickPercentage = Math.max(0, Math.min(1, clickX / progressBarWidth));
+  const rect = event.currentTarget.getBoundingClientRect();
+  const clickPercentage = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
   
-  // Set the video time based on the click position
-  const newTime = clickPercentage * currentVideo.duration;
-  currentVideo.currentTime = newTime;
+  currentVideo.currentTime = clickPercentage * currentVideo.duration;
+  
+  if (wasPlaying) {
+    currentVideo.addEventListener('seeked', () => {
+      currentVideo.play().catch(err => console.error('Play after seek failed:', err));
+    }, { once: true });
+  }
 };
 
-const handleProgressMouseDown = (event) => {
+// Shared drag logic - simplified seek handling
+const handleProgressDrag = (event, getClientX) => {
   event.preventDefault();
   event.stopPropagation();
   
   const currentVideo = videoElements.value[currentVideoIndex.value];
-  if (!currentVideo || !currentVideo.duration) return;
+  if (!currentVideo || !currentVideo.duration) return null;
   
   isDraggingProgress.value = true;
   const wasPlaying = !currentVideo.paused;
   
-  // Pause video while dragging for smoother scrubbing
   if (wasPlaying) {
     currentVideo.pause();
   }
@@ -672,43 +696,80 @@ const handleProgressMouseDown = (event) => {
   const progressBar = event.currentTarget;
   const rect = progressBar.getBoundingClientRect();
   
-  const updateProgress = (e) => {
-    const clickX = e.clientX - rect.left;
-    const progressBarWidth = rect.width;
-    const clickPercentage = Math.max(0, Math.min(1, clickX / progressBarWidth));
-    const newTime = clickPercentage * currentVideo.duration;
-    currentVideo.currentTime = newTime;
+  const seekTo = (clientX) => {
+    const clickX = clientX - rect.left;
+    const clickPercentage = Math.max(0, Math.min(1, clickX / rect.width));
+    currentVideo.currentTime = clickPercentage * currentVideo.duration;
   };
   
+  const cleanup = (clientX) => {
+    // Final seek
+    if (clientX !== null) {
+      seekTo(clientX);
+    }
+    
+    // Wait for seek to complete before resuming
+    if (wasPlaying) {
+      const resumePlayback = () => {
+        currentVideo.removeEventListener('seeked', resumePlayback);
+        currentVideo.play().catch(err => console.error('Play after seek failed:', err));
+      };
+      currentVideo.addEventListener('seeked', resumePlayback, { once: true });
+    }
+    
+    isDraggingProgress.value = false;
+  };
+  
+  return { seekTo, cleanup };
+};
+
+const handleProgressMouseDown = (event) => {
+  const dragHandlers = handleProgressDrag(event, (e) => e.clientX);
+  if (!dragHandlers) return;
+  
+  const { seekTo, cleanup } = dragHandlers;
+  
   const handleMouseMove = (e) => {
-    updateProgress(e);
+    seekTo(e.clientX);
   };
   
   const handleMouseUp = (e) => {
-    updateProgress(e);
-    
-    // Resume playing if it was playing before
-    if (wasPlaying) {
-      currentVideo.play().catch(err => {
-        console.error('Error resuming playback after drag:', err);
-      });
-    }
-    
-    // Clean up
+    cleanup(e.clientX);
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
-    
-    // Reset drag state after a small delay to prevent click event
-    setTimeout(() => {
-      isDraggingProgress.value = false;
-    }, 10);
   };
   
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);
+};
+
+const handleProgressTouchStart = (event) => {
+  const dragHandlers = handleProgressDrag(event, (e) => {
+    const touch = e.touches?.[0] || e.changedTouches?.[0];
+    return touch?.clientX ?? null;
+  });
+  if (!dragHandlers) return;
   
-  // Initial seek on mousedown
-  updateProgress(event);
+  const { seekTo, cleanup } = dragHandlers;
+  
+  const handleTouchMove = (e) => {
+    e.preventDefault();
+    if (e.touches?.[0]) {
+      seekTo(e.touches[0].clientX);
+    }
+  };
+  
+  const handleTouchEnd = (e) => {
+    const finalX = e.changedTouches?.[0]?.clientX ?? null;
+    cleanup(finalX);
+    document.removeEventListener('touchmove', handleTouchMove);
+    document.removeEventListener('touchend', handleTouchEnd);
+    document.removeEventListener('touchcancel', handleTouchEnd);
+  };
+  
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
+  document.addEventListener('touchend', handleTouchEnd);
+  document.addEventListener('touchcancel', handleTouchEnd);
 };
 
 // Load videos using getVideos function
@@ -834,7 +895,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown);
-  stopProgressTracking();
   if (intersectionObserver) {
     intersectionObserver.disconnect();
   }
