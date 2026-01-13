@@ -207,6 +207,10 @@ const props = defineProps({
   loading: {
     type: Boolean,
     default: false
+  },
+  location: {
+    type: Object,
+    default: null
   }
 });
 
@@ -388,7 +392,7 @@ const closeVideoPlayer = () => {
   router.push({ query });
 };
 
-// Computed title for video player
+// Computed title for video player (capitalization handled by CSS)
 const videoPlayerTitle = computed(() => {
   const problemId = route.query.problemId;
   if (problemId) {
@@ -397,6 +401,10 @@ const videoPlayerTitle = computed(() => {
     if (problemVideo?.metadata?.problemName) {
       return `${problemVideo.metadata.problemName} Videos`;
     }
+  }
+  // Use location name instead of generic "Beta Videos"
+  if (props.location?.name) {
+    return `${props.location.name} Videos`;
   }
   return 'Beta Videos';
 });

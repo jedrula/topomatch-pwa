@@ -193,6 +193,7 @@
         <LocationVideos
           :videos="displayVideos"
           :loading="videosLoading"
+          :location="location"
           @video-deleted="handleVideoDeleted"
           @reprocess-video="handleReprocessVideo"
           @open-manual-assign="handleOpenManualAssign"

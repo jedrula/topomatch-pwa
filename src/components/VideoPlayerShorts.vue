@@ -15,7 +15,7 @@
           </button>
           <!-- Title -->
           <div class="flex-1">
-            <h3 class="font-semibold text-lg">{{ title }}</h3>
+            <h3 class="font-semibold text-lg capitalize">{{ title }}</h3>
             <p class="text-sm text-gray-300">
               {{ currentVideoIndex + 1 }} of {{ videos.length }}
             </p>
