@@ -1,7 +1,17 @@
 <template>
   <div class="video-metadata text-white p-2 rounded text-xs">
     <div class="flex items-center gap-2">
-      <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+      <router-link
+        v-if="video.userId"
+        :to="{ name: 'user-profile', params: { userId: video.userId } }"
+        class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0"
+        @click.stop
+      >
+        <svg class="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+        </svg>
+      </router-link>
+      <div v-else class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
         <svg class="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
         </svg>
@@ -26,16 +36,27 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
-      <p class="text-xs text-white font-semibold" style="text-shadow: 0 1px 2px rgba(0,0,0,0.8)">
+      <p class="text-xs text-white font-semibold location-problem-list" style="text-shadow: 0 1px 2px rgba(0,0,0,0.8)">
+        <template v-if="video.locationName && video.locationId">
+          <router-link
+            :to="{ name: 'location-detail', params: { locationId: video.locationId } }"
+            class="text-white capitalize"
+            @click.stop
+          >
+            {{ video.locationName }}
+          </router-link>
+        </template>
+        <span v-else-if="video.locationName" class="capitalize">{{ video.locationName }}</span>
+        
         <router-link
           v-if="video.problemId && video.locationId"
           :to="{ name: 'boulder-problem-detail', params: { locationId: video.locationId, problemId: video.problemId } }"
           class="text-white"
           @click.stop
         >
-          {{ video.name }}<template v-if="video.locationName">, {{ video.locationName }}</template>
+          {{ video.name }}
         </router-link>
-        <span v-else>{{ video.name }}<template v-if="video.locationName">, {{ video.locationName }}</template></span>
+        <span v-else-if="video.name">{{ video.name }}</span>
       </p>
     </div>
   </div>
@@ -63,3 +84,9 @@ const formatFileSize = (bytes) => {
   return videoService.formatFileSize(bytes);
 };
 </script>
+
+<style scoped>
+.location-problem-list > *:not(:last-child)::after {
+  content: ', ';
+}
+</style>
