@@ -54,6 +54,7 @@ export const ascentService = {
         // User & references
         userId: user.uid,
         locationId,
+        locationName: ascentData.locationName || null,
         problemId: problemId || null,
         
         // Problem snapshot (optional for optimistic uploads, added later by analysis)

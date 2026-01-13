@@ -3,11 +3,23 @@
     <!-- Header with close button and info -->
     <div class="absolute top-0 left-0 right-0 z-[100] bg-gradient-to-b from-black/80 to-transparent p-4">
       <div class="flex items-center justify-between text-white">
-        <div class="flex-1">
-          <h3 class="font-semibold text-lg">{{ title }}</h3>
-          <p class="text-sm text-gray-300">
-            {{ currentVideoIndex + 1 }} of {{ videos.length }}
-          </p>
+        <div class="flex items-center gap-3 flex-1">
+          <!-- Back/Close button -->
+          <button
+            @click.stop="closePlayer"
+            class="text-white hover:text-gray-300 transition-colors p-2 -ml-2"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <!-- Title -->
+          <div class="flex-1">
+            <h3 class="font-semibold text-lg">{{ title }}</h3>
+            <p class="text-sm text-gray-300">
+              {{ currentVideoIndex + 1 }} of {{ videos.length }}
+            </p>
+          </div>
         </div>
         <div class="flex items-center space-x-2">
           <!-- Speaker/Mute button -->
@@ -35,15 +47,6 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
             </svg>
           </button>
-          <!-- Close button -->
-          <button
-            @click.stop="closePlayer"
-            class="text-white hover:text-gray-300 transition-colors p-2"
-          >
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
       </div>
     </div>
@@ -62,7 +65,6 @@
         scrollbarWidth: 'none',
         msOverflowStyle: 'none'
       }"
-      @scroll="handleScroll"
     >
       <!-- Loading state -->
       <div 
@@ -168,12 +170,7 @@
       </div>
     </div>
 
-    <!-- Bottom info bar -->
-    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 md:hidden">
-      <div class="text-white text-center text-sm">
-        <p>Swipe up/down to navigate videos</p>
-      </div>
-    </div>
+
 
     <!-- Right side action buttons -->
     <div v-if="currentVideo" class="absolute top-1/2 -translate-y-1/2 right-3 flex flex-col space-y-6 pointer-events-auto z-[70]">
@@ -190,11 +187,11 @@
         class="flex flex-col items-center space-y-1 text-white hover:scale-110 transition-transform cursor-pointer"
       >
         <div class="relative">
-          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         </div>
-        <span class="text-xs font-medium">{{ currentVideo.commentCount || 0 }}</span>
+        <span class="text-[11px] font-medium">{{ currentVideo.commentCount || 0 }}</span>
       </button>
       
 
@@ -207,9 +204,19 @@
       <!-- Future: Add share button here -->
     </div>
 
-    <!-- Video metadata overlay (bottom right) -->
-    <div v-if="currentVideo" class="absolute bottom-1 right-0.5 max-w-[200px] pointer-events-auto z-[70]">
+    <!-- Video metadata overlay (bottom left) -->
+    <div v-if="currentVideo" class="absolute bottom-1 left-1 max-w-[250px] pointer-events-auto z-[70]">
       <VideoMetadata :video="currentVideo" />
+    </div>
+
+    <!-- HD error badge (bottom right) -->
+    <div v-if="currentVideo && !currentVideo.isTranscoded" class="absolute bottom-1 right-1 pointer-events-auto z-[70]">
+      <div class="inline-flex items-center gap-1 bg-red-500/20 text-red-300 px-2 py-1 rounded">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        <span class="text-xs">HD</span>
+      </div>
     </div>
 
     <!-- Comment Section -->
@@ -402,10 +409,6 @@ const observeVideoContainers = () => {
       intersectionObserver.observe(element);
     });
   }
-};
-
-const handleScroll = () => {
-  // Scroll handler is now simplified - Intersection Observer does the heavy lifting
 };
 
 // Pause all videos except the current one

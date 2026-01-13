@@ -99,6 +99,7 @@ export const videoService = {
         userId: data.userId,
         ascentId: docSnapshot.id,
         locationId: data.locationId,
+        locationName: data.locationName || null,
         problemId: data.problemId,
         problemName: data.problemSnapshot?.name || 'Unknown Problem',
         routesetting: data.routesetting || null, // For filtering unassigned videos

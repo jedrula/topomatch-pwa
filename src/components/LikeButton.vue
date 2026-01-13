@@ -7,7 +7,7 @@
   >
     <!-- Biceps Emoji 💪 -->
     <div 
-      class="relative flex items-center justify-center transition-transform duration-200 text-4xl"
+      class="relative flex items-center justify-center transition-transform duration-200 text-3xl"
       :class="{ 
         'scale-110': isLiked, 
         'group-hover:scale-125': !loading,
