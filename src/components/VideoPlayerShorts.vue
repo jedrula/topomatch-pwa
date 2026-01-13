@@ -138,9 +138,9 @@
                 </div>
               </div>
               
-              <!-- Play button (when paused or ready) -->
+              <!-- Play button (when paused or ready, but not while dragging) -->
               <div 
-                v-else-if="videoState[index] === 'paused' || videoState[index] === 'ready'"
+                v-else-if="(videoState[index] === 'paused' || videoState[index] === 'ready') && !isDraggingProgress"
                 class="absolute inset-0 flex items-center justify-center pointer-events-none"
               >
                 <div class="bg-black/50 rounded-full p-4">
@@ -152,16 +152,27 @@
               
               <!-- Bottom progress bar (at the very bottom edge of video content) -->
               <div 
-                class="absolute bottom-0 left-0 right-0 cursor-pointer"
+                ref="progressBarContainer"
+                class="absolute bottom-0 left-0 right-0 group/progress cursor-pointer"
+                @mousedown="handleProgressMouseDown"
                 @click.stop="handleProgressBarClick"
               >
-                <div class="bg-white/20 h-1 relative">
-                  <!-- Clickable overlay for better UX -->
-                  <div class="absolute -top-2 -bottom-2 left-0 right-0"></div>
+                <!-- Larger hit area for easier interaction -->
+                <div class="bg-white/20 h-1 group-hover/progress:h-1.5 transition-all relative">
+                  <!-- Larger clickable/hoverable overlay -->
+                  <div class="absolute -top-3 -bottom-3 left-0 right-0"></div>
+                  
+                  <!-- Progress fill -->
                   <div 
-                    class="bg-white h-full transition-all duration-100 ease-linear"
+                    class="bg-white h-full transition-all duration-100 ease-linear relative"
                     :style="{ width: `${getVideoProgress(index)}%` }"
-                  ></div>
+                  >
+                    <!-- Draggable handle (appears on hover) -->
+                    <div 
+                      class="absolute w-3 h-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity shadow-lg"
+                      style="right: 0; top: 50%; transform: translate(50%, -50%)"
+                    ></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -275,6 +286,8 @@ const videoProgress = ref({});
 const videoState = ref({});
 const showComments = ref(false);
 const showLikes = ref(false);
+const isDraggingProgress = ref(false);
+const progressBarContainer = ref(null);
 
 // Computed current video index based on videoId from URL
 const currentVideoIndex = computed(() => {
@@ -541,6 +554,9 @@ const handleKeyDown = (event) => {
 };
 
 const togglePlayPause = () => {
+  // Don't toggle if we're currently dragging the progress bar
+  if (isDraggingProgress.value) return;
+  
   const currentVideo = videoElements.value[currentVideoIndex.value];
   if (currentVideo) {
     if (currentVideo.paused) {
@@ -616,6 +632,12 @@ const closePlayer = () => {
 };
 
 const handleProgressBarClick = (event) => {
+  // Don't seek if we just finished dragging
+  if (isDraggingProgress.value) return;
+  
+  event.preventDefault();
+  event.stopPropagation();
+  
   const currentVideo = videoElements.value[currentVideoIndex.value];
   if (!currentVideo || !currentVideo.duration) return;
   
@@ -625,12 +647,68 @@ const handleProgressBarClick = (event) => {
   const progressBarWidth = rect.width;
   
   // Calculate the percentage clicked
-  const clickPercentage = clickX / progressBarWidth;
+  const clickPercentage = Math.max(0, Math.min(1, clickX / progressBarWidth));
   
   // Set the video time based on the click position
   const newTime = clickPercentage * currentVideo.duration;
-  currentVideo.currentTime = Math.max(0, Math.min(newTime, currentVideo.duration));
+  currentVideo.currentTime = newTime;
+};
+
+const handleProgressMouseDown = (event) => {
+  event.preventDefault();
+  event.stopPropagation();
   
+  const currentVideo = videoElements.value[currentVideoIndex.value];
+  if (!currentVideo || !currentVideo.duration) return;
+  
+  isDraggingProgress.value = true;
+  const wasPlaying = !currentVideo.paused;
+  
+  // Pause video while dragging for smoother scrubbing
+  if (wasPlaying) {
+    currentVideo.pause();
+  }
+  
+  const progressBar = event.currentTarget;
+  const rect = progressBar.getBoundingClientRect();
+  
+  const updateProgress = (e) => {
+    const clickX = e.clientX - rect.left;
+    const progressBarWidth = rect.width;
+    const clickPercentage = Math.max(0, Math.min(1, clickX / progressBarWidth));
+    const newTime = clickPercentage * currentVideo.duration;
+    currentVideo.currentTime = newTime;
+  };
+  
+  const handleMouseMove = (e) => {
+    updateProgress(e);
+  };
+  
+  const handleMouseUp = (e) => {
+    updateProgress(e);
+    
+    // Resume playing if it was playing before
+    if (wasPlaying) {
+      currentVideo.play().catch(err => {
+        console.error('Error resuming playback after drag:', err);
+      });
+    }
+    
+    // Clean up
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    
+    // Reset drag state after a small delay to prevent click event
+    setTimeout(() => {
+      isDraggingProgress.value = false;
+    }, 10);
+  };
+  
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+  
+  // Initial seek on mousedown
+  updateProgress(event);
 };
 
 // Load videos using getVideos function
