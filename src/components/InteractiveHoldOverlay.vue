@@ -16,6 +16,7 @@
         :interaction="getHoldInteraction(aiHolds[index])"
         :interaction-allowed="getHoldInteractionAllowed(aiHolds[index])"
         :color="getHoldColor(aiHolds[index])"
+        :hit-area-size="hitAreaSize"
         @click="handleHoldClick(aiHolds[index], index)"
         @hover="(isEntering, event) => handleHoldHover(aiHolds[index], isEntering, event)"
       />
@@ -28,6 +29,7 @@
         :interaction="getManualHoldInteraction(hold)"
         :interaction-allowed="getManualHoldInteractionAllowed(hold)"
         :color="getManualHoldColor(hold)"
+        :hit-area-size="hitAreaSize"
         @click="handleManualHoldClick(hold, index)"
         @hover="(isEntering, event) => handleManualHoldHover(hold, index, isEntering, event)"
       />
@@ -312,6 +314,11 @@ const isSingleModeEnabled = computed(() => toolModeChecks.value.single);
 // Combined drawing mode - either explicit drawing mode or quick draw mode
 const isAnyDrawingMode = computed(() => {
   return serverStore.isDrawingMode || isQuickDrawEnabled.value;
+});
+
+// Use small hit area when creating/editing boulder problems for precision
+const hitAreaSize = computed(() => {
+  return (props.isCreatingProblem || props.isEditingProblem) ? 'small' : 'large';
 });
 
 // Computed properties

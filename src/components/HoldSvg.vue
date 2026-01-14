@@ -42,6 +42,11 @@ const props = defineProps({
     type: String,
     default: '#3b82f6', // blue-500
   },
+  hitAreaSize: {
+    type: String,
+    default: 'large',
+    validator: (value) => ['small', 'large'].includes(value),
+  },
 });
 
 const emit = defineEmits(['click', 'hover']);
@@ -51,6 +56,7 @@ const holdClasses = computed(() => {
 
   classes.push(`interaction-${props.interaction}`);
   classes.push(`allowed-${props.interactionAllowed}`);
+  classes.push(`hit-area-${props.hitAreaSize}`);
 
   return classes;
 });
@@ -91,14 +97,19 @@ const handleHover = (isEntering, event) => {
 }
 
 /* Enlarge hit area by making all paths have thick transparent stroke */
-.hold-svg.allowed-selectable :deep(path),
-.hold-svg.allowed-selectable :deep(circle),
-.hold-svg.allowed-selectable :deep(ellipse),
-.hold-svg.allowed-selectable :deep(polygon),
-.hold-svg.allowed-selectable :deep(polyline),
-.hold-svg.allowed-selectable :deep(rect) {
+/* Large hit area: good for clicking to view videos */
+.hold-svg.allowed-selectable.hit-area-large :deep(:is(path, circle, ellipse, polygon, polyline, rect)) {
   stroke: transparent;
   stroke-width: 50;
+  paint-order: stroke fill;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+/* Small hit area: precise selection for boulder problems */
+.hold-svg.allowed-selectable.hit-area-small :deep(:is(path, circle, ellipse, polygon, polyline, rect)) {
+  stroke: transparent;
+  stroke-width: 8;
   paint-order: stroke fill;
   pointer-events: stroke;
   cursor: pointer;
