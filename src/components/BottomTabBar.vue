@@ -30,8 +30,10 @@
       </router-link>
 
       <!-- Profile Tab -->
-      <router-link
-        to="/profile"
+      <component
+        :is="userStore.isLoggedIn ? 'router-link' : 'button'"
+        :to="userStore.isLoggedIn ? '/profile' : undefined"
+        @click="!userStore.isLoggedIn ? openAuthModal() : undefined"
         class="flex flex-col items-center gap-1 px-4 transition-colors"
         :class="isActive('/profile') ? 'text-blue-600' : 'text-gray-600'"
       >
@@ -39,18 +41,29 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
         <span class="text-[11px] font-medium">Profile</span>
-      </router-link>
+      </component>
     </div>
   </nav>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { inject } from 'vue';
 import { useRoute } from 'vue-router';
+import { useUserStore } from '../stores/userStore.js';
 import { isNative } from '../utils/platform.js';
 
 const route = useRoute();
+const userStore = useUserStore();
 const isNativePlatform = isNative();
+
+// Inject auth modal from App.vue
+const authModal = inject('authModal');
+
+const openAuthModal = () => {
+  if (authModal?.open) {
+    authModal.open();
+  }
+};
 
 const isActive = (path) => {
   if (path === '/') {

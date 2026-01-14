@@ -10,6 +10,7 @@
  */
 
 import * as ort from 'onnxruntime-web';
+import { getONNXSessionConfig } from '../utils/wasmConfig.js';
 
 // Worker state
 let yolov8Session = null;
@@ -40,18 +41,8 @@ self.onmessage = async (event) => {
 
       console.log(`🧵 [PoseWorker] Creating sessions with ${optimalThreads} threads (hardware: ${hardwareCores}, reserved: 2)`);
 
-      // Universal optimized session config
-      const sessionConfig = {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: 'basic',
-        enableMemPattern: false,
-        enableCpuMemArena: false,
-        wasm: {
-          numThreads: optimalThreads,
-          simd: true,
-          threads: optimalThreads > 1,
-        },
-      };
+      // Get optimized session config for this platform
+      const sessionConfig = getONNXSessionConfig(optimalThreads);
 
       console.log(`⚙️ [PoseWorker] Config:`, {
         optimization: sessionConfig.graphOptimizationLevel,

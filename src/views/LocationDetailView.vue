@@ -273,7 +273,10 @@
     />
 
     <!-- Floating Action Button -->
-    <FloatingActionButton @click="handleBetaUploadClick" />
+    <FloatingActionButton 
+      :isAuthenticated="!!userStore.user"
+      @file-selected="handleVideoFileSelected"
+    />
 
   </div>
 </template>
@@ -779,38 +782,29 @@ const openProblemVideos = async (problem) => {
   }
 };
 
-const handleBetaUploadClick = () => {
-  if (!userStore.user) {
-    console.log('❌ User not authenticated, opening auth modal');
-    authModal.open();
-    return;
-  }
-  
-  // Use HTML file input - iOS will show native picker with "Take Video" and "Photo Library" options
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'video/*';
-  // No capture attribute = iOS shows picker with both record and library options
-  input.onchange = handleVideoFileSelected;
-  input.click();
-};
-
-// Handle video file selection (fallback for web platform)
-const handleVideoFileSelected = async (event) => {
-  const file = event.target?.files?.[0];
+// Handle video file selection from FloatingActionButton
+const handleVideoFileSelected = async (file) => {
   if (!file) return;
   
   try {
     console.log('📹 Video selected:', file.name);
     
-    // Extract thumbnail from video
-    const { extractVideoThumbnail, getBase64Size } = await import('@/utils/videoThumbnail');
-    const thumbnailBase64 = await extractVideoThumbnail(file, 1, 320);
-    const thumbnailSizeKB = getBase64Size(thumbnailBase64);
-    console.log(`✅ Thumbnail extracted: ${thumbnailSizeKB.toFixed(1)} KB`);
+    // Extract thumbnail from video (with fallback for iOS 15)
+    let thumbnailBase64 = null;
+    try {
+      const { extractVideoThumbnail, getBase64Size } = await import('@/utils/videoThumbnail');
+      thumbnailBase64 = await extractVideoThumbnail(file, 1, 320);
+      const thumbnailSizeKB = getBase64Size(thumbnailBase64);
+      console.log(`✅ Thumbnail extracted: ${thumbnailSizeKB.toFixed(1)} KB`);
+    } catch (thumbError) {
+      console.warn('⚠️ Failed to extract thumbnail (iOS 15?), proceeding without:', thumbError);
+      // Continue without thumbnail - this is OK
+    }
     
-    // Attach thumbnail to file
-    file.thumbnailBase64 = thumbnailBase64;
+    // Attach thumbnail to file if we got one
+    if (thumbnailBase64) {
+      file.thumbnailBase64 = thumbnailBase64;
+    }
     
     // Generate new session ID
     currentUploadSessionId.value = generateUUID();

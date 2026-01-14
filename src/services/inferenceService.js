@@ -5,6 +5,7 @@
  */
 
 import * as ort from 'onnxruntime-web';
+import { getONNXSessionConfig } from '@/utils/wasmConfig';
 
 let session = null;
 let sessionCreationPromise = null;
@@ -73,18 +74,8 @@ export async function createSession() {
       console.log('   Model: superpoint_lightglue_pipeline.ort.onnx');
       console.log('   This may take 1-2 minutes on first load (model needs to download)');
       
-      // Universal optimized ONNX session config
-      const sessionConfig = {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: 'basic', // Basic optimization for all devices - saves memory
-        enableMemPattern: false,  // DISABLE to reduce memory usage
-        enableCpuMemArena: false, // DISABLE to reduce memory usage
-        wasm: {
-          numThreads: threadCount,
-          simd: true,
-          threads: threadCount > 1,
-        },
-      };
+      // Get optimized session config for this platform
+      const sessionConfig = getONNXSessionConfig(threadCount);
       
       console.log(`⚙️ [InferenceService] Session config:`, {
         threads: threadCount,

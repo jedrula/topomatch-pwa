@@ -53,6 +53,22 @@ self.onmessage = async (event) => {
       
       console.log(`🧵 [InferenceWorker] Using ${maxThreads} threads (hardware: ${hardwareCores})`);
       
+      // Detect iOS version for SIMD compatibility
+      const isIOS15OrBelow = (() => {
+        const ua = navigator.userAgent;
+        const match = ua.match(/OS (\d+)_/);
+        if (match) {
+          const version = parseInt(match[1], 10);
+          return version <= 15;
+        }
+        return false;
+      })();
+      
+      const useSIMD = !isIOS15OrBelow;
+      if (isIOS15OrBelow) {
+        console.log('⚠️ [InferenceWorker] iOS 15 or below detected - disabling SIMD');
+      }
+      
       const sessionConfig = {
         executionProviders: ['wasm'],
         graphOptimizationLevel: 'basic',
@@ -61,7 +77,7 @@ self.onmessage = async (event) => {
         wasm: {
           initialMemory: 128 * 1024 * 1024,
           numThreads: maxThreads,
-          simd: true,
+          simd: useSIMD,
           threads: maxThreads > 1,
         },
       };

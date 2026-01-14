@@ -1,6 +1,16 @@
 <template>
+  <!-- Hidden file input -->
+  <input
+    ref="fileInput"
+    type="file"
+    accept="video/*"
+    class="hidden"
+    @change="handleFileChange"
+  />
+  
+  <!-- Styled button that triggers file input -->
   <button
-    @click="handleClick"
+    @click="triggerFileInput"
     :class="[
       'fixed bottom-15 right-4 h-14 bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 hover:bg-green-700 z-40',
       showText ? 'w-auto px-4 gap-2' : 'w-14'
@@ -14,21 +24,48 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
 
-const emit = defineEmits(['click']);
+const props = defineProps({
+  isAuthenticated: {
+    type: Boolean,
+    required: true
+  }
+});
+
+const emit = defineEmits(['file-selected']);
+const authModal = inject('authModal');
 
 const scrollY = ref(0);
+const fileInput = ref(null);
 
 // Show text only when at the top (scrolled less than 100px)
 const showText = computed(() => scrollY.value < 100);
 
-const handleScroll = (event) => {
-  scrollY.value = event.target.scrollTop;
+const triggerFileInput = () => {
+  // Check authentication and open modal if needed
+  if (!props.isAuthenticated) {
+    authModal.open();
+    return;
+  }
+  
+  // User is authenticated, trigger file input
+  if (fileInput.value) {
+    fileInput.value.click();
+  }
 };
 
-const handleClick = () => {
-  emit('click');
+const handleFileChange = (event) => {
+  const file = event.target?.files?.[0];
+  if (file) {
+    emit('file-selected', file);
+    // Reset input so the same file can be selected again
+    event.target.value = '';
+  }
+};
+
+const handleScroll = (event) => {
+  scrollY.value = event.target.scrollTop;
 };
 
 onMounted(() => {

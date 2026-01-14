@@ -57,6 +57,22 @@ self.onmessage = async (event) => {
       console.log('   Model: superpoint_lightglue_pipeline.ort.onnx');
       console.log('   This may take 1-2 minutes on first load (model needs to download)');
       
+      // Detect iOS version for SIMD compatibility
+      const isIOS15OrBelow = (() => {
+        const ua = navigator.userAgent;
+        const match = ua.match(/OS (\d+)_/);
+        if (match) {
+          const version = parseInt(match[1], 10);
+          return version <= 15;
+        }
+        return false;
+      })();
+      
+      const useSIMD = !isIOS15OrBelow;
+      if (isIOS15OrBelow) {
+        console.log('⚠️ [InferenceWorker] iOS 15 or below detected - disabling SIMD');
+      }
+      
       // Universal optimized ONNX session config
       const sessionConfig = {
         executionProviders: ['wasm'],
@@ -65,7 +81,7 @@ self.onmessage = async (event) => {
         enableCpuMemArena: false, // DISABLE to reduce memory usage
         wasm: {
           numThreads: threadCount,
-          simd: true,
+          simd: useSIMD,
           threads: threadCount > 1,
         },
       };

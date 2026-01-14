@@ -15,27 +15,49 @@ export async function extractVideoThumbnail(videoFile, seekTime = 1, maxWidth = 
     video.muted = true;
     video.playsInline = true;
 
+    let blobUrl = null;
+
     // Clean up function
     const cleanup = () => {
-      URL.revokeObjectURL(video.src);
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+        blobUrl = null;
+      }
+      video.src = '';
+      video.load();
     };
 
-    // Error handler
-    video.onerror = () => {
+    // Error handler with timeout
+    const timeoutId = setTimeout(() => {
       cleanup();
-      reject(new Error('Failed to load video for thumbnail extraction'));
+      reject(new Error('Video thumbnail extraction timed out (iOS 15 blob URL issue?)'));
+    }, 10000); // 10 second timeout
+
+    video.onerror = (e) => {
+      clearTimeout(timeoutId);
+      cleanup();
+      console.error('Video load error:', e);
+      reject(new Error(`Failed to load video for thumbnail extraction: ${video.error?.message || 'unknown error'}`));
     };
 
     // When metadata is loaded, seek to the desired time
     video.onloadedmetadata = () => {
-      // Ensure seek time is valid
-      const actualSeekTime = Math.min(seekTime, video.duration - 0.1);
-      video.currentTime = actualSeekTime;
+      try {
+        // Ensure seek time is valid
+        const actualSeekTime = Math.min(seekTime, video.duration - 0.1);
+        video.currentTime = actualSeekTime;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        cleanup();
+        reject(new Error('Failed to seek video: ' + error.message));
+      }
     };
 
     // When seek completes, capture the frame
     video.onseeked = () => {
       try {
+        clearTimeout(timeoutId);
+
         // Calculate dimensions maintaining aspect ratio
         const aspectRatio = video.videoHeight / video.videoWidth;
         canvas.width = maxWidth;
@@ -50,13 +72,21 @@ export async function extractVideoThumbnail(videoFile, seekTime = 1, maxWidth = 
         cleanup();
         resolve(thumbnailBase64);
       } catch (error) {
+        clearTimeout(timeoutId);
         cleanup();
         reject(error);
       }
     };
 
-    // Load video from file
-    video.src = URL.createObjectURL(videoFile);
+    // Load video from file - create blob URL
+    try {
+      blobUrl = URL.createObjectURL(videoFile);
+      video.src = blobUrl;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      cleanup();
+      reject(new Error('Failed to create blob URL: ' + error.message));
+    }
   });
 }
 
