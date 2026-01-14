@@ -302,7 +302,13 @@ export const ascentService = {
       }
 
       const ascentData = ascentSnap.data();
-      if (ascentData.userId !== user.uid) {
+      
+      // Allow update if user owns the ascent OR user is admin
+      const { useUserStore } = await import('../stores/userStore');
+      const userStore = useUserStore();
+      const userIsAdmin = userStore.isAdmin;
+      
+      if (ascentData.userId !== user.uid && !userIsAdmin) {
         throw new Error('You can only update your own ascents');
       }
 

@@ -128,12 +128,26 @@
                 <button
                   v-if="canReprocessVideo(video)"
                   @click.stop="handleManualAssignClick(video)"
-                  class="absolute top-2 right-[88px] w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-blue-600 hover:text-blue-700 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
+                  class="absolute top-2 right-[88px] w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-blue-600 hover:text-blue-700 rounded-full shadow-sm transition-all z-10"
+                  :class="[isTouchDevice ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
                   :aria-label="`Manually assign problem to video ${index + 1}`"
                   title="Pick a problem from images"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"></path>
+                  </svg>
+                </button>
+
+                <!-- Change routesetting button (admin only) -->
+                <button
+                  v-if="userStore.isAdmin"
+                  @click.stop="handleChangeRoutesettingClick(video)"
+                  class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-purple-600 hover:text-purple-700 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
+                  :aria-label="`Change routesetting for video ${index + 1}`"
+                  title="Change routesetting (clears problem assignment)"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                   </svg>
                 </button>
               </template>
@@ -174,6 +188,14 @@
       </div>
     </div>
 
+    <!-- Change Routesetting Dialog -->
+    <ChangeRoutesettingDialog
+      :video="videoToChangeRoutesetting"
+      :available-routesettings="availableRoutesettings"
+      @close="videoToChangeRoutesetting = null"
+      @success="handleRoutesettingChanged"
+    />
+
     <!-- Video Player Shorts -->
     <VideoPlayerShorts
       v-if="route.query.videoId"
@@ -191,12 +213,16 @@ import { videoService } from '@/services/videoService';
 import { getCurrentUser } from '@/services/authService';
 import { useUserStore } from '@/stores/userStore';
 import { getDefaultVideoPoster, formatVideoDuration } from '@/utils/videoUtils';
+import { isTouchDevice as detectTouchDevice } from '@/utils/platform';
 import VideoPlayerShorts from './VideoPlayerShorts.vue';
 import VideoGridItem from './VideoGridItem.vue';
+import ChangeRoutesettingDialog from './ChangeRoutesettingDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+
+const isTouchDevice = computed(() => detectTouchDevice());
 
 const props = defineProps({
   videos: {
@@ -211,15 +237,23 @@ const props = defineProps({
   location: {
     type: Object,
     default: null
+  },
+  allRoutesettings: {
+    type: Array,
+    default: () => []
   }
 });
 
-const emit = defineEmits(['video-deleted', 'reprocess-video']);
+const emit = defineEmits(['video-deleted', 'reprocess-video', 'open-manual-assign', 'routesetting-changed']);
 
 const showDeleteConfirm = ref(false);
 const videoToDelete = ref(null);
 const deleting = ref(false);
 const isDeletingAll = ref(false);
+
+// Routesetting change state
+const videoToChangeRoutesetting = ref(null);
+const availableRoutesettings = computed(() => props.allRoutesettings || []);
 
 // Default poster image (gray placeholder with play icon)
 const defaultPoster = getDefaultVideoPoster();
@@ -263,11 +297,11 @@ const canReprocessVideo = (video) => {
   if (!currentUser) return false;
   
   // Can re-process if:
-  // 1. It's the user's video
+  // 1. It's the user's video OR user is admin
   // 2. Video doesn't have a problemId (unclassified)
   // 3. Video is not currently uploading or analyzing
   return (
-    video.userId === currentUser.uid &&
+    (video.userId === currentUser.uid || userStore.isAdmin) &&
     !video.problemId &&
     !video.isUploading &&
     !video.isAnalyzing
@@ -288,6 +322,15 @@ const handleManualAssignClick = (video) => {
   // This will enable "assignment mode" where user can pick a problem
   // Emit event to parent to get first image ID
   emit('open-manual-assign', video.id);
+};
+
+const handleChangeRoutesettingClick = (video) => {
+  videoToChangeRoutesetting.value = video;
+};
+
+const handleRoutesettingChanged = (videoId) => {
+  videoToChangeRoutesetting.value = null;
+  emit('routesetting-changed', videoId);
 };
 
 const cancelDelete = () => {

@@ -1,10 +1,13 @@
 import { defineStore } from 'pinia';
 import { authService } from '../services/authService.js';
 import { useLocationLikesStore } from './locationLikesStore.js';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../services/firebase.js';
 
 export const useUserStore = defineStore('user', {
   state: () => ({
     user: null,
+    userProfile: null, // Firestore user document
     isLoggedIn: false,
     isLoading: true, // Loading state for auth initialization
     authReadyPromise: null, // Promise that resolves when auth is initialized
@@ -12,9 +15,9 @@ export const useUserStore = defineStore('user', {
 
   getters: {
     isAdmin: (state) => {
-      if (!state.user) return false;
-      // Check custom claims for admin role
-      return state.user.customClaims?.admin === true;
+      if (!state.userProfile) return false;
+      // Check Firestore user document for isAdmin field
+      return state.userProfile.isAdmin === true;
     },
     isUser() {
       return this.isLoggedIn && !this.isAdmin;
@@ -39,6 +42,21 @@ export const useUserStore = defineStore('user', {
   },
 
   actions: {
+    // Load user profile from Firestore
+    async loadUserProfile(userId) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          this.userProfile = userDoc.data();
+        } else {
+          this.userProfile = null;
+        }
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+        this.userProfile = null;
+      }
+    },
+
     // Initialize auth listener
     initAuth() {
       if (!this.authReadyPromise) {
@@ -48,10 +66,13 @@ export const useUserStore = defineStore('user', {
             this.isLoggedIn = !!user;
             this.isLoading = false;
             
-            // Load user's likes when they sign in
+            // Load user profile and likes when they sign in
             if (user) {
+              await this.loadUserProfile(user.uid);
               const likesStore = useLocationLikesStore();
               await likesStore.loadUserLikes();
+            } else {
+              this.userProfile = null;
             }
             
             resolve(user);
@@ -67,6 +88,7 @@ export const useUserStore = defineStore('user', {
         const user = await authService.signIn(email, password);
         this.user = user;
         this.isLoggedIn = true;
+        await this.loadUserProfile(user.uid);
         return user;
       } catch (error) {
         console.error('Sign in failed:', error);
@@ -80,6 +102,7 @@ export const useUserStore = defineStore('user', {
         const user = await authService.signUp(email, password, displayName);
         this.user = user;
         this.isLoggedIn = true;
+        await this.loadUserProfile(user.uid);
         return user;
       } catch (error) {
         console.error('Sign up failed:', error);
@@ -92,6 +115,7 @@ export const useUserStore = defineStore('user', {
       try {
         await authService.signOut();
         this.user = null;
+        this.userProfile = null;
         this.isLoggedIn = false;
         
         // Clear likes on sign out

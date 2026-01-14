@@ -114,25 +114,26 @@ const handleHover = (isEntering, event) => {
   opacity: 0;
 }
 
-/* Selected: border only, no fill */
-.interaction-selected {
+/* Selected: border only, no fill - must override .allowed-selectable */
+.hold-svg.interaction-selected {
   opacity: 1;
 }
 
-.interaction-selected :deep(path) {
-  stroke: var(--hold-color, #3b82f6);
-  fill: transparent;
-  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 1));
+.hold-svg.interaction-selected :deep(:is(path, circle, ellipse, polygon, polyline, rect)) {
+  stroke: var(--hold-color, #3b82f6) !important;
+  fill: transparent !important;
+  filter: drop-shadow(0 0 8px var(--hold-color));
   animation: pulse-selected 1s ease-in-out infinite;
+  pointer-events: stroke;
 }
 
 @keyframes pulse-selected {
   0%, 100% {
-    stroke-width: 13;
+    stroke-width: 4;
     stroke-opacity: 1;
   }
   50% {
-    stroke-width: 6;
+    stroke-width: 2;
     stroke-opacity: 0.7;
   }
 }

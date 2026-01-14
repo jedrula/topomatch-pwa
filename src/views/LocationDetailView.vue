@@ -194,9 +194,11 @@
           :videos="displayVideos"
           :loading="videosLoading"
           :location="location"
+          :all-routesettings="allRoutesettings"
           @video-deleted="handleVideoDeleted"
           @reprocess-video="handleReprocessVideo"
           @open-manual-assign="handleOpenManualAssign"
+          @routesetting-changed="handleRoutesettingChanged"
         />
 
         <!-- Boulder Problems Summary -->
@@ -702,6 +704,13 @@ const handleVideoDeleted = async (videoId) => {
       problemVideoCounts.value[deletedVideo.problemId] - 1
     );
   }
+};
+
+// Handle routesetting change
+const handleRoutesettingChanged = async (videoId) => {
+  console.log('📅 Routesetting changed for video:', videoId);
+  // Reload videos to reflect the changes
+  await loadLocationVideos();
 };
 
 // Handle video re-processing (for unclassified videos)
