@@ -152,9 +152,9 @@
               :style="getVideoContentDimensions(index)"
               @click="togglePlayPause"
             >
-              <!-- Play button (when paused or ready, but not while dragging) -->
-              <div 
-                v-if="(videoState[index] === 'paused' || videoState[index] === 'ready') && !isDraggingProgress"
+<!-- Play button (only when explicitly paused by user, not while dragging) -->
+            <div 
+              v-if="videoState[index] === 'paused' && !isDraggingProgress"
                 class="absolute inset-0 flex items-center justify-center pointer-events-none"
               >
                 <div class="bg-black/50 rounded-full p-4">
