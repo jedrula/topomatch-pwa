@@ -3,15 +3,19 @@
     class="aspect-square bg-gray-50 rounded-lg overflow-hidden relative group cursor-pointer hover:ring-2 hover:ring-gray-900/10 transition-all"
     @click="$emit('click')"
   >
-    <!-- Video thumbnail -->
-    <video
-      :src="videoUrl"
-      :poster="thumbnailUrl"
+    <!-- Video thumbnail - use poster only, don't load video -->
+    <img
+      v-if="thumbnailUrl"
+      :src="thumbnailUrl"
       class="w-full h-full object-cover"
-      muted
-      preload="metadata"
-      crossorigin="anonymous"
+      loading="lazy"
+      alt="Video thumbnail"
     />
+    <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center">
+      <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+    </div>
 
     <!-- Play button overlay -->
     <div class="absolute inset-0 flex items-center justify-center group-hover:bg-black/20 transition-all">

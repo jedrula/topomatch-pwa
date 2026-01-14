@@ -51,20 +51,6 @@
       </div>
     </div>
 
-    <!-- DEBUG: Video state info -->
-    <div 
-      v-if="currentVideo" 
-      class="absolute top-20 left-1/2 -translate-x-1/2 z-[101] bg-black/80 text-white text-xs p-2 rounded font-mono"
-    >
-      <div>Time: {{ videoElements[currentVideoIndex]?.currentTime?.toFixed(2) || 0 }} / {{ videoElements[currentVideoIndex]?.duration?.toFixed(2) || 0 }}s</div>
-      <div>Paused: {{ videoElements[currentVideoIndex]?.paused }}</div>
-      <div>Ended: {{ videoElements[currentVideoIndex]?.ended }}</div>
-      <div>Progress: {{ getVideoProgress(currentVideoIndex).toFixed(1) }}%</div>
-      <div>State: {{ videoState[currentVideoIndex] || 'unknown' }}</div>
-      <div>ReadyState: {{ videoElements[currentVideoIndex]?.readyState }} ({{ ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA', 'HAVE_FUTURE_DATA', 'HAVE_ENOUGH_DATA'][videoElements[currentVideoIndex]?.readyState || 0] }})</div>
-      <div>NetworkState: {{ videoElements[currentVideoIndex]?.networkState }} ({{ ['NETWORK_EMPTY', 'NETWORK_IDLE', 'NETWORK_LOADING', 'NETWORK_NO_SOURCE'][videoElements[currentVideoIndex]?.networkState || 0] }})</div>
-    </div>
-
     <!-- Video container with swipe and scroll support -->
     <div 
       ref="videoContainer"
@@ -111,8 +97,9 @@
           class="w-full h-full flex items-center justify-center relative"
           :style="{ scrollSnapAlign: 'start' }"
         >
-          <!-- Video element -->
+          <!-- Video element - only load videos near current index to prevent memory crashes -->
           <video
+            v-if="Math.abs(index - currentVideoIndex) <= 1"
             :ref="el => {
               if (el) {
                 videoElements[index] = el;
@@ -127,15 +114,36 @@
             :class="{ 'pointer-events-none': index !== currentVideoIndex }"
             @ended="onVideoEnded"
             playsinline
-            preload="metadata"
-            crossorigin="anonymous"
+            :preload="index === currentVideoIndex ? 'auto' : 'none'"
           />
+          
+          <!-- Thumbnail overlay - show when video not loaded OR not ready yet -->
+          <div
+            v-if="video.thumbnailBase64 && (Math.abs(index - currentVideoIndex) > 1 || !['playing', 'ready', 'paused'].includes(videoState[index]))"
+            class="absolute inset-0 flex items-center justify-center bg-black"
+          >
+            <img
+              :src="video.thumbnailBase64"
+              class="w-full h-full object-contain"
+              alt="Video thumbnail"
+            />
+          </div>
           
           <!-- Custom video controls overlay -->
           <div 
             v-if="index === currentVideoIndex" 
             class="absolute inset-0 flex items-center justify-center z-[60] pointer-events-none"
           >
+            <!-- Loading/buffering spinner - show immediately -->
+            <div 
+              v-if="videoState[index] === 'loading' || videoState[index] === 'buffering'"
+              class="absolute inset-0 flex items-center justify-center pointer-events-none"
+            >
+              <div class="bg-black/50 rounded-full p-4">
+                <div class="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              </div>
+            </div>
+            
             <!-- Controls container that matches the actual video content size -->
             <!-- Only show when video dimensions are loaded to prevent layout shift -->
             <div 
@@ -144,19 +152,9 @@
               :style="getVideoContentDimensions(index)"
               @click="togglePlayPause"
             >
-              <!-- Loading/buffering spinner -->
-              <div 
-                v-if="videoState[index] === 'loading' || videoState[index] === 'buffering'"
-                class="absolute inset-0 flex items-center justify-center pointer-events-none"
-              >
-                <div class="bg-black/50 rounded-full p-4">
-                  <div class="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-                </div>
-              </div>
-              
               <!-- Play button (when paused or ready, but not while dragging) -->
               <div 
-                v-else-if="(videoState[index] === 'paused' || videoState[index] === 'ready') && !isDraggingProgress"
+                v-if="(videoState[index] === 'paused' || videoState[index] === 'ready') && !isDraggingProgress"
                 class="absolute inset-0 flex items-center justify-center pointer-events-none"
               >
                 <div class="bg-black/50 rounded-full p-4">
@@ -361,6 +359,20 @@ const setupVideoListeners = (video, index) => {
   if (!video || video.dataset.listenersAdded) return;
   video.dataset.listenersAdded = 'true';
   
+  // Throttle timeupdate to reduce energy impact
+  let lastUpdate = 0;
+  video.addEventListener('timeupdate', () => {
+    const now = Date.now();
+    // Only update every 100ms to reduce CPU usage
+    if (now - lastUpdate > 100) {
+      lastUpdate = now;
+      // Only update if video is valid and has duration
+      if (video && !video.error && video.duration && isFinite(video.duration)) {
+        updateVideoProgress(index, video);
+      }
+    }
+  });
+  
   video.addEventListener('loadstart', () => {
     videoState.value[index] = 'loading';
   });
@@ -381,13 +393,11 @@ const setupVideoListeners = (video, index) => {
     videoState.value[index] = 'buffering';
   });
   
-  video.addEventListener('timeupdate', () => {
-    updateVideoProgress(index, video);
-  });
-  
   video.addEventListener('error', (e) => {
-    console.error(`Video ${index} error:`, e);
+    console.error(`Video ${index} error:`, video.error);
     videoState.value[index] = 'error';
+    // Pause other operations on errored video
+    video.pause();
   });
 };
 
@@ -450,13 +460,23 @@ const observeVideoContainers = () => {
   }
 };
 
-// Pause all videos except the current one
+// Pause all videos except the current one and cleanup distant videos
 const pauseOtherVideos = (currentIndex) => {
   Object.entries(videoElements.value).forEach(([index, video]) => {
     const videoIndex = parseInt(index);
-    if (video && videoIndex !== currentIndex && !video.paused) {
-      video.pause();
-      video.currentTime = 0; // Reset to beginning
+    if (video && videoIndex !== currentIndex) {
+      if (!video.paused) {
+        video.pause();
+        video.currentTime = 0;
+      }
+      // Unload videos far from current view to free memory
+      if (Math.abs(videoIndex - currentIndex) > 1) {
+        video.removeAttribute('src');
+        video.load(); // Force unload
+        // Clear stored progress data
+        delete videoProgress.value[videoIndex];
+        delete videoState.value[videoIndex];
+      }
     }
   });
 };
@@ -652,6 +672,14 @@ const getVideoContentDimensions = (index) => {
 
 const closePlayer = () => {
   pauseCurrentVideo();
+  // Cleanup all videos before closing
+  Object.values(videoElements.value).forEach(video => {
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    }
+  });
   emit('close');
 };
 
@@ -662,19 +690,24 @@ const handleProgressBarClick = (event) => {
   event.stopPropagation();
   
   const currentVideo = videoElements.value[currentVideoIndex.value];
-  if (!currentVideo || !currentVideo.duration) return;
+  if (!currentVideo || currentVideo.error || currentVideo.readyState < 1 || !currentVideo.duration) return;
   
   const wasPlaying = !currentVideo.paused;
   
   const rect = event.currentTarget.getBoundingClientRect();
   const clickPercentage = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+  const newTime = clickPercentage * currentVideo.duration;
   
-  currentVideo.currentTime = clickPercentage * currentVideo.duration;
-  
-  if (wasPlaying) {
-    currentVideo.addEventListener('seeked', () => {
-      currentVideo.play().catch(err => console.error('Play after seek failed:', err));
-    }, { once: true });
+  if (isFinite(newTime) && newTime >= 0 && newTime <= currentVideo.duration) {
+    currentVideo.currentTime = newTime;
+    
+    if (wasPlaying) {
+      currentVideo.addEventListener('seeked', () => {
+        if (currentVideo && !currentVideo.error) {
+          currentVideo.play().catch(err => console.error('Play after seek failed:', err));
+        }
+      }, { once: true });
+    }
   }
 };
 
@@ -697,9 +730,17 @@ const handleProgressDrag = (event, getClientX) => {
   const rect = progressBar.getBoundingClientRect();
   
   const seekTo = (clientX) => {
+    // Guard against seeking on invalid video
+    if (!currentVideo || currentVideo.readyState < 1 || !currentVideo.duration) return;
+    
     const clickX = clientX - rect.left;
     const clickPercentage = Math.max(0, Math.min(1, clickX / rect.width));
-    currentVideo.currentTime = clickPercentage * currentVideo.duration;
+    const newTime = clickPercentage * currentVideo.duration;
+    
+    // Only seek if new time is valid
+    if (isFinite(newTime) && newTime >= 0 && newTime <= currentVideo.duration) {
+      currentVideo.currentTime = newTime;
+    }
   };
   
   const cleanup = (clientX) => {
@@ -709,10 +750,11 @@ const handleProgressDrag = (event, getClientX) => {
     }
     
     // Wait for seek to complete before resuming
-    if (wasPlaying) {
+    if (wasPlaying && currentVideo && !currentVideo.error) {
       const resumePlayback = () => {
-        currentVideo.removeEventListener('seeked', resumePlayback);
-        currentVideo.play().catch(err => console.error('Play after seek failed:', err));
+        if (currentVideo && !currentVideo.error) {
+          currentVideo.play().catch(err => console.error('Play after seek failed:', err));
+        }
       };
       currentVideo.addEventListener('seeked', resumePlayback, { once: true });
     }
@@ -898,6 +940,15 @@ onUnmounted(() => {
   if (intersectionObserver) {
     intersectionObserver.disconnect();
   }
+  // Cleanup all videos to prevent memory leaks
+  Object.values(videoElements.value).forEach(video => {
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    }
+  });
+  videoElements.value = {};
 });
 
 // Expose initializePlayer so parent can call it when videos load
