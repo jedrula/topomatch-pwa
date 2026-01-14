@@ -109,7 +109,8 @@
             :src="video.url || video.downloadUrl"
             :poster="video.thumbnailBase64"
             :controls="false"
-            :muted="false"
+            :muted="isMuted"
+            crossorigin="anonymous"
             class="w-full h-full object-contain"
             :class="{ 'pointer-events-none': index !== currentVideoIndex }"
             @ended="onVideoEnded"
@@ -314,7 +315,7 @@ const videoContainer = ref(null);
 const videoElements = ref({});
 const isMuted = ref(true); // Start muted by default
 const videoProgress = ref({});
-// Single source of truth for video states: 'loading', 'ready', 'playing', 'paused', 'buffering'
+// Single source of truth for video states: 'loading', 'ready', 'playing', 'paused', 'buffering', 'error'
 const videoState = ref({});
 const showComments = ref(false);
 const showLikes = ref(false);
@@ -435,7 +436,7 @@ const setupIntersectionObserver = () => {
               const video = videoElements.value[newIndex];
               if (video && video.paused) {
                 video.muted = isMuted.value;
-                video.play().catch(err => console.log('Autoplay failed:', err));
+                video.play().catch(err => console.error('Autoplay failed:', err));
               }
             });
           }
@@ -541,17 +542,17 @@ const pauseCurrentVideo = () => {
 
 const playCurrentVideo = async (resetTime = true) => {
   const currentVideo = videoElements.value[currentVideoIndex.value];
-  console.log('Playing video at index:', currentVideoIndex.value);
-  if (currentVideo) {
-    try {
-      if (resetTime) {
-        currentVideo.currentTime = 0;
-      }
-      currentVideo.muted = isMuted.value;
-      await currentVideo.play();
-    } catch (error) {
-      console.log('Video play failed:', error);
+  if (!currentVideo) return;
+  
+  try {
+    if (resetTime) {
+      currentVideo.currentTime = 0;
     }
+    currentVideo.muted = isMuted.value;
+    await currentVideo.play();
+  } catch (error) {
+    console.error('Video play failed:', error);
+    videoState.value[currentVideoIndex.value] = 'error';
   }
 };
 
