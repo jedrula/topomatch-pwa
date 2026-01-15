@@ -259,6 +259,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  locationName: {
+    type: String,
+    default: null,
+  },
   sessionId: {
     type: String,
     default: null, // If not provided, will generate one
@@ -415,6 +419,7 @@ const createAscentAndStartUpload = async (videoFile) => {
 
     // Create the ascent record in Firestore using logAscent
     const ascentData = {
+      locationName: props.locationName || null, // Denormalize location name for display
       attemptType: 'flash', // Default, user can change later
       notes: '',
       routesetting: props.currentRoutesetting || null,
@@ -422,7 +427,6 @@ const createAscentAndStartUpload = async (videoFile) => {
       video: {
         status: 'uploading',
         uploadedAt: new Date().toISOString(),
-        // Include thumbnail if extracted from video file
         // thumbnailUrl will be generated server-side after upload
       },
     };

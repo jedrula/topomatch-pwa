@@ -248,6 +248,7 @@
       :session-id="currentUploadSessionId"
       :comparison-images="filteredComparisonImages"
       :location-id="route.params.locationId"
+      :location-name="location?.name"
       :current-routesetting="currentRoutesetting"
       :pending-redirect-data="pendingRedirectData"
       :get-grade-color="getGradeColor"

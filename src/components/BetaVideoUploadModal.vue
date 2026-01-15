@@ -36,6 +36,7 @@
           ref="videoMatcherRef"
           :comparison-images="comparisonImages"
           :location-id="locationId"
+          :location-name="locationName"
           :session-id="sessionId"
           :current-routesetting="currentRoutesetting"
           title="Upload Beta Video"
@@ -322,6 +323,10 @@ defineProps({
   locationId: {
     type: String,
     required: true
+  },
+  locationName: {
+    type: String,
+    default: null
   },
   currentRoutesetting: {
     type: String,

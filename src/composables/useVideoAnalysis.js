@@ -239,6 +239,9 @@ export function useVideoAnalysis() {
 
   // Handle ascent form submission from the video upload flow
   const handleAscentFormSubmit = async (submitData) => {
+    console.error('🚨🚨🚨 useVideoAnalysis.handleAscentFormSubmit CALLED - THIS CODE PATH SHOULD BE DEAD! 🚨🚨🚨');
+    console.error('submitData:', submitData);
+    
     try {
       // The submitData contains:
       // - formData: { attemptType, userGrade, notes, date }
