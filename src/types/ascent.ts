@@ -31,8 +31,8 @@ export interface AscentVideo {
   /** When transcoding completed */
   transcodedAt?: Timestamp;
   
-  /** Base64 encoded thumbnail image (JPEG, ~20-50KB) */
-  thumbnailBase64?: string;
+  /** Public URL to video thumbnail (generated server-side) */
+  thumbnailUrl?: string;
   
   /** Error message if status='error' */
   error?: string;

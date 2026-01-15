@@ -66,15 +66,10 @@ const props = defineProps({
 
 defineEmits(['click']);
 
-// Extract data from canonical ascent structure
-const videoUrl = computed(() => {
-  // Handle both flat (transformed) and nested (raw) structures
-  return props.ascent.downloadUrl || props.ascent.url || props.ascent.video?.transcodedPath || props.ascent.video?.originalPath || '';
-});
 
 const thumbnailUrl = computed(() => {
   // Handle both flat (transformed) and nested (raw) structures
-  return props.ascent.thumbnailBase64 || props.ascent.video?.thumbnailBase64 || getDefaultVideoPoster();
+  return props.ascent.thumbnailUrl || props.ascent.video?.thumbnailUrl || getDefaultVideoPoster();
 });
 
 const problemName = computed(() => {

@@ -423,7 +423,7 @@ const createAscentAndStartUpload = async (videoFile) => {
         status: 'uploading',
         uploadedAt: new Date().toISOString(),
         // Include thumbnail if extracted from video file
-        ...(videoFile.thumbnailBase64 && { thumbnailBase64: videoFile.thumbnailBase64 }),
+        // thumbnailUrl will be generated server-side after upload
       },
     };
 

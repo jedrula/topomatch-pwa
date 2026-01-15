@@ -107,7 +107,7 @@
               }
             }"
             :src="video.url || video.downloadUrl"
-            :poster="video.thumbnailBase64"
+            :poster="video.thumbnailUrl"
             :controls="false"
             :muted="isMuted"
             crossorigin="anonymous"
@@ -120,11 +120,11 @@
           
           <!-- Thumbnail overlay - show when video not loaded OR not ready yet -->
           <div
-            v-if="video.thumbnailBase64 && (Math.abs(index - currentVideoIndex) > 1 || !['playing', 'ready', 'paused'].includes(videoState[index]))"
+            v-if="video.thumbnailUrl && (Math.abs(index - currentVideoIndex) > 1 || !['playing', 'ready', 'paused'].includes(videoState[index]))"
             class="absolute inset-0 flex items-center justify-center bg-black"
           >
             <img
-              :src="video.thumbnailBase64"
+              :src="video.thumbnailUrl"
               class="w-full h-full object-contain"
               alt="Video thumbnail"
             />

@@ -8,17 +8,14 @@ import * as logger from "firebase-functions/logger";
 // Region configuration - all functions deployed to europe-west1
 const REGION = "europe-west1";
 
-// Video transcoding functions
-export {transcodeVideo, onTranscodingComplete} from "./videoTranscoding";
+// 🎯 UNIFIED STORAGE TRIGGER - handles all storage events with routing
+export { onStorageFileCreated } from "./storage";
 
 // Ascent cleanup function (handles /ascents collection with embedded video)
 export {onAscentDeleted} from "./ascentCleanup";
 
 // Location image deletion with cascade
 export {onLocationImageDeleted} from "./locationImageDeletion";
-
-// Automatic hold detection when images are uploaded
-export {onLocationImageUploaded} from "./holdDetection";
 
 // Like toggle function for ascents
 export {toggleLike} from "./likeToggle";
@@ -700,15 +697,13 @@ export const getLocationImages = onCall({region: REGION}, async (request) => {
         const data = doc.data() as LocationImage;
         logger.info(`  Image ${doc.id}: routesettings=${JSON.stringify(data.routesettings)}`);
         
+        // TODO maybe we can filter directly in Firestore with array-contains?
         // Check if this image's routesettings array contains the requested routesetting
         if (data.routesettings && Array.isArray(data.routesettings) && data.routesettings.includes(routesetting)) {
-          logger.info(`    ✓ MATCH - including this image`);
           images.push({
             ...data,
             imageId: doc.id,
           });
-        } else {
-          logger.info(`    ✗ NO MATCH - skipping`);
         }
       });
       

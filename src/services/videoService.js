@@ -103,7 +103,7 @@ export const videoService = {
         problemId: data.problemId,
         problemName: data.problemSnapshot?.name || 'Unknown Problem',
         routesetting: data.routesetting || null, // For filtering unassigned videos
-        thumbnailBase64: data.video.thumbnailBase64, // Include thumbnail if available
+        thumbnailUrl: data.video.thumbnailUrl, // Include thumbnail if available
         likeCount: data.likeCount || 0, // Like count from ascent document
         likedByUserIds: data.likedByUserIds || [], // Array of user IDs who liked
         commentCount: data.commentCount || 0, // Comment count from ascent document

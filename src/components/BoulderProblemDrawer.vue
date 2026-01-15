@@ -108,8 +108,8 @@
                 >
                   <!-- Thumbnail image -->
                   <img
-                    v-if="video.thumbnailBase64 || video.poster"
-                    :src="video.thumbnailBase64 || video.poster"
+                    v-if="video.thumbnailUrl || video.poster"
+                    :src="video.thumbnailUrl || video.poster"
                     :alt="video.userName || 'Video thumbnail'"
                     class="w-full h-full object-cover"
                   />

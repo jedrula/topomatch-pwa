@@ -55,7 +55,6 @@
 
 <script setup>
 import { ref } from 'vue';
-import { extractVideoThumbnail, getBase64Size } from '@/utils/videoThumbnail';
 
 defineProps({
   title: {
@@ -79,23 +78,9 @@ const fileInput = ref(null);
 const handleFileChange = async (event) => {
   const file = event.target.files[0];
   if (file) {
-    try {
-      // Extract thumbnail from video
-      console.log('📸 Extracting thumbnail from video...');
-      const thumbnailBase64 = await extractVideoThumbnail(file, 1, 320);
-      const thumbnailSizeKB = getBase64Size(thumbnailBase64);
-      console.log(`✅ Thumbnail extracted: ${thumbnailSizeKB.toFixed(1)} KB`);
-      
-      // Emit video file with thumbnail attached as property
-      file.thumbnailBase64 = thumbnailBase64;
-      emit('video-selected', file);
-    } catch (error) {
-      // Thumbnail extraction can fail on some mobile browsers/devices
-      // This is not critical - the video will still upload without a thumbnail
-      console.log('⚠️ Thumbnail extraction skipped:', error.message);
-      // Still emit the file even if thumbnail extraction fails
-      emit('video-selected', file);
-    }
+    // Emit video file directly without thumbnail extraction
+    // Thumbnails can be generated server-side during transcoding to reduce client memory usage
+    emit('video-selected', file);
   }
   // Clear the input so the same file can be selected again
   event.target.value = '';

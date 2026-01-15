@@ -439,7 +439,6 @@ const displayVideos = computed(() => {
         userId: userStore.user?.uid,  // Current user is the uploader
         problemId: upload.problemId || null,
         url: upload.localUrl,  // ✨ Reuse blob URL from upload queue!
-        thumbnailBase64: upload.thumbnailBase64,  // ✨ Use extracted thumbnail as poster!
         isLocalVideo: true,  // Flag to know this is temporary
         isUploading: upload.status === 'uploading' || upload.status === 'pending',
         isAnalyzing: isCurrentlyAnalyzing,
@@ -798,22 +797,8 @@ const handleVideoFileSelected = async (file) => {
   try {
     console.log('📹 Video selected:', file.name);
     
-    // Extract thumbnail from video (with fallback for iOS 15)
-    let thumbnailBase64 = null;
-    try {
-      const { extractVideoThumbnail, getBase64Size } = await import('@/utils/videoThumbnail');
-      thumbnailBase64 = await extractVideoThumbnail(file, 1, 320);
-      const thumbnailSizeKB = getBase64Size(thumbnailBase64);
-      console.log(`✅ Thumbnail extracted: ${thumbnailSizeKB.toFixed(1)} KB`);
-    } catch (thumbError) {
-      console.warn('⚠️ Failed to extract thumbnail (iOS 15?), proceeding without:', thumbError);
-      // Continue without thumbnail - this is OK
-    }
-    
-    // Attach thumbnail to file if we got one
-    if (thumbnailBase64) {
-      file.thumbnailBase64 = thumbnailBase64;
-    }
+    // Removed client-side thumbnail extraction to reduce memory usage
+    // Thumbnails can be generated server-side during transcoding if needed
     
     // Generate new session ID
     currentUploadSessionId.value = generateUUID();

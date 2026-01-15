@@ -273,7 +273,7 @@ const normalizeToAscent = (video) => {
     video: {
       transcodedPath: video.url || video.downloadUrl || null,
       originalPath: video.url || video.downloadUrl || null,
-      thumbnailBase64: video.thumbnailBase64 || null,
+      thumbnailUrl: video.thumbnailUrl || null,
     },
     problemSnapshot: video.metadata ? {
       name: video.metadata.problemName || null,
