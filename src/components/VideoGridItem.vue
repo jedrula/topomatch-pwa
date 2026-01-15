@@ -29,15 +29,17 @@
     <!-- Info overlay -->
     <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
       <div class="flex items-end justify-between gap-2">
-        <!-- Left: Problem and user info -->
+        <!-- Left: User name and location/problem info -->
         <div class="min-w-0 flex-1">
-          <!-- Problem name -->
-          <div v-if="problemName" class="text-[13px] font-medium text-white line-clamp-1">
-            {{ problemName }}
-            <span v-if="problemGrade && typeof problemGrade === 'string'" class="text-[11px] text-white/60 ml-1">{{ problemGrade }}</span>
+          <!-- User name (primary line) -->
+          <div class="text-[13px] font-medium text-white line-clamp-1">
+            {{ userName }}
           </div>
-          <!-- User name -->
-          <div class="text-[11px] text-white/90 line-clamp-1 leading-4 mt-0.5">{{ userName }}</div>
+          <!-- Location + Problem (secondary line) -->
+          <div class="text-[11px] text-white/90 line-clamp-1 leading-4 mt-0.5 capitalize location-problem-line">
+            <span v-if="locationName" class="location-name">{{ locationName }}</span>
+            <span v-if="problemName" class="problem-name">{{ problemName }}</span>
+          </div>
         </div>
         
         <!-- Right: Likes -->
@@ -73,7 +75,11 @@ const thumbnailUrl = computed(() => {
 });
 
 const problemName = computed(() => {
-  return props.ascent.problemSnapshot?.name || props.ascent.problemName || null;
+  return props.ascent.problemSnapshot?.name || props.ascent.problemName || props.ascent.name || null;
+});
+
+const locationName = computed(() => {
+  return props.ascent.locationName || null;
 });
 
 const problemGrade = computed(() => {
@@ -81,7 +87,7 @@ const problemGrade = computed(() => {
 });
 
 const userName = computed(() => {
-  return props.ascent.userName || 'Unknown';
+  return props.ascent.userName || props.ascent.uploadedBy || 'Unknown';
 });
 
 const likeCount = computed(() => props.ascent.likeCount || 0);
@@ -102,5 +108,10 @@ const formatLikeCount = (count) => {
   line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Add comma between location and problem name using CSS */
+.location-problem-line .location-name + .problem-name::before {
+  content: ', ';
 }
 </style>
