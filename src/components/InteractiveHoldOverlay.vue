@@ -402,32 +402,6 @@ const getImageCoordinates = (canvasX, canvasY) => {
   return coords;
 };
 
-// Helper function to check if click/drag started on an existing hold
-const isClickOnExistingHold = (event) => {
-  // Get the coordinates of the click
-  const coords = getCanvasCoordinates(event);
-  const imageCoords = getImageCoordinates(coords.x, coords.y);
-
-  // Check if click is within any existing hold's bounding box
-  const allHolds = [...aiHolds.value, ...serverStore.manualHolds];
-
-  for (const hold of allHolds) {
-    if (hold.x && hold.y && hold.width && hold.height) {
-      // Check if click is within this hold's bounding box
-      if (
-        imageCoords.x >= hold.x &&
-        imageCoords.x <= hold.x + hold.width &&
-        imageCoords.y >= hold.y &&
-        imageCoords.y <= hold.y + hold.height
-      ) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-};
-
 const startDrawing = (event) => {
   // In explicit drawing mode, always allow drawing
   if (serverStore.isDrawingMode) {
@@ -437,15 +411,9 @@ const startDrawing = (event) => {
     return;
   }
 
-  // In quick draw mode, only allow drawing if not clicking on existing hold
+  // In quick draw mode, always allow drawing
+  // Small hit areas on holds allow clicking through to select them
   if (isQuickDrawEnabled.value) {
-    if (isClickOnExistingHold(event)) {
-      // Let the click pass through to hold selection by not starting drawing
-      // The canvas will not intercept this event
-      return;
-    }
-
-    // Start drawing in empty area
     isDrawing.value = true;
     const coords = getCanvasCoordinates(event);
     drawingPath.value = [coords]; // Start new path

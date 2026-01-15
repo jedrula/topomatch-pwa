@@ -90,7 +90,9 @@ const handleFileChange = async (event) => {
       file.thumbnailBase64 = thumbnailBase64;
       emit('video-selected', file);
     } catch (error) {
-      console.warn('⚠️ Failed to extract thumbnail, continuing without it:', error);
+      // Thumbnail extraction can fail on some mobile browsers/devices
+      // This is not critical - the video will still upload without a thumbnail
+      console.log('⚠️ Thumbnail extraction skipped:', error.message);
       // Still emit the file even if thumbnail extraction fails
       emit('video-selected', file);
     }
