@@ -22,7 +22,7 @@ export async function migrate(firestore: any): Promise<void> {
     const projectId = process.env.GCLOUD_PROJECT || 'topomatch-pwa';
     admin.initializeApp({
       projectId,
-      storageBucket: `${projectId}.appspot.com`,
+      storageBucket: `${projectId}.firebasestorage.app`,
     });
   }
   
