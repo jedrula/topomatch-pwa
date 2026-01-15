@@ -8,6 +8,7 @@
       v-if="thumbnailUrl"
       :src="thumbnailUrl"
       :class="thumbnailUrl === '/climbing-placeholder.svg' ? 'climbing-placeholder' : 'w-full h-full object-cover'"
+      crossorigin="anonymous"
       loading="lazy"
       alt="Video thumbnail"
     />
