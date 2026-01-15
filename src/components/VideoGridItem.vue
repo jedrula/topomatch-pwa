@@ -7,7 +7,7 @@
     <img
       v-if="thumbnailUrl"
       :src="thumbnailUrl"
-      class="w-full h-full object-cover"
+      :class="thumbnailUrl === '/climbing-placeholder.svg' ? 'climbing-placeholder' : 'w-full h-full object-cover'"
       loading="lazy"
       alt="Video thumbnail"
     />
@@ -113,5 +113,18 @@ const formatLikeCount = (count) => {
 /* Add comma between location and problem name using CSS */
 .location-problem-line .location-name + .problem-name::before {
   content: ', ';
+}
+
+/* Style placeholder SVG to be centered and 50% size */
+.climbing-placeholder {
+  width: 50%;
+  height: 50%;
+  opacity: 0.8;
+  position: relative;
+  top: 25%;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  object-fit: contain;
 }
 </style>
