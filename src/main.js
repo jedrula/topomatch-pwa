@@ -63,7 +63,9 @@ app.use(pinia);
 // 3. Worker (new) mode (VITE_USE_NEW_WORKER=true): ES modules worker following ONNX Runtime best practices
 // 4. Worker (old) mode (default): Legacy concatenated worker
 
+// DISABLED FOR TESTING - Inference model loading commented out
 // Use static imports so Vite can properly bundle everything
+/*
 let useInferenceStore;
 if (import.meta.env.VITE_USE_INFERENCE_MOCK === 'true') {
   console.log('🎭 Using MOCK inference store (recorded fixtures)');
@@ -84,6 +86,8 @@ if (import.meta.env.VITE_USE_INFERENCE_MOCK === 'true') {
 }
 
 useInferenceStore(); // This will trigger the session creation immediately
+*/
+console.log('⚠️ Inference model loading DISABLED for testing');
 
 // Expose testing API for E2E tests
 // Enabled in: dev mode, test mode, or production-test build (VITE_ENABLE_TEST_API=true)
