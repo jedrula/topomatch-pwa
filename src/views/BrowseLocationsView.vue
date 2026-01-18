@@ -76,9 +76,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { locationService } from '../services/locationService.js';
-import { formatDateShort } from '../utils/dateUtils.js';
 import { useUserStore } from '../stores/userStore.js';
-import { fixLocalhostUrl } from '../services/storageUtils.js';
 // import TrendingVideos from '../components/TrendingVideos.vue'; // DISABLED FOR TESTING
 
 const router = useRouter();
