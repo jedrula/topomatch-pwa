@@ -51,10 +51,10 @@
         </div>
       </router-link>
 
-      <!-- Trending Videos Section -->
-      <div class="mb-8">
+      <!-- Trending Videos Section - DISABLED FOR TESTING -->
+      <!-- <div class="mb-8">
         <TrendingVideos />
-      </div>
+      </div> -->
 
       <!-- Admin Add Location Button -->
       <div v-if="userStore.canCreateLocations" class="mt-8 text-center">
@@ -79,7 +79,7 @@ import { locationService } from '../services/locationService.js';
 import { formatDateShort } from '../utils/dateUtils.js';
 import { useUserStore } from '../stores/userStore.js';
 import { fixLocalhostUrl } from '../services/storageUtils.js';
-import TrendingVideos from '../components/TrendingVideos.vue';
+// import TrendingVideos from '../components/TrendingVideos.vue'; // DISABLED FOR TESTING
 
 const router = useRouter();
 const userStore = useUserStore();
