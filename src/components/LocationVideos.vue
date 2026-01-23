@@ -87,13 +87,14 @@
               <!-- Analyzing indicator (show when video is uploading or analyzing) -->
               <div
                 v-if="video.isUploading || video.isAnalyzing"
-                class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/90 rounded-full shadow-sm z-10"
-                title="Analyzing video..."
+                class="absolute top-2 right-2 flex items-center gap-2 bg-white/90 rounded-full shadow-sm z-10 px-3 py-2"
+                :title="getVideoProgressText(video)"
               >
-                <svg class="w-4 h-4 text-gray-900 animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-gray-900 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
+                <span class="text-xs text-gray-700 font-medium">{{ getVideoProgressText(video) }}</span>
               </div>
 
               <!-- Action buttons (only shown when NOT analyzing) -->
@@ -214,6 +215,7 @@ import { getCurrentUser } from '@/services/authService';
 import { useUserStore } from '@/stores/userStore';
 import { getDefaultVideoPoster, formatVideoDuration } from '@/utils/videoUtils';
 import { isTouchDevice as detectTouchDevice } from '@/utils/platform';
+import { useVideoProgress } from '@/composables/useVideoProgress';
 import VideoPlayerShorts from './VideoPlayerShorts.vue';
 import VideoGridItem from './VideoGridItem.vue';
 import ChangeRoutesettingDialog from './ChangeRoutesettingDialog.vue';
@@ -259,6 +261,12 @@ const availableRoutesettings = computed(() => props.allRoutesettings || []);
 const defaultPoster = getDefaultVideoPoster();
 
 const formatDuration = formatVideoDuration;
+
+// Get progress text for a video using shared composable
+const getVideoProgressText = (video) => {
+  const { progressText } = useVideoProgress(video);
+  return progressText.value || 'Processing...';
+};
 
 // Normalize upload queue objects to canonical ascent structure
 const normalizeToAscent = (video) => {

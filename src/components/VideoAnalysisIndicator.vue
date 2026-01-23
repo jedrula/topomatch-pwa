@@ -1,16 +1,16 @@
 <template>
-  <!-- Floating indicator for active video analysis -->
+  <!-- Floating indicator for active video upload/analysis -->
   <div
-    v-if="analysisQueue.hasActiveJobs || showCompleted"
+    v-if="hasActiveWork || showCompleted"
     class="fixed bottom-4 right-4 z-50 animate-fade-in"
   >
     <button
       @click="handleClick"
       class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-3 group"
     >
-      <!-- Animated spinner for active analysis -->
+      <!-- Animated spinner for active work -->
       <div
-        v-if="analysisQueue.hasActiveJobs"
+        v-if="hasActiveWork"
         class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"
       ></div>
       <!-- Checkmark for completed -->
@@ -32,10 +32,10 @@
       <!-- Status text -->
       <div class="text-left">
         <div class="text-sm font-semibold">
-          {{ analysisQueue.hasActiveJobs ? 'Analyzing Video' : 'Analysis Complete' }}
+          {{ hasActiveWork ? (activeVideo?.isUploading ? 'Uploading Video' : 'Analyzing Video') : 'Processing Complete' }}
         </div>
         <div class="text-xs opacity-90">
-          {{ analysisQueue.hasActiveJobs ? getProgressText() : 'Click to review' }}
+          {{ hasActiveWork ? activeVideo?.progressText : 'Click to review' }}
         </div>
       </div>
 
@@ -56,7 +56,7 @@
 
       <!-- Close button for completed state -->
       <button
-        v-if="!analysisQueue.hasActiveJobs"
+        v-if="!hasActiveWork"
         @click.stop="dismissCompleted"
         class="ml-1 -mr-1 p-1 hover:bg-white/20 rounded transition-colors"
         aria-label="Dismiss"
@@ -77,54 +77,37 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useVideoAnalysisQueueStore, getCurrentStep } from '../stores/videoAnalysisQueueStore.js';
-import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
+import { useVideoAnalysisQueueStore } from '../stores/videoAnalysisQueueStore.js';
+import { useVideoProgress } from '../composables/useVideoProgress.js';
 
 const router = useRouter();
 const analysisQueue = useVideoAnalysisQueueStore();
-const uploadQueue = useVideoUploadQueueStore();
 const showCompleted = ref(false);
 let completedTimeout = null;
 
-// Check if there's an active upload for this job
-const hasActiveUpload = computed(() => {
+// Get the active job/video
+const activeJobData = computed(() => {
   const job = analysisQueue.getActiveJob;
-  if (!job) return false;
-  
-  const upload = uploadQueue.uploads[job.ascentId];
-  return upload && (upload.status === 'uploading' || upload.status === 'pending');
+  if (!job) return null;
+  return { id: job.ascentId };
 });
 
-// Get upload progress if available
-const getUploadProgress = computed(() => {
-  const job = analysisQueue.getActiveJob;
-  if (!job) return 0;
-  
-  const upload = uploadQueue.uploads[job.ascentId];
-  return upload?.progress || 0;
+// Use shared composable for progress tracking
+const activeVideo = computed(() => {
+  if (!activeJobData.value) return null;
+  return useVideoProgress(activeJobData.value);
 });
 
-const getProgressText = () => {
-  const job = analysisQueue.getActiveJob;
-  if (!job) return 'Processing...';
-  
-  const progress = Math.round(job.progress || 0);
-  
-  // Show upload progress if still uploading
-  if (hasActiveUpload.value) {
-    return `Uploading video... ${Math.round(getUploadProgress.value)}%`;
-  }
-  
-  // Get current step object and show message with percentage
-  const currentStep = getCurrentStep(job.progress || 0);
-  return `${currentStep.message} ${progress}%`;
-};
+// Has any active work (upload or analysis)
+const hasActiveWork = computed(() => {
+  return activeVideo.value?.hasActiveWork || false;
+});
 
-// Watch for analysis completion
+// Watch for work completion (upload + analysis)
 watch(
-  () => analysisQueue.hasActiveJobs,
+  () => hasActiveWork.value,
   (hasActive, wasActive) => {
-    // When analysis completes (was active, now not active)
+    // When work completes (was active, now not active)
     if (wasActive && !hasActive && analysisQueue.completedJobs.length > 0) {
       showCompleted.value = true;
       
@@ -143,11 +126,8 @@ const handleClick = () => {
   const job = analysisQueue.getActiveJob || analysisQueue.completedJobs[0];
   if (!job?.locationId) return;
   
-  // Emit event to parent to maximize modal
-  // This allows LocationDetailView to handle the modal maximization
+  // Navigate to location (where user can see video list with progress)
   router.push(`/location/${job.locationId}`);
-  
-  // Use event bus or emit to notify LocationDetailView to maximize modal
   // For now, we'll use a simple custom event
   window.dispatchEvent(new CustomEvent('maximize-analysis-modal'));
 };
