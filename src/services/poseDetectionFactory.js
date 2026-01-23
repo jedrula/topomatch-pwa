@@ -28,6 +28,24 @@ const useWorkerPose = import.meta.env.VITE_USE_NEW_WORKER === 'true';
 function createPoseService(modelId) {
   const config = getActiveModelConfig();
 
+  if (config.provider === 'dummy') {
+    console.log('📱 Using DUMMY pose detection service (no-op)');
+    return {
+      initialize: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      },
+      detectPose: async (imageData) => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return {
+          detected: false,
+          keypoints: {},
+          confidence: 0,
+          error: false
+        };
+      }
+    }
+  }
+
   // Use worker-based service if flag is enabled and using YOLO
   if (useWorkerPose && config.provider === 'yolo') {
     console.log('🚀 Using worker-based pose detection (non-blocking)');

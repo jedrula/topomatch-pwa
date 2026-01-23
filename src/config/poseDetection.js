@@ -19,6 +19,8 @@
  * - MEDIAPIPE_HEAVY: Most accurate, recommended for climbing
  */
 export const PoseModel = {
+  dummy: 'dummy',
+
   // YOLO models (wrists + ankles only)
   YOLO11N: 'yolo11n',
   YOLO11S: 'yolo11s',
@@ -35,14 +37,19 @@ export const PoseModel = {
  * 
  * 🎯 CHANGE THIS LINE to switch models:
  * 
- * TODO: MediaPipe models currently broken - stick with YOLO for now
+ * TODO: MediaPipe models currently broken - stick with YOLO for now, remove dummy when tested
  */
-export const ACTIVE_POSE_MODEL = PoseModel.YOLO11N;
+export const ACTIVE_POSE_MODEL = PoseModel.dummy; // PoseModel.YOLO11N;
 
 /**
  * Model metadata for runtime use
  */
 export const MODEL_CONFIG = {
+  [PoseModel.dummy]: {
+    provider: 'dummy',
+    keypoints: 'none',
+    keypointCount: 0,
+  },
   [PoseModel.YOLO11N]: {
     provider: 'yolo',
     modelPath: '/yolo11n-pose.onnx',
