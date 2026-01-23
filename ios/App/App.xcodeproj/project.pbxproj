@@ -16,6 +16,7 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		E38729D82F0DDB0500AC5C49 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = E38729D72F0DDB0500AC5C49 /* GoogleService-Info.plist */; };
+		E3F6EE562F23B07300B652F5 /* IosPoseDetectionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F6EE552F23B07300B652F5 /* IosPoseDetectionPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		E38729D72F0DDB0500AC5C49 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		E3E91DA62F0F326D000630B0 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		E3F6EE552F23B07300B652F5 /* IosPoseDetectionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IosPoseDetectionPlugin.swift; path = plugins/IosPoseDetectionPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,6 +68,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				E3F6EE552F23B07300B652F5 /* IosPoseDetectionPlugin.swift */,
 				E3E91DA62F0F326D000630B0 /* App.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
@@ -162,6 +165,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				E3F6EE562F23B07300B652F5 /* IosPoseDetectionPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
