@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { ascentService } from '../services/ascentService.js';
 import { getPoseDetectionService } from '../services/poseDetectionFactory.js';
 import { calculateHomographyMatrix, transformPoints } from '../utils/homographyUtils.js';
-import { useInferenceStore } from './inferenceStore.js';
+import { loadInferenceStore } from './inferenceStoreLoader.js';
 import { holdDetectionService } from '../services/holdDetectionService.js';
 import { manualHoldsService } from '../services/manualHoldsService.js';
 import { calculateProblemScores } from '../utils/problemScoringUtils.js';
@@ -505,6 +505,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`   Comparing against ${imageUrls.length} location images...`);
     
     // Get the inference store for SuperPoint
+    const useInferenceStore = await loadInferenceStore();
     const inferenceStore = useInferenceStore();
     
     // Wait for inference session to be ready

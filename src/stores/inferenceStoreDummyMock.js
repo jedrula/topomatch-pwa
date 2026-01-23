@@ -8,8 +8,9 @@ export const useInferenceStore = defineStore('inference', () => {
   const inferenceResults = ref([]);
   const matchCounts = computed(() => inferenceResults.value.length);
 
-  const runInferenceBatch = async () => {
+  const runInferenceBatch = async (_, __, onComplete) => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
+    onComplete(null);
   };
 
   const ensureSessionReady = async () => {

@@ -9,7 +9,7 @@ import FloatingVue from 'floating-vue';
 import App from './App.vue';
 import router from './router';
 import { initPushNotificationListener, consumePendingRoute, setRouter } from './services/deepLinkHandler';
-import { isMobile } from './utils/platform';
+import { loadInferenceStore } from './stores/inferenceStoreLoader';
 
 // Initialize push notification listener BEFORE app mounts
 // This captures notifications that launched the app
@@ -63,38 +63,8 @@ app.use(pinia);
 // 2. Main thread mode (VITE_USE_MAIN_THREAD_INFERENCE=true): Runs in main thread (no worker)
 // 3. Worker (new) mode (VITE_USE_NEW_WORKER=true): ES modules worker following ONNX Runtime best practices
 // 4. Worker (old) mode (default): Legacy concatenated worker
-
-// 🚨 MOBILE: Skip model loading on mobile devices to prevent crashes
-// Mobile users can upload videos but won't get local analysis
-const isMobileDevice = isMobile();
-console.log('🔍 Device detection:');
-console.log('   User Agent:', navigator.userAgent);
-console.log('   isMobile():', isMobileDevice);
-console.log('   Platform:', navigator.platform);
-
-let useInferenceStore;
-if (isMobileDevice) {
-  console.log('📱 Mobile device detected - Using dummy MOCK inference store');
-  const module = await import('./stores/inferenceStoreDummyMock.js');
-  useInferenceStore = module.useInferenceStore;
-} else if (import.meta.env.VITE_USE_INFERENCE_MOCK === 'true') {
-  console.log('🎭 Using MOCK inference store (recorded fixtures)');
-  const module = await import('./stores/inferenceStoreMock.js');
-  useInferenceStore = module.useInferenceStore;
-} else if (import.meta.env.VITE_USE_MAIN_THREAD_INFERENCE === 'true') {
-  console.log('🧵 Using MAIN THREAD inference store (no worker)');
-  const module = await import('./stores/inferenceStoreMainThread.js');
-  useInferenceStore = module.useInferenceStore;
-} else if (import.meta.env.VITE_USE_NEW_WORKER === 'true') {
-  console.log('🚀 Using NEW WORKER inference store (ES modules, ONNX Runtime best practices)');
-  const module = await import('./stores/inferenceStoreWorkerNew.js');
-  useInferenceStore = module.useInferenceStore;
-} else {
-  console.log('👷 Using OLD WORKER inference store (legacy concatenated)');
-  const module = await import('./stores/inferenceStore.js');
-  useInferenceStore = module.useInferenceStore;
-}
-
+// See inferenceStoreLoader.js for implementation details
+const useInferenceStore = await loadInferenceStore();
 useInferenceStore(); // Initialize session immediately
 console.log('🚀 Inference model loading started');
 
