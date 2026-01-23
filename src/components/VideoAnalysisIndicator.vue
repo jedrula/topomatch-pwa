@@ -75,21 +75,38 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useVideoAnalysisQueueStore } from '../stores/videoAnalysisQueueStore.js';
+import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
 import { useVideoProgress } from '../composables/useVideoProgress.js';
 
 const router = useRouter();
 const analysisQueue = useVideoAnalysisQueueStore();
+const uploadQueue = useVideoUploadQueueStore();
 const showCompleted = ref(false);
 let completedTimeout = null;
 
-// Get the active job/video
+// Get the active job/video from BOTH queues
+// Priority: analysis queue first, then upload queue
 const activeJobData = computed(() => {
-  const job = analysisQueue.getActiveJob;
-  if (!job) return null;
-  return { id: job.ascentId };
+  // Check analysis queue first
+  const analysisJob = analysisQueue.getActiveJob;
+  if (analysisJob) {
+    return { id: analysisJob.ascentId };
+  }
+  
+  // Check upload queue for any active uploads
+  const activeUploads = Object.values(uploadQueue.uploads).filter(
+    upload => upload.status === 'uploading' || upload.status === 'pending'
+  );
+  
+  if (activeUploads.length > 0) {
+    // Return the first active upload
+    return { id: activeUploads[0].ascentId };
+  }
+  
+  return null;
 });
 
 // Use shared composable for progress tracking
@@ -103,12 +120,12 @@ const hasActiveWork = computed(() => {
   return activeVideo.value?.hasActiveWork || false;
 });
 
-// Watch for work completion (upload + analysis)
+// Watch for work completion - show success message briefly
 watch(
   () => hasActiveWork.value,
   (hasActive, wasActive) => {
-    // When work completes (was active, now not active)
-    if (wasActive && !hasActive && analysisQueue.completedJobs.length > 0) {
+    // When work completes (transition from active → inactive)
+    if (wasActive && !hasActive) {
       showCompleted.value = true;
       
       // Auto-dismiss after 10 seconds
@@ -119,6 +136,11 @@ watch(
     }
   }
 );
+
+// Cleanup timeout on unmount
+onUnmounted(() => {
+  if (completedTimeout) clearTimeout(completedTimeout);
+});
 
 const handleClick = () => {
   // Navigate to location page if not already there
