@@ -80,9 +80,17 @@ onMounted(() => {
   isNativePlatform.value = isNative();
   userStore.initAuth();
   
-  // 🧪 STEP 1 TEST: iOS Pose Detection Plugin Echo Test
-  // TODO: Remove after validating Step 1
-  testIosPoseDetectionEcho();
+  // 🧪 STEP 1 TEST: iOS Pose Detection Plugin Echo Test - ✅ COMPLETE
+  // 🧪 STEP 2 TEST: Image data transfer
+  // TODO: Remove after validating Step 2
+  if (window.Capacitor && window.Capacitor.getPlatform() === 'ios') {
+    testIosPoseDetectionEcho().then(() => {
+      // Import and test image transfer
+      import('@/plugins/testIosPoseDetection').then(module => {
+        module.testImageTransfer();
+      });
+    });
+  }
 });
 
 // Global auth modal handlers
