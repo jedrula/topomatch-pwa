@@ -99,63 +99,25 @@ export async function testPoseDetection() {
   console.log('🧪 Step 3: Testing Vision Framework pose detection...');
   
   try {
-    // Create a test canvas with person-like shape
-    const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 480;
-    const ctx = canvas.getContext('2d');
+    // Load a real climbing photo from test-data
+    const testImagePath = '/test-images/kamil-pose.png';
+    console.log('   Loading test image:', testImagePath);
     
-    if (!ctx) {
-      console.error('❌ Failed to get canvas context');
-      return false;
-    }
+    // Fetch the image
+    const response = await fetch(testImagePath);
+    const blob = await response.blob();
     
-    // Draw a simple stick figure for testing
-    // (In real use, we'll pass actual video frames)
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, 640, 480);
+    // Convert to base64
+    const base64Data = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]); // Remove data:image/png;base64, prefix
+      };
+      reader.readAsDataURL(blob);
+    });
     
-    ctx.fillStyle = 'black';
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 5;
-    
-    // Head
-    ctx.beginPath();
-    ctx.arc(320, 100, 30, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Body
-    ctx.beginPath();
-    ctx.moveTo(320, 130);
-    ctx.lineTo(320, 280);
-    ctx.stroke();
-    
-    // Arms
-    ctx.beginPath();
-    ctx.moveTo(320, 180);
-    ctx.lineTo(260, 220);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(320, 180);
-    ctx.lineTo(380, 220);
-    ctx.stroke();
-    
-    // Legs
-    ctx.beginPath();
-    ctx.moveTo(320, 280);
-    ctx.lineTo(280, 380);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(320, 280);
-    ctx.lineTo(360, 380);
-    ctx.stroke();
-    
-    const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-    
-    console.log('   Detecting pose in test image...');
-    
+    console.log('   Detecting pose in real climbing photo...');
     const result = await IosPoseDetection.detectPose({ imageData: base64Data });
     
     console.log('✅ Pose detection successful!');
@@ -163,16 +125,16 @@ export async function testPoseDetection() {
     console.log('   Keypoint names:', result.keypoints.map(kp => kp.name).join(', '));
     
     // Log a few sample keypoints
-    const samplePoints = result.keypoints.slice(0, 3);
+    const samplePoints = result.keypoints.slice(0, 5);
     samplePoints.forEach((point) => {
       console.log(`   ${point.name}: (${point.x.toFixed(3)}, ${point.y.toFixed(3)}) confidence: ${point.confidence.toFixed(3)}`);
     });
     
     if (result.keypoints.length > 0) {
-      console.log('✅ Vision Framework working! Step 3 complete.');
+      console.log('✅ Vision Framework detected real human pose! Step 3 validated.');
       return true;
     } else {
-      console.warn('⚠️ No keypoints detected (expected for simple test image)');
+      console.warn('⚠️ No keypoints detected');
       return false;
     }
   } catch (error) {
