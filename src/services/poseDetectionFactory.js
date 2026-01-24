@@ -8,7 +8,9 @@
 import { ACTIVE_POSE_MODEL, getActiveModelConfig, PoseModel } from '../config/poseDetection.js';
 import { YoloPoseService } from './yoloPoseService.js';
 import { MediaPipePoseService } from './mediapipePoseService.js';
+import { IosVisionPoseService } from './iosVisionPoseService.js';
 import poseDetectionService from './poseDetectionService.js';
+import { Capacitor } from '@capacitor/core';
 
 /**
  * Singleton instance of the active pose detection service
@@ -26,6 +28,14 @@ const useWorkerPose = import.meta.env.VITE_USE_NEW_WORKER === 'true';
  * @returns {PoseDetectionService}
  */
 function createPoseService(modelId) {
+  console.log('Capacitor.isNativePlatform():', Capacitor.isNativePlatform());
+  console.log('Capacitor.getPlatform():', Capacitor.getPlatform());
+  // Auto-detect native iOS (Capacitor) and use Vision Framework
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+    console.log('📱 Native iOS detected - using Vision Framework for pose detection');
+    return new IosVisionPoseService();
+  }
+
   const config = getActiveModelConfig();
 
   if (config.provider === 'dummy') {

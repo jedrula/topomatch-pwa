@@ -8,7 +8,6 @@ import AuthModal from './components/AuthModal.vue';
 import VideoAnalysisIndicator from './components/VideoAnalysisIndicator.vue';
 import BottomTabBar from './components/BottomTabBar.vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
-import { testIosPoseDetectionEcho } from './plugins/testIosPoseDetection';
 
 const userStore = useUserStore();
 const showAuthModal = ref(false);
@@ -79,21 +78,6 @@ watch(needRefresh, (newVal) => {
 onMounted(() => {
   isNativePlatform.value = isNative();
   userStore.initAuth();
-  
-  // 🧪 STEP 1 TEST: iOS Pose Detection Plugin Echo Test - ✅ COMPLETE
-  // 🧪 STEP 2 TEST: Image data transfer - ✅ COMPLETE
-  // 🧪 STEP 3 TEST: Vision Framework pose detection
-  // TODO: Remove after validating Step 3
-  if (window.Capacitor && window.Capacitor.getPlatform() === 'ios') {
-    testIosPoseDetectionEcho().then(() => {
-      // Import and test all steps sequentially
-      import('@/plugins/testIosPoseDetection').then(module => {
-        module.testImageTransfer().then(() => {
-          module.testPoseDetection();
-        });
-      });
-    });
-  }
 });
 
 // Global auth modal handlers
