@@ -11,7 +11,11 @@
       "Content-Type",
       "Content-Length",
       "Content-Disposition",
-      "Cache-Control"
+      "Cache-Control",
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Methods",
+      "Access-Control-Allow-Headers",
+      "Cross-Origin-Resource-Policy"
     ]
   }
 ]

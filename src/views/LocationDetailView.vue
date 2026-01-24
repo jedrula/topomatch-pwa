@@ -1104,6 +1104,15 @@ const handleMaximizeModal = () => {
 const handleJobComplete = async (ascentId) => {
   console.log(`🎬 Job completed for ascent ${ascentId}, loading video...`);
   
+  // WAIT for upload to complete first (race condition fix)
+  // Analysis can finish before upload updates Firestore, so we need to wait
+  const upload = uploadQueue.getUpload(ascentId);
+  if (upload && (upload.status === 'uploading' || upload.status === 'pending')) {
+    console.log(`⏳ Waiting for upload to complete for ascent ${ascentId}...`);
+    await uploadQueue.waitForUpload(ascentId);
+    console.log(`✅ Upload completed for ascent ${ascentId}, now loading video...`);
+  }
+  
   // Load just this specific video
   const video = await videoService.getVideoByAscentId(ascentId);
   

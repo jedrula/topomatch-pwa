@@ -36,9 +36,9 @@ export async function generateVideoThumbnail(
     
     logger.info(`🎬 Generating thumbnail with FFmpeg`);
     
-    // Generate thumbnail at 2 seconds, 640x360
+    // Generate thumbnail at 0.5 seconds (works for short videos, avoids black frames)
     await runFFmpeg([
-      "-ss", "00:00:02",           // Seek to 2 seconds (avoid black frames at start)
+      "-ss", "00:00:00.5",         // Seek to 0.5 seconds (safe for videos < 2s)
       "-i", tempVideoPath,          // Input file
       "-frames:v", "1",             // Extract 1 frame
       "-vf", "scale=640:-1",        // Scale width to 640, maintain aspect ratio

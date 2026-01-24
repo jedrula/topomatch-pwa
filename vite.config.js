@@ -88,9 +88,21 @@ export default defineConfig({
           },
           {
             // Firebase Storage images - NetworkFirst with CORS
-            // ⚡ MEMORY OPTIMIZATION: Reduced cache limits to prevent 500+ MB accumulation
-            urlPattern: ({ url}) => 
-              url.hostname === 'firebasestorage.googleapis.com',
+            // ⚡ MEMORY OPTIMIZATION: Cache ONLY images, NOT videos
+            urlPattern: ({ url, request }) => {
+              if (url.hostname !== 'firebasestorage.googleapis.com') return false;
+              
+              // EXCLUDE videos from cache (they're huge!)
+              const videoExtensions = ['.mp4', '.webm', '.mov', '.avi'];
+              const isVideo = videoExtensions.some(ext => url.pathname.toLowerCase().includes(ext));
+              if (isVideo) {
+                console.log('🚫 NOT caching video:', url.pathname.substring(0, 100));
+                return false;
+              }
+              
+              // Cache images only
+              return true;
+            },
             handler: 'NetworkFirst',
             options: {
               cacheName: 'firebase-storage-cache',
@@ -99,8 +111,8 @@ export default defineConfig({
                 credentials: 'omit',
               },
               expiration: {
-                maxEntries: 20,  // Reduced from 100 (20 recent videos/images max)
-                maxAgeSeconds: 60 * 60 * 24 * 2, // 2 days instead of 7
+                maxEntries: 50,  // Increased since we're only caching images now
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days for images
               },
               cacheableResponse: {
                 statuses: [0, 200],

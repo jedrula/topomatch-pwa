@@ -130,6 +130,11 @@ export async function testPoseDetection() {
       console.log(`   ${point.name}: (${point.x.toFixed(3)}, ${point.y.toFixed(3)}) confidence: ${point.confidence.toFixed(3)}`);
     });
     
+    // Draw keypoints on the image for visual verification
+    if (result.keypoints.length > 0) {
+      await drawPoseOverlay(blob, result.keypoints);
+    }
+    
     if (result.keypoints.length > 0) {
       console.log('✅ Vision Framework detected real human pose! Step 3 validated.');
       return true;
@@ -141,6 +146,131 @@ export async function testPoseDetection() {
     console.error('❌ Pose detection failed:', error);
     return false;
   }
+}
+
+/**
+ * Draw pose keypoints overlay on image for visual verification
+ */
+async function drawPoseOverlay(imageBlob: Blob, keypoints: Array<{name: string, x: number, y: number, confidence: number}>) {
+  const img = new Image();
+  const imgUrl = URL.createObjectURL(imageBlob);
+  
+  await new Promise((resolve) => {
+    img.onload = resolve;
+    img.src = imgUrl;
+  });
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  
+  // Draw original image
+  ctx.drawImage(img, 0, 0);
+  
+  // Draw keypoints as circles
+  // Note: Vision uses bottom-left origin, Canvas uses top-left, so flip Y
+  keypoints.forEach((kp) => {
+    const x = kp.x * img.width;
+    const y = (1 - kp.y) * img.height;
+    
+    // Draw circle
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Draw label
+    ctx.fillStyle = 'white';
+    ctx.font = '12px Arial';
+    ctx.fillText(kp.name.replace('_joint', ''), x + 12, y + 4);
+  });
+  
+  // Draw skeleton connections
+  const connections = [
+    ['neck_1_joint', 'left_shoulder_1_joint'],
+    ['neck_1_joint', 'right_shoulder_1_joint'],
+    ['left_shoulder_1_joint', 'left_forearm_joint'],
+    ['left_forearm_joint', 'left_hand_joint'],
+    ['right_shoulder_1_joint', 'right_forearm_joint'],
+    ['right_forearm_joint', 'right_hand_joint'],
+    ['root', 'left_upLeg_joint'],
+    ['root', 'right_upLeg_joint'],
+    ['left_upLeg_joint', 'left_leg_joint'],
+    ['left_leg_joint', 'left_foot_joint'],
+    ['right_upLeg_joint', 'right_leg_joint'],
+    ['right_leg_joint', 'right_foot_joint'],
+  ];
+  
+  ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)';
+  ctx.lineWidth = 3;
+  
+  connections.forEach(([from, to]) => {
+    const fromKp = keypoints.find(kp => kp.name === from);
+    const toKp = keypoints.find(kp => kp.name === to);
+    
+    if (fromKp && toKp) {
+      ctx.beginPath();
+      ctx.moveTo(fromKp.x * img.width, (1 - fromKp.y) * img.height);
+      ctx.lineTo(toKp.x * img.width, (1 - toKp.y) * img.height);
+      ctx.stroke();
+    }
+  });
+  
+  // Convert to data URL and display
+  const dataUrl = canvas.toDataURL('image/png');
+  
+  // Create overlay div with image
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  `;
+  
+  const imgElement = document.createElement('img');
+  imgElement.src = dataUrl;
+  imgElement.style.cssText = `
+    max-width: 100%;
+    max-height: 80%;
+    object-fit: contain;
+  `;
+  
+  const closeButton = document.createElement('button');
+  closeButton.textContent = 'Close (Tap anywhere)';
+  closeButton.style.cssText = `
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+  `;
+  
+  overlay.appendChild(imgElement);
+  overlay.appendChild(closeButton);
+  
+  overlay.onclick = () => {
+    document.body.removeChild(overlay);
+    URL.revokeObjectURL(imgUrl);
+  };
+  
+  document.body.appendChild(overlay);
+  
+  console.log('👁️ Visual overlay displayed - tap to close');
 }
 
 // Auto-run test if in development mode
