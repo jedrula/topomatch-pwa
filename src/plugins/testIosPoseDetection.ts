@@ -121,22 +121,31 @@ export async function testPoseDetection() {
     const result = await IosPoseDetection.detectPose({ imageData: base64Data });
     
     console.log('✅ Pose detection successful!');
-    console.log('   Detected keypoints:', result.keypoints.length);
-    console.log('   Keypoint names:', result.keypoints.map(kp => kp.name).join(', '));
     
-    // Log a few sample keypoints
-    const samplePoints = result.keypoints.slice(0, 5);
-    samplePoints.forEach((point) => {
-      console.log(`   ${point.name}: (${point.x.toFixed(3)}, ${point.y.toFixed(3)}) confidence: ${point.confidence.toFixed(3)}`);
-    });
+    if (result.processingTimeMs) {
+      console.log(`⏱️  Processing time: ${result.processingTimeMs.toFixed(1)}ms`);
+    }
+    
+    // Count detected keypoints
+    const kps = result.keypoints;
+    const detectedNames = Object.keys(kps).filter(key => kps[key as keyof typeof kps] !== null && kps[key as keyof typeof kps] !== undefined);
+    console.log('   Detected keypoints:', detectedNames.join(', '));
+    
+    // Log each keypoint
+    for (const name of detectedNames) {
+      const kp = kps[name as keyof typeof kps];
+      if (kp) {
+        console.log(`   ${name}: (${kp.x.toFixed(3)}, ${kp.y.toFixed(3)}) confidence: ${kp.confidence.toFixed(3)}`);
+      }
+    }
     
     // Draw keypoints on the image for visual verification
-    if (result.keypoints.length > 0) {
+    if (detectedNames.length > 0) {
       await drawPoseOverlay(blob, result.keypoints);
     }
     
-    if (result.keypoints.length > 0) {
-      console.log('✅ Vision Framework detected real human pose! Step 3 validated.');
+    if (result.detected) {
+      console.log(`✅ Vision Framework detected ${detectedNames.length}/4 keypoints! Step 4 validated.`);
       return true;
     } else {
       console.warn('⚠️ No keypoints detected');
@@ -151,7 +160,12 @@ export async function testPoseDetection() {
 /**
  * Draw pose keypoints overlay on image for visual verification
  */
-async function drawPoseOverlay(imageBlob: Blob, keypoints: Array<{name: string, x: number, y: number, confidence: number}>) {
+async function drawPoseOverlay(imageBlob: Blob, keypoints: {
+  leftHand?: { x: number; y: number; confidence: number };
+  rightHand?: { x: number; y: number; confidence: number };
+  leftFoot?: { x: number; y: number; confidence: number };
+  rightFoot?: { x: number; y: number; confidence: number };
+}) {
   const img = new Image();
   const imgUrl = URL.createObjectURL(imageBlob);
   
@@ -169,54 +183,57 @@ async function drawPoseOverlay(imageBlob: Blob, keypoints: Array<{name: string, 
   // Draw original image
   ctx.drawImage(img, 0, 0);
   
+  // Define colors for each keypoint
+  const colors: Record<string, string> = {
+    leftHand: 'rgba(0, 255, 0, 0.7)',
+    rightHand: 'rgba(0, 255, 255, 0.7)',
+    leftFoot: 'rgba(255, 255, 0, 0.7)',
+    rightFoot: 'rgba(255, 0, 255, 0.7)'
+  };
+  
   // Draw keypoints as circles
   // Note: Vision uses bottom-left origin, Canvas uses top-left, so flip Y
-  keypoints.forEach((kp) => {
+  for (const [name, kp] of Object.entries(keypoints)) {
+    if (!kp) continue;
+    
     const x = kp.x * img.width;
-    const y = (1 - kp.y) * img.height;
+    const y = kp.y * img.height; // Y already flipped in Swift
     
     // Draw circle
     ctx.beginPath();
-    ctx.arc(x, y, 8, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
+    ctx.arc(x, y, 12, 0, Math.PI * 2);
+    ctx.fillStyle = colors[name] || 'rgba(255, 0, 0, 0.7)';
     ctx.fill();
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.stroke();
     
     // Draw label
     ctx.fillStyle = 'white';
-    ctx.font = '12px Arial';
-    ctx.fillText(kp.name.replace('_joint', ''), x + 12, y + 4);
-  });
+    ctx.font = 'bold 16px Arial';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 3;
+    ctx.strokeText(name, x + 16, y + 6);
+    ctx.fillText(name, x + 16, y + 6);
+  }
   
   // Draw skeleton connections
-  const connections = [
-    ['neck_1_joint', 'left_shoulder_1_joint'],
-    ['neck_1_joint', 'right_shoulder_1_joint'],
-    ['left_shoulder_1_joint', 'left_forearm_joint'],
-    ['left_forearm_joint', 'left_hand_joint'],
-    ['right_shoulder_1_joint', 'right_forearm_joint'],
-    ['right_forearm_joint', 'right_hand_joint'],
-    ['root', 'left_upLeg_joint'],
-    ['root', 'right_upLeg_joint'],
-    ['left_upLeg_joint', 'left_leg_joint'],
-    ['left_leg_joint', 'left_foot_joint'],
-    ['right_upLeg_joint', 'right_leg_joint'],
-    ['right_leg_joint', 'right_foot_joint'],
+  const connections: Array<[string, string]> = [
+    ['leftHand', 'rightHand'],
+    ['leftFoot', 'rightFoot']
   ];
   
-  ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.lineWidth = 4;
   
   connections.forEach(([from, to]) => {
-    const fromKp = keypoints.find(kp => kp.name === from);
-    const toKp = keypoints.find(kp => kp.name === to);
+    const fromKp = keypoints[from as keyof typeof keypoints];
+    const toKp = keypoints[to as keyof typeof keypoints];
     
     if (fromKp && toKp) {
       ctx.beginPath();
-      ctx.moveTo(fromKp.x * img.width, (1 - fromKp.y) * img.height);
-      ctx.lineTo(toKp.x * img.width, (1 - toKp.y) * img.height);
+      ctx.moveTo(fromKp.x * img.width, fromKp.y * img.height);
+      ctx.lineTo(toKp.x * img.width, toKp.y * img.height);
       ctx.stroke();
     }
   });

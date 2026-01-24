@@ -75,6 +75,7 @@ public class IosPoseDetectionPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         
+        let startTime = CFAbsoluteTimeGetCurrent()
         print("🧍 iOS Native: detectPose called, data length: \(base64String.count)")
         
         // Convert base64 to UIImage
@@ -101,24 +102,39 @@ public class IosPoseDetectionPlugin: CAPPlugin, CAPBridgedPlugin {
                 // Extract recognized points
                 let recognizedPoints = try observation.recognizedPoints(.all)
                 
-                // Convert Vision points to dictionary
-                var keypoints: [[String: Any]] = []
-                for (jointName, point) in recognizedPoints {
-                    if point.confidence > 0.1 { // Filter low-confidence points
-                        keypoints.append([
-                            "name": jointName.rawValue,
+                // Map Vision keypoints to unified app format
+                // Vision uses bottom-left origin, app uses top-left, so flip Y: (1 - y)
+                var unifiedKeypoints: [String: [String: Double]] = [:]
+                
+                let keypointMapping: [(VNHumanBodyPoseObservation.JointName, String)] = [
+                    (.leftWrist, "leftHand"),
+                    (.rightWrist, "rightHand"),
+                    (.leftAnkle, "leftFoot"),
+                    (.rightAnkle, "rightFoot")
+                ]
+                
+                for (visionJoint, appName) in keypointMapping {
+                    if let point = recognizedPoints[visionJoint],
+                       point.confidence > 0.1 {
+                        unifiedKeypoints[appName] = [
                             "x": Double(point.location.x),
-                            "y": Double(point.location.y),
+                            "y": Double(1.0 - point.location.y), // Flip Y coordinate
                             "confidence": Double(point.confidence)
-                        ])
+                        ]
+                        print("  \(appName): x=\(point.location.x) y=\(1.0 - point.location.y) conf=\(point.confidence)")
                     }
                 }
                 
-                print("✅ Pose detected: \(keypoints.count) keypoints")
+                let detectedCount = unifiedKeypoints.count
+                let elapsedTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000 // Convert to ms
+                print("✅ Pose detected: \(detectedCount)/4 keypoints in unified format")
+                print("⏱️  Processing time: \(String(format: "%.1f", elapsedTime))ms")
                 
                 call.resolve([
-                    "keypoints": keypoints,
-                    "success": true
+                    "keypoints": unifiedKeypoints,
+                    "detected": detectedCount > 0,
+                    "success": true,
+                    "processingTimeMs": elapsedTime
                 ])
             } catch {
                 call.reject("Vision detection failed: \(error.localizedDescription)")

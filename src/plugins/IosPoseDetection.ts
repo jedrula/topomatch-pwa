@@ -29,13 +29,21 @@ export interface IosPoseDetectionPlugin {
   }>;
   
   /**
-   * Step 3: Detect pose using Vision Framework
+   * Step 3-4: Detect pose using Vision Framework
+   * Returns unified format matching app's pose detection interface
    * @param options - { imageData: string } - base64 encoded image
-   * @returns Promise<{ keypoints: Array<{name: string, x: number, y: number, confidence: number}>, success: boolean }>
+   * @returns Promise with unified keypoints format (leftHand, rightHand, leftFoot, rightFoot)
    */
   detectPose(options: { imageData: string }): Promise<{
-    keypoints: Array<{ name: string; x: number; y: number; confidence: number }>;
+    keypoints: {
+      leftHand?: { x: number; y: number; confidence: number };
+      rightHand?: { x: number; y: number; confidence: number };
+      leftFoot?: { x: number; y: number; confidence: number };
+      rightFoot?: { x: number; y: number; confidence: number };
+    };
+    detected: boolean;
     success: boolean;
+    processingTimeMs?: number;
   }>;
 }
 
