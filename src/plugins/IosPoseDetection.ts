@@ -16,6 +16,17 @@ export interface IosPoseDetectionPlugin {
    * @returns Promise<{ message: string }>
    */
   echo(options: { message: string }): Promise<{ message: string }>;
+  
+  /**
+   * Step 2: Process image data - verify base64 transfer works
+   * @param options - { imageData: string } - base64 encoded image
+   * @returns Promise<{ width: number, height: number, success: boolean }>
+   */
+  processImage(options: { imageData: string }): Promise<{ 
+    width: number; 
+    height: number; 
+    success: boolean 
+  }>;
 }
 
 const IosPoseDetection = registerPlugin<IosPoseDetectionPlugin>('IosPoseDetection');

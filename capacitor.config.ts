@@ -13,6 +13,11 @@ const config: CapacitorConfig = {
     contentInset: 'always',
     limitsNavigationsToAppBoundDomains: false // Allow Firebase Auth redirects
   },
+  // Inline plugins need to be registered in packageClassList
+  // @ts-ignore - undocumented but required for inline plugins
+  packageClassList: [
+    'IosPoseDetectionPlugin'
+  ],
   plugins: {
     FirebaseAuthentication: {
       skipNativeAuth: false,
