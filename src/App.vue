@@ -81,13 +81,16 @@ onMounted(() => {
   userStore.initAuth();
   
   // 🧪 STEP 1 TEST: iOS Pose Detection Plugin Echo Test - ✅ COMPLETE
-  // 🧪 STEP 2 TEST: Image data transfer
-  // TODO: Remove after validating Step 2
+  // 🧪 STEP 2 TEST: Image data transfer - ✅ COMPLETE
+  // 🧪 STEP 3 TEST: Vision Framework pose detection
+  // TODO: Remove after validating Step 3
   if (window.Capacitor && window.Capacitor.getPlatform() === 'ios') {
     testIosPoseDetectionEcho().then(() => {
-      // Import and test image transfer
+      // Import and test all steps sequentially
       import('@/plugins/testIosPoseDetection').then(module => {
-        module.testImageTransfer();
+        module.testImageTransfer().then(() => {
+          module.testPoseDetection();
+        });
       });
     });
   }

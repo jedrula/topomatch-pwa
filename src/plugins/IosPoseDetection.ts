@@ -27,6 +27,16 @@ export interface IosPoseDetectionPlugin {
     height: number; 
     success: boolean 
   }>;
+  
+  /**
+   * Step 3: Detect pose using Vision Framework
+   * @param options - { imageData: string } - base64 encoded image
+   * @returns Promise<{ keypoints: Array<{name: string, x: number, y: number, confidence: number}>, success: boolean }>
+   */
+  detectPose(options: { imageData: string }): Promise<{
+    keypoints: Array<{ name: string; x: number; y: number; confidence: number }>;
+    success: boolean;
+  }>;
 }
 
 const IosPoseDetection = registerPlugin<IosPoseDetectionPlugin>('IosPoseDetection');
