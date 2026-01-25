@@ -22,6 +22,9 @@
 		E3F6EE5B2F25700100B652F5 /* onnxruntime_extensions in Frameworks */ = {isa = PBXBuildFile; productRef = E3F6EE5A2F25700100B652F5 /* onnxruntime_extensions */; };
 		E3F6EE5F2F2596E900B652F5 /* OnnxModelTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F6EE5E2F2596E900B652F5 /* OnnxModelTest.swift */; };
 		E3F6EE632F25A59300B652F5 /* superpoint_lightglue_pipeline.ort.onnx in Resources */ = {isa = PBXBuildFile; fileRef = E3F6EE622F25A59300B652F5 /* superpoint_lightglue_pipeline.ort.onnx */; };
+		E3F6EE662F25A7DB00B652F5 /* test-image-2.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E3F6EE652F25A7DB00B652F5 /* test-image-2.jpg */; };
+		E3F6EE672F25A7DB00B652F5 /* test-image-1.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E3F6EE642F25A7DB00B652F5 /* test-image-1.jpg */; };
+		E3F6EE692F25A8B800B652F5 /* test-image-different.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E3F6EE682F25A8B800B652F5 /* test-image-different.jpg */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +44,9 @@
 		E3F6EE552F23B07300B652F5 /* IosPoseDetectionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IosPoseDetectionPlugin.swift; path = plugins/IosPoseDetectionPlugin.swift; sourceTree = "<group>"; };
 		E3F6EE5E2F2596E900B652F5 /* OnnxModelTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnnxModelTest.swift; sourceTree = "<group>"; };
 		E3F6EE622F25A59300B652F5 /* superpoint_lightglue_pipeline.ort.onnx */ = {isa = PBXFileReference; lastKnownFileType = file; path = superpoint_lightglue_pipeline.ort.onnx; sourceTree = "<group>"; };
+		E3F6EE642F25A7DB00B652F5 /* test-image-1.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "test-image-1.jpg"; sourceTree = "<group>"; };
+		E3F6EE652F25A7DB00B652F5 /* test-image-2.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "test-image-2.jpg"; sourceTree = "<group>"; };
+		E3F6EE682F25A8B800B652F5 /* test-image-different.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "test-image-different.jpg"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +84,9 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				E3F6EE682F25A8B800B652F5 /* test-image-different.jpg */,
+				E3F6EE642F25A7DB00B652F5 /* test-image-1.jpg */,
+				E3F6EE652F25A7DB00B652F5 /* test-image-2.jpg */,
 				E3F6EE5E2F2596E900B652F5 /* OnnxModelTest.swift */,
 				E3F6EE552F23B07300B652F5 /* IosPoseDetectionPlugin.swift */,
 				E3E91DA62F0F326D000630B0 /* App.entitlements */,
@@ -165,7 +174,10 @@
 			files = (
 				504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */,
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
+				E3F6EE662F25A7DB00B652F5 /* test-image-2.jpg in Resources */,
+				E3F6EE672F25A7DB00B652F5 /* test-image-1.jpg in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
+				E3F6EE692F25A8B800B652F5 /* test-image-different.jpg in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				E3F6EE632F25A59300B652F5 /* superpoint_lightglue_pipeline.ort.onnx in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
