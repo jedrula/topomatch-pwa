@@ -75,9 +75,19 @@ watch(needRefresh, (newVal) => {
 });
 
 // Initialize authentication when app starts
-onMounted(() => {
+onMounted(async () => {
   isNativePlatform.value = isNative();
   userStore.initAuth();
+  
+  // TEST: Image matching plugin (iOS only)
+  if (isNativePlatform.value) {
+    try {
+      const { testIosImageMatching } = await import('./plugins/testIosImageMatching');
+      await testIosImageMatching();
+    } catch (error) {
+      console.log('⏸️ Image matching test skipped or failed:', error);
+    }
+  }
 });
 
 // Global auth modal handlers

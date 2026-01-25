@@ -25,6 +25,7 @@
 		E3F6EE662F25A7DB00B652F5 /* test-image-2.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E3F6EE652F25A7DB00B652F5 /* test-image-2.jpg */; };
 		E3F6EE672F25A7DB00B652F5 /* test-image-1.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E3F6EE642F25A7DB00B652F5 /* test-image-1.jpg */; };
 		E3F6EE692F25A8B800B652F5 /* test-image-different.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E3F6EE682F25A8B800B652F5 /* test-image-different.jpg */; };
+		E3F6EE6B2F25AA1000B652F5 /* IosImageMatchingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F6EE6A2F25AA1000B652F5 /* IosImageMatchingPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +48,7 @@
 		E3F6EE642F25A7DB00B652F5 /* test-image-1.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "test-image-1.jpg"; sourceTree = "<group>"; };
 		E3F6EE652F25A7DB00B652F5 /* test-image-2.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "test-image-2.jpg"; sourceTree = "<group>"; };
 		E3F6EE682F25A8B800B652F5 /* test-image-different.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "test-image-different.jpg"; sourceTree = "<group>"; };
+		E3F6EE6A2F25AA1000B652F5 /* IosImageMatchingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IosImageMatchingPlugin.swift; path = plugins/IosImageMatchingPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,6 +86,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				E3F6EE6A2F25AA1000B652F5 /* IosImageMatchingPlugin.swift */,
 				E3F6EE682F25A8B800B652F5 /* test-image-different.jpg */,
 				E3F6EE642F25A7DB00B652F5 /* test-image-1.jpg */,
 				E3F6EE652F25A7DB00B652F5 /* test-image-2.jpg */,
@@ -194,6 +197,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				E3F6EE6B2F25AA1000B652F5 /* IosImageMatchingPlugin.swift in Sources */,
 				7D88DAE60B0448C7AE55F64B /* MyViewController.swift in Sources */,
 				E3F6EE5F2F2596E900B652F5 /* OnnxModelTest.swift in Sources */,
 				E3F6EE562F23B07300B652F5 /* IosPoseDetectionPlugin.swift in Sources */,

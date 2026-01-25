@@ -16,7 +16,8 @@ const config: CapacitorConfig = {
   // Inline plugins need to be registered in packageClassList
   // @ts-ignore - undocumented but required for inline plugins
   packageClassList: [
-    'IosPoseDetectionPlugin'
+    'IosPoseDetectionPlugin',
+    'IosImageMatchingPlugin'
   ],
   plugins: {
     FirebaseAuthentication: {
