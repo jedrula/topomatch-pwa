@@ -504,15 +504,6 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     
     console.log(`   Comparing against ${imageUrls.length} location images...`);
     
-    // Get the inference store for SuperPoint
-    const useInferenceStore = await loadInferenceStore();
-    const inferenceStore = useInferenceStore();
-    
-    // Wait for inference session to be ready
-    console.log(`   Waiting for inference session to initialize...`);
-    await inferenceStore.ensureSessionReady();
-    console.log(`   ✅ Inference session ready`);
-    
     // Use the best frame selected in Step 1
     if (job.bestFrameIndex === undefined || !job.extractedFrames[job.bestFrameIndex]) {
       throw new Error('Best frame not found - pose detection may have failed');
@@ -521,31 +512,65 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     const bestFrame = job.extractedFrames[job.bestFrameIndex];
     console.log(`   Using frame ${job.bestFrameIndex + 1} (best frame from pose detection)`);
     
-    // Run SuperPoint feature matching using batch inference
-    console.log(`   Running batch inference...`);
-    
     // Convert video frame to blob for inference
     const frameBlob = await fetch(bestFrame.url).then(r => r.blob());
     const frameFile = new File([frameBlob], 'frame.jpg', { type: 'image/jpeg' });
     
-    // Run inference batch and wait for results
-    await new Promise((resolve) => {
-      inferenceStore.runInferenceBatch(
+    // Check if we should use native iOS matching
+    const { shouldUseNativeMatching, runNativeImageMatching } = await import('../services/nativeImageMatchingAdapter.js');
+    const useNative = shouldUseNativeMatching();
+    
+    let results, matchCounts;
+    
+    if (useNative) {
+      // Native iOS path - use ONNX Runtime with SuperPoint+LightGlue
+      console.log(`   🍎 Using native iOS image matching...`);
+      
+      const nativeResults = await runNativeImageMatching(
         frameFile,
         imageUrls,
-        resolve,  // onComplete callback
+        () => {}, // onComplete
         (currentIndex, totalImages) => {
-          // Image matching takes longest: uses PROGRESS.MATCHING.start → PROGRESS.MATCHING.end
-          // progressCallback receives (currentIndex, totalImages), convert to 0-1 range
+          // Progress callback - map to PROGRESS.MATCHING range
           const progressRatio = totalImages > 0 ? currentIndex / totalImages : 0;
           job.progress = PROGRESS.MATCHING.start + Math.round(progressRatio * range(PROGRESS.MATCHING));
         }
       );
-    });
-    
-    // Get results from store
-    const results = inferenceStore.inferenceResults;
-    const matchCounts = inferenceStore.matchCounts;
+      
+      results = nativeResults.results;
+      matchCounts = nativeResults.matchCounts;
+      
+    } else {
+      // Browser WASM path - use existing inferenceStore
+      console.log(`   Running batch inference with WASM...`);
+      
+      const useInferenceStore = await loadInferenceStore();
+      const inferenceStore = useInferenceStore();
+      
+      // Wait for inference session to be ready
+      console.log(`   Waiting for inference session to initialize...`);
+      await inferenceStore.ensureSessionReady();
+      console.log(`   ✅ Inference session ready`);
+      
+      // Run inference batch and wait for results
+      await new Promise((resolve) => {
+        inferenceStore.runInferenceBatch(
+          frameFile,
+          imageUrls,
+          resolve,  // onComplete callback
+          (currentIndex, totalImages) => {
+            // Image matching takes longest: uses PROGRESS.MATCHING.start → PROGRESS.MATCHING.end
+            // progressCallback receives (currentIndex, totalImages), convert to 0-1 range
+            const progressRatio = totalImages > 0 ? currentIndex / totalImages : 0;
+            job.progress = PROGRESS.MATCHING.start + Math.round(progressRatio * range(PROGRESS.MATCHING));
+          }
+        );
+      });
+      
+      // Get results from store
+      results = inferenceStore.inferenceResults;
+      matchCounts = inferenceStore.matchCounts;
+    }
     const matchResults = [];
     
     for (let i = 0; i < imageUrls.length; i++) {
@@ -683,62 +708,109 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         console.warn(`⚠️ Server homography failed: ${err.message}, falling back to frontend`);
       }
     }
-    // Convert raw ONNX data to match objects for homography calculation
-    // SuperPoint/LightGlue uses 256x256 inference size - scale keypoints back to original dimensions
-    const result = results[bestMatch.imageUrl];
-    const rawData = result.rawData;
-    const inferenceSize = 256;
-    const userImageDims = result.userImageDims || { width: inferenceSize, height: inferenceSize };
-    const topoImageDims = result.topoImageDims || { width: inferenceSize, height: inferenceSize };
     
-    // Calculate scaling factors
-    const userScaleX = userImageDims.width / inferenceSize;
-    const userScaleY = userImageDims.height / inferenceSize;
-    const topoScaleX = topoImageDims.width / inferenceSize;
-    const topoScaleY = topoImageDims.height / inferenceSize;
+    // 🎯 SKIP FRONTEND HOMOGRAPHY if we have localized transforms from server
+    // Localized transforms are MORE ACCURATE than global homography for pose→hold matching
+    // They provide per-keypoint transformations rather than single global matrix
+    const skipFrontendHomography = job.localizedTransforms && job.localizedTransforms.length > 0;
     
-    // Build match array in format expected by calculateHomographyMatrix
-    const matches = [];
-    const maxMatches = rawData.matches.dims[0];
-    
-    for (let i = 0; i < maxMatches; i++) {
-      const matchBaseIndex = i * rawData.matches.dims[1];
-      const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
-      const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
+    if (skipFrontendHomography) {
+      console.log(`\n🎯 Skipping frontend homography (using ${job.localizedTransforms.length} localized transforms from server)`);
       
-      // Scale keypoints back to original image coordinates
-      const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]) * userScaleX;
-      const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]) * userScaleY;
-      const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) * topoScaleX;
-      const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]) * topoScaleY;
+      // Still need to set matchedImageId and dimensions for next steps
+      job.matchedImageId = bestMatch.imageId;
       
-      matches.push({
-        point1: { x: x0, y: y0 },
-        point2: { x: x1, y: y1 },
-      });
+      // Get location image dimensions from the matched image
+      const matchedImage = job.comparisonImages?.find(img => img.imageId === bestMatch.imageId);
+      if (matchedImage?.url) {
+        try {
+          const locationImageBlob = await fetch(matchedImage.url).then(r => r.blob());
+          const locationImage = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = URL.createObjectURL(locationImageBlob);
+          });
+          
+          job.matchedImageDimensions = {
+            width: locationImage.naturalWidth,
+            height: locationImage.naturalHeight
+          };
+          
+          URL.revokeObjectURL(locationImage.src);
+          console.log(`   📐 Location image dimensions: ${job.matchedImageDimensions.width}×${job.matchedImageDimensions.height}`);
+        } catch (err) {
+          console.warn(`   ⚠️ Failed to get image dimensions, using defaults`);
+          job.matchedImageDimensions = { width: 640, height: 480 };
+        }
+      }
+      
+      job.progress = PROGRESS.MATCHING.end;
+    } else {
+      // Calculate frontend homography only if needed and data is available
+      const result = results[bestMatch.imageUrl];
+      
+      if (!result || !result.rawData) {
+        // Native iOS matching doesn't provide rawData - need server homography
+        throw new Error('Frontend homography requires WASM inference results (rawData not available from native matching). Enable server homography (VITE_USE_SERVER_HOMOGRAPHY=true) when using native iOS matching.');
+      }
+      
+      // Convert raw ONNX data to match objects for homography calculation
+      // SuperPoint/LightGlue uses 256x256 inference size - scale keypoints back to original dimensions
+      const rawData = result.rawData;
+      const inferenceSize = 256;
+      const userImageDims = result.userImageDims || { width: inferenceSize, height: inferenceSize };
+      const topoImageDims = result.topoImageDims || { width: inferenceSize, height: inferenceSize };
+      
+      // Calculate scaling factors
+      const userScaleX = userImageDims.width / inferenceSize;
+      const userScaleY = userImageDims.height / inferenceSize;
+      const topoScaleX = topoImageDims.width / inferenceSize;
+      const topoScaleY = topoImageDims.height / inferenceSize;
+      
+      // Build match array in format expected by calculateHomographyMatrix
+      const matches = [];
+      const maxMatches = rawData.matches.dims[0];
+      
+      for (let i = 0; i < maxMatches; i++) {
+        const matchBaseIndex = i * rawData.matches.dims[1];
+        const img0Idx = Number(rawData.matches.cpuData[matchBaseIndex + 1]);
+        const img1Idx = Number(rawData.matches.cpuData[matchBaseIndex + 2]);
+        
+        // Scale keypoints back to original image coordinates
+        const x0 = Number(rawData.keypoints.cpuData[img0Idx * 2]) * userScaleX;
+        const y0 = Number(rawData.keypoints.cpuData[img0Idx * 2 + 1]) * userScaleY;
+        const x1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2]) * topoScaleX;
+        const y1 = Number(rawData.keypoints.cpuData[(img1Idx + rawData.keypoints.dims[1]) * 2 + 1]) * topoScaleY;
+        
+        matches.push({
+          point1: { x: x0, y: y0 },
+          point2: { x: x1, y: y1 },
+        });
+      }
+      
+      console.log(`   ✓ Converted ${matches.length} matches for homography calculation`);
+      
+      if (matches.length < 4) {
+        throw new Error(`Not enough matches for homography (${matches.length} < 4)`);
+      }
+      
+      // Calculate homography matrix
+      const homographyResult = await calculateHomographyMatrix(matches);
+      
+      if (!homographyResult || !homographyResult.matrix) {
+        throw new Error('Failed to calculate homography matrix');
+      }
+      
+      console.log(`✅ Homography matrix calculated (${homographyResult.inliers}/${matches.length} inliers)`);
+      
+      job.matchedImageId = bestMatch.imageId;
+      job.homographyMatrix = homographyResult.matrix;
+      job.featureMatches = matches;  // Store for debugging/visualization
+      job.homographyInliers = homographyResult.inliers;  // Number of inlier matches
+      job.matchedImageDimensions = topoImageDims; // Store the actual location image dimensions
+      job.progress = PROGRESS.MATCHING.end;  // Image matching complete
     }
-    
-    console.log(`   ✓ Converted ${matches.length} matches for homography calculation`);
-    
-    if (matches.length < 4) {
-      throw new Error(`Not enough matches for homography (${matches.length} < 4)`);
-    }
-    
-    // Calculate homography matrix
-    const homographyResult = await calculateHomographyMatrix(matches);
-    
-    if (!homographyResult || !homographyResult.matrix) {
-      throw new Error('Failed to calculate homography matrix');
-    }
-    
-    console.log(`✅ Homography matrix calculated (${homographyResult.inliers}/${matches.length} inliers)`);
-    
-    job.matchedImageId = bestMatch.imageId;
-    job.homographyMatrix = homographyResult.matrix;
-    job.featureMatches = matches;  // Store for debugging/visualization
-    job.homographyInliers = homographyResult.inliers;  // Number of inlier matches
-    job.matchedImageDimensions = topoImageDims; // Store the actual location image dimensions
-    job.progress = PROGRESS.MATCHING.end;  // Image matching complete
   };
 
   /**
@@ -820,8 +892,8 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     job.status = 'scoring';
     job.progress = PROGRESS.SCORING.start;
     
-    if (!job.homographyMatrix) {
-      throw new Error('No homography matrix - cannot transform coordinates');
+    if (!job.homographyMatrix && !(job.localizedTransforms && job.localizedTransforms.length > 0)) {
+      throw new Error('No homography or localized transforms - cannot transform coordinates');
     }
     
     // 🎯 CRITICAL: Only score problems that belong to the matched image
@@ -918,14 +990,20 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
           });
           const fallbackIndicator = localizedTransform.fallback_used ? ' (fallback)' : '';
           console.log(`   ✓ ${kp.type}: localized transform${fallbackIndicator}`);
+          console.log(`      └─ Server transform: ${transformName} → (${localizedTransform.target_point.x.toFixed(2)}, ${localizedTransform.target_point.y.toFixed(2)})`);
         } else {
           // Fallback to global homography for this keypoint if no localized transform
           const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
           const transformed = transformPoints([kp], homographyToUse);
           imageKeypoints.push(transformed[0]);
           console.log(`   ⚠️ ${kp.type}: using global homography (no localized transform)`);
+          if (transformed[0]) {
+            console.log(`      └─ Fallback transform: (${transformed[0].x?.toFixed(2)}, ${transformed[0].y?.toFixed(2)})`);
+          }
         }
       }
+      // Extra: Log all transformed keypoints
+      console.log('   🔎 All transformed keypoints:', imageKeypoints);
     } else {
       // Use global homography (legacy path)
       const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
@@ -1032,6 +1110,13 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       transformedFrames,
       getKeypointRowsForFrame
     );
+    // Extra: Log output of calculateProblemScores
+    console.log('   🧮 calculateProblemScores input:', {
+      transformedFrames,
+      matchedImageProblems,
+      holds: job.holds
+    });
+    console.log('   🧮 calculateProblemScores output:', scores);
     
     console.log(`\n📈 Raw scores returned:`, scores);
     console.log(`   Scores array length: ${scores ? scores.length : 'null/undefined'}`);

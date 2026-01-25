@@ -55,18 +55,22 @@ const app = createApp(App);
 
 app.use(router);
 app.use(FloatingVue);
+
 app.use(pinia);
 
-// Eagerly initialize inference store to start loading AI models immediately
-// Four modes available:
-// 1. Mock mode (VITE_USE_INFERENCE_MOCK=true): Uses recorded fixtures (saves ~49 MB)
-// 2. Main thread mode (VITE_USE_MAIN_THREAD_INFERENCE=true): Runs in main thread (no worker)
-// 3. Worker (new) mode (VITE_USE_NEW_WORKER=true): ES modules worker following ONNX Runtime best practices
-// 4. Worker (old) mode (default): Legacy concatenated worker
-// See inferenceStoreLoader.js for implementation details
-const useInferenceStore = await loadInferenceStore();
-useInferenceStore(); // Initialize session immediately
-console.log('🚀 Inference model loading started');
+// Only initialize inference store for non-native platforms
+if (!window.Capacitor?.isNativePlatform() || window.Capacitor?.getPlatform?.() !== 'ios') {
+  // Eagerly initialize inference store to start loading AI models immediately
+  // Four modes available:
+  // 1. Mock mode (VITE_USE_INFERENCE_MOCK=true): Uses recorded fixtures (saves ~49 MB)
+  // 2. Main thread mode (VITE_USE_MAIN_THREAD_INFERENCE=true): Runs in main thread (no worker)
+  // 3. Worker (new) mode (VITE_USE_NEW_WORKER=true): ES modules worker following ONNX Runtime best practices
+  // 4. Worker (old) mode (default): Legacy concatenated worker
+  // See inferenceStoreLoader.js for implementation details
+  const useInferenceStore = await loadInferenceStore();
+  useInferenceStore(); // Initialize session immediately
+  console.log('🚀 Inference model loading started');
+}
 
 // Expose testing API for E2E tests
 // Enabled in: dev mode, test mode, or production-test build (VITE_ENABLE_TEST_API=true)
