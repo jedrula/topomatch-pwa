@@ -10,6 +10,7 @@
  */
 
 import { isMobile } from '@/utils/platform';
+import { Capacitor } from '@capacitor/core';
 
 let cachedUseInferenceStore = null;
 
@@ -23,16 +24,19 @@ export async function loadInferenceStore() {
     return cachedUseInferenceStore;
   }
 
-  const isMobileDevice = isMobile() || true;
+  const isMobileDevice = isMobile();
+  const isNativeApp = Capacitor.isNativePlatform();
+  
   console.log('🔍 Device detection:');
   console.log('   User Agent:', navigator.userAgent);
   console.log('   isMobile():', isMobileDevice);
+  console.log('   isNativePlatform():', isNativeApp);
   console.log('   Platform:', navigator.platform);
 
   let useInferenceStore;
 
-  // 🚨 MOBILE: Skip model loading on mobile devices to prevent crashes
-  if (isMobileDevice) {
+  // 🚨 MOBILE WEB ONLY: Skip model loading on mobile browsers (not native apps)
+  if (isMobileDevice && !isNativeApp) {
     console.log('📱 Mobile device detected - Using dummy MOCK inference store');
     const module = await import('./inferenceStoreDummyMock.js');
     useInferenceStore = module.useInferenceStore;
