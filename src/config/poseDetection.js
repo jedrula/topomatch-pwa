@@ -35,11 +35,11 @@ export const PoseModel = {
 /**
  * Active pose detection model
  * 
- * 🎯 CHANGE THIS LINE to switch models:
+ * 🎯 Desktop web uses this model (mobile web uses dummy, iOS uses Vision Framework)
  * 
- * TODO: MediaPipe models currently broken - stick with YOLO for now, remove dummy when tested
+ * TODO: MediaPipe models currently broken - stick with YOLO for now
  */
-export const ACTIVE_POSE_MODEL = PoseModel.dummy; // PoseModel.YOLO11N;
+export const ACTIVE_POSE_MODEL = PoseModel.YOLO11N;
 
 /**
  * Model metadata for runtime use

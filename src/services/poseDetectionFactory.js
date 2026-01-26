@@ -8,6 +8,7 @@
 import { ACTIVE_POSE_MODEL, getActiveModelConfig, PoseModel } from '../config/poseDetection.js';
 import { YoloPoseService } from './yoloPoseService.js';
 import { MediaPipePoseService } from './mediapipePoseService.js';
+import { isMobile } from '@/utils/platform';
 // import { IosVisionPoseService } from './iosVisionPoseService.js'; // Moved to dynamic import
 import poseDetectionService from './poseDetectionService.js';
 // import { Capacitor } from '@capacitor/core'; // Moved to dynamic import
@@ -23,6 +24,35 @@ let activeService = null;
 const useWorkerPose = import.meta.env.VITE_USE_NEW_WORKER === 'true';
 
 /**
+ * Create a dummy pose detection service (used on mobile web)
+ */
+function createDummyService() {
+  return {
+    initialize: async () => {
+      console.log('  DUMMY: Skipping model initialization');
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    },
+    detectPose: async (imageData) => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return {
+        detected: false,
+        keypoints: {},
+        confidence: 0,
+        error: false
+      };
+    },
+    isInitialized: () => true,
+    dispose: async () => {},
+    getModelInfo: () => ({
+      name: 'Dummy (Mobile Web)',
+      provider: 'dummy',
+      keypointCount: 0,
+      format: 'none',
+    })
+  };
+}
+
+/**
  * Create a pose detection service based on model identifier
  * @param {string} modelId - Model identifier from PoseModel enum
  * @returns {Promise<PoseDetectionService>}
@@ -30,34 +60,29 @@ const useWorkerPose = import.meta.env.VITE_USE_NEW_WORKER === 'true';
 async function createPoseService(modelId) {
   // Dynamic import of Capacitor - only loads when actually checking platform
   const { Capacitor } = await import('@capacitor/core');
-  console.log('Capacitor.isNativePlatform():', Capacitor.isNativePlatform());
-  console.log('Capacitor.getPlatform():', Capacitor.getPlatform());
+  const isNative = Capacitor.isNativePlatform();
+  const isMobileDevice = isMobile();
+  
+  console.log('Platform detection:');
+  console.log('  isNativePlatform:', isNative);
+  console.log('  isMobile:', isMobileDevice);
+  console.log('  platform:', Capacitor.getPlatform());
+  
   // Auto-detect native iOS (Capacitor) and use Vision Framework
-  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
-    console.log('📱 Native iOS detected - using Vision Framework for pose detection');
+  if (isNative && Capacitor.getPlatform() === 'ios') {
+    console.log('🍎 Native iOS detected - using Vision Framework for pose detection');
     const { IosVisionPoseService } = await import('./iosVisionPoseService.js');
     return new IosVisionPoseService();
   }
-
-  const config = getActiveModelConfig();
-
-  if (config.provider === 'dummy') {
-    console.log('📱 Using DUMMY pose detection service (no-op)');
-    return {
-      initialize: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      },
-      detectPose: async (imageData) => {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        return {
-          detected: false,
-          keypoints: {},
-          confidence: 0,
-          error: false
-        };
-      }
-    }
+  
+  // Mobile web: Use dummy service (skip heavy model loading)
+  if (isMobileDevice && !isNative) {
+    console.log('📱 Mobile web detected - using DUMMY pose detection service (skip model loading)');
+    return createDummyService();
   }
+
+  // Desktop web: Use configured model from config
+  const config = getActiveModelConfig();
 
   // Use worker-based service if flag is enabled and using YOLO
   if (useWorkerPose && config.provider === 'yolo') {
