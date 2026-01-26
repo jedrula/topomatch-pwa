@@ -14921,14 +14921,11 @@ ort.env.wasm.numThreads = 4;
 
 // The ort object is available from the concatenated ONNX code
 if (typeof ort !== 'undefined' && ort.env) {
-  // Apply mobile-specific optimizations
-  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  
-  if (isMobile) {
-    ort.env.wasm.numThreads = 1; // Single thread on mobile
-  } else {
-    ort.env.wasm.numThreads = 4;
-  }
+  // Universal threading: Reserve 2 cores for browser UI
+  const hardwareCores = navigator.hardwareConcurrency || 4;
+  const threads = Math.max(1, Math.min(4, hardwareCores - 2));
+  ort.env.wasm.numThreads = threads;
+  console.log(`🧵 [PoseWorker] Using ${threads} threads (hardware: ${hardwareCores}, reserved: 2)`);
 } else {
   console.error('ONNX Runtime not available in worker');
 }
@@ -14950,37 +14947,59 @@ const scoreThreshold = 0.25;
 
 // Message handler
 self.onmessage = async (event) => {
-  const { type, imageBuffer, imageInfo } = event.data;
+  const { type, imageData } = event.data;
 
   if (type === 'createSession') {
     try {
       const startTime = performance.now();
 
-      // Create main YOLOv8 session with mobile optimizations
-      yolov8Session = await ort.InferenceSession.create(MODEL_PATH, {
+      // Universal optimized threading for all devices
+      // Leave 2 threads for browser UI and other tasks
+      const hardwareCores = navigator.hardwareConcurrency || 4;
+      const optimalThreads = Math.max(1, Math.min(4, hardwareCores - 2)); // Reserve 2 cores
+
+      console.log(`🧵 [PoseWorker] Creating sessions with ${optimalThreads} threads (hardware: ${hardwareCores}, reserved: 2)`);
+
+      // Detect iOS version for SIMD compatibility
+      const isIOS15OrBelow = (() => {
+        const ua = navigator.userAgent;
+        const match = ua.match(/OS (\d+)_/);
+        if (match) {
+          const version = parseInt(match[1], 10);
+          return version <= 15;
+        }
+        return false;
+      })();
+      
+      const useSIMD = !isIOS15OrBelow;
+      if (isIOS15OrBelow) {
+        console.log('⚠️ [PoseWorker] iOS 15 or below detected - disabling SIMD');
+      }
+
+      // Universal optimized session config
+      const sessionConfig = {
         executionProviders: ['wasm'],
-        graphOptimizationLevel: 'extended', // More aggressive optimization
-        enableMemPattern: false, // Reduce memory allocation patterns
-        enableCpuMemArena: false, // Disable memory arena for lower usage
+        graphOptimizationLevel: 'basic', // Basic optimization saves memory on all devices
+        enableMemPattern: false,  // DISABLE to reduce memory usage
+        enableCpuMemArena: false, // DISABLE to reduce memory usage
         wasm: {
-          numThreads: 1, // Force single thread for mobile stability
-          simd: true,
-          threads: false, // Disable multi-threading for memory safety
+          numThreads: optimalThreads,
+          simd: useSIMD,
+          threads: optimalThreads > 1,
         },
+      };
+
+      console.log(`⚙️ [PoseWorker] Config:`, {
+        optimization: sessionConfig.graphOptimizationLevel,
+        memPattern: sessionConfig.enableMemPattern,
+        cpuArena: sessionConfig.enableCpuMemArena
       });
 
-      // Create NMS session with mobile optimizations
-      nmsSession = await ort.InferenceSession.create(NMS_PATH, {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: 'extended', // More aggressive optimization
-        enableMemPattern: false, // Reduce memory allocation patterns
-        enableCpuMemArena: false, // Disable memory arena for lower usage
-        wasm: {
-          numThreads: 1, // Force single thread for mobile stability
-          simd: true,
-          threads: false, // Disable multi-threading for memory safety
-        },
-      });
+      // Create main YOLOv8 session
+      yolov8Session = await ort.InferenceSession.create(MODEL_PATH, sessionConfig);
+
+      // Create NMS session
+      nmsSession = await ort.InferenceSession.create(NMS_PATH, sessionConfig);
 
       // Warmup the model
       const tensor = new ort.Tensor(
@@ -15044,20 +15063,28 @@ self.onmessage = async (event) => {
     }
 
     let imageBitmap = null;
-    let imageBlob = null;
 
     try {
-      if (!imageBuffer || !imageInfo) {
+      if (!imageData || !imageData.data) {
         self.postMessage({
           type: 'error',
-          data: { message: 'Image buffer and info must be provided.' },
+          data: { message: 'Image data must be provided.' },
         });
         return;
       }
 
-      // Create bitmap from buffer
-      imageBlob = new Blob([imageBuffer]);
-      imageBitmap = await createImageBitmap(imageBlob);
+      // Raw ImageData - no JPEG compression! 🎯
+      const { data, width, height } = imageData;
+      
+      // Create ImageData from raw buffer
+      const rawImageData = new ImageData(
+        new Uint8ClampedArray(data),
+        width,
+        height
+      );
+      
+      // Create bitmap directly from ImageData (no quality loss!)
+      imageBitmap = await createImageBitmap(rawImageData);
 
       const startTime = performance.now();
 
@@ -15105,7 +15132,6 @@ self.onmessage = async (event) => {
           inferenceTime: endTime - startTime,
           results: { poses },
           imageInfo: {
-            ...imageInfo,
             originalWidth: imageBitmap.width,
             originalHeight: imageBitmap.height,
             xRatio,
@@ -15139,7 +15165,6 @@ self.onmessage = async (event) => {
         imageBitmap.close();
       }
       imageBitmap = null;
-      imageBlob = null;
     }
   }
 };
@@ -15183,7 +15208,7 @@ function preprocessImageYOLOv8(imageBitmap) {
 
   // Resize to model input size
   const modelCanvas = new OffscreenCanvas(INPUT_SIZE, INPUT_SIZE);
-  const modelCtx = modelCanvas.getContext('2d');
+  const modelCtx = modelCanvas.getContext('2d', { willReadFrequently: true });
   modelCtx.drawImage(paddedCanvas, 0, 0, INPUT_SIZE, INPUT_SIZE);
 
   const imageData = modelCtx.getImageData(0, 0, INPUT_SIZE, INPUT_SIZE);

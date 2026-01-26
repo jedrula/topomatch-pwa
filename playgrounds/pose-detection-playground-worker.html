@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🧘 Pose Detection Playground - Production Worker</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+      .header h1 { margin: 0 0 10px 0; font-size: 2.5em; font-weight: 700; }
+      .header p { margin: 0; opacity: 0.9; font-size: 1.1em; }
+      .content { padding: 30px; }
+      .section {
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        border: 2px solid #e9ecef;
+      }
+      .section h2 {
+        margin: 0 0 15px 0;
+        color: #495057;
+        font-size: 1.5em;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+      .control-group { display: flex; flex-direction: column; gap: 8px; }
+      .control-group label { font-weight: 600; color: #495057; font-size: 0.9em; }
+      input[type="file"],
+      input[type="range"],
+      button {
+        padding: 10px 15px;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        font-size: 1em;
+        transition: all 0.2s;
+      }
+      button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .status {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .status.ready { background: #d1f2eb; color: #0a5c4d; border: 2px solid #7dcea0; }
+      .status.processing { background: #fff3cd; color: #856404; border: 2px solid #ffc107; }
+      .status.error { background: #f8d7da; color: #721c24; border: 2px solid #f5c6cb; }
+      .status.success { background: #d4edda; color: #155724; border: 2px solid #c3e6cb; }
+      .canvas-container {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      }
+      canvas { display: block; max-width: 100%; height: auto; }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+      .metric-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        border: 2px solid #e9ecef;
+      }
+      .metric-value { font-size: 2em; font-weight: 700; color: #667eea; margin-bottom: 8px; }
+      .metric-label { font-size: 0.9em; color: #6c757d; text-transform: uppercase; }
+      .test-images {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+      }
+      .test-image {
+        cursor: pointer;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 3px solid transparent;
+        transition: all 0.2s;
+        position: relative;
+      }
+      .test-image:hover { border-color: #667eea; transform: scale(1.05); }
+      .test-image img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        display: block;
+      }
+      .test-image-label {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 5px;
+        font-size: 0.8em;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🧘 Pose Detection Playground</h1>
+        <p>Testing PRODUCTION worker with GPU-ONLY mode (WebGPU/WebGL)</p>
+      </div>
+
+      <div class="content">
+        <div id="status" class="status ready">
+          <span>⚡</span>
+          <span id="statusText">Initializing...</span>
+        </div>
+
+        <div class="section">
+          <h2>🎛️ Controls</h2>
+          <div class="controls">
+            <div class="control-group">
+              <label for="imageUpload">Upload Image</label>
+              <input type="file" id="imageUpload" accept="image/*" />
+            </div>
+            <div class="control-group">
+              <label for="confidenceThreshold">
+                Confidence: <span id="confidenceValue">0.25</span>
+              </label>
+              <input type="range" id="confidenceThreshold" min="0" max="1" step="0.05" value="0.25" />
+            </div>
+          </div>
+          <button id="processBtn" disabled>🚀 Detect Poses</button>
+        </div>
+
+        <div class="section">
+          <h2>🖼️ Test Images</h2>
+          <div class="test-images" id="testImages"></div>
+        </div>
+
+        <div class="section" id="visualSection" style="display: none;">
+          <h2>👁️ Results</h2>
+          <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+          </div>
+        </div>
+
+        <div class="section" id="metricsSection" style="display: none;">
+          <h2>📊 Metrics</h2>
+          <div class="metrics">
+            <div class="metric-card">
+              <div class="metric-value" id="inferenceTime">-</div>
+              <div class="metric-label">Inference Time (ms)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="posesDetected">-</div>
+              <div class="metric-label">Poses Detected</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="imageSize">-</div>
+              <div class="metric-label">Image Size</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      // Test images
+      const TEST_IMAGES = [
+        { url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400', label: 'Yoga' },
+        { url: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400', label: 'Gym' },
+        { url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400', label: 'Running' },
+        { url: 'https://images.unsplash.com/photo-1552196563-55cd4e45efb3?w=400', label: 'Climbing' },
+      ];
+
+      // Skeleton connections for visualization
+      const SKELETON = [
+        [16, 14], [14, 12], [17, 15], [15, 13], [12, 13], // legs
+        [6, 12], [7, 13], [6, 7], // torso
+        [6, 8], [8, 10], [7, 9], [9, 11], // arms
+      ];
+
+      let currentImage = null;
+      let poseWorker = null;
+      let detectionResults = null;
+
+      // Initialize
+      document.addEventListener('DOMContentLoaded', async () => {
+        initializeTestImages();
+        setupEventListeners();
+        await initializeWorker();
+      });
+
+      function initializeTestImages() {
+        const container = document.getElementById('testImages');
+        TEST_IMAGES.forEach((img) => {
+          const div = document.createElement('div');
+          div.className = 'test-image';
+          div.innerHTML = `
+            <img src="${img.url}" alt="${img.label}" crossorigin="anonymous" />
+            <div class="test-image-label">${img.label}</div>
+          `;
+          div.onclick = () => loadTestImage(img.url);
+          container.appendChild(div);
+        });
+      }
+
+      function setupEventListeners() {
+        document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+        document.getElementById('processBtn').addEventListener('click', runDetection);
+        document.getElementById('confidenceThreshold').addEventListener('input', (e) => {
+          document.getElementById('confidenceValue').textContent = e.target.value;
+          if (detectionResults) {
+            visualizeResults(detectionResults);
+          }
+        });
+      }
+
+      async function initializeWorker() {
+        updateStatus('processing', 'Loading production GPU worker...');
+        try {
+          // Use the BUILT/BUNDLED worker (same as production app)
+          poseWorker = new Worker('/poseDetectionWorker.combined.js');
+          
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Worker session timeout')), 30000);
+            
+            const handleMessage = (e) => {
+              const { type, data } = e.data;
+              console.log('Worker message:', type, data);
+              
+              if (type === 'sessionCreated') {
+                clearTimeout(timeout);
+                poseWorker.removeEventListener('message', handleMessage);
+                console.log('✅ Worker session created');
+                resolve();
+              } else if (type === 'error') {
+                clearTimeout(timeout);
+                poseWorker.removeEventListener('message', handleMessage);
+                reject(new Error(data?.message || 'Worker error'));
+              }
+            };
+            
+            poseWorker.addEventListener('message', handleMessage);
+            poseWorker.onerror = (error) => {
+              clearTimeout(timeout);
+              reject(error);
+            };
+            
+            // Create session (same as production)
+            console.log('Sending createSession message...');
+            poseWorker.postMessage({ type: 'createSession' });
+          });
+          
+          updateStatus('success', '✅ GPU worker ready - Upload or select an image');
+        } catch (error) {
+          console.error('Worker error:', error);
+          updateStatus('error', `❌ Worker failed: ${error.message}`);
+        }
+      }
+
+      function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            currentImage = img;
+            document.getElementById('processBtn').disabled = false;
+            updateStatus('ready', `✅ Image loaded (${img.width}x${img.height})`);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function loadTestImage(url) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          currentImage = img;
+          document.getElementById('processBtn').disabled = false;
+          updateStatus('ready', `✅ Image loaded (${img.width}x${img.height})`);
+        };
+        img.onerror = () => {
+          updateStatus('error', '❌ Failed to load image');
+        };
+        img.src = url;
+      }
+
+      async function runDetection() {
+        if (!currentImage || !poseWorker) return;
+
+        updateStatus('processing', 'Detecting poses with GPU worker...');
+        document.getElementById('processBtn').disabled = true;
+
+        try {
+          const startTime = performance.now();
+
+          // Create ImageData (same as production)
+          const canvas = document.createElement('canvas');
+          canvas.width = currentImage.width;
+          canvas.height = currentImage.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(currentImage, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+          // Send to worker (same format as production)
+          const result = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Detection timeout')), 30000);
+
+            const handleMessage = (e) => {
+              const { type, data } = e.data;
+              console.log('Detection response:', type);
+              
+              if (type === 'poseDetectionComplete') {
+                clearTimeout(timeout);
+                poseWorker.removeEventListener('message', handleMessage);
+                resolve(data);
+              } else if (type === 'error') {
+                clearTimeout(timeout);
+                poseWorker.removeEventListener('message', handleMessage);
+                reject(new Error(data?.message || 'Detection error'));
+              }
+            };
+
+            poseWorker.addEventListener('message', handleMessage);
+
+            // Clone and send ImageData (same as production)
+            const dataClone = new Uint8ClampedArray(imageData.data);
+            poseWorker.postMessage({
+              type: 'runPoseDetection',
+              imageData: {
+                data: dataClone.buffer,
+                width: imageData.width,
+                height: imageData.height
+              }
+            }, [dataClone.buffer]);
+          });
+
+          const inferenceTime = (performance.now() - startTime).toFixed(0);
+
+          console.log('Worker result:', result);
+
+          // Worker returns {results: {poses: [...]}} format
+          detectionResults = { 
+            poses: result.results?.poses || [], 
+            inferenceTime 
+          };
+          
+          visualizeResults(detectionResults);
+          updateMetrics(detectionResults);
+
+          updateStatus('success', `✅ Found ${detectionResults.poses.length} pose(s) in ${inferenceTime}ms`);
+        } catch (error) {
+          console.error('Detection error:', error);
+          updateStatus('error', `❌ Detection failed: ${error.message}`);
+        } finally {
+          document.getElementById('processBtn').disabled = false;
+        }
+      }
+
+      function visualizeResults(results) {
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = currentImage.width;
+        canvas.height = currentImage.height;
+        
+        ctx.drawImage(currentImage, 0, 0);
+
+        const threshold = parseFloat(document.getElementById('confidenceThreshold').value);
+
+        results.poses.forEach(pose => {
+          if (pose.confidence < threshold) return;
+
+          // Draw bbox
+          ctx.strokeStyle = '#00ff00';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(pose.bbox.x, pose.bbox.y, pose.bbox.width, pose.bbox.height);
+          
+          ctx.fillStyle = '#00ff00';
+          ctx.font = 'bold 16px Arial';
+          ctx.fillText(
+            `${(pose.confidence * 100).toFixed(0)}%`,
+            pose.bbox.x + 5,
+            pose.bbox.y - 5
+          );
+
+          // Draw skeleton
+          if (pose.keypoints) {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#00ff00';
+            SKELETON.forEach(([i, j]) => {
+              const kp1 = pose.keypoints[i];
+              const kp2 = pose.keypoints[j];
+              if (kp1 && kp2 && kp1.confidence > threshold && kp2.confidence > threshold) {
+                ctx.beginPath();
+                ctx.moveTo(kp1.x, kp1.y);
+                ctx.lineTo(kp2.x, kp2.y);
+                ctx.stroke();
+              }
+            });
+
+            // Draw wrists and ankles
+            [9, 10, 15, 16].forEach(idx => {
+              const kp = pose.keypoints[idx];
+              if (kp && kp.confidence > threshold) {
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(kp.x, kp.y, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+              }
+            });
+          }
+        });
+
+        document.getElementById('visualSection').style.display = 'block';
+      }
+
+      function updateMetrics(results) {
+        const threshold = parseFloat(document.getElementById('confidenceThreshold').value);
+        const filteredPoses = results.poses.filter(p => p.confidence >= threshold);
+
+        document.getElementById('inferenceTime').textContent = results.inferenceTime;
+        document.getElementById('posesDetected').textContent = filteredPoses.length;
+        document.getElementById('imageSize').textContent = 
+          `${currentImage.width}×${currentImage.height}`;
+
+        document.getElementById('metricsSection').style.display = 'block';
+      }
+
+      function updateStatus(type, text) {
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        status.className = `status ${type}`;
+        statusText.innerHTML = text;
+      }
+    </script>
+  </body>
+</html>

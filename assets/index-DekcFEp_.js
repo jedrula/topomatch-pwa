@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/web-DYmnKi3Z.js","assets/index-CFmiDn-A.js","assets/index-DLdwHWa1.js","assets/preload-helper-CGHufUtz.js","assets/opencv-DL53UX6g.js","assets/index-Cpxn3fIE.css"])))=>i.map(i=>d[i]);
+import{_ as i}from"./preload-helper-CGHufUtz.js";import{registerPlugin as r}from"./index-CFmiDn-A.js";const n=r("FirebaseFunctions",{web:()=>i(()=>import("./web-DYmnKi3Z.js"),__vite__mapDeps([0,1,2,3,4,5])).then(e=>new e.FirebaseFunctionsWeb)});export{n as FirebaseFunctions};
