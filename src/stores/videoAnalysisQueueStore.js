@@ -361,7 +361,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     job.status = 'detecting';
     
     // Get pose detection service (uses factory to get YOLO or other configured model)
-    const poseService = getPoseDetectionService();
+    const poseService = await getPoseDetectionService();
     await poseService.initialize();
     
     for (let i = 0; i < job.extractedFrames.length; i++) {
@@ -518,7 +518,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     
     // Check if we should use native iOS matching
     const { shouldUseNativeMatching, runNativeImageMatching } = await import('../services/nativeImageMatchingAdapter.js');
-    const useNative = shouldUseNativeMatching();
+    const useNative = await shouldUseNativeMatching();
     
     let results, matchCounts;
     

@@ -15,13 +15,18 @@ export function usePoseDetection() {
   const sessionReady = ref(false);
   const currentModel = ref(null);
 
-  // Get service from factory
-  const service = getPoseDetectionService();
+  // Service loaded lazily when needed
+  let service = null;
 
   // Initialize service and track ready state
   const initializeService = async () => {
     try {
-      const modelInfo = getActiveModelInfo();
+      // Lazy load service on first use
+      if (!service) {
+        service = await getPoseDetectionService();
+      }
+      
+      const modelInfo = await getActiveModelInfo();
       currentModel.value = modelInfo;
       console.log(`🎯 Initializing ${modelInfo.name}...`);
       

@@ -10,7 +10,6 @@
  */
 
 import { PoseDetectionService, createKeypoint, createEmptyResult, createPoseResult } from '../types/poseDetection.js';
-import { Capacitor } from '@capacitor/core';
 
 export class IosVisionPoseService extends PoseDetectionService {
   constructor() {
@@ -27,6 +26,10 @@ export class IosVisionPoseService extends PoseDetectionService {
       return;
     }
 
+    // Dynamically import Capacitor (only loads when iOS service is actually used)
+    console.log('📱 Importing Capacitor...');
+    const { Capacitor } = await import('@capacitor/core');
+    
     // Verify we're on iOS
     console.log('📱 Checking platform...');
     if (Capacitor.getPlatform() !== 'ios') {

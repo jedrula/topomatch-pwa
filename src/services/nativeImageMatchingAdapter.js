@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+// import { Capacitor } from '@capacitor/core'; // Moved to dynamic import
 import IosImageMatching from '../plugins/IosImageMatching';
 
 /**
@@ -9,7 +9,8 @@ import IosImageMatching from '../plugins/IosImageMatching';
 /**
  * Check if we should use native iOS image matching
  */
-export function shouldUseNativeMatching() {
+export async function shouldUseNativeMatching() {
+  const { Capacitor } = await import('@capacitor/core');
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
 }
 

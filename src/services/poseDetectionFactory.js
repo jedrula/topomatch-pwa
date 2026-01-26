@@ -8,9 +8,9 @@
 import { ACTIVE_POSE_MODEL, getActiveModelConfig, PoseModel } from '../config/poseDetection.js';
 import { YoloPoseService } from './yoloPoseService.js';
 import { MediaPipePoseService } from './mediapipePoseService.js';
-import { IosVisionPoseService } from './iosVisionPoseService.js';
+// import { IosVisionPoseService } from './iosVisionPoseService.js'; // Moved to dynamic import
 import poseDetectionService from './poseDetectionService.js';
-import { Capacitor } from '@capacitor/core';
+// import { Capacitor } from '@capacitor/core'; // Moved to dynamic import
 
 /**
  * Singleton instance of the active pose detection service
@@ -25,14 +25,17 @@ const useWorkerPose = import.meta.env.VITE_USE_NEW_WORKER === 'true';
 /**
  * Create a pose detection service based on model identifier
  * @param {string} modelId - Model identifier from PoseModel enum
- * @returns {PoseDetectionService}
+ * @returns {Promise<PoseDetectionService>}
  */
-function createPoseService(modelId) {
+async function createPoseService(modelId) {
+  // Dynamic import of Capacitor - only loads when actually checking platform
+  const { Capacitor } = await import('@capacitor/core');
   console.log('Capacitor.isNativePlatform():', Capacitor.isNativePlatform());
   console.log('Capacitor.getPlatform():', Capacitor.getPlatform());
   // Auto-detect native iOS (Capacitor) and use Vision Framework
   if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
     console.log('📱 Native iOS detected - using Vision Framework for pose detection');
+    const { IosVisionPoseService } = await import('./iosVisionPoseService.js');
     return new IosVisionPoseService();
   }
 
@@ -79,15 +82,15 @@ function createPoseService(modelId) {
  * Get the active pose detection service
  * Creates a new instance if needed
  * 
- * @returns {PoseDetectionService}
+ * @returns {Promise<PoseDetectionService>}
  */
-export function getPoseDetectionService() {
+export async function getPoseDetectionService() {
   if (!activeService) {
     const config = getActiveModelConfig();
     console.log(`🎯 Creating pose detection service: ${ACTIVE_POSE_MODEL}`);
     console.log(`   Provider: ${config.provider}`);
     console.log(`   Keypoints: ${config.keypoints} (${config.keypointCount} total)`);
-    activeService = createPoseService(ACTIVE_POSE_MODEL);
+    activeService = await createPoseService(ACTIVE_POSE_MODEL);
   }
   return activeService;
 }
@@ -106,10 +109,10 @@ export async function resetPoseDetectionService() {
 
 /**
  * Get information about the active model
- * @returns {Object}
+ * @returns {Promise<Object>}
  */
-export function getActiveModelInfo() {
-  const service = getPoseDetectionService();
+export async function getActiveModelInfo() {
+  const service = await getPoseDetectionService();
   const config = getActiveModelConfig();
   
   return {

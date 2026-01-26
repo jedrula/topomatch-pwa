@@ -10,7 +10,7 @@
  */
 
 import { isMobile } from '@/utils/platform';
-import { Capacitor } from '@capacitor/core';
+// import { Capacitor } from '@capacitor/core'; // Moved to dynamic import
 
 let cachedUseInferenceStore = null;
 
@@ -24,6 +24,7 @@ export async function loadInferenceStore() {
     return cachedUseInferenceStore;
   }
 
+  const { Capacitor } = await import('@capacitor/core');
   const isMobileDevice = isMobile();
   const isNativeApp = Capacitor.isNativePlatform();
   

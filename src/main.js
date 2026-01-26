@@ -67,9 +67,14 @@ if (!window.Capacitor?.isNativePlatform() || window.Capacitor?.getPlatform?.() !
   // 3. Worker (new) mode (VITE_USE_NEW_WORKER=true): ES modules worker following ONNX Runtime best practices
   // 4. Worker (old) mode (default): Legacy concatenated worker
   // See inferenceStoreLoader.js for implementation details
-  const useInferenceStore = await loadInferenceStore();
-  useInferenceStore(); // Initialize session immediately
-  console.log('🚀 Inference model loading started');
+  loadInferenceStore()
+    .then((useInferenceStore) => {
+      useInferenceStore(); // Initialize session immediately
+      console.log('🚀 Inference model loading started');
+    })
+    .catch((error) => {
+      console.error('❌ Failed to load inference store:', error);
+    });
 }
 
 // Expose testing API for E2E tests
