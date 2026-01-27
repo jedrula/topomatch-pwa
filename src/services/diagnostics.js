@@ -3,13 +3,12 @@
  * Ring-buffer logs + device info for debugging production issues
  */
 
-import { Capacitor } from '@capacitor/core';
-
 class DiagnosticsService {
   constructor() {
     this.logBuffer = [];
     this.maxLogs = 200; // Keep last 200 log entries
-    this.isNative = Capacitor.isNativePlatform();
+    this._isNative = null; // Cached once on first use
+    this._platform = null; // Cached once on first use
     
     // 🚨 RATE LIMITING: Prevent infinite loop spam
     this.reportLimits = {
@@ -26,6 +25,17 @@ class DiagnosticsService {
     this.recentErrors = new Map(); // Map<errorHash, timestamp>
     
     this.setupGlobalHandlers();
+  }
+  
+  /**
+   * Lazy-load and cache platform info (only load Capacitor once)
+   */
+  async initPlatformInfo() {
+    if (this._isNative === null) {
+      const { Capacitor } = await import('@capacitor/core');
+      this._isNative = Capacitor.isNativePlatform();
+      this._platform = Capacitor.getPlatform();
+    }
   }
   
   /**
@@ -323,9 +333,12 @@ class DiagnosticsService {
    * Get device diagnostics
    */
   async getDeviceInfo() {
+    // Initialize platform info on first call
+    await this.initPlatformInfo();
+    
     const info = {
-      platform: Capacitor.getPlatform(),
-      isNative: this.isNative,
+      platform: this._platform,
+      isNative: this._isNative,
       userAgent: navigator.userAgent,
       memoryGB: navigator.deviceMemory || 'unknown',
       connection: navigator.connection?.effectiveType || 'unknown',
@@ -333,8 +346,8 @@ class DiagnosticsService {
       screen: `${window.screen.width}x${window.screen.height}`,
     };
 
-    // Get device-specific info on iOS
-    if (this.isNative) {
+    // Get device-specific info on native platforms
+    if (this._isNative) {
       try {
         const { Device } = await import('@capacitor/device');
         const deviceInfo = await Device.getInfo();
