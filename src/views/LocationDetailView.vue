@@ -420,8 +420,9 @@ const displayVideos = computed(() => {
         return true;
       }
       
-      // Show video during upload AND after completion (until server video loads)
-      return upload.status === 'uploading' || upload.status === 'pending' || upload.status === 'completed';
+      // Show video during upload, analysis, AND server processing (until server video loads with thumbnail)
+      const showStatuses = ['uploading', 'pending', 'server-processing', 'transcoding', 'generating-thumbnail', 'ready'];
+      return showStatuses.includes(upload.status);
     })
     .map(upload => {
       // Check if this upload has errored in analysis
@@ -434,6 +435,20 @@ const displayVideos = computed(() => {
         ? getCurrentStep(activeJobs.find(j => j.ascentId === upload.ascentId)?.progress || 0)
         : null;
       
+      // Determine status message based on current state
+      let statusMessage = 'Uploading video...';
+      if (currentStep?.message) {
+        statusMessage = currentStep.message;
+      } else if (upload.status === 'transcoding') {
+        statusMessage = 'Optimizing video...';
+      } else if (upload.status === 'generating-thumbnail') {
+        statusMessage = 'Creating thumbnail...';
+      } else if (upload.status === 'server-processing') {
+        statusMessage = 'Processing on server...';
+      } else if (upload.status === 'ready') {
+        statusMessage = 'Ready!';
+      }
+      
       return {
         id: upload.ascentId,
         ascentId: upload.ascentId,
@@ -442,13 +457,13 @@ const displayVideos = computed(() => {
         url: upload.localUrl,  // ✨ Reuse blob URL from upload queue!
         isLocalVideo: true,  // Flag to know this is temporary
         isUploading: upload.status === 'uploading' || upload.status === 'pending',
-        isAnalyzing: isCurrentlyAnalyzing,
+        isAnalyzing: isCurrentlyAnalyzing || ['server-processing', 'transcoding', 'generating-thumbnail'].includes(upload.status),
         progress: isCurrentlyAnalyzing 
           ? activeJobs.find(j => j.ascentId === upload.ascentId)?.progress || 0
           : upload.progress || 0,
         status: upload.status,
-        statusMessage: currentStep?.message || 'Uploading video...',
-        uploadedBy: userStore.user?.displayName || userStore.user?.email || 'Analyzing...',
+        statusMessage,
+        uploadedBy: userStore.user?.displayName || userStore.user?.email || 'Processing...',
         metadata: {
           duration: null,
           problemName: upload.problemId ? 
@@ -476,18 +491,24 @@ const displayVideos = computed(() => {
     }
   }));
   
-  // Mark all loaded videos as loaded in store (so we can hide their placeholders)
+  // Mark videos as loaded ONLY when they have thumbnails ready
+  // (Server query already filters for video.thumbnailUrl != null, so all videos here have thumbnails)
   videos.value.forEach(video => {
     if (video.ascentId) {
       analysisStore.markAscentLoaded(locationId.value, video.ascentId);
     }
   });
   
-  // Clean up completed uploads when server video arrives
-  const serverAscentIds = new Set(videos.value.map(v => v.ascentId).filter(Boolean));
+  // Clean up completed uploads when server video arrives WITH THUMBNAIL
+  // (Server query already filters for video.thumbnailUrl != null, so all videos here have thumbnails)
+  const serverAscentIds = new Set(
+    videos.value.filter(v => v.ascentId).map(v => v.ascentId)
+  );
+  
   locationUploads.forEach(upload => {
+    // Only remove upload placeholder when server video is ready
     if (serverAscentIds.has(upload.ascentId)) {
-      // Server video is here, remove the upload record (whether completed or errored)
+      console.log(`🎬 Server video ready with thumbnail for ${upload.ascentId}, removing upload placeholder`);
       uploadQueue.cancelUpload(upload.ascentId);
     }
   });

@@ -83,16 +83,29 @@
       <div class="mt-8">
         <h2 class="section-header mb-4">Account</h2>
         
-        <!-- Logout Button -->
-        <button
-          @click="handleLogout"
-          class="w-full flex items-center justify-between py-3 px-4 text-[15px] text-red-600 hover:bg-red-50 transition-colors rounded-lg border border-red-100"
-        >
-          <span class="font-medium">Log Out</span>
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-        </button>
+        <div class="space-y-2">
+          <!-- Report Problem Button -->
+          <button
+            @click="showReporter = true"
+            class="w-full flex items-center justify-between py-3 px-4 text-[15px] text-gray-900 hover:bg-gray-50 transition-colors rounded-lg border border-gray-200"
+          >
+            <span class="font-medium">Report Problem</span>
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </button>
+          
+          <!-- Logout Button -->
+          <button
+            @click="handleLogout"
+            class="w-full flex items-center justify-between py-3 px-4 text-[15px] text-red-600 hover:bg-red-50 transition-colors rounded-lg border border-red-100"
+          >
+            <span class="font-medium">Log Out</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -103,6 +116,12 @@
       :title="`${userName}'s Beta Videos`"
       @close="closeVideoPlayer"
     />
+
+    <!-- Diagnostic Reporter -->
+    <DiagnosticReporter 
+      v-if="showReporter"
+      @close="showReporter = false"
+    />
   </div>
 </template>
 
@@ -112,11 +131,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/userStore';
 import { ascentService } from '@/services/ascentService';
 import { videoService } from '@/services/videoService';
-import { getDefaultVideoPoster } from '@/utils/videoUtils';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import VideoPlayerShorts from '@/components/VideoPlayerShorts.vue';
 import VideoGridItem from '@/components/VideoGridItem.vue';
+import DiagnosticReporter from '@/components/DiagnosticReporter.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -129,6 +148,7 @@ const stats = ref({ totalAscents: 0, videoCount: 0, uniqueProblems: 0 });
 const videosPromise = ref(null); // Cache the promise to avoid duplicate API calls
 const profileUser = ref(null); // Store other user's data
 const pageSize = 8;
+const showReporter = ref(false);
 
 
 // Get userId from route or use current user

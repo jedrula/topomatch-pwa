@@ -84,13 +84,16 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
         }
       );
 
-      // Mark as completed
+      // Mark as completed and start tracking server-side processing
       console.log(`[PROGRESS] ✅ [UPLOAD] Ascent ${ascentId}: Upload complete (100%)`);
       if (uploads.value[ascentId]) {
-        uploads.value[ascentId].status = 'completed';
+        uploads.value[ascentId].status = 'server-processing';
         uploads.value[ascentId].videoData = result;
         uploads.value[ascentId].uploadedAt = Date.now();
         uploads.value[ascentId].progress = 100;
+        
+        // Start listening for server-side processing updates
+        _startServerProcessingListener(ascentId);
       }
       
       diagnostics.log('info', 'Video upload completed', {
@@ -111,6 +114,57 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
         uploads.value[ascentId].status = 'failed';
         uploads.value[ascentId].error = error.message || 'Upload failed';
       }
+    }
+  };
+
+  /**
+   * Listen for server-side processing updates (transcoding + thumbnail generation)
+   */
+  const _startServerProcessingListener = async (ascentId) => {
+    try {
+      const { doc, onSnapshot } = await import('firebase/firestore');
+      const { db } = await import('../services/firebase.js');
+      
+      const ascentRef = doc(db, 'ascents', ascentId);
+      
+      // Listen for video status updates
+      const unsubscribe = onSnapshot(ascentRef, (snapshot) => {
+        if (!snapshot.exists()) return;
+        
+        const data = snapshot.data();
+        const record = uploads.value[ascentId];
+        if (!record) {
+          // Upload record removed, stop listening
+          unsubscribe();
+          return;
+        }
+        
+        // Check video processing status
+        if (data.video?.status === 'transcoding') {
+          console.log(`[PROGRESS] 🎬 [SERVER] Ascent ${ascentId}: Transcoding video...`);
+          record.status = 'transcoding';
+        } else if (data.video?.status === 'ready') {
+          console.log(`[PROGRESS] 🖼️  [SERVER] Ascent ${ascentId}: Generating thumbnail...`);
+          record.status = 'generating-thumbnail';
+          
+          // Check if thumbnail is ready
+          if (data.video?.thumbnailUrl) {
+            console.log(`[PROGRESS] ✨ [SERVER] Ascent ${ascentId}: Processing complete!`);
+            record.status = 'ready';
+            record.thumbnailUrl = data.video.thumbnailUrl;
+            
+            // Stop listening - fully complete
+            unsubscribe();
+          }
+        }
+      });
+      
+      // Store unsubscribe for cleanup
+      if (uploads.value[ascentId]) {
+        uploads.value[ascentId].serverListener = unsubscribe;
+      }
+    } catch (error) {
+      console.error(`Error setting up server processing listener for ${ascentId}:`, error);
     }
   };
 
@@ -158,6 +212,16 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
     
     if (!record) {
       return;
+    }
+
+    // Stop server processing listener if active
+    if (record.serverListener && typeof record.serverListener === 'function') {
+      try {
+        record.serverListener();
+        console.log(`🔇 Stopped server processing listener for ${ascentId}`);
+      } catch (err) {
+        console.error(`Failed to stop listener for ${ascentId}:`, err);
+      }
     }
 
     // Clean up blob URL if it exists
