@@ -141,11 +141,11 @@
           </div>
           <div>
             <span class="text-gray-500">Memory:</span>
-            <span class="ml-1 font-medium">{{ report.device?.memoryGB || '?' }}GB</span>
+            <span class="ml-1 font-medium">{{ report.device?.memoryGB ? report.device.memoryGB + 'GB' : 'N/A' }}</span>
           </div>
           <div>
             <span class="text-gray-500">Connection:</span>
-            <span class="ml-1 font-medium">{{ report.device?.connection || 'unknown' }}</span>
+            <span class="ml-1 font-medium">{{ report.device?.connection || 'N/A' }}</span>
           </div>
           <div>
             <span class="text-gray-500">Version:</span>

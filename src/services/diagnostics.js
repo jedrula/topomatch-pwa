@@ -340,8 +340,8 @@ class DiagnosticsService {
       platform: this._platform,
       isNative: this._isNative,
       userAgent: navigator.userAgent,
-      memoryGB: navigator.deviceMemory || 'unknown',
-      connection: navigator.connection?.effectiveType || 'unknown',
+      memoryGB: navigator.deviceMemory || null, // Safari doesn't support deviceMemory API
+      connection: navigator.connection?.effectiveType || null, // Safari doesn't support Network Information API
       online: navigator.onLine,
       screen: `${window.screen.width}x${window.screen.height}`,
     };
