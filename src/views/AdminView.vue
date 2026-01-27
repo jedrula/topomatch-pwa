@@ -5,6 +5,16 @@
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 mb-2">Admin Management</h1>
         <p class="text-gray-600">Manage user roles and system administration</p>
+        
+        <!-- Quick Links -->
+        <div class="mt-4 flex gap-3">
+          <router-link
+            to="/admin/diagnostics"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            📊 View Diagnostic Reports
+          </router-link>
+        </div>
       </div>
 
       <!-- Admin Panel Component -->

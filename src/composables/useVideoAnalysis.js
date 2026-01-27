@@ -4,6 +4,7 @@ import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
 import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
 import { getGradeLabel, getGradeColor } from '../utils/gradingUtils.js';
 import { transformPoint } from '../utils/homographyUtils.js';
+import { diagnostics } from '../services/diagnostics.js';
 
 export function useVideoAnalysis() {
   const route = useRoute();
@@ -139,12 +140,17 @@ export function useVideoAnalysis() {
   // Handle processing errors
   const handleBetaProcessingError = (error) => {
     console.error('Beta processing error:', error);
-    isAnalyzing.value = false;
-    videoAnalysisResult.value = {
-      success: false,
-      error: true,
-      message: 'Error processing video: ' + error.message,
-    };
+    
+    // Auto-report to Firestore diagnostics
+    diagnostics.autoSendReport({
+      type: 'video-analysis-error',
+      error: {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      },
+      context: 'Video analysis processing failed'
+    });
   };
 
   // Handle "Try Another Video" action

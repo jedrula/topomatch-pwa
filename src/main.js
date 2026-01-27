@@ -10,6 +10,7 @@ import App from './App.vue';
 import router from './router';
 import { initPushNotificationListener, consumePendingRoute, setRouter } from './services/deepLinkHandler';
 import { loadInferenceStore } from './stores/inferenceStoreLoader';
+import { diagnostics } from './services/diagnostics';
 
 // Initialize push notification listener BEFORE app mounts
 // This captures notifications that launched the app
@@ -57,6 +58,9 @@ app.use(router);
 app.use(FloatingVue);
 
 app.use(pinia);
+
+// Setup Vue error handling for diagnostics
+diagnostics.setupVueErrorHandler(app);
 
 // Only initialize inference store for non-native platforms
 if (!window.Capacitor?.isNativePlatform() || window.Capacitor?.getPlatform?.() !== 'ios') {

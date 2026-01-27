@@ -6,7 +6,7 @@
   >
     <button
       @click="handleClick"
-      class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-3 group"
+      class="px-4 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-3 group bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
     >
       <!-- Animated spinner for active work -->
       <div
@@ -32,10 +32,10 @@
       <!-- Status text -->
       <div class="text-left">
         <div class="text-sm font-semibold">
-          {{ hasActiveWork ? (activeVideo?.isUploading ? 'Uploading Video' : 'Analyzing Video') : 'Processing Complete' }}
+          {{ statusText }}
         </div>
         <div class="text-xs opacity-90">
-          {{ hasActiveWork ? activeVideo?.progressText : 'Click to review' }}
+          {{ statusDetail }}
         </div>
       </div>
 
@@ -54,10 +54,10 @@
         />
       </svg>
 
-      <!-- Close button for completed state -->
+      <!-- Close button for completed/failed state -->
       <button
         v-if="!hasActiveWork"
-        @click.stop="dismissCompleted"
+        @click.stop="dismiss"
         class="ml-1 -mr-1 p-1 hover:bg-white/20 rounded transition-colors"
         aria-label="Dismiss"
       >
@@ -120,6 +120,19 @@ const hasActiveWork = computed(() => {
   return activeVideo.value?.hasActiveWork || false;
 });
 
+// Status display text
+const statusText = computed(() => {
+  if (hasActiveWork.value) {
+    return activeVideo.value?.isUploading ? 'Uploading Video' : 'Analyzing Video';
+  }
+  return 'Processing Complete';
+});
+
+const statusDetail = computed(() => {
+  if (hasActiveWork.value) return activeVideo.value?.progressText;
+  return 'Click to review';
+});
+
 // Watch for work completion - show success message briefly
 watch(
   () => hasActiveWork.value,
@@ -154,9 +167,11 @@ const handleClick = () => {
   window.dispatchEvent(new CustomEvent('maximize-analysis-modal'));
 };
 
-const dismissCompleted = () => {
-  showCompleted.value = false;
-  if (completedTimeout) clearTimeout(completedTimeout);
+const dismiss = () => {
+  if (showCompleted.value) {
+    showCompleted.value = false;
+    if (completedTimeout) clearTimeout(completedTimeout);
+  }
 };
 </script>
 
