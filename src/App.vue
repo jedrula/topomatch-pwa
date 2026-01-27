@@ -105,6 +105,13 @@ const onAuthSuccess = () => {
   closeAuthModal();
 };
 
+// Handle report dialog
+const handleOpenReporter = () => {
+  console.log('[App] Opening reporter, showReporter:', showReporter.value);
+  showReporter.value = true;
+  console.log('[App] After setting, showReporter:', showReporter.value);
+};
+
 // Provide the auth modal methods globally
 import { provide } from 'vue';
 provide('authModal', {
@@ -126,7 +133,7 @@ provide('authModal', {
     </main>
 
     <!-- Bottom Tab Bar (native only) -->
-    <BottomTabBar @open-reporter="showReporter = true" />
+    <BottomTabBar @open-reporter="handleOpenReporter" />
 
     <!-- Global Auth Modal - direct child of app root -->
     <AuthModal 
@@ -137,7 +144,7 @@ provide('authModal', {
 
     <!-- Global Diagnostic Reporter -->
     <DiagnosticReporter 
-      v-if="showReporter"
+      :show="showReporter"
       @close="showReporter = false"
     />
 

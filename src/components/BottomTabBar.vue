@@ -45,7 +45,7 @@
 
       <!-- Report Tab -->
       <button
-        @click="emit('openReporter')"
+        @click="handleReportClick"
         class="flex flex-col items-center gap-1 px-4 transition-colors text-gray-600 active:text-blue-600"
       >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -76,6 +76,11 @@ const openAuthModal = () => {
   if (authModal?.open) {
     authModal.open();
   }
+};
+
+const handleReportClick = () => {
+  console.log('[BottomTabBar] Report clicked, emitting openReporter event');
+  emit('openReporter');
 };
 
 const isActive = (path) => {
