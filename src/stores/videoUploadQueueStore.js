@@ -169,7 +169,8 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
   };
 
   /**
-   * Wait for an upload to complete
+   * Wait for an upload to complete (upload phase, not full server processing)
+   * Resolves when file upload finishes and server processing begins
    * @param {string} ascentId - The ascent ID to wait for
    * @returns {Promise<Object>} The upload result
    */
@@ -190,7 +191,9 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
       throw new Error(record.error || 'Upload failed');
     }
 
-    if (record.status !== 'completed') {
+    // Upload is successful if it reached any server-side processing status
+    const successStatuses = ['server-processing', 'transcoding', 'generating-thumbnail', 'ready'];
+    if (!successStatuses.includes(record.status)) {
       throw new Error(`Unexpected upload status: ${record.status}`);
     }
 
@@ -262,8 +265,9 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
   });
 
   const completedUploads = computed(() => {
+    const successStatuses = ['server-processing', 'transcoding', 'generating-thumbnail', 'ready'];
     return Object.values(uploads.value).filter(
-      record => record.status === 'completed'
+      record => successStatuses.includes(record.status)
     );
   });
 
