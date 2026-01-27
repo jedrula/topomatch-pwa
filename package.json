@@ -1,6 +1,6 @@
 {
   "name": "topomatch-pwa",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -42,6 +42,7 @@
     "@capacitor-firebase/messaging": "^8.0.1",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
+    "@capacitor/device": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
     "@headlessui/vue": "^1.7.23",

@@ -33,6 +33,13 @@
 
         <!-- Auth Actions -->
         <div v-if="userStore.isLoggedIn" class="flex items-center gap-1 ml-2 pl-3 border-l border-gray-200/80">
+          <button
+            @click="showReporter = true"
+            class="h-8 px-3 flex items-center text-[13px] text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100/60 transition-all"
+            title="Report a problem"
+          >
+            Report Problem
+          </button>
           <router-link
             to="/profile"
             class="h-8 px-3 flex items-center text-[13px] text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-100/60 transition-all"
@@ -101,6 +108,12 @@
         </router-link>
         
         <div v-if="userStore.isLoggedIn" class="pt-3 mt-3 border-t border-gray-200/60 space-y-0.5">
+          <button
+            @click="showReporter = true; closeMobileMenu();"
+            class="w-full h-9 px-3 flex items-center text-[14px] text-gray-600 hover:bg-gray-100/60 rounded-md transition-colors"
+          >
+            Report Problem
+          </button>
           <router-link
             to="/profile"
             @click="closeMobileMenu"
@@ -124,6 +137,13 @@
         </button>
       </div>
     </div>
+    
+    <!-- Diagnostic Reporter Modal -->
+    <DiagnosticReporter
+      :show="showReporter"
+      @close="showReporter = false"
+      @sent="onReportSent"
+    />
   </header>
 </template>
 
@@ -131,10 +151,16 @@
 import { computed, ref, inject } from 'vue';
 import { useRoute } from 'vue-router';
 import { useUserStore } from '../stores/userStore.js';
+import DiagnosticReporter from './DiagnosticReporter.vue';
 
 const route = useRoute();
 const userStore = useUserStore();
 const showMobileMenu = ref(false);
+const showReporter = ref(false);
+
+const onReportSent = () => {
+  showReporter.value = false;
+};
 
 // Inject auth modal methods from App.vue
 const authModal = inject('authModal');

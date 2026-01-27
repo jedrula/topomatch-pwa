@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { videoService } from '../services/videoService.js';
+import { diagnostics } from '../services/diagnostics.js';
 
 /**
  * Video Upload Queue Store
@@ -62,6 +63,12 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
     try {
       record.status = 'uploading';
       
+      diagnostics.log('info', 'Video upload started', {
+        ascentId,
+        fileSize: record.file.size,
+        fileType: record.file.type
+      });
+      
       // Upload with real ascent ID
       const result = await videoService.uploadBetaVideo(
         record.locationId,
@@ -85,8 +92,20 @@ export const useVideoUploadQueueStore = defineStore('videoUploadQueue', () => {
         uploads.value[ascentId].uploadedAt = Date.now();
         uploads.value[ascentId].progress = 100;
       }
+      
+      diagnostics.log('info', 'Video upload completed', {
+        ascentId,
+        fileSize: record.file?.size
+      });
     } catch (error) {
       console.error(`❌ Error uploading video for ascent ${ascentId}:`, error);
+      
+      diagnostics.log('error', 'Video upload failed', {
+        ascentId,
+        error: error.message,
+        code: error.code,
+        fileSize: record.file?.size
+      });
       
       if (uploads.value[ascentId]) {
         uploads.value[ascentId].status = 'failed';
