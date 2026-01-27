@@ -6,7 +6,8 @@
 class DiagnosticsService {
   constructor() {
     this.logBuffer = [];
-    this.maxLogs = 200; // Keep last 200 log entries
+    this.maxLogs = 100; // Keep last 100 log entries (reduced for mobile memory)
+    this.maxContextSize = 1000; // Max chars for context data (truncate if larger)
     this._isNative = null; // Cached once on first use
     this._platform = null; // Cached once on first use
     
@@ -313,14 +314,40 @@ class DiagnosticsService {
   }
 
   /**
+   * Sanitize context to prevent memory bloat
+   */
+  sanitizeContext(context) {
+    if (!context || typeof context !== 'object') return context;
+    
+    try {
+      const str = JSON.stringify(context);
+      if (str.length <= this.maxContextSize) {
+        return context; // Small enough, use as-is
+      }
+      
+      // Too large - truncate and add warning
+      return {
+        _truncated: true,
+        _originalSize: str.length,
+        data: str.substring(0, this.maxContextSize) + '... [truncated]'
+      };
+    } catch (e) {
+      // Circular reference or other error
+      return { _error: 'Could not serialize context', _reason: e.message };
+    }
+  }
+
+  /**
    * Add log entry to ring buffer
    */
   log(level, message, context = {}) {
+    const sanitized = this.sanitizeContext(context);
+    
     const entry = {
       time: new Date().toISOString(),
       level,
       message,
-      ...context
+      ...sanitized
     };
     
     this.logBuffer.push(entry);

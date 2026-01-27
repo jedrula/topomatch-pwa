@@ -6,7 +6,7 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <div class="bg-white p-4 rounded-lg border">
         <div class="text-sm text-gray-600">Showing</div>
-        <div class="text-2xl font-bold">{{ reports.length }}</div>
+        <div class="text-2xl font-bold">{{ filteredReports.length }}</div>
       </div>
       <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
         <div class="text-sm text-blue-600">Manual Reports</div>
