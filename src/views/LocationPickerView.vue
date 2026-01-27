@@ -8,7 +8,6 @@
             v-model="searchQuery"
             type="text"
             placeholder="Find location"
-            autofocus
             class="w-full h-12 px-4 pr-12 text-[15px] border border-gray-200 rounded-lg transition-all duration-200"
             @input="handleSearchInput"
           />
