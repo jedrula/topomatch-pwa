@@ -118,7 +118,7 @@ service cloud.firestore {
     // Diagnostic reports - authenticated users can create (for bug reporting)
     match /diagnosticReports/{reportId} {
       allow read: if isAdmin(); // Only admins can read reports
-      allow create: if isAuthenticated(); // Any logged-in user can submit a report
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid; // Users can only create reports for themselves
       allow update, delete: if false; // Reports are immutable
     }
   }

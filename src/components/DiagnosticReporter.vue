@@ -30,6 +30,7 @@ import { ref } from 'vue';
 import { diagnostics } from '../services/diagnostics.js';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../services/firebase.js';
+import { useUserStore } from '../stores/userStore.js';
 
 const props = defineProps({
   show: Boolean,
@@ -38,6 +39,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'sent']);
 
+const userStore = useUserStore();
 const userComment = ref('');
 const sending = ref(false);
 
@@ -51,6 +53,10 @@ const send = async () => {
       ...props.context,
       userComment: userComment.value || null
     });
+    
+    // Add userId to report (consistent with autoSendReport)
+    report.userId = userStore.user?.uid;
+    report.autoReported = false; // Flag as manual report
     
     // Save to Firestore
     await addDoc(collection(db, 'diagnosticReports'), report);

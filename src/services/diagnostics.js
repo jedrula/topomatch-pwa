@@ -83,8 +83,16 @@ class DiagnosticsService {
     const oneHourAgo = now - 60 * 60 * 1000;
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
     const fiveMinutesAgo = now - 5 * 60 * 1000;
+    const tenMinutesAgo = now - 10 * 60 * 1000;
     
     this.reportHistory = this.reportHistory.filter(t => t > oneDayAgo);
+    
+    // Clean old error deduplication entries (older than 10 minutes)
+    for (const [hash, timestamp] of this.recentErrors.entries()) {
+      if (timestamp < tenMinutesAgo) {
+        this.recentErrors.delete(hash);
+      }
+    }
     
     // Check circuit breaker (10 reports in 5 minutes = infinite loop)
     const recentReports = this.reportHistory.filter(t => t > fiveMinutesAgo);
@@ -118,7 +126,6 @@ class DiagnosticsService {
     
     // Check deduplication (same error in last 10 minutes)
     if (errorHash) {
-      const tenMinutesAgo = now - 10 * 60 * 1000;
       if (this.recentErrors.has(errorHash)) {
         const lastSeen = this.recentErrors.get(errorHash);
         if (lastSeen > tenMinutesAgo) {
@@ -231,10 +238,29 @@ class DiagnosticsService {
 
     // Override console.error to capture (optional - can be noisy)
     const originalError = console.error;
+    let isLoggingError = false; // Prevent infinite loop
     console.error = (...args) => {
-      this.log('error', 'Console error', {
-        args: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a))
-      });
+      if (isLoggingError) {
+        // Already logging - use original to prevent infinite loop
+        originalError.apply(console, args);
+        return;
+      }
+      
+      try {
+        isLoggingError = true;
+        this.log('error', 'Console error', {
+          args: args.map(a => {
+            try {
+              return typeof a === 'object' ? JSON.stringify(a) : String(a);
+            } catch (e) {
+              return '[Circular or non-serializable object]';
+            }
+          })
+        });
+      } finally {
+        isLoggingError = false;
+      }
+      
       originalError.apply(console, args);
     };
   }

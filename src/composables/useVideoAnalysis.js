@@ -141,6 +141,16 @@ export function useVideoAnalysis() {
   const handleBetaProcessingError = (error) => {
     console.error('Beta processing error:', error);
     
+    // Update UI state to show error to user
+    isAnalyzing.value = false;
+    videoAnalysisResult.value = {
+      success: false,
+      error: true,
+      message: error?.message
+        ? `Video analysis failed: ${error.message}`
+        : 'Video analysis failed. Please try again with a different video.'
+    };
+    
     // Auto-report to Firestore diagnostics
     diagnostics.autoSendReport({
       type: 'video-analysis-error',

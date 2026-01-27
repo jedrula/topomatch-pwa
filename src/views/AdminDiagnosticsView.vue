@@ -5,7 +5,7 @@
     <!-- Stats Overview -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <div class="bg-white p-4 rounded-lg border">
-        <div class="text-sm text-gray-600">Total Reports</div>
+        <div class="text-sm text-gray-600">Showing</div>
         <div class="text-2xl font-bold">{{ reports.length }}</div>
       </div>
       <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -234,17 +234,17 @@ const userIdFilter = ref('');
 const expandedReports = ref(new Set());
 
 const manualCount = computed(() => 
-  reports.value.filter(r => !r.autoReported).length
+  filteredReports.value.filter(r => !r.autoReported).length
 );
 
 const autoCount = computed(() => 
-  reports.value.filter(r => r.autoReported).length
+  filteredReports.value.filter(r => r.autoReported).length
 );
 
 const recentCount = computed(() => {
   const oneDayAgo = new Date();
   oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-  return reports.value.filter(r => 
+  return filteredReports.value.filter(r => 
     new Date(r.timestamp) > oneDayAgo
   ).length;
 });
