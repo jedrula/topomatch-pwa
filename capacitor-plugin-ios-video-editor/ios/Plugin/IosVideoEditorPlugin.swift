@@ -1,0 +1,1 @@
+../../../ios/App/App/plugins/IosVideoEditorPlugin.swift

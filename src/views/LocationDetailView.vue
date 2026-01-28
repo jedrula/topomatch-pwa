@@ -281,6 +281,14 @@
       @file-selected="handleVideoFileSelected"
     />
 
+    <!-- TEST: Video Editor Plugin -->
+    <button
+      @click="testVideoEditor"
+      class="fixed bottom-24 right-4 bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-purple-700 transition-colors text-sm font-medium z-50"
+    >
+      🎬 Test Video
+    </button>
+
   </div>
 </template>
 
@@ -310,6 +318,7 @@ import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
 import { videoService } from '../services/videoService.js';
 import { fixLocalhostUrl } from '../services/storageUtils.js';
 import { getResizedImageUrl } from '../utils/imageResize.js';
+import { Capacitor } from '@capacitor/core';
 
 const route = useRoute();
 const router = useRouter();
@@ -1244,6 +1253,34 @@ onMounted(async () => {
     showMoreMenu.value = false;
   });
 });
+
+// TEST: Video Editor Plugin
+const testVideoEditor = async () => {
+  console.log('🎬 Testing IosVideoEditor plugin...');
+  
+  if (!Capacitor.isNativePlatform()) {
+    alert('⚠️ This only works on native iOS, not web!');
+    return;
+  }
+  
+  try {
+    // Dynamically import the plugin
+    const { IosVideoEditor } = await import('capacitor-plugin-ios-video-editor');
+    
+    console.log('📹 Calling pickAndEditVideo...');
+    const result = await IosVideoEditor.pickAndEditVideo({
+      source: 'prompt',
+      allowTrim: true,
+      quality: 'medium'
+    });
+    
+    console.log('✅ Video picked!', result);
+    alert(`✅ Success!\nPath: ${result.path}\nDuration: ${result.duration}s\nSize: ${(result.size / 1024 / 1024).toFixed(2)}MB`);
+  } catch (error) {
+    console.error('❌ Video editor error:', error);
+    alert(`❌ Error: ${error.message || error}`);
+  }
+};
 
 onUnmounted(() => {
   // Unregister job completion callback
