@@ -23,6 +23,9 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     // Store the call for async callbacks
     private var currentCall: CAPPluginCall?
     
+    // Loading indicator
+    private var loadingIndicator: UIAlertController?
+    
     /**
      * Pick and optionally edit a video
      * 
@@ -91,6 +94,55 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     }
     
     /**
+     * Show loading indicator
+     */
+    private func showLoadingIndicator() {
+        DispatchQueue.main.async {
+            guard let viewController = self.bridge?.viewController else { return }
+            
+            let alert = UIAlertController(title: nil, message: "\n\n", preferredStyle: .alert)
+            
+            let loadingIndicator = UIActivityIndicatorView(style: .large)
+            loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
+            loadingIndicator.hidesWhenStopped = true
+            loadingIndicator.startAnimating()
+            
+            alert.view.addSubview(loadingIndicator)
+            
+            NSLayoutConstraint.activate([
+                loadingIndicator.centerXAnchor.constraint(equalTo: alert.view.centerXAnchor),
+                loadingIndicator.topAnchor.constraint(equalTo: alert.view.topAnchor, constant: 20)
+            ])
+            
+            let label = UILabel()
+            label.text = "Preparing video..."
+            label.font = UIFont.systemFont(ofSize: 14)
+            label.textColor = .darkGray
+            label.translatesAutoresizingMaskIntoConstraints = false
+            alert.view.addSubview(label)
+            
+            NSLayoutConstraint.activate([
+                label.centerXAnchor.constraint(equalTo: alert.view.centerXAnchor),
+                label.topAnchor.constraint(equalTo: loadingIndicator.bottomAnchor, constant: 12)
+            ])
+            
+            viewController.present(alert, animated: true)
+            self.loadingIndicator = alert
+        }
+    }
+    
+    /**
+     * Hide loading indicator
+     */
+    private func hideLoadingIndicator() {
+        DispatchQueue.main.async {
+            self.loadingIndicator?.dismiss(animated: true) {
+                self.loadingIndicator = nil
+            }
+        }
+    }
+    
+    /**
      * Show native iOS video trim UI
      */
     private func showTrimUI(for videoURL: URL, quality: String) {
@@ -104,7 +156,10 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
         trimController.videoPath = videoURL.path
         trimController.videoQuality = .typeHigh // We'll compress separately
         
-        viewController.present(trimController, animated: true)
+        // Present trimmer after a small delay to ensure any presented controllers are dismissed
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            viewController.present(trimController, animated: true)
+        }
     }
     
     /**
@@ -144,14 +199,19 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
             return
         }
         
+        // Show loading indicator while video is being loaded
+        showLoadingIndicator()
+        
         // Load video file
         result.itemProvider.loadFileRepresentation(forTypeIdentifier: "public.movie") { url, error in
             if let error = error {
+                self.hideLoadingIndicator()
                 self.currentCall?.reject("Failed to load video: \(error.localizedDescription)")
                 return
             }
             
             guard let url = url else {
+                self.hideLoadingIndicator()
                 self.currentCall?.reject("No video URL available")
                 return
             }
@@ -167,9 +227,12 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
                 let quality = self.currentCall?.getString("quality") ?? "medium"
                 
                 DispatchQueue.main.async {
+                    // Hide loading indicator before showing next UI
+                    self.hideLoadingIndicator()
                     self.handleSelectedVideo(url: tempFile, allowTrim: allowTrim, quality: quality)
                 }
             } catch {
+                self.hideLoadingIndicator()
                 self.currentCall?.reject("Failed to copy video: \(error.localizedDescription)")
             }
         }
