@@ -71,14 +71,46 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     }
     
     /**
-     * Handle selected video - save to temp directory
+     * Handle selected video - optionally trim, then return
      */
     private func handleSelectedVideo(url: URL, allowTrim: Bool, quality: String) {
         print("✅ [IosVideoEditor] Video selected: \(url.path)")
+        print("🔍 [IosVideoEditor] allowTrim: \(allowTrim)")
+        print("🔍 [IosVideoEditor] File exists: \(FileManager.default.fileExists(atPath: url.path))")
+        print("🔍 [IosVideoEditor] Can edit: \(UIVideoEditorController.canEditVideo(atPath: url.path))")
         
-        // For iteration 1, just return the path
-        // We'll add trim + compress in next iterations
+        // Check if we should show trim UI
+        if allowTrim && UIVideoEditorController.canEditVideo(atPath: url.path) {
+            print("✂️ [IosVideoEditor] Showing trim UI...")
+            showTrimUI(for: url, quality: quality)
+        } else {
+            // No trim, just return the video
+            print("⚠️ [IosVideoEditor] Skipping trim - allowTrim: \(allowTrim), canEdit: \(UIVideoEditorController.canEditVideo(atPath: url.path))")
+            returnVideoResult(url: url, status: "selected")
+        }
+    }
+    
+    /**
+     * Show native iOS video trim UI
+     */
+    private func showTrimUI(for videoURL: URL, quality: String) {
+        guard let viewController = self.bridge?.viewController else {
+            self.currentCall?.reject("No view controller available")
+            return
+        }
         
+        let trimController = UIVideoEditorController()
+        trimController.delegate = self
+        trimController.videoPath = videoURL.path
+        trimController.videoQuality = .typeHigh // We'll compress separately
+        
+        viewController.present(trimController, animated: true)
+    }
+    
+    /**
+     * Return video result with metadata
+     */
+    private func returnVideoResult(url: URL, status: String) {
         let asset = AVAsset(url: url)
         let duration = CMTimeGetSeconds(asset.duration)
         
@@ -91,12 +123,13 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
             fileSize = 0
         }
         
-        // Return result
+        print("✅ [IosVideoEditor] Returning video - status: \(status), duration: \(duration)s, size: \(fileSize) bytes")
+        
         self.currentCall?.resolve([
             "path": url.path,
             "duration": duration,
             "size": fileSize,
-            "status": "selected" // Will be "trimmed", "compressed" in later iterations
+            "status": status
         ])
     }
 }
@@ -140,5 +173,29 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
                 self.currentCall?.reject("Failed to copy video: \(error.localizedDescription)")
             }
         }
+    }
+}
+
+// MARK: - UIVideoEditorControllerDelegate (Trim UI)
+extension IosVideoEditorPlugin: UIVideoEditorControllerDelegate, UINavigationControllerDelegate {
+    public func videoEditorController(_ editor: UIVideoEditorController, didSaveEditedVideoToPath editedVideoPath: String) {
+        print("✂️ [IosVideoEditor] Video trimmed successfully!")
+        editor.dismiss(animated: true)
+        
+        // Return the trimmed video
+        let trimmedURL = URL(fileURLWithPath: editedVideoPath)
+        self.returnVideoResult(url: trimmedURL, status: "trimmed")
+    }
+    
+    public func videoEditorControllerDidCancel(_ editor: UIVideoEditorController) {
+        print("❌ [IosVideoEditor] Trim cancelled by user")
+        editor.dismiss(animated: true)
+        self.currentCall?.reject("User cancelled trim")
+    }
+    
+    public func videoEditorController(_ editor: UIVideoEditorController, didFailWithError error: Error) {
+        print("❌ [IosVideoEditor] Trim failed: \(error.localizedDescription)")
+        editor.dismiss(animated: true)
+        self.currentCall?.reject("Trim failed: \(error.localizedDescription)")
     }
 }
