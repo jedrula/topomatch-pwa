@@ -37,6 +37,24 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "video.status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "ascents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "locationId",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "video.thumbnailUrl",
           "order": "ASCENDING"
         },

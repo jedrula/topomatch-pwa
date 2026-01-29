@@ -454,13 +454,12 @@ export const videoService = {
       const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
       
       const ascentsRef = collection(db, 'ascents');
-      // Only fetch videos that are ready to display (have thumbnails)
-      // In-progress videos are handled by upload/analysis placeholders
+      // Use equality filter with composite index: locationId + video.status + date
+      // This allows proper ordering by date without client-side filtering
       const q = query(
         ascentsRef,
         where('locationId', '==', locationId),
-        where('video.thumbnailUrl', '!=', null), // Only fetch videos with thumbnails
-        orderBy('video.thumbnailUrl'), // Required for != query
+        where('video.status', '==', 'ready'), // Only fetch ready videos with thumbnails
         orderBy('date', 'desc')
       );
 

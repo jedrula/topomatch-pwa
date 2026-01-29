@@ -159,35 +159,12 @@
     </div>
 
     <!-- Delete Confirmation Dialog -->
-    <div
-      v-if="showDeleteConfirm"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      @click.self="cancelDelete"
-    >
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <h3 class="text-[15px] font-semibold text-gray-900 mb-2">Delete Video?</h3>
-        <p class="text-gray-600 text-[13px] mb-6">
-          Are you sure you want to delete this video? This action cannot be undone.
-        </p>
-        <div class="flex gap-3 justify-end">
-          <button
-            @click="cancelDelete"
-            :disabled="deleting"
-            class="btn-secondary h-9 px-4"
-          >
-            Cancel
-          </button>
-          <button
-            @click="confirmDelete"
-            :disabled="deleting"
-            class="h-9 px-4 bg-red-600 text-white text-[13px] font-medium rounded-md hover:bg-red-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-2"
-          >
-            <span v-if="deleting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-            {{ deleting ? 'Deleting...' : 'Delete' }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <VideoDeleteConfirmDialog
+      :model-value="showDeleteConfirm"
+      :deleting="deleting"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
 
     <!-- Change Routesetting Dialog -->
     <ChangeRoutesettingDialog
@@ -216,9 +193,11 @@ import { useUserStore } from '@/stores/userStore';
 import { getDefaultVideoPoster, formatVideoDuration } from '@/utils/videoUtils';
 import { isTouchDevice as detectTouchDevice } from '@/utils/platform';
 import { useVideoProgress } from '@/composables/useVideoProgress';
+import { useVideoDelete } from '@/composables/useVideoDelete';
 import VideoPlayerShorts from './VideoPlayerShorts.vue';
 import VideoGridItem from './VideoGridItem.vue';
 import ChangeRoutesettingDialog from './ChangeRoutesettingDialog.vue';
+import VideoDeleteConfirmDialog from './VideoDeleteConfirmDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -248,9 +227,22 @@ const props = defineProps({
 
 const emit = defineEmits(['video-deleted', 'reprocess-video', 'open-manual-assign', 'routesetting-changed']);
 
-const showDeleteConfirm = ref(false);
-const videoToDelete = ref(null);
-const deleting = ref(false);
+// Video deletion composable
+const {
+  showDeleteConfirm,
+  videoToDelete,
+  deleting,
+  canDeleteVideo,
+  handleDeleteClick,
+  cancelDelete,
+  confirmDelete: executeDelete,
+} = useVideoDelete({
+  onSuccess: (deletedVideoId) => {
+    // Notify parent component to refresh the video list
+    emit('video-deleted', deletedVideoId);
+  },
+});
+
 const isDeletingAll = ref(false);
 
 // Routesetting change state
@@ -292,14 +284,6 @@ const normalizeToAscent = (video) => {
   };
 };
 
-const canDeleteVideo = (video) => {
-  const currentUser = getCurrentUser();
-  if (!currentUser) return false;
-  
-  // User can delete their own videos
-  return video.userId === currentUser.uid;
-};
-
 const canReprocessVideo = (video) => {
   const currentUser = getCurrentUser();
   if (!currentUser) return false;
@@ -314,11 +298,6 @@ const canReprocessVideo = (video) => {
     !video.isUploading &&
     !video.isAnalyzing
   );
-};
-
-const handleDeleteClick = (video) => {
-  videoToDelete.value = video;
-  showDeleteConfirm.value = true;
 };
 
 const handleReprocessClick = (video) => {
@@ -339,35 +318,6 @@ const handleChangeRoutesettingClick = (video) => {
 const handleRoutesettingChanged = (videoId) => {
   videoToChangeRoutesetting.value = null;
   emit('routesetting-changed', videoId);
-};
-
-const cancelDelete = () => {
-  if (deleting.value) return;
-  showDeleteConfirm.value = false;
-  videoToDelete.value = null;
-};
-
-const confirmDelete = async () => {
-  if (!videoToDelete.value || deleting.value) return;
-
-  try {
-    deleting.value = true;
-    
-    // Delete the video using videoService
-    await videoService.deleteVideo(videoToDelete.value.id);
-    
-    // Notify parent component to refresh the video list
-    emit('video-deleted', videoToDelete.value.id);
-    
-    // Close dialog
-    showDeleteConfirm.value = false;
-    videoToDelete.value = null;
-  } catch (error) {
-    console.error('Error deleting video:', error);
-    alert(`Failed to delete video: ${error.message}`);
-  } finally {
-    deleting.value = false;
-  }
 };
 
 // Delete all videos (admin only)

@@ -64,7 +64,23 @@
             :key="ascent.ascentId || ascent.id"
             :ascent="ascent"
             @click="() => openVideoPlayer(ascent.ascentId || ascent.id)"
-          />
+          >
+            <template #actions>
+              <!-- Delete button (only for video owner) -->
+              <button
+                v-if="canDeleteVideo(ascent)"
+                @click.stop="handleDeleteClick(ascent)"
+                class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-red-600 rounded-full shadow-sm transition-all z-10"
+                :class="[isTouchDevice ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
+                :aria-label="'Delete video'"
+                title="Delete video"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+              </button>
+            </template>
+          </VideoGridItem>
         </div>
         
         <!-- Show More Button -->
@@ -109,6 +125,14 @@
       </div>
     </div>
 
+    <!-- Delete Confirmation Dialog -->
+    <VideoDeleteConfirmDialog
+      :model-value="showDeleteConfirm"
+      :deleting="deleting"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
+
     <!-- Video Player Shorts -->
     <VideoPlayerShorts
       v-if="route.query.videoId"
@@ -136,10 +160,14 @@ import { db } from '@/services/firebase';
 import VideoPlayerShorts from '@/components/VideoPlayerShorts.vue';
 import VideoGridItem from '@/components/VideoGridItem.vue';
 import DiagnosticReporter from '@/components/DiagnosticReporter.vue';
+import VideoDeleteConfirmDialog from '@/components/VideoDeleteConfirmDialog.vue';
+import { isTouchDevice as detectTouchDevice } from '@/utils/platform';
+import { useVideoDelete } from '@/composables/useVideoDelete';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const isTouchDevice = computed(() => detectTouchDevice());
 
 const loading = ref(true);
 const loadingMore = ref(false);
@@ -150,6 +178,25 @@ const profileUser = ref(null); // Store other user's data
 const pageSize = 8;
 const showReporter = ref(false);
 
+// Video deletion composable
+const {
+  showDeleteConfirm,
+  deleting,
+  canDeleteVideo,
+  handleDeleteClick,
+  cancelDelete,
+  confirmDelete: executeDelete,
+} = useVideoDelete({
+  onSuccess: (deletedVideoId) => {
+    // Remove from local list
+    videos.value = videos.value.filter(v => v.id !== deletedVideoId);
+    
+    // Update video count in stats
+    if (stats.value?.videoCount) {
+      stats.value.videoCount = Math.max(0, stats.value.videoCount - 1);
+    }
+  },
+});
 
 // Get userId from route or use current user
 const userId = computed(() => route.params.userId || userStore.user?.uid);
@@ -212,6 +259,9 @@ const getPlayerVideos = async () => {
   // Return all videos that have been loaded (including from "Show More")
   return videos.value;
 };
+
+// Alias for the composable's confirmDelete (for clarity)
+const confirmDelete = executeDelete;
 
 // Fetch other user's profile data
 const loadProfileUser = async () => {

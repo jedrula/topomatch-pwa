@@ -11,7 +11,7 @@
     "deploy": "cp extensions/storage-resize-images-x2dt.production.env extensions/storage-resize-images-x2dt.env && firebase deploy --only functions,firestore:rules,firestore:indexes,storage,extensions",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes",
-    "deploy:storage": "firebase deploy --only storage:rules",
+    "deploy:storage": "firebase deploy --only storage",
     "deploy:extensions": "cp extensions/storage-resize-images-x2dt.production.env extensions/storage-resize-images-x2dt.env && firebase deploy --only extensions",
     "logs": "firebase functions:log",
     "lint": "eslint --ext .js,.ts .",

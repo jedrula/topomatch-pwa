@@ -275,19 +275,14 @@
       @navigate-previous="navigatePrevious"
     />
 
-    <!-- Floating Action Button -->
-    <FloatingActionButton 
-      :isAuthenticated="!!userStore.user"
-      @file-selected="handleVideoFileSelected"
+    <!-- TODO we should use a VideoPicker and decide if its ios, desktop, mobile web etc. inside it -->
+    <!-- iOS Native Video Picker Button -->
+    <IosVideoPickerButton 
+      v-if="userStore.user"
+      :show-text="true"
+      :allow-trim="true"
+      @video-selected="handleVideoFileSelected"
     />
-
-    <!-- TEST: Video Editor Plugin -->
-    <button
-      @click="testVideoEditor"
-      class="fixed bottom-24 right-4 bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-purple-700 transition-colors text-sm font-medium z-50"
-    >
-      🎬 Test Video
-    </button>
 
   </div>
 </template>
@@ -301,7 +296,7 @@ import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
 import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
 import { useToast } from '../composables/useToast.js';
 import ImageUploadModal from '../components/ImageUploadModal.vue';
-import FloatingActionButton from '../components/FloatingActionButton.vue';
+import IosVideoPickerButton from '../components/IosVideoPickerButton.vue';
 import ImageGallerySimplified from '../components/ImageGallerySimplified.vue';
 import BetaVideoUploadModal from '../components/BetaVideoUploadModal.vue';
 import ToastNotification from '../components/ToastNotification.vue';
@@ -821,7 +816,7 @@ const openProblemVideos = async (problem) => {
   }
 };
 
-// Handle video file selection from FloatingActionButton
+// Handle video file selection from IosVideoPickerButton
 const handleVideoFileSelected = async (file) => {
   if (!file) return;
   
@@ -1253,34 +1248,6 @@ onMounted(async () => {
     showMoreMenu.value = false;
   });
 });
-
-// TEST: Video Editor Plugin
-const testVideoEditor = async () => {
-  console.log('🎬 Testing IosVideoEditor plugin...');
-  
-  if (!Capacitor.isNativePlatform()) {
-    alert('⚠️ This only works on native iOS, not web!');
-    return;
-  }
-  
-  try {
-    // Dynamically import the plugin
-    const { IosVideoEditor } = await import('capacitor-plugin-ios-video-editor');
-    
-    console.log('📹 Calling pickAndEditVideo...');
-    const result = await IosVideoEditor.pickAndEditVideo({
-      source: 'prompt',
-      allowTrim: true,
-      quality: 'medium'
-    });
-    
-    console.log('✅ Video picked!', result);
-    alert(`✅ Success!\nPath: ${result.path}\nDuration: ${result.duration}s\nSize: ${(result.size / 1024 / 1024).toFixed(2)}MB`);
-  } catch (error) {
-    console.error('❌ Video editor error:', error);
-    alert(`❌ Error: ${error.message || error}`);
-  }
-};
 
 onUnmounted(() => {
   // Unregister job completion callback
