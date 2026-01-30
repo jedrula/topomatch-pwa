@@ -7,13 +7,16 @@ import { useUserStore } from '../stores/userStore.js';
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   scrollBehavior(to, from) {
+    // Note: This only affects window scroll, not custom scroll containers
+    // The actual scroll is handled by the router.afterEach hook below
+    
     // If navigating within the same page (only query params changed), preserve scroll
     // This handles video modals: /location/123 -> /location/123?videoId=abc
     if (to.path === from.path) {
       return false; // Don't scroll
     }
     
-    // For different pages, always scroll to top
+    // For different pages, scroll to top (applies to window AND custom containers via afterEach)
     return { top: 0 };
   },
   routes: [
@@ -129,6 +132,16 @@ router.beforeEach(async (to, from, next) => {
   next();
 });
 
+
+// Scroll .app-content to top on route changes (since it's the scroll container, not window)
+router.afterEach((to, from) => {
+  if (to.path !== from.path) {
+    const appContent = document.querySelector('.app-content');
+    if (appContent) {
+      appContent.scrollTop = 0;
+    }
+  }
+});
 
 // Handle chunk loading errors (e.g., after deployment when cached files reference old chunks)
 router.onError((error) => {

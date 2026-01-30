@@ -100,17 +100,6 @@
         <h2 class="section-header mb-4">Account</h2>
         
         <div class="space-y-2">
-          <!-- Report Problem Button -->
-          <button
-            @click="showReporter = true"
-            class="w-full flex items-center justify-between py-3 px-4 text-[15px] text-gray-900 hover:bg-gray-50 transition-colors rounded-lg border border-gray-200"
-          >
-            <span class="font-medium">Report Problem</span>
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </button>
-          
           <!-- Logout Button -->
           <button
             @click="handleLogout"
@@ -140,12 +129,6 @@
       :title="`${userName}'s Beta Videos`"
       @close="closeVideoPlayer"
     />
-
-    <!-- Diagnostic Reporter -->
-    <DiagnosticReporter 
-      v-if="showReporter"
-      @close="showReporter = false"
-    />
   </div>
 </template>
 
@@ -159,7 +142,6 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import VideoPlayerShorts from '@/components/VideoPlayerShorts.vue';
 import VideoGridItem from '@/components/VideoGridItem.vue';
-import DiagnosticReporter from '@/components/DiagnosticReporter.vue';
 import VideoDeleteConfirmDialog from '@/components/VideoDeleteConfirmDialog.vue';
 import { isTouchDevice as detectTouchDevice } from '@/utils/platform';
 import { useVideoDelete } from '@/composables/useVideoDelete';
@@ -176,7 +158,6 @@ const stats = ref({ totalAscents: 0, videoCount: 0, uniqueProblems: 0 });
 const videosPromise = ref(null); // Cache the promise to avoid duplicate API calls
 const profileUser = ref(null); // Store other user's data
 const pageSize = 8;
-const showReporter = ref(false);
 
 // Video deletion composable
 const {
