@@ -418,7 +418,7 @@ export const ascentService = {
 
       querySnapshot.forEach((doc) => {
         // Use videoService transform for consistent structure
-        const transformed = videoService._transformAscentToVideo(doc);
+        const transformed = videoService.transformAscentToVideo(doc);
         if (transformed) {
           ascents.push(transformed);
         }

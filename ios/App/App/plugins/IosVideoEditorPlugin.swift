@@ -199,19 +199,14 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
             return
         }
         
-        // Show loading indicator while video is being loaded
-        showLoadingIndicator()
-        
-        // Load video file
+        // Load video file (no loading indicator - trimmer shows immediately)
         result.itemProvider.loadFileRepresentation(forTypeIdentifier: "public.movie") { url, error in
             if let error = error {
-                self.hideLoadingIndicator()
                 self.currentCall?.reject("Failed to load video: \(error.localizedDescription)")
                 return
             }
             
             guard let url = url else {
-                self.hideLoadingIndicator()
                 self.currentCall?.reject("No video URL available")
                 return
             }
@@ -227,12 +222,9 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
                 let quality = self.currentCall?.getString("quality") ?? "medium"
                 
                 DispatchQueue.main.async {
-                    // Hide loading indicator before showing next UI
-                    self.hideLoadingIndicator()
                     self.handleSelectedVideo(url: tempFile, allowTrim: allowTrim, quality: quality)
                 }
             } catch {
-                self.hideLoadingIndicator()
                 self.currentCall?.reject("Failed to copy video: \(error.localizedDescription)")
             }
         }

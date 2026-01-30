@@ -436,9 +436,12 @@ const createAscentAndStartUpload = async (videoFile) => {
     console.log('✅ Ascent record created');
 
     // Start video upload in background
-    // startUpload signature: (file, locationId, problemId, ascentId)
+    // startUpload signature: (file, locationId, problemId, ascentId, metadata)
     const uploadQueue = useVideoUploadQueueStore();
-    uploadQueue.startUpload(videoFile, props.locationId, null, ascentId);
+    uploadQueue.startUpload(videoFile, props.locationId, null, ascentId, {
+      locationName: props.locationName,
+      problemName: null, // Will be filled in after analysis detects problem
+    });
     console.log('✅ Video upload started in background');
 
   } catch (err) {

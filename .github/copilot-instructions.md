@@ -18,6 +18,10 @@
 - **YAGNI (You Ain't Gonna Need It)**: Don't add empty `<style scoped>` blocks or placeholder comments
 - Only add code/sections when actually needed, not "just in case"
 - **Use `crypto.randomUUID()` for generating unique IDs** (ascentId, imageId, etc.) - NOT `Math.random()`
+- **DRY (Don't Repeat Yourself)**: Extract repeated logic into utilities/composables/services
+  - When transforming data, use existing utility functions (e.g., `videoService.transformAscentToVideo`)
+  - Create shared composables for common UI patterns (e.g., `useVideoDelete`)
+  - Avoid duplicating code - if you see similar code twice, extract it
 
 ### Debugging Philosophy
 - **Avoid defensive/ugly workarounds** unless absolutely necessary

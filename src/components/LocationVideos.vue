@@ -84,9 +84,21 @@
             @click="(video.url || video.downloadUrl || video.video?.transcodedPath) ? openVideoPlayer(index) : null"
           >
             <template #actions>
+              <!-- Failed indicator (show error state for failed videos) -->
+              <div
+                v-if="video.hasFailed"
+                class="absolute top-2 right-2 flex items-center gap-2 bg-red-500/90 rounded-full shadow-sm z-10 px-3 py-2"
+                :title="video.statusMessage || 'Processing failed'"
+              >
+                <svg class="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-xs text-white font-medium">Failed</span>
+              </div>
+              
               <!-- Analyzing indicator (show when video is uploading or analyzing) -->
               <div
-                v-if="video.isUploading || video.isAnalyzing"
+                v-else-if="video.isUploading || video.isAnalyzing"
                 class="absolute top-2 right-2 flex items-center gap-2 bg-white/90 rounded-full shadow-sm z-10 px-3 py-2"
                 :title="getVideoProgressText(video)"
               >
@@ -162,7 +174,7 @@
     <VideoDeleteConfirmDialog
       :model-value="showDeleteConfirm"
       :deleting="deleting"
-      @confirm="confirmDelete"
+      @confirm="executeDelete"
       @cancel="cancelDelete"
     />
 
