@@ -157,3 +157,30 @@ After deployment, upload a video and check:
 3. **Test in emulator** - verify thumbnail generation works
 4. **Deploy to production** - Firebase Functions
 5. **Delete old functions** - clean up unused `transcodeVideo`, etc.
+
+## Failure Recovery (Jan 2026)
+
+### Problem
+Transcoding jobs can fail silently (e.g., "AudioMissing" error when video has no audio track). Firestore stuck at `status="transcoding"` indefinitely. UI shows "Processing..." forever.
+
+### Solution
+**Manual cleanup script** (future: could be scheduled function)
+- Script: `server/scripts/cleanup-transcoding-state.js`
+- Finds stuck videos (`status="transcoding"`)
+- Checks actual Transcoder job status via Google Cloud API
+- Recommends action: mark-failed / verify-files / still-processing
+
+**Job ID storage** (added Jan 2026)
+- Store `video.transcoderJobId` and `video.transcoderJobFullPath` in Firestore when creating job
+- Enables easy debugging without parsing logs
+
+**Why manual (not scheduled)?**
+1. Better control during testing/debugging
+2. Avoid unnecessary cloud function costs (low usage app)
+3. Can become scheduled function later when needed
+
+**Usage:**
+```bash
+cd server
+node scripts/cleanup-transcoding-state.js [userId]
+```

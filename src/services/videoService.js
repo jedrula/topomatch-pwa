@@ -55,10 +55,10 @@ export function getVideoUrlFromAscent(video) {
 
 export const videoService = {
   /**
-   * Internal helper: Transform ascent document to video object with download URL
-   * @private
+   * Transform ascent document to video object with download URL
+   * @public - Used by components to transform ascent data consistently
    */
-  _transformAscentToVideo(docSnapshot) {
+  transformAscentToVideo(docSnapshot) {
     const data = docSnapshot.data();
     
     // Skip if no video or video has error status
@@ -148,7 +148,7 @@ export const videoService = {
             id: ascent.id,
             data: () => ascent
           };
-          return this._transformAscentToVideo(mockDoc);
+          return this.transformAscentToVideo(mockDoc);
         })
         .filter(v => v !== null);
 
@@ -434,7 +434,7 @@ export const videoService = {
 
       const querySnapshot = await getDocs(q);
       const videos = querySnapshot.docs
-        .map(doc => this._transformAscentToVideo(doc))
+        .map(doc => this.transformAscentToVideo(doc))
         .filter(v => v !== null);
 
       return videos;
@@ -454,15 +454,18 @@ export const videoService = {
       const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
       
       const ascentsRef = collection(db, 'ascents');
+      // Use equality filter with composite index: locationId + video.status + date
+      // This allows proper ordering by date without client-side filtering
       const q = query(
         ascentsRef,
         where('locationId', '==', locationId),
+        where('video.status', '==', 'ready'), // Only fetch ready videos with thumbnails
         orderBy('date', 'desc')
       );
 
       const querySnapshot = await getDocs(q);
       const videos = querySnapshot.docs
-        .map(doc => this._transformAscentToVideo(doc))
+        .map(doc => this.transformAscentToVideo(doc))
         .filter(v => v !== null);
 
       return videos;
@@ -489,7 +492,7 @@ export const videoService = {
         return null;
       }
       
-      return this._transformAscentToVideo(docSnapshot);
+      return this.transformAscentToVideo(docSnapshot);
     } catch (error) {
       console.error(`Error fetching video for ascent ${ascentId}:`, error);
       return null;

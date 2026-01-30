@@ -1018,7 +1018,10 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     }
     
     if (!imageKeypoints || !Array.isArray(imageKeypoints) || imageKeypoints.length === 0) {
-      throw new Error('Keypoint transformation failed');
+      console.warn('⚠️ Keypoint transformation failed - no valid transformed points');
+      console.warn('   This can happen if homography is invalid or all points fall outside image bounds');
+      console.warn('   Skipping problem scoring for this frame');
+      return []; // Return empty scores instead of throwing
     }
     
     // Build originalPoints and transformedPoints arrays for getKeypointRows

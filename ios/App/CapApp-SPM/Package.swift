@@ -15,6 +15,7 @@ let package = Package(
         .package(name: "CapacitorFirebaseAuthentication", path: "../../../node_modules/@capacitor-firebase/authentication"),
         .package(name: "CapacitorFirebaseFunctions", path: "../../../node_modules/@capacitor-firebase/functions"),
         .package(name: "CapacitorFirebaseMessaging", path: "../../../node_modules/@capacitor-firebase/messaging"),
+        .package(name: "CapacitorDevice", path: "../../../node_modules/@capacitor/device"),
         .package(name: "CapacitorStatusBar", path: "../../../node_modules/@capacitor/status-bar")
     ],
     targets: [
@@ -26,6 +27,7 @@ let package = Package(
                 .product(name: "CapacitorFirebaseAuthentication", package: "CapacitorFirebaseAuthentication"),
                 .product(name: "CapacitorFirebaseFunctions", package: "CapacitorFirebaseFunctions"),
                 .product(name: "CapacitorFirebaseMessaging", package: "CapacitorFirebaseMessaging"),
+                .product(name: "CapacitorDevice", package: "CapacitorDevice"),
                 .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar")
             ]
         )

@@ -3,13 +3,13 @@
  * Ring-buffer logs + device info for debugging production issues
  */
 
-import { Capacitor } from '@capacitor/core';
-
 class DiagnosticsService {
   constructor() {
     this.logBuffer = [];
-    this.maxLogs = 200; // Keep last 200 log entries
-    this.isNative = Capacitor.isNativePlatform();
+    this.maxLogs = 100; // Keep last 100 log entries (reduced for mobile memory)
+    this.maxContextSize = 1000; // Max chars for context data (truncate if larger)
+    this._isNative = null; // Cached once on first use
+    this._platform = null; // Cached once on first use
     
     // 🚨 RATE LIMITING: Prevent infinite loop spam
     this.reportLimits = {
@@ -26,6 +26,17 @@ class DiagnosticsService {
     this.recentErrors = new Map(); // Map<errorHash, timestamp>
     
     this.setupGlobalHandlers();
+  }
+  
+  /**
+   * Lazy-load and cache platform info (only load Capacitor once)
+   */
+  async initPlatformInfo() {
+    if (this._isNative === null) {
+      const { Capacitor } = await import('@capacitor/core');
+      this._isNative = Capacitor.isNativePlatform();
+      this._platform = Capacitor.getPlatform();
+    }
   }
   
   /**
@@ -303,14 +314,40 @@ class DiagnosticsService {
   }
 
   /**
+   * Sanitize context to prevent memory bloat
+   */
+  sanitizeContext(context) {
+    if (!context || typeof context !== 'object') return context;
+    
+    try {
+      const str = JSON.stringify(context);
+      if (str.length <= this.maxContextSize) {
+        return context; // Small enough, use as-is
+      }
+      
+      // Too large - truncate and add warning
+      return {
+        _truncated: true,
+        _originalSize: str.length,
+        data: str.substring(0, this.maxContextSize) + '... [truncated]'
+      };
+    } catch (e) {
+      // Circular reference or other error
+      return { _error: 'Could not serialize context', _reason: e.message };
+    }
+  }
+
+  /**
    * Add log entry to ring buffer
    */
   log(level, message, context = {}) {
+    const sanitized = this.sanitizeContext(context);
+    
     const entry = {
       time: new Date().toISOString(),
       level,
       message,
-      ...context
+      ...sanitized
     };
     
     this.logBuffer.push(entry);
@@ -323,18 +360,21 @@ class DiagnosticsService {
    * Get device diagnostics
    */
   async getDeviceInfo() {
+    // Initialize platform info on first call
+    await this.initPlatformInfo();
+    
     const info = {
-      platform: Capacitor.getPlatform(),
-      isNative: this.isNative,
+      platform: this._platform,
+      isNative: this._isNative,
       userAgent: navigator.userAgent,
-      memoryGB: navigator.deviceMemory || 'unknown',
-      connection: navigator.connection?.effectiveType || 'unknown',
+      memoryGB: navigator.deviceMemory || null, // Safari doesn't support deviceMemory API
+      connection: navigator.connection?.effectiveType || null, // Safari doesn't support Network Information API
       online: navigator.onLine,
       screen: `${window.screen.width}x${window.screen.height}`,
     };
 
-    // Get device-specific info on iOS
-    if (this.isNative) {
+    // Get device-specific info on native platforms
+    if (this._isNative) {
       try {
         const { Device } = await import('@capacitor/device');
         const deviceInfo = await Device.getInfo();

@@ -7,10 +7,12 @@ import AppHeader from './components/AppHeader.vue';
 import AuthModal from './components/AuthModal.vue';
 import VideoAnalysisIndicator from './components/VideoAnalysisIndicator.vue';
 import BottomTabBar from './components/BottomTabBar.vue';
+import DiagnosticReporter from './components/DiagnosticReporter.vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 
 const userStore = useUserStore();
 const showAuthModal = ref(false);
+const showReporter = ref(false);
 const isNativePlatform = ref(false);
 
 // PWA update - auto-update without prompting
@@ -103,6 +105,13 @@ const onAuthSuccess = () => {
   closeAuthModal();
 };
 
+// Handle report dialog
+const handleOpenReporter = () => {
+  console.log('[App] Opening reporter, showReporter:', showReporter.value);
+  showReporter.value = true;
+  console.log('[App] After setting, showReporter:', showReporter.value);
+};
+
 // Provide the auth modal methods globally
 import { provide } from 'vue';
 provide('authModal', {
@@ -124,13 +133,19 @@ provide('authModal', {
     </main>
 
     <!-- Bottom Tab Bar (native only) -->
-    <BottomTabBar />
+    <BottomTabBar @open-reporter="handleOpenReporter" />
 
     <!-- Global Auth Modal - direct child of app root -->
     <AuthModal 
       :is-open="showAuthModal" 
       @close="closeAuthModal" 
       @success="onAuthSuccess"
+    />
+
+    <!-- Global Diagnostic Reporter -->
+    <DiagnosticReporter 
+      :show="showReporter"
+      @close="showReporter = false"
     />
 
     <!-- Global Video Analysis Indicator - persists across routes -->

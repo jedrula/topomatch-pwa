@@ -1,0 +1,49 @@
+{
+  "name": "capacitor-plugin-ios-video-editor",
+  "version": "0.0.1",
+  "description": "iOS native video editor - trim and compress",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "ios/",
+    "src/",
+    "*.podspec"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "author": "TopoMatch",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "local"
+  },
+  "bugs": {
+    "url": "local"
+  },
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native",
+    "ios",
+    "video"
+  ],
+  "scripts": {
+    "verify": "npm run verify:ios",
+    "verify:ios": "cd ios && pod install && xcodebuild -workspace Plugin.xcworkspace -scheme Plugin && cd ..",
+    "lint": "echo 'No linting configured'",
+    "build": "echo 'No build needed - Swift only'"
+  },
+  "devDependencies": {
+    "@capacitor/core": "^6.0.0"
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^6.0.0"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

@@ -275,10 +275,13 @@
       @navigate-previous="navigatePrevious"
     />
 
-    <!-- Floating Action Button -->
-    <FloatingActionButton 
-      :isAuthenticated="!!userStore.user"
-      @file-selected="handleVideoFileSelected"
+    <!-- TODO we should use a VideoPicker and decide if its ios, desktop, mobile web etc. inside it -->
+    <!-- iOS Native Video Picker Button -->
+    <IosVideoPickerButton 
+      v-if="userStore.user"
+      :show-text="true"
+      :allow-trim="true"
+      @video-selected="handleVideoFileSelected"
     />
 
   </div>
@@ -293,7 +296,7 @@ import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
 import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
 import { useToast } from '../composables/useToast.js';
 import ImageUploadModal from '../components/ImageUploadModal.vue';
-import FloatingActionButton from '../components/FloatingActionButton.vue';
+import IosVideoPickerButton from '../components/IosVideoPickerButton.vue';
 import ImageGallerySimplified from '../components/ImageGallerySimplified.vue';
 import BetaVideoUploadModal from '../components/BetaVideoUploadModal.vue';
 import ToastNotification from '../components/ToastNotification.vue';
@@ -310,6 +313,7 @@ import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
 import { videoService } from '../services/videoService.js';
 import { fixLocalhostUrl } from '../services/storageUtils.js';
 import { getResizedImageUrl } from '../utils/imageResize.js';
+import { Capacitor } from '@capacitor/core';
 
 const route = useRoute();
 const router = useRouter();
@@ -420,8 +424,9 @@ const displayVideos = computed(() => {
         return true;
       }
       
-      // Show video during upload AND after completion (until server video loads)
-      return upload.status === 'uploading' || upload.status === 'pending' || upload.status === 'completed';
+      // Show video during upload, analysis, AND server processing (until server video loads with thumbnail)
+      const showStatuses = ['uploading', 'pending', 'server-processing', 'transcoding', 'generating-thumbnail', 'ready'];
+      return showStatuses.includes(upload.status);
     })
     .map(upload => {
       // Check if this upload has errored in analysis
@@ -434,28 +439,82 @@ const displayVideos = computed(() => {
         ? getCurrentStep(activeJobs.find(j => j.ascentId === upload.ascentId)?.progress || 0)
         : null;
       
+      // Determine status message based on current state
+      let statusMessage = 'Uploading video...';
+      if (currentStep?.message) {
+        statusMessage = currentStep.message;
+      } else if (upload.status === 'failed') {
+        statusMessage = upload.error || 'Processing failed';
+      } else if (upload.status === 'transcoding') {
+        statusMessage = 'Optimizing video...';
+      } else if (upload.status === 'generating-thumbnail') {
+        statusMessage = 'Creating thumbnail...';
+      } else if (upload.status === 'server-processing') {
+        statusMessage = 'Processing on server...';
+      } else if (upload.status === 'ready') {
+        statusMessage = 'Ready!';
+      }
+      
+      // Determine display name based on ANALYSIS state (independent of upload/transcoding)
+      // Check THREE sources in order:
+      // 1. Upload queue (from Firestore) - most reliable after it syncs
+      // 2. Analysis completion registry - immediate local results before Firestore
+      // 3. Analysis status - show "Analyzing..." or "Unknown Problem"
+      const completionData = analysisStore.getJob(upload.ascentId);
+      
+      let displayName;
+      if (upload.problemName) {
+        // Problem detected and synced to Firestore
+        displayName = upload.problemName;
+      } else if (completionData?.topProblemName) {
+        // Analysis just completed locally - show detected problem immediately!
+        displayName = completionData.topProblemName;
+      } else if (isCurrentlyAnalyzing) {
+        // Analysis actively running right now
+        displayName = 'Analyzing...';
+      } else if (completionData?.status === 'complete') {
+        // Analysis complete but no match found
+        displayName = 'Unknown Problem';
+      } else {
+        // Fallback for edge cases
+        displayName = 'Unknown Problem';
+      }
+      
+      // Use completion data if available (immediate), otherwise fall back to upload queue (Firestore)
+      const problemId = upload.problemId || completionData?.detectedProblemId || null;
+      const problemName = upload.problemName || completionData?.topProblemName || 
+        (problemId ? boulderProblemsStore.boulderProblems.find(p => p.id === problemId)?.name : null);
+      
       return {
         id: upload.ascentId,
         ascentId: upload.ascentId,
+        name: displayName,  // Display name for VideoMetadata
         userId: userStore.user?.uid,  // Current user is the uploader
-        problemId: upload.problemId || null,
+        locationId: upload.locationId,
+        locationName: upload.locationName || location.value?.name,  // From upload metadata or current location
+        problemId: problemId,
+        problemName: problemName,
         url: upload.localUrl,  // ✨ Reuse blob URL from upload queue!
+        thumbnailUrl: upload.thumbnailUrl,  // ✨ Thumbnail from server when ready
+        isTranscoded: upload.isTranscoded || false,  // ✅ Show HD status when transcoded
         isLocalVideo: true,  // Flag to know this is temporary
         isUploading: upload.status === 'uploading' || upload.status === 'pending',
-        isAnalyzing: isCurrentlyAnalyzing,
+        isAnalyzing: isCurrentlyAnalyzing || ['server-processing', 'transcoding', 'generating-thumbnail'].includes(upload.status),
+        hasFailed: upload.status === 'failed',
         progress: isCurrentlyAnalyzing 
           ? activeJobs.find(j => j.ascentId === upload.ascentId)?.progress || 0
           : upload.progress || 0,
         status: upload.status,
-        statusMessage: currentStep?.message || 'Uploading video...',
-        uploadedBy: userStore.user?.displayName || userStore.user?.email || 'Analyzing...',
+        statusMessage,
+        uploadedBy: userStore.user?.displayName || userStore.user?.email || 'Processing...',
+        createdAt: upload.createdAt,  // For sorting
         metadata: {
           duration: null,
-          problemName: upload.problemId ? 
-            boulderProblemsStore.boulderProblems.find(p => p.id === upload.problemId)?.name : null
+          problemName: problemName  // Use the resolved problemName
         }
       };
-    });
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);  // Sort newest first!
   
   // 3. Get completed jobs that we should keep visible until server video loads
   const completedJobs = analysisStore.getCompletedJobsForLocation(locationId.value);
@@ -476,18 +535,24 @@ const displayVideos = computed(() => {
     }
   }));
   
-  // Mark all loaded videos as loaded in store (so we can hide their placeholders)
+  // Mark videos as loaded ONLY when they have thumbnails ready
+  // (Server query already filters for video.thumbnailUrl != null, so all videos here have thumbnails)
   videos.value.forEach(video => {
     if (video.ascentId) {
       analysisStore.markAscentLoaded(locationId.value, video.ascentId);
     }
   });
   
-  // Clean up completed uploads when server video arrives
-  const serverAscentIds = new Set(videos.value.map(v => v.ascentId).filter(Boolean));
+  // Clean up completed uploads when server video arrives WITH THUMBNAIL
+  // (Server query already filters for video.thumbnailUrl != null, so all videos here have thumbnails)
+  const serverAscentIds = new Set(
+    videos.value.filter(v => v.ascentId).map(v => v.ascentId)
+  );
+  
   locationUploads.forEach(upload => {
+    // Only remove upload placeholder when server video is ready
     if (serverAscentIds.has(upload.ascentId)) {
-      // Server video is here, remove the upload record (whether completed or errored)
+      console.log(`🎬 Server video ready with thumbnail for ${upload.ascentId}, removing upload placeholder`);
       uploadQueue.cancelUpload(upload.ascentId);
     }
   });
@@ -791,7 +856,8 @@ const openProblemVideos = async (problem) => {
   }
 };
 
-// Handle video file selection from FloatingActionButton
+// Handle video file selection from IosVideoPickerButton
+// Receives File object directly (not event) from both native iOS and web fallback
 const handleVideoFileSelected = async (file) => {
   if (!file) return;
   
@@ -820,11 +886,10 @@ const handleVideoFileSelected = async (file) => {
     }
   } catch (error) {
     console.error('❌ Error handling video selection:', error);
-    alert('Failed to process video. Please try again.');
-  } finally {
-    // Clear input so same file can be selected again
-    event.target.value = '';
+    // Don't use alert() on iOS - can conflict with video picker dismissal
+    // Error will be shown in the modal's error state
   }
+  // Note: No need to clear event.target since Capacitor provides file directly (no input element)
 };
 
 // Format routesetting date for display
@@ -1100,40 +1165,15 @@ const handleMaximizeModal = () => {
   }
 };
 
-// Handle job completion - load the video when analysis finishes
+// Handle job completion - mark analysis as complete
 const handleJobComplete = async (ascentId) => {
-  console.log(`🎬 Job completed for ascent ${ascentId}, loading video...`);
+  console.log(`🎬 Analysis completed for ascent ${ascentId}`);
   
-  // WAIT for upload to complete first (race condition fix)
-  // Analysis can finish before upload updates Firestore, so we need to wait
-  const upload = uploadQueue.getUpload(ascentId);
-  if (upload && (upload.status === 'uploading' || upload.status === 'pending')) {
-    console.log(`⏳ Waiting for upload to complete for ascent ${ascentId}...`);
-    await uploadQueue.waitForUpload(ascentId);
-    console.log(`✅ Upload completed for ascent ${ascentId}, now loading video...`);
-  }
+  // Just mark as loaded in store - the video is already showing through uploadingVideos
+  // The onVideoReady callback will update videos.value when thumbnail is ready
+  analysisStore.markAscentLoaded(locationId.value, ascentId);
   
-  // Load just this specific video
-  const video = await videoService.getVideoByAscentId(ascentId);
-  
-  if (video) {
-    // Add to videos list if not already there
-    const existingIndex = videos.value.findIndex(v => v.ascentId === ascentId);
-    if (existingIndex === -1) {
-      // Prepend to list (most recent first)
-      videos.value.unshift(video);
-      console.log(`✅ Added video for ascent ${ascentId} to list`);
-    } else {
-      // Update existing entry
-      videos.value[existingIndex] = video;
-      console.log(`✅ Updated video for ascent ${ascentId}`);
-    }
-    
-    // Mark as loaded in store so placeholder disappears
-    analysisStore.markAscentLoaded(locationId.value, ascentId);
-  } else {
-    console.warn(`⚠️ Could not load video for ascent ${ascentId}`);
-  }
+  console.log(`✅ Marked ascent ${ascentId} as loaded (video already in UI via upload queue)`);
 };
 
 // Load OpenCV.js library (lazy loaded via dynamic import)

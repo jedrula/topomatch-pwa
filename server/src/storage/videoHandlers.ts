@@ -78,7 +78,7 @@ export async function handleRawVideoUpload(
       const destFile = bucket.file(destPath);
 
       await sourceFile.copy(destFile);
-      logger.info(`✅ Copied to ${destPath} (onTranscodingComplete will trigger)`);
+      logger.info(`✅ Copied to ${destPath} (handleTranscodedVideo will trigger)`);
 
       return { success: true, emulator: true, destPath };
     }
@@ -104,19 +104,12 @@ export async function handleRawVideoUpload(
                 },
               },
             },
-            {
-              key: "audio",
-              audioStream: {
-                codec: "aac",
-                bitrateBps: 128000,
-              },
-            },
           ],
           muxStreams: [
             {
               key: "sd-output",
               container: "mp4",
-              elementaryStreams: ["video-sd", "audio"],
+              elementaryStreams: ["video-sd"], // Video only - works for both video-only and video+audio sources
               fileName: "video.mp4",
             },
           ],
@@ -126,6 +119,13 @@ export async function handleRawVideoUpload(
 
     const [job] = await transcoderClient.createJob(request);
     logger.info(`✅ Transcoding job created: ${job.name}`);
+
+    // Store job ID in Firestore for future debugging/monitoring
+    const jobId = job.name?.split('/').pop(); // Extract just the ID part
+    await ascentRef.update({
+      "video.transcoderJobId": jobId,
+      "video.transcoderJobFullPath": job.name,
+    });
 
     return { success: true, jobId: job.name };
   } catch (error) {
