@@ -2,14 +2,16 @@ import Foundation
 import Capacitor
 import UIKit
 import AVFoundation
+import AVKit
 import PhotosUI
 import Photos
+import SwiftUI
 
 /**
  * iOS native video editor plugin - Modern implementation
  * 
  * Uses PHAsset + AVPlayer for instant video preview (no 60s file copy wait)
- * Custom trim UI with direct asset access
+ * SwiftUI VideoTrimmerView for native-style trim UI
  * Single export operation (trim + compress together)
  */
 @objc(IosVideoEditorPlugin)
@@ -258,25 +260,22 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
     }
 }
 
-// MARK: - Video Trim UI
+// MARK: - Video Trim UI with SwiftUI
 class VideoTrimViewController: UIViewController {
-    // Video player
-    private var player: AVPlayer?
-    private var playerLayer: AVPlayerLayer?
+    // Video asset and player
     private var avAsset: AVAsset?
     
-    // Trim range
+    // Trim range (will be bound to SwiftUI)
     private var startTime: CMTime = .zero
     private var endTime: CMTime = .zero
     
+    // SwiftUI hosting controller
+    private var trimmerHostingController: UIHostingController<VideoTrimmerWrapper>?
+    
     // UI Elements
-    private let playerContainer = UIView()
-    private let playPauseButton = UIButton(type: .system)
-    private let trimSlider = UISlider()
-    private let startTimeLabel = UILabel()
-    private let endTimeLabel = UILabel()
     private let saveButton = UIButton(type: .system)
     private let cancelButton = UIButton(type: .system)
+
     
     // Callbacks
     var onSave: ((CMTime, CMTime) -> Void)?
@@ -298,154 +297,151 @@ class VideoTrimViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .black
         
-        setupPlayer()
         setupUI()
     }
     
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        playerLayer?.frame = playerContainer.bounds
-    }
-    
-    private func setupPlayer() {
+    private func setupUI() {
         guard let avAsset = avAsset else { return }
         
-        let playerItem = AVPlayerItem(asset: avAsset)
-        player = AVPlayer(playerItem: playerItem)
+        // Create SwiftUI trimmer view
+        let trimmerWrapper = VideoTrimmerWrapper(
+            asset: avAsset,
+            initialStartTime: .zero,
+            initialEndTime: avAsset.duration,
+            onSave: { [weak self] start, end in
+                self?.onSave?(start, end)
+            },
+            onCancel: { [weak self] in
+                self?.onCancel?()
+            }
+        )
         
-        playerLayer = AVPlayerLayer(player: player)
-        playerLayer?.videoGravity = .resizeAspect
-        playerContainer.layer.addSublayer(playerLayer!)
-    }
-    
-    private func setupUI() {
-        // Player container
-        playerContainer.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(playerContainer)
+        let hostingController = UIHostingController(rootView: trimmerWrapper)
+        trimmerHostingController = hostingController
         
-        // Play/Pause button
-        playPauseButton.setTitle("▶️ Play", for: .normal)
-        playPauseButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .medium)
-        playPauseButton.addTarget(self, action: #selector(playPauseTapped), for: .touchUpInside)
-        playPauseButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(playPauseButton)
+        addChild(hostingController)
+        view.addSubview(hostingController.view)
+        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+        hostingController.didMove(toParent: self)
         
-        // Time labels
-        startTimeLabel.text = formatTime(startTime)
-        startTimeLabel.textColor = .white
-        startTimeLabel.font = .monospacedDigitSystemFont(ofSize: 14, weight: .regular)
-        startTimeLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(startTimeLabel)
-        
-        endTimeLabel.text = formatTime(endTime)
-        endTimeLabel.textColor = .white
-        endTimeLabel.font = .monospacedDigitSystemFont(ofSize: 14, weight: .regular)
-        endTimeLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(endTimeLabel)
-        
-        // Trim slider (for now, simple position slider - will enhance with range selection later)
-        trimSlider.minimumValue = 0
-        trimSlider.maximumValue = Float(CMTimeGetSeconds(endTime))
-        trimSlider.addTarget(self, action: #selector(sliderChanged), for: .valueChanged)
-        trimSlider.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(trimSlider)
-        
-        // Save button
-        saveButton.setTitle("✓ Save", for: .normal)
-        saveButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .bold)
-        saveButton.backgroundColor = .systemGreen
-        saveButton.layer.cornerRadius = 8
-        saveButton.addTarget(self, action: #selector(saveTapped), for: .touchUpInside)
-        saveButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(saveButton)
-        
-        // Cancel button
-        cancelButton.setTitle("✕ Cancel", for: .normal)
-        cancelButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .medium)
-        cancelButton.setTitleColor(.white, for: .normal)
-        cancelButton.addTarget(self, action: #selector(cancelTapped), for: .touchUpInside)
-        cancelButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(cancelButton)
-        
-        // Layout constraints
         NSLayoutConstraint.activate([
-            // Player container (top half of screen)
-            playerContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            playerContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            playerContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            playerContainer.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.5),
-            
-            // Play/Pause button
-            playPauseButton.topAnchor.constraint(equalTo: playerContainer.bottomAnchor, constant: 20),
-            playPauseButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
-            // Start time label
-            startTimeLabel.topAnchor.constraint(equalTo: playPauseButton.bottomAnchor, constant: 20),
-            startTimeLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            
-            // End time label
-            endTimeLabel.topAnchor.constraint(equalTo: playPauseButton.bottomAnchor, constant: 20),
-            endTimeLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            
-            // Trim slider
-            trimSlider.topAnchor.constraint(equalTo: startTimeLabel.bottomAnchor, constant: 10),
-            trimSlider.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            trimSlider.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            
-            // Cancel button
-            cancelButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            cancelButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            cancelButton.widthAnchor.constraint(equalToConstant: 120),
-            cancelButton.heightAnchor.constraint(equalToConstant: 50),
-            
-            // Save button
-            saveButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            saveButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            saveButton.widthAnchor.constraint(equalToConstant: 120),
-            saveButton.heightAnchor.constraint(equalToConstant: 50),
+            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
+            hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
     }
+}
+
+// MARK: - SwiftUI Wrapper for Trim UI
+struct VideoTrimmerWrapper: View {
+    let asset: AVAsset
+    let onSave: (CMTime, CMTime) -> Void
+    let onCancel: () -> Void
     
-    @objc private func playPauseTapped() {
-        guard let player = player else { return }
-        
-        if player.rate > 0 {
-            // Currently playing, pause it
-            player.pause()
-            playPauseButton.setTitle("▶️ Play", for: .normal)
-        } else {
-            // Currently paused, play it
-            player.play()
-            playPauseButton.setTitle("⏸ Pause", for: .normal)
+    @State private var startTime: CMTime
+    @State private var endTime: CMTime
+    @State private var player: AVPlayer?
+    @State private var isPlaying = false
+    
+    init(asset: AVAsset, initialStartTime: CMTime, initialEndTime: CMTime, onSave: @escaping (CMTime, CMTime) -> Void, onCancel: @escaping () -> Void) {
+        self.asset = asset
+        self.onSave = onSave
+        self.onCancel = onCancel
+        _startTime = State(initialValue: initialStartTime)
+        _endTime = State(initialValue: initialEndTime)
+    }
+    
+    var body: some View {
+        VStack(spacing: 40) {
+            Spacer()
+            
+            // Video preview
+            if let player = player {
+                VideoPlayer(player: player)
+                    .frame(height: 300)
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
+            }
+            
+            // Play/Pause button
+            Button(action: togglePlayback) {
+                Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(.white)
+            }
+            
+            // Trimmer
+            VideoTrimmerView(
+                asset: asset,
+                startTime: $startTime,
+                endTime: $endTime
+            )
+            .padding(.horizontal, 16)
+            
+            // Time labels
+            HStack {
+                Text(formatTime(startTime.seconds))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("Duration: \(formatTime(endTime.seconds - startTime.seconds))")
+                    .font(.caption)
+                    .foregroundColor(.yellow)
+                Spacer()
+                Text(formatTime(endTime.seconds))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 32)
+            
+            Spacer()
+            
+            // Action buttons
+            HStack(spacing: 60) {
+                Button("✕ Cancel") {
+                    onCancel()
+                }
+                .foregroundColor(.white)
+                .font(.system(size: 18))
+                
+                Button("✓ Save") {
+                    onSave(startTime, endTime)
+                }
+                .foregroundColor(.green)
+                .font(.system(size: 18, weight: .bold))
+            }
+            .padding(.bottom, 40)
+        }
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+        .onAppear {
+            setupPlayer()
+        }
+        .onDisappear {
+            player?.pause()
         }
     }
     
-    @objc private func sliderChanged() {
-        let time = CMTime(seconds: Double(trimSlider.value), preferredTimescale: 600)
-        player?.seek(to: time)
+    private func setupPlayer() {
+        let playerItem = AVPlayerItem(asset: asset)
+        player = AVPlayer(playerItem: playerItem)
     }
     
-    @objc private func saveTapped() {
-        player?.pause()
-        // For Phase 2.1: Save full video (trim UI is working, actual trim logic in Phase 2.2)
-        onSave?(startTime, endTime)
+    private func togglePlayback() {
+        guard let player = player else { return }
+        if isPlaying {
+            player.pause()
+        } else {
+            player.seek(to: startTime)
+            player.play()
+        }
+        isPlaying.toggle()
     }
     
-    @objc private func cancelTapped() {
-        player?.pause()
-        onCancel?()
-    }
-    
-    private func formatTime(_ time: CMTime) -> String {
-        let seconds = CMTimeGetSeconds(time)
+    private func formatTime(_ seconds: Double) -> String {
         let mins = Int(seconds) / 60
         let secs = Int(seconds) % 60
-        let fraction = Int((seconds.truncatingRemainder(dividingBy: 1)) * 10)
-        return String(format: "%d:%02d.%d", mins, secs, fraction)
-    }
-    
-    deinit {
-        player?.pause()
-        player = nil
+        let ms = Int((seconds.truncatingRemainder(dividingBy: 1)) * 10)
+        return String(format: "%d:%02d.%d", mins, secs, ms)
     }
 }

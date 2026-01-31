@@ -1,0 +1,273 @@
+import SwiftUI
+import AVFoundation
+
+// MARK: - Video Trimmer View
+struct VideoTrimmerView: View {
+    let asset: AVAsset
+    @Binding var startTime: CMTime
+    @Binding var endTime: CMTime
+    
+    @State private var thumbnails: [UIImage] = []
+    @State private var isDraggingStart = false
+    @State private var isDraggingEnd = false
+    @State private var isDraggingPlayhead = false
+    @State private var currentPlayheadTime: CMTime = .zero
+    @State private var isPlaying = false
+    @State private var player: AVPlayer?
+    
+    private let trimmerHeight: CGFloat = 60
+    private let handleWidth: CGFloat = 16
+    private let cornerRadius: CGFloat = 8
+    private let borderWidth: CGFloat = 3
+    private let minTrimDuration: Double = 1.0 // Minimum 1 second trim
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let totalWidth = geometry.size.width
+            let usableWidth = totalWidth - (handleWidth * 2)
+            let duration = asset.duration.seconds
+            
+            ZStack(alignment: .leading) {
+                // Thumbnail strip background
+                thumbnailStrip(width: totalWidth, height: trimmerHeight)
+                
+                // Dimmed overlay for excluded regions
+                HStack(spacing: 0) {
+                    // Left dimmed region
+                    Rectangle()
+                        .fill(Color.black.opacity(0.6))
+                        .frame(width: handleWidth + (startTime.seconds / duration) * usableWidth)
+                    
+                    Spacer()
+                    
+                    // Right dimmed region
+                    Rectangle()
+                        .fill(Color.black.opacity(0.6))
+                        .frame(width: handleWidth + ((duration - endTime.seconds) / duration) * usableWidth)
+                }
+                .frame(height: trimmerHeight)
+                
+                // Trim selection frame
+                trimFrame(geometry: geometry, duration: duration, usableWidth: usableWidth)
+                
+                // Playhead
+                playhead(geometry: geometry, duration: duration, usableWidth: usableWidth)
+            }
+            .frame(height: trimmerHeight)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .onAppear {
+                generateThumbnails(width: totalWidth)
+                setupPlayer()
+            }
+        }
+        .frame(height: trimmerHeight)
+    }
+    
+    // MARK: - Thumbnail Strip
+    @ViewBuilder
+    private func thumbnailStrip(width: CGFloat, height: CGFloat) -> some View {
+        HStack(spacing: 0) {
+            ForEach(thumbnails.indices, id: \.self) { index in
+                Image(uiImage: thumbnails[index])
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: width / CGFloat(max(thumbnails.count, 1)), height: height)
+                    .clipped()
+            }
+        }
+    }
+    
+    // MARK: - Trim Frame
+    @ViewBuilder
+    private func trimFrame(geometry: GeometryProxy, duration: Double, usableWidth: CGFloat) -> some View {
+        let totalWidth = geometry.size.width
+        let startOffset = handleWidth + (startTime.seconds / duration) * usableWidth
+        let endOffset = handleWidth + (endTime.seconds / duration) * usableWidth
+        let frameWidth = endOffset - startOffset + handleWidth * 2
+        
+        ZStack(alignment: .leading) {
+            // Frame border (top and bottom lines)
+            VStack {
+                Rectangle()
+                    .fill(Color.yellow)
+                    .frame(height: borderWidth)
+                Spacer()
+                Rectangle()
+                    .fill(Color.yellow)
+                    .frame(height: borderWidth)
+            }
+            .frame(width: frameWidth, height: trimmerHeight)
+            
+            // Left handle
+            trimHandle(isLeft: true)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            isDraggingStart = true
+                            let newPosition = value.location.x
+                            let newTime = max(0, min(newPosition / usableWidth * duration, endTime.seconds - minTrimDuration))
+                            startTime = CMTime(seconds: newTime, preferredTimescale: 600)
+                            provideHapticFeedback()
+                        }
+                        .onEnded { _ in
+                            isDraggingStart = false
+                        }
+                )
+            
+            // Right handle
+            HStack {
+                Spacer()
+                trimHandle(isLeft: false)
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                isDraggingEnd = true
+                                let handleStartX = endOffset - handleWidth
+                                let newPosition = handleStartX + value.location.x
+                                let newTime = max(startTime.seconds + minTrimDuration, min(newPosition / usableWidth * duration, duration))
+                                endTime = CMTime(seconds: newTime, preferredTimescale: 600)
+                                provideHapticFeedback()
+                            }
+                            .onEnded { _ in
+                                isDraggingEnd = false
+                            }
+                    )
+            }
+            .frame(width: frameWidth)
+        }
+        .frame(width: frameWidth, height: trimmerHeight)
+        .offset(x: startOffset - handleWidth)
+    }
+    
+    // MARK: - Trim Handle
+    @ViewBuilder
+    private func trimHandle(isLeft: Bool) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: isLeft ? cornerRadius : 0)
+                .fill(Color.yellow)
+                .frame(width: handleWidth, height: trimmerHeight)
+                .clipShape(
+                    CustomUnevenRoundedRectangle(
+                        topLeadingRadius: isLeft ? cornerRadius : 0,
+                        bottomLeadingRadius: isLeft ? cornerRadius : 0,
+                        bottomTrailingRadius: isLeft ? 0 : cornerRadius,
+                        topTrailingRadius: isLeft ? 0 : cornerRadius
+                    )
+                )
+            
+            // Chevron icon
+            Image(systemName: isLeft ? "chevron.compact.left" : "chevron.compact.right")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.black)
+        }
+        .scaleEffect((isLeft ? isDraggingStart : isDraggingEnd) ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: isLeft ? isDraggingStart : isDraggingEnd)
+    }
+    
+    // MARK: - Playhead
+    @ViewBuilder
+    private func playhead(geometry: GeometryProxy, duration: Double, usableWidth: CGFloat) -> some View {
+        let playheadPosition = handleWidth + (currentPlayheadTime.seconds / duration) * usableWidth
+        
+        ZStack {
+            // Playhead line
+            Rectangle()
+                .fill(Color.white)
+                .frame(width: 3, height: trimmerHeight + 16)
+                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 0)
+            
+            // Top knob
+            Circle()
+                .fill(Color.white)
+                .frame(width: 10, height: 10)
+                .offset(y: -(trimmerHeight / 2 + 8))
+                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 0)
+        }
+        .offset(x: playheadPosition - 1.5)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    isDraggingPlayhead = true
+                    let newPosition = value.location.x - handleWidth
+                    let newTime = max(startTime.seconds, min((newPosition / usableWidth) * duration, endTime.seconds))
+                    currentPlayheadTime = CMTime(seconds: newTime, preferredTimescale: 600)
+                    player?.seek(to: currentPlayheadTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                }
+                .onEnded { _ in
+                    isDraggingPlayhead = false
+                }
+        )
+    }
+    
+    // MARK: - Thumbnail Generation
+    private func generateThumbnails(width: CGFloat) {
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 100, height: trimmerHeight * UIScreen.main.scale)
+        
+        let thumbnailCount = Int(width / 50) // Approximately 50pt per thumbnail
+        let duration = asset.duration.seconds
+        let interval = duration / Double(thumbnailCount)
+        
+        var times: [NSValue] = []
+        for i in 0..<thumbnailCount {
+            let time = CMTime(seconds: Double(i) * interval, preferredTimescale: 600)
+            times.append(NSValue(time: time))
+        }
+        
+        var generatedThumbnails: [UIImage] = []
+        
+        generator.generateCGImagesAsynchronously(forTimes: times) { _, image, _, _, _ in
+            if let cgImage = image {
+                let uiImage = UIImage(cgImage: cgImage)
+                DispatchQueue.main.async {
+                    generatedThumbnails.append(uiImage)
+                    if generatedThumbnails.count == thumbnailCount {
+                        self.thumbnails = generatedThumbnails
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Player Setup
+    private func setupPlayer() {
+        let playerItem = AVPlayerItem(asset: asset)
+        player = AVPlayer(playerItem: playerItem)
+        currentPlayheadTime = startTime
+    }
+    
+    // MARK: - Haptic Feedback
+    private func provideHapticFeedback() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+    }
+}
+
+// MARK: - Uneven Rounded Rectangle Helper
+struct CustomUnevenRoundedRectangle: Shape {
+    var topLeadingRadius: CGFloat
+    var bottomLeadingRadius: CGFloat
+    var bottomTrailingRadius: CGFloat
+    var topTrailingRadius: CGFloat
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        path.move(to: CGPoint(x: rect.minX + topLeadingRadius, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - topTrailingRadius, y: rect.minY))
+        path.addArc(center: CGPoint(x: rect.maxX - topTrailingRadius, y: rect.minY + topTrailingRadius),
+                    radius: topTrailingRadius, startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: false)
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - bottomTrailingRadius))
+        path.addArc(center: CGPoint(x: rect.maxX - bottomTrailingRadius, y: rect.maxY - bottomTrailingRadius),
+                    radius: bottomTrailingRadius, startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
+        path.addLine(to: CGPoint(x: rect.minX + bottomLeadingRadius, y: rect.maxY))
+        path.addArc(center: CGPoint(x: rect.minX + bottomLeadingRadius, y: rect.maxY - bottomLeadingRadius),
+                    radius: bottomLeadingRadius, startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + topLeadingRadius))
+        path.addArc(center: CGPoint(x: rect.minX + topLeadingRadius, y: rect.minY + topLeadingRadius),
+                    radius: topLeadingRadius, startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
+        
+        return path
+    }
+}
