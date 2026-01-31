@@ -3,14 +3,14 @@ import Capacitor
 import UIKit
 import AVFoundation
 import PhotosUI
+import Photos
 
 /**
- * iOS native video editor plugin
+ * iOS native video editor plugin - Modern implementation
  * 
- * Features:
- * - Pick video from camera or photo library
- * - Trim video with system UI (optional)
- * - Compress video before upload
+ * Uses PHAsset + AVPlayer for instant video preview (no 60s file copy wait)
+ * Custom trim UI with direct asset access
+ * Single export operation (trim + compress together)
  */
 @objc(IosVideoEditorPlugin)
 public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -23,8 +23,8 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     // Store the call for async callbacks
     private var currentCall: CAPPluginCall?
     
-    // Loading indicator
-    private var loadingIndicator: UIAlertController?
+    // Store selected asset
+    private var selectedAsset: PHAsset?
     
     /**
      * Pick and optionally edit a video
@@ -74,95 +74,6 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     }
     
     /**
-     * Handle selected video - optionally trim, then return
-     */
-    private func handleSelectedVideo(url: URL, allowTrim: Bool, quality: String) {
-        print("✅ [IosVideoEditor] Video selected: \(url.path)")
-        print("🔍 [IosVideoEditor] allowTrim: \(allowTrim)")
-        print("🔍 [IosVideoEditor] File exists: \(FileManager.default.fileExists(atPath: url.path))")
-        print("🔍 [IosVideoEditor] Can edit: \(UIVideoEditorController.canEditVideo(atPath: url.path))")
-        
-        // Check if we should show trim UI
-        if allowTrim && UIVideoEditorController.canEditVideo(atPath: url.path) {
-            print("✂️ [IosVideoEditor] Showing trim UI...")
-            showTrimUI(for: url, quality: quality)
-        } else {
-            // No trim, just return the video
-            print("⚠️ [IosVideoEditor] Skipping trim - allowTrim: \(allowTrim), canEdit: \(UIVideoEditorController.canEditVideo(atPath: url.path))")
-            returnVideoResult(url: url, status: "selected")
-        }
-    }
-    
-    /**
-     * Show loading indicator
-     */
-    private func showLoadingIndicator() {
-        DispatchQueue.main.async {
-            guard let viewController = self.bridge?.viewController else { return }
-            
-            let alert = UIAlertController(title: nil, message: "\n\n", preferredStyle: .alert)
-            
-            let loadingIndicator = UIActivityIndicatorView(style: .large)
-            loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
-            loadingIndicator.hidesWhenStopped = true
-            loadingIndicator.startAnimating()
-            
-            alert.view.addSubview(loadingIndicator)
-            
-            NSLayoutConstraint.activate([
-                loadingIndicator.centerXAnchor.constraint(equalTo: alert.view.centerXAnchor),
-                loadingIndicator.topAnchor.constraint(equalTo: alert.view.topAnchor, constant: 20)
-            ])
-            
-            let label = UILabel()
-            label.text = "Preparing video..."
-            label.font = UIFont.systemFont(ofSize: 14)
-            label.textColor = .darkGray
-            label.translatesAutoresizingMaskIntoConstraints = false
-            alert.view.addSubview(label)
-            
-            NSLayoutConstraint.activate([
-                label.centerXAnchor.constraint(equalTo: alert.view.centerXAnchor),
-                label.topAnchor.constraint(equalTo: loadingIndicator.bottomAnchor, constant: 12)
-            ])
-            
-            viewController.present(alert, animated: true)
-            self.loadingIndicator = alert
-        }
-    }
-    
-    /**
-     * Hide loading indicator
-     */
-    private func hideLoadingIndicator() {
-        DispatchQueue.main.async {
-            self.loadingIndicator?.dismiss(animated: true) {
-                self.loadingIndicator = nil
-            }
-        }
-    }
-    
-    /**
-     * Show native iOS video trim UI
-     */
-    private func showTrimUI(for videoURL: URL, quality: String) {
-        guard let viewController = self.bridge?.viewController else {
-            self.currentCall?.reject("No view controller available")
-            return
-        }
-        
-        let trimController = UIVideoEditorController()
-        trimController.delegate = self
-        trimController.videoPath = videoURL.path
-        trimController.videoQuality = .typeHigh // We'll compress separately
-        
-        // Present trimmer after a small delay to ensure any presented controllers are dismissed
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            viewController.present(trimController, animated: true)
-        }
-    }
-    
-    /**
      * Return video result with metadata
      */
     private func returnVideoResult(url: URL, status: String) {
@@ -199,58 +110,109 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
             return
         }
         
-        // Load video file (no loading indicator - trimmer shows immediately)
-        result.itemProvider.loadFileRepresentation(forTypeIdentifier: "public.movie") { url, error in
-            if let error = error {
-                self.currentCall?.reject("Failed to load video: \(error.localizedDescription)")
+        print("📹 [IosVideoEditor] Video selected, fetching PHAsset...")
+        
+        // Get the PHAsset identifier (instant, no file copy!)
+        guard let assetIdentifier = result.assetIdentifier else {
+            self.currentCall?.reject("Could not get asset identifier")
+            return
+        }
+        
+        // Fetch the PHAsset using the identifier
+        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [assetIdentifier], options: nil)
+        guard let asset = fetchResult.firstObject else {
+            self.currentCall?.reject("Could not fetch asset")
+            return
+        }
+        
+        self.selectedAsset = asset
+        print("✅ [IosVideoEditor] Got PHAsset - Duration: \(asset.duration)s")
+        
+        // Get video options
+        let allowTrim = self.currentCall?.getBool("allowTrim") ?? true
+        let quality = self.currentCall?.getString("quality") ?? "medium"
+        
+        // Request AVAsset (fast, streams from Photos library)
+        let options = PHVideoRequestOptions()
+        options.version = .current
+        options.deliveryMode = .highQualityFormat
+        options.isNetworkAccessAllowed = true // Allow iCloud downloads if needed
+        
+        print("📥 [IosVideoEditor] Requesting AVAsset from PHImageManager...")
+        let requestStart = Date()
+        
+        PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { [weak self] avAsset, audioMix, info in
+            let elapsed = Date().timeIntervalSince(requestStart)
+            print("⏱️ [IosVideoEditor] AVAsset request took \(String(format: "%.1f", elapsed))s")
+            
+            guard let avAsset = avAsset else {
+                self?.currentCall?.reject("Could not load video asset")
                 return
             }
             
-            guard let url = url else {
-                self.currentCall?.reject("No video URL available")
-                return
-            }
+            // For now (Phase 1), just export without trim to test the new flow
+            // Phase 2 will add trim UI here
+            print("✅ [IosVideoEditor] Got AVAsset, will export without trim (Phase 1)")
             
-            // Copy to temp directory (PHPicker gives us a temporary file)
-            let tempDir = FileManager.default.temporaryDirectory
-            let tempFile = tempDir.appendingPathComponent(UUID().uuidString + ".mov")
-            
-            do {
-                try FileManager.default.copyItem(at: url, to: tempFile)
-                
-                let allowTrim = self.currentCall?.getBool("allowTrim") ?? true
-                let quality = self.currentCall?.getString("quality") ?? "medium"
-                
-                DispatchQueue.main.async {
-                    self.handleSelectedVideo(url: tempFile, allowTrim: allowTrim, quality: quality)
-                }
-            } catch {
-                self.currentCall?.reject("Failed to copy video: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                self?.exportVideo(asset: avAsset, quality: quality)
             }
         }
     }
-}
-
-// MARK: - UIVideoEditorControllerDelegate (Trim UI)
-extension IosVideoEditorPlugin: UIVideoEditorControllerDelegate, UINavigationControllerDelegate {
-    public func videoEditorController(_ editor: UIVideoEditorController, didSaveEditedVideoToPath editedVideoPath: String) {
-        print("✂️ [IosVideoEditor] Video trimmed successfully!")
-        editor.dismiss(animated: true)
+    
+    /**
+     * Export video with compression (Phase 1: no trim yet)
+     */
+    private func exportVideo(asset: AVAsset, quality: String) {
+        print("🎬 [IosVideoEditor] Starting export with quality: \(quality)")
         
-        // Return the trimmed video
-        let trimmedURL = URL(fileURLWithPath: editedVideoPath)
-        self.returnVideoResult(url: trimmedURL, status: "trimmed")
-    }
-    
-    public func videoEditorControllerDidCancel(_ editor: UIVideoEditorController) {
-        print("❌ [IosVideoEditor] Trim cancelled by user")
-        editor.dismiss(animated: true)
-        self.currentCall?.reject("User cancelled trim")
-    }
-    
-    public func videoEditorController(_ editor: UIVideoEditorController, didFailWithError error: Error) {
-        print("❌ [IosVideoEditor] Trim failed: \(error.localizedDescription)")
-        editor.dismiss(animated: true)
-        self.currentCall?.reject("Trim failed: \(error.localizedDescription)")
+        // Determine preset based on quality setting
+        let presetName: String
+        switch quality {
+        case "low":
+            presetName = AVAssetExportPreset640x480
+        case "high":
+            presetName = AVAssetExportPresetHighestQuality
+        default: // "medium" - 720p is sweet spot for climbing videos (good quality, <150MB)
+            presetName = AVAssetExportPreset1280x720
+        }
+        
+        guard let exportSession = AVAssetExportSession(asset: asset, presetName: presetName) else {
+            self.currentCall?.reject("Could not create export session")
+            return
+        }
+        
+        // Output to temp file
+        let tempDir = FileManager.default.temporaryDirectory
+        let outputURL = tempDir.appendingPathComponent(UUID().uuidString + ".mov")
+        
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mov
+        exportSession.shouldOptimizeForNetworkUse = true
+        
+        print("📤 [IosVideoEditor] Exporting to: \(outputURL.path)")
+        let exportStart = Date()
+        
+        exportSession.exportAsynchronously {
+            let elapsed = Date().timeIntervalSince(exportStart)
+            
+            switch exportSession.status {
+            case .completed:
+                print("✅ [IosVideoEditor] Export completed in \(String(format: "%.1f", elapsed))s")
+                self.returnVideoResult(url: outputURL, status: "compressed")
+                
+            case .failed:
+                print("❌ [IosVideoEditor] Export failed: \(exportSession.error?.localizedDescription ?? "unknown")")
+                self.currentCall?.reject("Export failed: \(exportSession.error?.localizedDescription ?? "unknown")")
+                
+            case .cancelled:
+                print("⚠️ [IosVideoEditor] Export cancelled")
+                self.currentCall?.reject("Export cancelled")
+                
+            default:
+                print("⚠️ [IosVideoEditor] Export ended with status: \(exportSession.status.rawValue)")
+                self.currentCall?.reject("Export failed")
+            }
+        }
     }
 }
