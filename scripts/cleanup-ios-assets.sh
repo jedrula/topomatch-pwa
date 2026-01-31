@@ -30,20 +30,26 @@ TOTAL_SAVED=0
 for model in "${YOLO_MODELS[@]}"; do
   FILE="$IOS_PUBLIC_DIR/$model"
   if [ -f "$FILE" ]; then
-    SIZE=$(du -h "$FILE" | cut -f1)
+    SIZE_HUMAN=$(du -h "$FILE" | cut -f1)
+    SIZE_KB=$(du -k "$FILE" | cut -f1)
     rm "$FILE"
-    echo "   ✓ Removed $model ($SIZE)"
-    TOTAL_SAVED=$((TOTAL_SAVED + $(du -k "$FILE" 2>/dev/null | cut -f1 || echo 0)))
+    echo "   ✓ Removed $model ($SIZE_HUMAN)"
+    TOTAL_SAVED=$((TOTAL_SAVED + SIZE_KB))
   fi
 done
 
 # Remove duplicate SuperPoint model (iOS has it in App/ root, manually added to Xcode)
 SUPERPOINT="$IOS_PUBLIC_DIR/superpoint_lightglue_pipeline.ort.onnx"
 if [ -f "$SUPERPOINT" ]; then
-  SIZE=$(du -h "$SUPERPOINT" | cut -f1)
+  SIZE_HUMAN=$(du -h "$SUPERPOINT" | cut -f1)
+  SIZE_KB=$(du -k "$SUPERPOINT" | cut -f1)
   rm "$SUPERPOINT"
-  echo "   ✓ Removed superpoint_lightglue_pipeline.ort.onnx (duplicate, $SIZE)"
+  echo "   ✓ Removed superpoint_lightglue_pipeline.ort.onnx (duplicate, $SIZE_HUMAN)"
+  TOTAL_SAVED=$((TOTAL_SAVED + SIZE_KB))
 fi
 
+# Convert KB to MB for display
+TOTAL_SAVED_MB=$((TOTAL_SAVED / 1024))
+
 echo "✅ iOS asset cleanup complete!"
-echo "   Approximate space saved: ~207MB"
+echo "   Total space saved: ${TOTAL_SAVED_MB}MB"
