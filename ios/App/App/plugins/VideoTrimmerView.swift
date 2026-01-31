@@ -4,16 +4,15 @@ import AVFoundation
 // MARK: - Video Trimmer View
 struct VideoTrimmerView: View {
     let asset: AVAsset
+    let player: AVPlayer?
     @Binding var startTime: CMTime
     @Binding var endTime: CMTime
+    @Binding var currentPlayheadTime: CMTime
     
     @State private var thumbnails: [UIImage] = []
     @State private var isDraggingStart = false
     @State private var isDraggingEnd = false
     @State private var isDraggingPlayhead = false
-    @State private var currentPlayheadTime: CMTime = .zero
-    @State private var isPlaying = false
-    @State private var player: AVPlayer?
     
     private let trimmerHeight: CGFloat = 60
     private let handleWidth: CGFloat = 16
@@ -57,7 +56,7 @@ struct VideoTrimmerView: View {
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             .onAppear {
                 generateThumbnails(width: totalWidth)
-                setupPlayer()
+                currentPlayheadTime = startTime
             }
         }
         .frame(height: trimmerHeight)
@@ -190,8 +189,9 @@ struct VideoTrimmerView: View {
                     isDraggingPlayhead = true
                     let newPosition = value.location.x - handleWidth
                     let newTime = max(startTime.seconds, min((newPosition / usableWidth) * duration, endTime.seconds))
-                    currentPlayheadTime = CMTime(seconds: newTime, preferredTimescale: 600)
-                    player?.seek(to: currentPlayheadTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                    let time = CMTime(seconds: newTime, preferredTimescale: 600)
+                    currentPlayheadTime = time
+                    player?.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
                 }
                 .onEnded { _ in
                     isDraggingPlayhead = false
@@ -228,13 +228,6 @@ struct VideoTrimmerView: View {
                 }
             }
         }
-    }
-    
-    // MARK: - Player Setup
-    private func setupPlayer() {
-        let playerItem = AVPlayerItem(asset: asset)
-        player = AVPlayer(playerItem: playerItem)
-        currentPlayheadTime = startTime
     }
     
     // MARK: - Haptic Feedback

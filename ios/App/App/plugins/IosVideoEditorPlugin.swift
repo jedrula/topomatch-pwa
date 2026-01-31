@@ -341,8 +341,10 @@ struct VideoTrimmerWrapper: View {
     
     @State private var startTime: CMTime
     @State private var endTime: CMTime
+    @State private var currentPlayheadTime: CMTime = .zero
     @State private var player: AVPlayer?
     @State private var isPlaying = false
+    @State private var timeObserver: Any?
     
     init(asset: AVAsset, initialStartTime: CMTime, initialEndTime: CMTime, onSave: @escaping (CMTime, CMTime) -> Void, onCancel: @escaping () -> Void) {
         self.asset = asset
@@ -374,8 +376,10 @@ struct VideoTrimmerWrapper: View {
             // Trimmer
             VideoTrimmerView(
                 asset: asset,
+                player: player,
                 startTime: $startTime,
-                endTime: $endTime
+                endTime: $endTime,
+                currentPlayheadTime: $currentPlayheadTime
             )
             .padding(.horizontal, 16)
             
@@ -415,16 +419,28 @@ struct VideoTrimmerWrapper: View {
         }
         .background(Color.black.edgesIgnoringSafeArea(.all))
         .onAppear {
-            setupPlayer()
+            let playerItem = AVPlayerItem(asset: asset)
+            player = AVPlayer(playerItem: playerItem)
+            currentPlayheadTime = startTime
+            
+            // Add periodic time observer to update playhead during playback
+            let interval = CMTime(seconds: 0.05, preferredTimescale: 600)
+            timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [self] time in
+                if isPlaying {
+                    currentPlayheadTime = time
+                    // Loop within trim range
+                    if time >= endTime {
+                        player?.seek(to: startTime)
+                    }
+                }
+            }
         }
         .onDisappear {
             player?.pause()
+            if let observer = timeObserver {
+                player?.removeTimeObserver(observer)
+            }
         }
-    }
-    
-    private func setupPlayer() {
-        let playerItem = AVPlayerItem(asset: asset)
-        player = AVPlayer(playerItem: playerItem)
     }
     
     private func togglePlayback() {
