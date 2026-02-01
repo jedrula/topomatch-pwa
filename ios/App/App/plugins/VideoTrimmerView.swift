@@ -54,6 +54,19 @@ struct VideoTrimmerView: View {
             }
             .frame(height: trimmerHeight)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        let location = value.location
+                        // Calculate time from touch position
+                        let tappedPosition = location.x - handleWidth
+                        let usableWidth = geometry.size.width - (handleWidth * 2)
+                        let tappedTime = max(startTime.seconds, min((tappedPosition / usableWidth) * duration, endTime.seconds))
+                        currentPlayheadTime = CMTime(seconds: tappedTime, preferredTimescale: 600)
+                        player?.seek(to: currentPlayheadTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                    }
+            )
             .onAppear {
                 generateThumbnails(width: totalWidth)
                 currentPlayheadTime = startTime
