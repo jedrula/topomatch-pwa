@@ -175,7 +175,7 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         
         // Set trim time range if provided
-        let timeRange = CMTimeRange(start: trimStart, end: trimEnd)
+        let timeRange = CMTimeRangeFromTimeToTime(start: trimStart, end: trimEnd)
         exportSession.timeRange = timeRange
         
         // Output to temp file
@@ -223,7 +223,10 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     
     // MARK: - Progress Overlay
     private func showProgressOverlay(exportSession: AVAssetExportSession) {
-        guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else { return }
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow }) else { return }
         
         let progressVC = ProgressViewController(exportSession: exportSession)
         progressVC.modalPresentationStyle = .overFullScreen
@@ -233,7 +236,10 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     }
     
     private func hideProgressOverlay() {
-        guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else { return }
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow }) else { return }
         window.rootViewController?.dismiss(animated: true)
     }
 }
@@ -412,8 +418,9 @@ struct VideoTrimmerWrapper: View {
     @State private var endTime: CMTime
     @State private var currentPlayheadTime: CMTime = .zero
     @State private var player: AVPlayer?
-    @State private var isPlaying = false
+    @State private var playerRate: Float = 0.0 // Actual player rate (0 = paused, 1 = playing)
     @State private var timeObserver: Any?
+    @State private var rateObserver: Any?
     
     init(asset: AVAsset, initialStartTime: CMTime, initialEndTime: CMTime, onSave: @escaping (CMTime, CMTime) -> Void, onCancel: @escaping () -> Void) {
         self.asset = asset
@@ -474,7 +481,7 @@ struct VideoTrimmerWrapper: View {
                 
                 // Play/Pause button
                 Button(action: togglePlayback) {
-                    Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    Image(systemName: playerRate > 0 ? "pause.circle.fill" : "play.circle.fill")
                         .font(.system(size: 44))
                         .foregroundColor(.white)
                 }
@@ -499,14 +506,20 @@ struct VideoTrimmerWrapper: View {
             // Add periodic time observer to update playhead during playback
             let interval = CMTime(seconds: 0.05, preferredTimescale: 600)
             timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [self] time in
-                if isPlaying {
+                if playerRate > 0 {  // Only update if actually playing
                     currentPlayheadTime = time
                     // Stop at end of trim range
                     if time >= endTime {
                         player?.pause()
-                        isPlaying = false
                         currentPlayheadTime = endTime
                     }
+                }
+            }
+            
+            // Observe player rate changes for accurate play/pause state
+            rateObserver = player?.observe(\.rate, options: [.new]) { [self] _, change in
+                DispatchQueue.main.async {
+                    playerRate = change.newValue ?? 0.0
                 }
             }
         }
@@ -515,14 +528,19 @@ struct VideoTrimmerWrapper: View {
             if let observer = timeObserver {
                 player?.removeTimeObserver(observer)
             }
+            if let observer = rateObserver as? NSKeyValueObservation {
+                observer.invalidate()
+            }
         }
     }
     
     private func togglePlayback() {
         guard let player = player else { return }
-        if isPlaying {
+        if playerRate > 0 {
+            // Currently playing, so pause
             player.pause()
         } else {
+            // Currently paused, so play
             // If at the end, restart from the beginning
             if currentPlayheadTime >= endTime {
                 currentPlayheadTime = startTime
@@ -533,7 +551,7 @@ struct VideoTrimmerWrapper: View {
             }
             player.play()
         }
-        isPlaying.toggle()
+        // No need to manually update state - rate observer handles it
     }
     
     private func formatTime(_ seconds: Double) -> String {

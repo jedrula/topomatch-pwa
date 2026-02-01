@@ -1,5 +1,5 @@
 {
-  "originHash" : "377a1be800f28582e0e5e01407c4283003b9a07a88dd9a805753178198ee6673",
+  "originHash" : "1895368aefbca1fb72f81b5ab6d6e86c3e725c69d82b1b85b74068eeac327e8a",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -170,15 +170,6 @@
       "state" : {
         "revision" : "540318ecedd63d883069ae7f1ed811a2df00b6ac",
         "version" : "2.4.0"
-      }
-    },
-    {
-      "identity" : "prynttrimmerview",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/HHK1/PryntTrimmerView",
-      "state" : {
-        "revision" : "ac1b60a22c7e6a6514de7a66d2f3d5b537c956d5",
-        "version" : "4.0.2"
       }
     },
     {

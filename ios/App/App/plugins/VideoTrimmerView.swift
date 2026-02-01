@@ -13,12 +13,14 @@ struct VideoTrimmerView: View {
     @State private var isDraggingStart = false
     @State private var isDraggingEnd = false
     @State private var isDraggingPlayhead = false
+    @State private var lastHapticTime: Double = 0 // Track last haptic feedback time
     
     private let trimmerHeight: CGFloat = 60
     private let handleWidth: CGFloat = 16
     private let cornerRadius: CGFloat = 8
     private let borderWidth: CGFloat = 3
     private let minTrimDuration: Double = 1.0 // Minimum 1 second trim
+    private let hapticThreshold: Double = 0.5 // Only trigger haptic every 0.5s of video time change
     
     var body: some View {
         GeometryReader { geometry in
@@ -108,6 +110,7 @@ struct VideoTrimmerView: View {
                 .gesture(
                     DragGesture()
                         .onChanged { value in
+                            let wasNotDragging = !isDraggingStart
                             isDraggingStart = true
                             let handleStartX = startOffset - handleWidth
                             let newPosition = handleStartX + value.location.x
@@ -115,10 +118,16 @@ struct VideoTrimmerView: View {
                             startTime = CMTime(seconds: newTime, preferredTimescale: 600)
                             currentPlayheadTime = startTime
                             player?.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero)
-                            provideHapticFeedback()
+                            
+                            // Throttled haptic feedback
+                            if wasNotDragging || abs(newTime - lastHapticTime) >= hapticThreshold {
+                                provideHapticFeedback()
+                                lastHapticTime = newTime
+                            }
                         }
                         .onEnded { _ in
                             isDraggingStart = false
+                            lastHapticTime = 0 // Reset for next drag
                         }
                 )
             
@@ -129,6 +138,7 @@ struct VideoTrimmerView: View {
                     .gesture(
                         DragGesture()
                             .onChanged { value in
+                                let wasNotDragging = !isDraggingEnd
                                 isDraggingEnd = true
                                 let handleStartX = endOffset - handleWidth
                                 let newPosition = handleStartX + value.location.x
@@ -136,10 +146,16 @@ struct VideoTrimmerView: View {
                                 endTime = CMTime(seconds: newTime, preferredTimescale: 600)
                                 currentPlayheadTime = endTime
                                 player?.seek(to: endTime, toleranceBefore: .zero, toleranceAfter: .zero)
-                                provideHapticFeedback()
+                                
+                                // Throttled haptic feedback
+                                if wasNotDragging || abs(newTime - lastHapticTime) >= hapticThreshold {
+                                    provideHapticFeedback()
+                                    lastHapticTime = newTime
+                                }
                             }
                             .onEnded { _ in
                                 isDraggingEnd = false
+                                lastHapticTime = 0 // Reset for next drag
                             }
                     )
             }
@@ -225,17 +241,28 @@ struct VideoTrimmerView: View {
             times.append(NSValue(time: time))
         }
         
-        var generatedThumbnails: [UIImage] = []
+        // Use dictionary to preserve ordering by index
+        var thumbnailsByIndex: [Int: UIImage] = [:]
+        let lock = NSLock()
         
-        generator.generateCGImagesAsynchronously(forTimes: times) { _, image, _, _, _ in
-            if let cgImage = image {
-                let uiImage = UIImage(cgImage: cgImage)
-                DispatchQueue.main.async {
-                    generatedThumbnails.append(uiImage)
-                    if generatedThumbnails.count == thumbnailCount {
-                        self.thumbnails = generatedThumbnails
-                    }
+        generator.generateCGImagesAsynchronously(forTimes: times) { requestedTime, image, actualTime, result, error in
+            guard let cgImage = image else { return }
+            
+            // Find the index of this thumbnail by matching requested time
+            let requestedSeconds = CMTimeGetSeconds(requestedTime)
+            let index = Int(round(requestedSeconds / interval))
+            
+            let uiImage = UIImage(cgImage: cgImage)
+            
+            DispatchQueue.main.async {
+                lock.lock()
+                thumbnailsByIndex[index] = uiImage
+                
+                // Once all thumbnails are generated, sort by index and assign
+                if thumbnailsByIndex.count == thumbnailCount {
+                    self.thumbnails = (0..<thumbnailCount).compactMap { thumbnailsByIndex[$0] }
                 }
+                lock.unlock()
             }
         }
     }
