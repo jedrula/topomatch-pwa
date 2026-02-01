@@ -292,6 +292,7 @@ const emit = defineEmits([
   'pose-detected',
   'processing-error',
   'ascent-submitted',
+  'upload-started',
 ]);
 
 // State
@@ -443,6 +444,9 @@ const createAscentAndStartUpload = async (videoFile) => {
       problemName: null, // Will be filled in after analysis detects problem
     });
     console.log('✅ Video upload started in background');
+    
+    // Emit event so parent can scroll to the video
+    emit('upload-started', ascentId);
 
   } catch (err) {
     console.error('❌ Failed to create ascent or start upload:', err);

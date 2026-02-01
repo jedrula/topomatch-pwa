@@ -46,6 +46,7 @@
           @analysis-complete="$emit('analysis-complete', $event)"
           @table-scores-ready="$emit('table-scores-ready', $event)"
           @processing-error="$emit('processing-error', $event)"
+          @upload-started="$emit('upload-started', $event)"
           @ascent-form-submit="$emit('ascent-form-submit', $event)"
           @ascent-created="handleAscentCreated"
         />
@@ -367,7 +368,8 @@ defineEmits([
   'processing-error',
   'try-another-video',
   'continue-to-upload',
-  'ascent-form-submit'
+  'ascent-form-submit',
+  'upload-started'
 ]);
 
 /**

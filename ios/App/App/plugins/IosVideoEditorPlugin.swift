@@ -29,11 +29,10 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     private var selectedAsset: PHAsset?
     
     /**
-     * Pick and optionally edit a video
+     * Pick and edit a video
      * 
      * Options:
      * - source: "camera" | "photos" | "prompt" (default: "prompt")
-     * - allowTrim: boolean (default: true)
      * - quality: "low" | "medium" | "high" (default: "medium")
      * 
      * Returns:
@@ -46,20 +45,19 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
         
         // Get options
         let source = call.getString("source") ?? "prompt"
-        let allowTrim = call.getBool("allowTrim") ?? true
         let quality = call.getString("quality") ?? "medium"
         
-        print("📹 [IosVideoEditor] Starting video pick with source: \(source), trim: \(allowTrim), quality: \(quality)")
+        print("📹 [IosVideoEditor] Starting video pick with source: \(source), quality: \(quality)")
         
         DispatchQueue.main.async {
-            self.showVideoPicker(source: source, allowTrim: allowTrim, quality: quality)
+            self.showVideoPicker(source: source, quality: quality)
         }
     }
     
     /**
      * Show iOS system video picker or camera
      */
-    private func showVideoPicker(source: String, allowTrim: Bool, quality: String) {
+    private func showVideoPicker(source: String, quality: String) {
         guard let viewController = self.bridge?.viewController else {
             self.currentCall?.reject("No view controller available")
             return
@@ -119,7 +117,7 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     /**
      * Show custom trim UI with AVPlayer preview
      */
-    func showTrimUI(asset: AVAsset, allowTrim: Bool, quality: String) {
+    func showTrimUI(asset: AVAsset, quality: String) {
         guard let viewController = self.bridge?.viewController else {
             self.currentCall?.reject("No view controller available")
             return
@@ -272,8 +270,7 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
         self.selectedAsset = asset
         print("✅ [IosVideoEditor] Got PHAsset - Duration: \(asset.duration)s")
         
-        // Get video options
-        let allowTrim = self.currentCall?.getBool("allowTrim") ?? true
+        // Get quality setting
         let quality = self.currentCall?.getString("quality") ?? "medium"
         
         // Request AVAsset (fast, streams from Photos library)
@@ -281,6 +278,7 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
         options.version = .current
         options.deliveryMode = .highQualityFormat
         options.isNetworkAccessAllowed = true // Allow iCloud downloads if needed
+        // TODO: Add options.progressHandler to show iCloud download progress if needed
         
         print("📥 [IosVideoEditor] Requesting AVAsset from PHImageManager...")
         let requestStart = Date()
@@ -289,15 +287,17 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
             let elapsed = Date().timeIntervalSince(requestStart)
             print("⏱️ [IosVideoEditor] AVAsset request took \(String(format: "%.1f", elapsed))s")
             
+            // TODO: Could check info dict for PHImageResultIsDegradedKey, PHImageResultIsInCloudKey if iCloud issues arise
+            
             guard let avAsset = avAsset else {
                 self?.currentCall?.reject("Could not load video asset")
                 return
             }
             
-            print("✅ [IosVideoEditor] Got AVAsset, showing trim UI (Phase 2)")
+            print("✅ [IosVideoEditor] Got AVAsset, showing trim UI")
             
             DispatchQueue.main.async {
-                self?.showTrimUI(asset: avAsset, allowTrim: allowTrim, quality: quality)
+                self?.showTrimUI(asset: avAsset, quality: quality)
             }
         }
     }
@@ -318,14 +318,13 @@ extension IosVideoEditorPlugin: UIImagePickerControllerDelegate, UINavigationCon
         // Load AVAsset from the recorded video
         let avAsset = AVAsset(url: videoURL)
         
-        // Get options
-        let allowTrim = self.currentCall?.getBool("allowTrim") ?? true
+        // Get quality setting
         let quality = self.currentCall?.getString("quality") ?? "medium"
         
         print("✅ [IosVideoEditor] Got AVAsset from camera, showing trim UI")
         
         DispatchQueue.main.async {
-            self.showTrimUI(asset: avAsset, allowTrim: allowTrim, quality: quality)
+            self.showTrimUI(asset: avAsset, quality: quality)
         }
     }
     

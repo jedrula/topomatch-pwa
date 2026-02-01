@@ -233,6 +233,13 @@ struct VideoTrimmerView: View {
         
         let thumbnailCount = Int(width / 50) // Approximately 50pt per thumbnail
         let duration = asset.duration.seconds
+        
+        // Guard against invalid values to prevent division by zero
+        guard thumbnailCount > 0, duration > 0 else {
+            print("⚠️ Cannot generate thumbnails: thumbnailCount=\(thumbnailCount), duration=\(duration)")
+            return
+        }
+        
         let interval = duration / Double(thumbnailCount)
         
         var times: [NSValue] = []

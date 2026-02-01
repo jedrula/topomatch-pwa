@@ -191,6 +191,7 @@
 
         <!-- Videos/Betas section -->
         <LocationVideos
+          ref="locationVideosRef"
           :videos="displayVideos"
           :loading="videosLoading"
           :location="location"
@@ -261,6 +262,7 @@
       @try-another-video="handleTryAnotherVideo"
       @continue-to-upload="continueToUpload"
       @ascent-form-submit="handleAscentFormSubmitWrapper"
+      @upload-started="handleVideoUploadStarted"
     />
 
     <!-- Image Gallery Modal -->
@@ -340,6 +342,7 @@ const {
 const authModal = inject('authModal');
 
 const betaUploadModalRef = ref(null);
+const locationVideosRef = ref(null);
 const location = ref(null);
 const allRoutesettings = ref([]); // All routesettings for this location
 const images = ref([]); // Placeholder for location images
@@ -1230,6 +1233,24 @@ const initializeLocationData = async () => {
     console.error('Error loading location:', err);
     error.value = 'Failed to load location. Please try again.';
   }
+};
+
+// Scroll to a newly uploaded video
+const scrollToVideo = async (ascentId) => {
+  // Wait for Vue's reactive DOM update
+  await nextTick();
+  
+  const videoElement = document.querySelector(`[data-ascent-id="${ascentId}"]`);
+  if (videoElement) {
+    videoElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    console.log(`📜 Scrolled video ${ascentId} into view`);
+  }
+};
+
+// Handle video upload start (called from modal)
+const handleVideoUploadStarted = (ascentId) => {
+  console.log(`📹 Video upload started: ${ascentId}`);
+  scrollToVideo(ascentId);
 };
 
 // Watch currentRoutesetting and reload problems when it changes
