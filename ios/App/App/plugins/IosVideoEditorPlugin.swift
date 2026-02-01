@@ -450,8 +450,14 @@ struct VideoTrimmerWrapper: View {
         if isPlaying {
             player.pause()
         } else {
-            // Start from current playhead position
-            player.seek(to: currentPlayheadTime)
+            // If at the end, restart from the beginning
+            if currentPlayheadTime >= endTime {
+                currentPlayheadTime = startTime
+                player.seek(to: startTime)
+            } else {
+                // Start from current playhead position
+                player.seek(to: currentPlayheadTime)
+            }
             player.play()
         }
         isPlaying.toggle()
