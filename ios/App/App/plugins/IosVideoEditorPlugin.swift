@@ -194,9 +194,6 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
     /**
      * Export video with compression and optional time range trim
      */
-    /**
-     * Export video with compression and optional time range trim
-     */
     private func exportVideo(asset: AVAsset, quality: String, startTime: CMTime? = nil, endTime: CMTime? = nil) {
         let trimStart = startTime ?? .zero
         let trimEnd = endTime ?? asset.duration
@@ -236,8 +233,17 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
         print("📤 [IosVideoEditor] Exporting to: \(outputURL.path)")
         let exportStart = Date()
         
+        // Show progress indicator
+        DispatchQueue.main.async {
+            self.showProgressOverlay(exportSession: exportSession)
+        }
+        
         exportSession.exportAsynchronously {
             let elapsed = Date().timeIntervalSince(exportStart)
+            
+            DispatchQueue.main.async {
+                self.hideProgressOverlay()
+            }
             
             switch exportSession.status {
             case .completed:
@@ -257,6 +263,22 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
                 self.currentCall?.reject("Export failed")
             }
         }
+    }
+    
+    // MARK: - Progress Overlay
+    private func showProgressOverlay(exportSession: AVAssetExportSession) {
+        guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else { return }
+        
+        let progressVC = ProgressViewController(exportSession: exportSession)
+        progressVC.modalPresentationStyle = .overFullScreen
+        progressVC.modalTransitionStyle = .crossDissolve
+        
+        window.rootViewController?.present(progressVC, animated: true)
+    }
+    
+    private func hideProgressOverlay() {
+        guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else { return }
+        window.rootViewController?.dismiss(animated: true)
     }
 }
 
@@ -468,5 +490,77 @@ struct VideoTrimmerWrapper: View {
         let secs = Int(seconds) % 60
         let ms = Int((seconds.truncatingRemainder(dividingBy: 1)) * 10)
         return String(format: "%d:%02d.%d", mins, secs, ms)
+    }
+}
+
+// MARK: - Progress Overlay View Controller
+class ProgressViewController: UIViewController {
+    private let exportSession: AVAssetExportSession
+    private var progressView: UIProgressView!
+    private var progressLabel: UILabel!
+    private var progressTimer: Timer?
+    
+    init(exportSession: AVAssetExportSession) {
+        self.exportSession = exportSession
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        view.backgroundColor = UIColor.black.withAlphaComponent(0.8)
+        
+        // Create container
+        let container = UIView()
+        container.backgroundColor = UIColor.systemBackground
+        container.layer.cornerRadius = 16
+        container.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(container)
+        
+        // Create progress view
+        progressView = UIProgressView(progressViewStyle: .default)
+        progressView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(progressView)
+        
+        // Create label
+        progressLabel = UILabel()
+        progressLabel.text = "Compressing video... 0%"
+        progressLabel.textAlignment = .center
+        progressLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        progressLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(progressLabel)
+        
+        NSLayoutConstraint.activate([
+            container.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            container.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            container.widthAnchor.constraint(equalToConstant: 280),
+            container.heightAnchor.constraint(equalToConstant: 120),
+            
+            progressLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 24),
+            progressLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
+            progressLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
+            
+            progressView.topAnchor.constraint(equalTo: progressLabel.bottomAnchor, constant: 16),
+            progressView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
+            progressView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20)
+        ])
+        
+        // Start updating progress
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            let progress = self.exportSession.progress
+            self.progressView.progress = progress
+            self.progressLabel.text = "Compressing video... \(Int(progress * 100))%"
+        }
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        progressTimer?.invalidate()
+        progressTimer = nil
     }
 }
