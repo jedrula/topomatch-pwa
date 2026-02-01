@@ -377,23 +377,16 @@ struct VideoTrimmerWrapper: View {
     }
     
     var body: some View {
-        VStack(spacing: 40) {
-            Spacer()
-            
-            // Video preview
+        VStack(spacing: 0) {
+            // Video preview - takes most of the screen
             if let player = player {
                 VideoPlayer(player: player)
-                    .frame(height: 300)
                     .cornerRadius(12)
                     .padding(.horizontal, 20)
+                    .padding(.top, 60)
             }
             
-            // Play/Pause button
-            Button(action: togglePlayback) {
-                Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 50))
-                    .foregroundColor(.white)
-            }
+            Spacer(minLength: 20)
             
             // Trimmer
             VideoTrimmerView(
@@ -404,6 +397,7 @@ struct VideoTrimmerWrapper: View {
                 currentPlayheadTime: $currentPlayheadTime
             )
             .padding(.horizontal, 16)
+            .padding(.top, 20)
             
             // Time labels
             HStack {
@@ -420,29 +414,39 @@ struct VideoTrimmerWrapper: View {
                     .foregroundColor(.secondary)
             }
             .padding(.horizontal, 32)
+            .padding(.top, 8)
             
-            Spacer()
-            
-            // Action buttons
-            HStack(spacing: 60) {
-                Button("✕ Cancel") {
+            // Action buttons with play in the middle
+            HStack(spacing: 40) {
+                Button("Cancel") {
                     onCancel()
                 }
                 .foregroundColor(.white)
                 .font(.system(size: 18))
+                .frame(width: 80)
                 
-                Button("✓ Save") {
+                // Play/Pause button
+                Button(action: togglePlayback) {
+                    Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundColor(.white)
+                }
+                
+                Button("Save") {
                     onSave(startTime, endTime)
                 }
                 .foregroundColor(.green)
                 .font(.system(size: 18, weight: .bold))
+                .frame(width: 80)
             }
+            .padding(.top, 30)
             .padding(.bottom, 40)
         }
         .background(Color.black.edgesIgnoringSafeArea(.all))
         .onAppear {
             let playerItem = AVPlayerItem(asset: asset)
             player = AVPlayer(playerItem: playerItem)
+            player?.isMuted = true  // Mute audio during preview
             currentPlayheadTime = startTime
             
             // Add periodic time observer to update playhead during playback
