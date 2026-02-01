@@ -428,9 +428,11 @@ struct VideoTrimmerWrapper: View {
             timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [self] time in
                 if isPlaying {
                     currentPlayheadTime = time
-                    // Loop within trim range
+                    // Stop at end of trim range
                     if time >= endTime {
-                        player?.seek(to: startTime)
+                        player?.pause()
+                        isPlaying = false
+                        currentPlayheadTime = endTime
                     }
                 }
             }
@@ -448,7 +450,8 @@ struct VideoTrimmerWrapper: View {
         if isPlaying {
             player.pause()
         } else {
-            player.seek(to: startTime)
+            // Start from current playhead position
+            player.seek(to: currentPlayheadTime)
             player.play()
         }
         isPlaying.toggle()

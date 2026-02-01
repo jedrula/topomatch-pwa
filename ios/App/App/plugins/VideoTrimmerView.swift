@@ -85,17 +85,10 @@ struct VideoTrimmerView: View {
         let frameWidth = endOffset - startOffset + handleWidth * 2
         
         ZStack(alignment: .leading) {
-            // Frame border (top and bottom lines)
-            VStack {
-                Rectangle()
-                    .fill(Color.yellow)
-                    .frame(height: borderWidth)
-                Spacer()
-                Rectangle()
-                    .fill(Color.yellow)
-                    .frame(height: borderWidth)
-            }
-            .frame(width: frameWidth, height: trimmerHeight)
+            // Single continuous rounded rectangle border
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .strokeBorder(Color.yellow, lineWidth: borderWidth)
+                .frame(width: frameWidth, height: trimmerHeight)
             
             // Left handle
             trimHandle(isLeft: true)
@@ -103,9 +96,12 @@ struct VideoTrimmerView: View {
                     DragGesture()
                         .onChanged { value in
                             isDraggingStart = true
-                            let newPosition = value.location.x
+                            let handleStartX = startOffset - handleWidth
+                            let newPosition = handleStartX + value.location.x
                             let newTime = max(0, min(newPosition / usableWidth * duration, endTime.seconds - minTrimDuration))
                             startTime = CMTime(seconds: newTime, preferredTimescale: 600)
+                            currentPlayheadTime = startTime
+                            player?.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero)
                             provideHapticFeedback()
                         }
                         .onEnded { _ in
@@ -125,6 +121,8 @@ struct VideoTrimmerView: View {
                                 let newPosition = handleStartX + value.location.x
                                 let newTime = max(startTime.seconds + minTrimDuration, min(newPosition / usableWidth * duration, duration))
                                 endTime = CMTime(seconds: newTime, preferredTimescale: 600)
+                                currentPlayheadTime = endTime
+                                player?.seek(to: endTime, toleranceBefore: .zero, toleranceAfter: .zero)
                                 provideHapticFeedback()
                             }
                             .onEnded { _ in
@@ -142,22 +140,21 @@ struct VideoTrimmerView: View {
     @ViewBuilder
     private func trimHandle(isLeft: Bool) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: isLeft ? cornerRadius : 0)
-                .fill(Color.yellow)
-                .frame(width: handleWidth, height: trimmerHeight)
-                .clipShape(
-                    CustomUnevenRoundedRectangle(
-                        topLeadingRadius: isLeft ? cornerRadius : 0,
-                        bottomLeadingRadius: isLeft ? cornerRadius : 0,
-                        bottomTrailingRadius: isLeft ? 0 : cornerRadius,
-                        topTrailingRadius: isLeft ? 0 : cornerRadius
-                    )
-                )
+            // Solid yellow fill for the handle area with rounded outer corners
+            CustomUnevenRoundedRectangle(
+                topLeadingRadius: isLeft ? cornerRadius : 0,
+                bottomLeadingRadius: isLeft ? cornerRadius : 0,
+                bottomTrailingRadius: isLeft ? 0 : cornerRadius,
+                topTrailingRadius: isLeft ? 0 : cornerRadius
+            )
+            .fill(Color.yellow)
+            .frame(width: handleWidth, height: trimmerHeight)
             
             // Chevron icon
             Image(systemName: isLeft ? "chevron.compact.left" : "chevron.compact.right")
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.black)
+                .scaleEffect(x: 1.0, y: 1.3)
         }
         .scaleEffect((isLeft ? isDraggingStart : isDraggingEnd) ? 1.05 : 1.0)
         .animation(.easeInOut(duration: 0.1), value: isLeft ? isDraggingStart : isDraggingEnd)
