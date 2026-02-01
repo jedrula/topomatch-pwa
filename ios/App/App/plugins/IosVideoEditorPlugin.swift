@@ -57,7 +57,7 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
     }
     
     /**
-     * Show iOS system video picker
+     * Show iOS system video picker or camera
      */
     private func showVideoPicker(source: String, allowTrim: Bool, quality: String) {
         guard let viewController = self.bridge?.viewController else {
@@ -65,14 +65,29 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         
-        var config = PHPickerConfiguration(photoLibrary: .shared())
-        config.filter = .videos // Only videos
-        config.selectionLimit = 1
-        
-        let picker = PHPickerViewController(configuration: config)
-        picker.delegate = self
-        
-        viewController.present(picker, animated: true)
+        if source == "camera" {
+            // Show camera for recording
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                let cameraPicker = UIImagePickerController()
+                cameraPicker.sourceType = .camera
+                cameraPicker.mediaTypes = ["public.movie"]
+                cameraPicker.videoQuality = .typeHigh
+                cameraPicker.delegate = self
+                viewController.present(cameraPicker, animated: true)
+            } else {
+                self.currentCall?.reject("Camera not available")
+            }
+        } else {
+            // Show photo library picker
+            var config = PHPickerConfiguration(photoLibrary: .shared())
+            config.filter = .videos // Only videos
+            config.selectionLimit = 1
+            
+            let picker = PHPickerViewController(configuration: config)
+            picker.delegate = self
+            
+            viewController.present(picker, animated: true)
+        }
     }
     
     /**
@@ -100,70 +115,11 @@ public class IosVideoEditorPlugin: CAPPlugin, CAPBridgedPlugin {
             "status": status
         ])
     }
-}
-
-// MARK: - PHPickerViewControllerDelegate
-extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
-    public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-        picker.dismiss(animated: true)
-        
-        guard let result = results.first else {
-            self.currentCall?.reject("No video selected")
-            return
-        }
-        
-        print("📹 [IosVideoEditor] Video selected, fetching PHAsset...")
-        
-        // Get the PHAsset identifier (instant, no file copy!)
-        guard let assetIdentifier = result.assetIdentifier else {
-            self.currentCall?.reject("Could not get asset identifier")
-            return
-        }
-        
-        // Fetch the PHAsset using the identifier
-        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [assetIdentifier], options: nil)
-        guard let asset = fetchResult.firstObject else {
-            self.currentCall?.reject("Could not fetch asset")
-            return
-        }
-        
-        self.selectedAsset = asset
-        print("✅ [IosVideoEditor] Got PHAsset - Duration: \(asset.duration)s")
-        
-        // Get video options
-        let allowTrim = self.currentCall?.getBool("allowTrim") ?? true
-        let quality = self.currentCall?.getString("quality") ?? "medium"
-        
-        // Request AVAsset (fast, streams from Photos library)
-        let options = PHVideoRequestOptions()
-        options.version = .current
-        options.deliveryMode = .highQualityFormat
-        options.isNetworkAccessAllowed = true // Allow iCloud downloads if needed
-        
-        print("📥 [IosVideoEditor] Requesting AVAsset from PHImageManager...")
-        let requestStart = Date()
-        
-        PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { [weak self] avAsset, audioMix, info in
-            let elapsed = Date().timeIntervalSince(requestStart)
-            print("⏱️ [IosVideoEditor] AVAsset request took \(String(format: "%.1f", elapsed))s")
-            
-            guard let avAsset = avAsset else {
-                self?.currentCall?.reject("Could not load video asset")
-                return
-            }
-            
-            print("✅ [IosVideoEditor] Got AVAsset, showing trim UI (Phase 2)")
-            
-            DispatchQueue.main.async {
-                self?.showTrimUI(asset: avAsset, allowTrim: allowTrim, quality: quality)
-            }
-        }
-    }
     
     /**
      * Show custom trim UI with AVPlayer preview
      */
-    private func showTrimUI(asset: AVAsset, allowTrim: Bool, quality: String) {
+    func showTrimUI(asset: AVAsset, allowTrim: Bool, quality: String) {
         guard let viewController = self.bridge?.viewController else {
             self.currentCall?.reject("No view controller available")
             return
@@ -279,6 +235,97 @@ extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
     private func hideProgressOverlay() {
         guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else { return }
         window.rootViewController?.dismiss(animated: true)
+    }
+}
+
+// MARK: - PHPickerViewControllerDelegate
+extension IosVideoEditorPlugin: PHPickerViewControllerDelegate {
+    public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+        
+        guard let result = results.first else {
+            self.currentCall?.reject("No video selected")
+            return
+        }
+        
+        print("📹 [IosVideoEditor] Video selected, fetching PHAsset...")
+        
+        // Get the PHAsset identifier (instant, no file copy!)
+        guard let assetIdentifier = result.assetIdentifier else {
+            self.currentCall?.reject("Could not get asset identifier")
+            return
+        }
+        
+        // Fetch the PHAsset using the identifier
+        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [assetIdentifier], options: nil)
+        guard let asset = fetchResult.firstObject else {
+            self.currentCall?.reject("Could not fetch asset")
+            return
+        }
+        
+        self.selectedAsset = asset
+        print("✅ [IosVideoEditor] Got PHAsset - Duration: \(asset.duration)s")
+        
+        // Get video options
+        let allowTrim = self.currentCall?.getBool("allowTrim") ?? true
+        let quality = self.currentCall?.getString("quality") ?? "medium"
+        
+        // Request AVAsset (fast, streams from Photos library)
+        let options = PHVideoRequestOptions()
+        options.version = .current
+        options.deliveryMode = .highQualityFormat
+        options.isNetworkAccessAllowed = true // Allow iCloud downloads if needed
+        
+        print("📥 [IosVideoEditor] Requesting AVAsset from PHImageManager...")
+        let requestStart = Date()
+        
+        PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { [weak self] avAsset, audioMix, info in
+            let elapsed = Date().timeIntervalSince(requestStart)
+            print("⏱️ [IosVideoEditor] AVAsset request took \(String(format: "%.1f", elapsed))s")
+            
+            guard let avAsset = avAsset else {
+                self?.currentCall?.reject("Could not load video asset")
+                return
+            }
+            
+            print("✅ [IosVideoEditor] Got AVAsset, showing trim UI (Phase 2)")
+            
+            DispatchQueue.main.async {
+                self?.showTrimUI(asset: avAsset, allowTrim: allowTrim, quality: quality)
+            }
+        }
+    }
+}
+
+// MARK: - UIImagePickerControllerDelegate (for camera recording)
+extension IosVideoEditorPlugin: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        picker.dismiss(animated: true)
+        
+        guard let videoURL = info[.mediaURL] as? URL else {
+            self.currentCall?.reject("Could not get video URL")
+            return
+        }
+        
+        print("📹 [IosVideoEditor] Camera video recorded at: \(videoURL.path)")
+        
+        // Load AVAsset from the recorded video
+        let avAsset = AVAsset(url: videoURL)
+        
+        // Get options
+        let allowTrim = self.currentCall?.getBool("allowTrim") ?? true
+        let quality = self.currentCall?.getString("quality") ?? "medium"
+        
+        print("✅ [IosVideoEditor] Got AVAsset from camera, showing trim UI")
+        
+        DispatchQueue.main.async {
+            self.showTrimUI(asset: avAsset, allowTrim: allowTrim, quality: quality)
+        }
+    }
+    
+    public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true)
+        self.currentCall?.reject("Camera recording cancelled")
     }
 }
 
