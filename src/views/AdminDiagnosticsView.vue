@@ -16,9 +16,9 @@
         <div class="text-sm text-gray-600">Auto Reports</div>
         <div class="text-2xl font-bold">{{ autoCount }}</div>
       </div>
-      <div class="bg-red-50 p-4 rounded-lg border border-red-200">
-        <div class="text-sm text-red-600">Last 24h</div>
-        <div class="text-2xl font-bold text-red-700">{{ recentCount }}</div>
+      <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+        <div class="text-sm text-purple-600">Analysis Reports</div>
+        <div class="text-2xl font-bold text-purple-700">{{ analysisCount }}</div>
       </div>
     </div>
 
@@ -36,6 +36,10 @@
         <label class="flex items-center gap-2">
           <input type="radio" v-model="filter" value="auto" />
           <span>Auto Only</span>
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="radio" v-model="filter" value="analysis" />
+          <span>Analysis Only</span>
         </label>
       </div>
       
@@ -80,6 +84,22 @@
           </span>
         </div>
       </div>
+
+      <!-- Ascent Filter -->
+      <div v-if="ascentIdFilter" class="border-t pt-4">
+        <div class="flex items-center gap-3">
+          <label class="text-sm font-medium text-gray-700">Filtered by Ascent:</label>
+          <div class="px-3 py-1 bg-purple-50 border border-purple-200 rounded text-sm font-mono">
+            {{ ascentIdFilter }}
+          </div>
+          <button
+            @click="clearAscentFilter"
+            class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Loading State -->
@@ -98,6 +118,13 @@
         <div class="flex items-start justify-between mb-3">
           <div class="flex items-center gap-3">
             <span
+              v-if="report.reportType === 'analysis'"
+              class="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700"
+            >
+              Analysis
+            </span>
+            <span
+              v-else
               :class="[
                 'px-2 py-1 rounded text-xs font-medium',
                 report.autoReported
@@ -119,8 +146,72 @@
           </div>
         </div>
 
-        <!-- Error Message -->
-        <div class="mb-3">
+        <!-- Analysis Report Content -->
+        <div v-if="report.reportType === 'analysis'" class="space-y-3">
+          <div class="font-medium text-gray-900">
+            Analysis: {{ report.ascentId }}
+          </div>
+          
+          <!-- Match Info -->
+          <div v-if="report.match" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div>
+              <span class="text-gray-500">Match ID:</span>
+              <span class="ml-1 font-medium text-xs break-all">{{ report.match.matchId || 'N/A' }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Total Matches:</span>
+              <span class="ml-1 font-medium">{{ report.match.totalMatches || 'N/A' }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Inliers:</span>
+              <span class="ml-1 font-medium">{{ report.match.homographyInliers || 'N/A' }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Quality:</span>
+              <span class="ml-1 font-medium">{{ report.match.serverQuality || 'N/A' }}</span>
+            </div>
+          </div>
+
+          <!-- Debug Images -->
+          <div v-if="report.match?.combinedDebugUrl" class="mt-3">
+            <button 
+              @click="viewImage(report.match.combinedDebugUrl)"
+              class="inline-block px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+            >
+              View Combined Debug Image
+            </button>
+          </div>
+
+          <!-- Scores -->
+          <div v-if="report.scores && report.scores.length > 0" class="mt-3">
+            <div class="text-sm font-medium text-gray-700 mb-2">Top Matches:</div>
+            <div class="space-y-1">
+              <div v-for="(score, i) in report.scores.slice(0, 3)" :key="i" class="text-sm">
+                {{ i + 1 }}. {{ score.name }} - {{ (score.score * 100).toFixed(1) }}%
+              </div>
+            </div>
+          </div>
+
+          <!-- Localized Transforms -->
+          <div v-if="report.match?.localizedTransforms && report.match.localizedTransforms.length > 0" class="mt-3">
+            <div class="text-sm font-medium text-gray-700 mb-2">Localized Transforms:</div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div v-for="(transform, i) in report.match.localizedTransforms" :key="i" class="bg-gray-50 p-2 rounded">
+                <div class="font-medium">{{ transform.name }}</div>
+                <div class="text-gray-600">
+                  Confidence: {{ (transform.confidence * 100).toFixed(1) }}%
+                </div>
+                <div class="text-gray-600">
+                  Inliers: {{ transform.inlier_count }}/{{ transform.total_matches }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Report Content -->
+        <!-- Error Report Content -->
+        <div v-else class="mb-3">
           <div class="font-medium text-gray-900 mb-1">
             {{ getErrorMessage(report) }}
           </div>
@@ -219,26 +310,58 @@
         No reports found
       </div>
     </div>
+
+    <!-- Image Modal -->
+    <div 
+      v-if="selectedImage" 
+      @click="closeImage"
+      class="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+    >
+      <div class="relative max-w-full max-h-full">
+        <button 
+          @click="closeImage"
+          class="absolute -top-10 right-0 text-white hover:text-gray-300 text-2xl"
+        >
+          ✕
+        </button>
+        <img 
+          :src="selectedImage" 
+          alt="Debug visualization"
+          class="max-w-full max-h-[90vh] object-contain"
+          @click.stop
+        />
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db } from '@/services/firebase';
+import { analysisDiagnosticsService } from '@/services/analysisDiagnosticsService';
 
+const route = useRoute();
+const router = useRouter();
 const reports = ref([]);
 const loading = ref(true);
 const filter = ref('all');
 const userIdFilter = ref('');
+const ascentIdFilter = ref('');
 const expandedReports = ref(new Set());
+const selectedImage = ref(null);
 
 const manualCount = computed(() => 
-  filteredReports.value.filter(r => !r.autoReported).length
+  filteredReports.value.filter(r => !r.autoReported && !r.reportType).length
 );
 
 const autoCount = computed(() => 
-  filteredReports.value.filter(r => r.autoReported).length
+  filteredReports.value.filter(r => r.autoReported && !r.reportType).length
+);
+
+const analysisCount = computed(() => 
+  filteredReports.value.filter(r => r.reportType === 'analysis').length
 );
 
 const recentCount = computed(() => {
@@ -258,48 +381,76 @@ const uniqueUsers = computed(() => {
 });
 
 const filteredReports = computed(() => {
+  let filtered = reports.value;
+  
   if (filter.value === 'manual') {
-    return reports.value.filter(r => !r.autoReported);
+    filtered = filtered.filter(r => !r.autoReported && !r.reportType);
+  } else if (filter.value === 'auto') {
+    filtered = filtered.filter(r => r.autoReported && !r.reportType);
+  } else if (filter.value === 'analysis') {
+    filtered = filtered.filter(r => r.reportType === 'analysis');
   }
-  if (filter.value === 'auto') {
-    return reports.value.filter(r => r.autoReported);
+  
+  if (userIdFilter.value) {
+    filtered = filtered.filter(r => r.userId === userIdFilter.value);
   }
-  return reports.value;
+  
+  if (ascentIdFilter.value) {
+    filtered = filtered.filter(r => r.ascentId === ascentIdFilter.value);
+  }
+  
+  return filtered;
 });
 
 const loadReports = async () => {
   loading.value = true;
   try {
-    // Build query with optional user filter
-    let q;
-    if (userIdFilter.value) {
-      q = query(
-        collection(db, 'diagnosticReports'),
-        where('userId', '==', userIdFilter.value),
-        orderBy('timestamp', 'desc'),
-        limit(100)
-      );
-    } else {
-      q = query(
-        collection(db, 'diagnosticReports'),
-        orderBy('timestamp', 'desc'),
-        limit(100)
-      );
-    }
+    // Load both diagnosticReports and analysisDiagnostics
+    const [errorReports, analysisReports] = await Promise.all([
+      loadErrorReports(),
+      loadAnalysisReports()
+    ]);
     
-    const snapshot = await getDocs(q);
-    reports.value = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    // Already sorted by timestamp desc from Firestore query
-    // No additional sorting needed - newest reports appear first
+    // Combine and sort by timestamp
+    reports.value = [...errorReports, ...analysisReports].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      return timeB - timeA; // Newest first
+    });
   } catch (error) {
     console.error('Failed to load reports:', error);
   } finally {
     loading.value = false;
   }
+};
+
+const loadErrorReports = async () => {
+  let q;
+  if (userIdFilter.value) {
+    q = query(
+      collection(db, 'diagnosticReports'),
+      where('userId', '==', userIdFilter.value),
+      orderBy('timestamp', 'desc'),
+      limit(100)
+    );
+  } else {
+    q = query(
+      collection(db, 'diagnosticReports'),
+      orderBy('timestamp', 'desc'),
+      limit(100)
+    );
+  }
+  
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+};
+
+const loadAnalysisReports = async () => {
+  const opts = userIdFilter.value ? { userId: userIdFilter.value, limitCount: 100 } : { limitCount: 100 };
+  return await analysisDiagnosticsService.fetchLatest(opts);
 };
 
 const toggleExpanded = (reportId) => {
@@ -318,6 +469,14 @@ const selectUser = (userId) => {
 const clearUserFilter = () => {
   userIdFilter.value = '';
   loadReports();
+};
+
+const clearAscentFilter = () => {
+  ascentIdFilter.value = '';
+  // Also clear URL param
+  if (route.query.ascentId) {
+    router.replace({ query: {} });
+  }
 };
 
 const handleUserFilterChange = () => {
@@ -375,7 +534,32 @@ const formatLogTime = (timestamp) => {
   return date.toLocaleTimeString();
 };
 
+const viewImage = (url) => {
+  selectedImage.value = url;
+};
+
+const closeImage = () => {
+  selectedImage.value = null;
+};
+
 onMounted(() => {
+  // Check for ascentId in URL params
+  if (route.query.ascentId) {
+    ascentIdFilter.value = route.query.ascentId;
+    filter.value = 'analysis'; // Auto-switch to analysis filter
+  }
   loadReports();
+});
+
+// Watch for URL param changes
+watch(() => route.query.ascentId, (newAscentId) => {
+  if (newAscentId) {
+    ascentIdFilter.value = newAscentId;
+    filter.value = 'analysis';
+    // Auto-expand the report if only one result
+    if (filteredReports.value.length === 1) {
+      expandedReports.value.add(filteredReports.value[0].id);
+    }
+  }
 });
 </script>

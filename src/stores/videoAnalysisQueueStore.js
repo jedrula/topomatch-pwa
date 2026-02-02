@@ -10,6 +10,7 @@ import { calculateProblemScores } from '../utils/problemScoringUtils.js';
 import { getKeypointRows } from '../composables/useHoldMatching.js';
 import { generateUUID } from '../utils/uuid.js';
 import { matchImagesOnServer } from '../services/imageMatchingService.js';
+import { analysisDiagnosticsService } from '../services/analysisDiagnosticsService.js';
 
 /**
  * Video Analysis Queue Store
@@ -237,6 +238,55 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       console.log(`   Duration: ${((job.completedAt - job.createdAt) / 1000).toFixed(2)}s`);
       console.log(`   Detected: ${job.scores?.[0]?.name || 'No match'}`);
       console.log(`   Score: ${job.scores?.[0]?.totalScore ? (job.scores[0].totalScore * 100).toFixed(1) + '%' : 'N/A'}\n`);
+
+      // 📊 LOG DIAGNOSTICS: Capture analysis pipeline data
+      try {
+        console.log('📊 Logging analysis diagnostics...');
+        const bestFrame = job.extractedFrames?.[job.bestFrameIndex];
+        
+        await analysisDiagnosticsService.logSnapshot({
+          ascentId: job.ascentId,
+          locationId: job.locationId,
+          bestFrameIndex: job.bestFrameIndex,
+          frameDimensions: {
+            width: bestFrame?.imageData?.width,
+            height: bestFrame?.imageData?.height
+          },
+          poseConfidence: bestFrame?.poseData?.confidence,
+          matchedImageId: job.matchedImageId,
+          matchedImageUrl: job.comparisonImages?.find(img => img.imageId === job.matchedImageId)?.url,
+          matchSummary: {
+            matchId: job.serverMatchResult?.matchId,
+            totalMatches: job.serverMatchResult?.totalMatches,
+            homographyInliers: job.homographyInliers || job.serverHomographyQuality?.inlierMatches,
+            matrixSource: job.serverHomographyMatrix ? 'server' : 'frontend',
+            serverQuality: job.serverHomographyQuality?.quality,
+            matchVisualizationUrl: job.serverMatchResult?.visualizationUrl,
+            combinedDebugUrl: job.serverMatchResult?.combinedDebugUrl,
+            localizedTransforms: job.serverMatchResult?.localizedTransforms || job.localizedTransforms || [],
+          },
+          transformedKeypoints: {
+            original: bestFrame?.originalPoints,
+            image: bestFrame?.transformedPoints
+          },
+          keypointRows: [],
+          scoreSummary: job.scores?.slice(0, 5).map(s => ({
+            problemId: s.id,
+            name: s.name,
+            grade: s.grade,
+            score: s.totalScore,
+            matchCount: s.matchCount
+          })) || [],
+          holdsSummary: {
+            totalHolds: job.holds?.length,
+            matchedHoldIds: [],
+            matchedProblemIds: job.scores?.slice(0, 3).map(s => s.id) || []
+          }
+        });
+        console.log('   ✓ Diagnostics logged');
+      } catch (diagError) {
+        console.warn('   ⚠ Failed to log diagnostics (non-blocking):', diagError.message);
+      }
 
       // 🧹 MEMORY CLEANUP: Free frames to prevent 80MB memory leak!
       // ROOT CAUSE: Job object stays in Pinia reactive store (jobs.value), keeping frames reachable
@@ -682,6 +732,19 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         // Clean up object URL
         URL.revokeObjectURL(locationImage.src);
         
+        // ✅ ALWAYS store server result for diagnostics (even if homography_matrix is null)
+        // Server may still return useful debug URLs, localized transforms, pose debug, etc.
+        job.serverMatchResult = {
+          matchId: serverResult.match_id,
+          totalMatches: serverResult.total_matches,
+          inlierMatches: serverResult.inlier_matches,
+          inlierRatio: serverResult.inlier_ratio,
+          combinedDebugUrl: serverResult.debug_images?.combined_url,
+          poseDebugUrl: serverResult.pose_debug_url,
+          visualizationUrl: serverResult.visualizationUrl || serverResult.download_url,
+          localizedTransforms: serverResult.localized_transforms || []
+        };
+        
         if (serverResult?.homography_matrix) {
           console.log(`✅ Server homography received!`);
           console.log(`   Inliers: ${serverResult.inlier_matches}/${serverResult.total_matches} (${(serverResult.inlier_ratio * 100).toFixed(1)}%)`);
@@ -695,10 +758,10 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
             inlierRatio: serverResult.inlier_ratio,
             quality: serverResult.matchQuality
           };
-      
         } else {
           console.warn(`⚠️ Server response missing homography_matrix, falling back to frontend`);
         }
+        
         // Store localized transforms if received
         if (serverResult.localized_transforms && serverResult.localized_transforms.length > 0) {
           job.localizedTransforms = serverResult.localized_transforms;
