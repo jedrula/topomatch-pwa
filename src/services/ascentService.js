@@ -339,20 +339,29 @@ export const ascentService = {
 
       const ascentRef = doc(db, 'ascents', ascentId);
 
-      // Check if the ascent exists and belongs to the current user
+      // Check if the ascent exists
       const ascentSnap = await getDoc(ascentRef);
       if (!ascentSnap.exists()) {
-        throw new Error('Ascent not found');
+        console.error(`Ascent not found: ${ascentId}. This may indicate stale data in the UI.`);
+        throw new Error('Ascent not found. The video may have already been deleted. Please refresh the page.');
       }
 
       const ascentData = ascentSnap.data();
-      if (ascentData.userId !== user.uid) {
+      
+      // Allow deletion if user owns the ascent OR user is admin
+      const { useUserStore } = await import('../stores/userStore');
+      const userStore = useUserStore();
+      const userIsAdmin = userStore.isAdmin;
+      
+      if (ascentData.userId !== user.uid && !userIsAdmin) {
         throw new Error('You can only delete your own ascents');
       }
 
       // Delete the ascent document
       // Cloud Function will handle cleanup of video files in Storage
       await deleteDoc(ascentRef);
+      
+      console.log(`✅ Deleted ascent ${ascentId} ${userIsAdmin && ascentData.userId !== user.uid ? '(admin delete)' : ''}`);
     } catch (error) {
       console.error('Error deleting ascent:', error);
       throw error;

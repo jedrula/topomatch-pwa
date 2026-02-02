@@ -18,6 +18,7 @@
 		7D88DAE60B0448C7AE55F64B /* MyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609D8C06A67F4A829517853F /* MyViewController.swift */; };
 		E38729D82F0DDB0500AC5C49 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = E38729D72F0DDB0500AC5C49 /* GoogleService-Info.plist */; };
 		E3A5B5162F2990DF00EEE7F1 /* IosVideoEditorPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A5B5152F2990DF00EEE7F1 /* IosVideoEditorPlugin.swift */; };
+		E3DAE13F2F2EB30F00BCDA3E /* VideoTrimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3DAE13E2F2EB30F00BCDA3E /* VideoTrimmerView.swift */; };
 		E3F6EE562F23B07300B652F5 /* IosPoseDetectionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F6EE552F23B07300B652F5 /* IosPoseDetectionPlugin.swift */; };
 		E3F6EE592F25700100B652F5 /* onnxruntime in Frameworks */ = {isa = PBXBuildFile; productRef = E3F6EE582F25700100B652F5 /* onnxruntime */; };
 		E3F6EE5B2F25700100B652F5 /* onnxruntime_extensions in Frameworks */ = {isa = PBXBuildFile; productRef = E3F6EE5A2F25700100B652F5 /* onnxruntime_extensions */; };
@@ -43,6 +44,7 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		E38729D72F0DDB0500AC5C49 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		E3A5B5152F2990DF00EEE7F1 /* IosVideoEditorPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IosVideoEditorPlugin.swift; path = plugins/IosVideoEditorPlugin.swift; sourceTree = "<group>"; };
+		E3DAE13E2F2EB30F00BCDA3E /* VideoTrimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VideoTrimmerView.swift; path = plugins/VideoTrimmerView.swift; sourceTree = "<group>"; };
 		E3E91DA62F0F326D000630B0 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		E3F6EE552F23B07300B652F5 /* IosPoseDetectionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = IosPoseDetectionPlugin.swift; path = plugins/IosPoseDetectionPlugin.swift; sourceTree = "<group>"; };
 		E3F6EE5E2F2596E900B652F5 /* OnnxModelTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnnxModelTest.swift; sourceTree = "<group>"; };
@@ -88,6 +90,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				E3DAE13E2F2EB30F00BCDA3E /* VideoTrimmerView.swift */,
 				E3A5B5152F2990DF00EEE7F1 /* IosVideoEditorPlugin.swift */,
 				E3F6EE6A2F25AA1000B652F5 /* IosImageMatchingPlugin.swift */,
 				E3F6EE682F25A8B800B652F5 /* test-image-different.jpg */,
@@ -227,6 +230,7 @@
 				E3A5B5162F2990DF00EEE7F1 /* IosVideoEditorPlugin.swift in Sources */,
 				E3F6EE5F2F2596E900B652F5 /* OnnxModelTest.swift in Sources */,
 				E3F6EE562F23B07300B652F5 /* IosPoseDetectionPlugin.swift in Sources */,
+				E3DAE13F2F2EB30F00BCDA3E /* VideoTrimmerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

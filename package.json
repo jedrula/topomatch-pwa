@@ -29,7 +29,7 @@
     "deploy:test": "npm run build:test && cp server/firebase.json firebase.json && firebase deploy --only hosting",
     "ios:sync": "npx cap sync ios",
     "ios:open": "npx cap open ios",
-    "ios:build": "npm run build && npm run ios:sync && npm run ios:open",
+    "ios:build": "npm run build && npm run ios:sync && ./scripts/cleanup-ios-assets.sh && npm run ios:open",
     "story:dev": "histoire dev",
     "story:build": "histoire build",
     "story:preview": "histoire preview",

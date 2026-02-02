@@ -56,6 +56,7 @@
         <div
           v-for="(video, index) in videos"
           :key="video.id"
+          :data-ascent-id="video.ascentId || video.id"
           class="relative"
         >
           <!-- Uploading State (only if no video URL available) -->
