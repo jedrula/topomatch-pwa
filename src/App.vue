@@ -8,6 +8,7 @@ import AuthModal from './components/AuthModal.vue';
 import VideoAnalysisIndicator from './components/VideoAnalysisIndicator.vue';
 import BottomTabBar from './components/BottomTabBar.vue';
 import DiagnosticReporter from './components/DiagnosticReporter.vue';
+import WhatsAppFloatingButton from './components/WhatsAppFloatingButton.vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 
 const userStore = useUserStore();
@@ -150,5 +151,8 @@ provide('authModal', {
 
     <!-- Global Video Analysis Indicator - persists across routes -->
     <VideoAnalysisIndicator />
+
+    <!-- WhatsApp Support Button - app-wide -->
+    <WhatsAppFloatingButton />
   </div>
 </template>

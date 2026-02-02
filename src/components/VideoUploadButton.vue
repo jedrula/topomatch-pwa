@@ -1,5 +1,5 @@
 <template>
-  <!-- iOS Native Video Picker Button -->
+  <!-- Video Upload Button with scroll-based text hiding -->
   <button
     @click="showChoiceDialog = true"
     :class="[
@@ -73,14 +73,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Capacitor } from '@capacitor/core';
+import { IosVideoEditor } from 'capacitor-plugin-ios-video-editor';
 
 const props = defineProps({
-  showText: {
-    type: Boolean,
-    default: false,
-  },
   allowTrim: {
     type: Boolean,
     default: true,
@@ -90,15 +87,17 @@ const props = defineProps({
 const emit = defineEmits(['video-selected']);
 
 const showChoiceDialog = ref(false);
+const scrollY = ref(0);
+
+// Show text only when at the top (scrolled less than 100px)
+const showText = computed(() => scrollY.value < 100);
 
 const pickVideo = async (source) => {
   showChoiceDialog.value = false;
   
   try {
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
-      // Use native iOS video editor
-      const { IosVideoEditor } = await import('capacitor-plugin-ios-video-editor');
-      
+      // Use native iOS video editor (imported statically for instant response)
       const result = await IosVideoEditor.pickAndEditVideo({
         source: source,
         allowTrim: props.allowTrim,
@@ -146,4 +145,23 @@ const pickVideo = async (source) => {
     }
   }
 };
+
+const handleScroll = (event) => {
+  scrollY.value = event.target.scrollTop;
+};
+
+onMounted(() => {
+  // Find the scrolling container (.app-content)
+  const scrollContainer = document.querySelector('.app-content');
+  if (scrollContainer) {
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+  }
+});
+
+onUnmounted(() => {
+  const scrollContainer = document.querySelector('.app-content');
+  if (scrollContainer) {
+    scrollContainer.removeEventListener('scroll', handleScroll);
+  }
+});
 </script>

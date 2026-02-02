@@ -191,7 +191,6 @@
 
         <!-- Videos/Betas section -->
         <LocationVideos
-          ref="locationVideosRef"
           :videos="displayVideos"
           :loading="videosLoading"
           :location="location"
@@ -277,11 +276,9 @@
       @navigate-previous="navigatePrevious"
     />
 
-    <!-- TODO we should use a VideoPicker and decide if its ios, desktop, mobile web etc. inside it -->
-    <!-- iOS Native Video Picker Button -->
-    <IosVideoPickerButton 
+    <!-- Video Upload Button (platform-agnostic - handles iOS native + web fallback) -->
+    <VideoUploadButton 
       v-if="userStore.user"
-      :show-text="true"
       :allow-trim="true"
       @video-selected="handleVideoFileSelected"
     />
@@ -298,7 +295,7 @@ import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
 import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
 import { useToast } from '../composables/useToast.js';
 import ImageUploadModal from '../components/ImageUploadModal.vue';
-import IosVideoPickerButton from '../components/IosVideoPickerButton.vue';
+import VideoUploadButton from '../components/VideoUploadButton.vue';
 import ImageGallerySimplified from '../components/ImageGallerySimplified.vue';
 import BetaVideoUploadModal from '../components/BetaVideoUploadModal.vue';
 import ToastNotification from '../components/ToastNotification.vue';
@@ -342,7 +339,6 @@ const {
 const authModal = inject('authModal');
 
 const betaUploadModalRef = ref(null);
-const locationVideosRef = ref(null);
 const location = ref(null);
 const allRoutesettings = ref([]); // All routesettings for this location
 const images = ref([]); // Placeholder for location images
@@ -859,7 +855,7 @@ const openProblemVideos = async (problem) => {
   }
 };
 
-// Handle video file selection from IosVideoPickerButton
+// Handle video file selection from VideoUploadButton
 // Receives File object directly (not event) from both native iOS and web fallback
 const handleVideoFileSelected = async (file) => {
   if (!file) return;
