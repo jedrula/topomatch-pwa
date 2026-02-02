@@ -73,9 +73,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref } from 'vue';
 import { Capacitor } from '@capacitor/core';
 import { IosVideoEditor } from 'capacitor-plugin-ios-video-editor';
+import { useScrollHeaderVisibility } from '../composables/useScrollHeaderVisibility.js';
 
 const props = defineProps({
   allowTrim: {
@@ -87,10 +88,9 @@ const props = defineProps({
 const emit = defineEmits(['video-selected']);
 
 const showChoiceDialog = ref(false);
-const scrollY = ref(0);
 
-// Show text only when at the top (scrolled less than 100px)
-const showText = computed(() => scrollY.value < 100);
+// Show/hide text based on scroll position
+const { showText } = useScrollHeaderVisibility();
 
 const pickVideo = async (source) => {
   showChoiceDialog.value = false;
@@ -145,23 +145,4 @@ const pickVideo = async (source) => {
     }
   }
 };
-
-const handleScroll = (event) => {
-  scrollY.value = event.target.scrollTop;
-};
-
-onMounted(() => {
-  // Find the scrolling container (.app-content)
-  const scrollContainer = document.querySelector('.app-content');
-  if (scrollContainer) {
-    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-  }
-});
-
-onUnmounted(() => {
-  const scrollContainer = document.querySelector('.app-content');
-  if (scrollContainer) {
-    scrollContainer.removeEventListener('scroll', handleScroll);
-  }
-});
 </script>

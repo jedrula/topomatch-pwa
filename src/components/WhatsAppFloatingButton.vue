@@ -20,19 +20,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useUserStore } from '../stores/userStore';
-import { useRoute } from 'vue-router';
-import { isNative } from '../utils/platform';
+import { computed } from 'vue';
+import { useUserStore } from '../stores/userStore.js';
+import { isNative } from '../utils/platform.js';
+import { useScrollHeaderVisibility } from '../composables/useScrollHeaderVisibility.js';
 
 const userStore = useUserStore();
-const route = useRoute();
 const isNativePlatform = isNative();
 
-const scrollY = ref(0);
-
-// Show text only when at the top (scrolled less than 100px)
-const showText = computed(() => scrollY.value < 100);
+// Show/hide text based on scroll position
+const { showText } = useScrollHeaderVisibility();
 
 // Build personalized WhatsApp message with user name and current page URL
 const whatsappUrl = computed(() => {
@@ -40,24 +37,5 @@ const whatsappUrl = computed(() => {
   const currentUrl = window.location.href;
   const message = `Hi, I am ${userName} and I have feedback about ${currentUrl}`;
   return `https://wa.me/48577809649?text=${encodeURIComponent(message)}`;
-});
-
-const handleScroll = (event) => {
-  scrollY.value = event.target.scrollTop;
-};
-
-onMounted(() => {
-  // Find the scrolling container (.app-content)
-  const scrollContainer = document.querySelector('.app-content');
-  if (scrollContainer) {
-    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-  }
-});
-
-onUnmounted(() => {
-  const scrollContainer = document.querySelector('.app-content');
-  if (scrollContainer) {
-    scrollContainer.removeEventListener('scroll', handleScroll);
-  }
 });
 </script>
