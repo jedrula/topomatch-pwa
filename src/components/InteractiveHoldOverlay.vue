@@ -127,6 +127,7 @@
               ? 'bg-blue-500 text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
           ]"
+          title="Quick Draw Mode - Click holds or drag to draw new holds. TIP: Hold ⌘/Ctrl to temporarily activate Quick Draw!"
         >
           <span>⚡</span>
           <span>Quick Draw</span>
@@ -284,6 +285,10 @@ const hoveredProblemIdLocal = ref(null);
 // Drawing state
 const isDrawing = ref(false);
 const drawingPath = ref([]); // Points that make up the free drawing path
+
+// Command key shortcut state for temporary quick-draw mode
+const isCommandKeyHeld = ref(false);
+const previousToolBeforeCommand = ref(null);
 
 // Dragging functionality for Hold Selection Mode panel
 const {
@@ -916,13 +921,47 @@ function setupCanvas() {
   });
 }
 
+// Command key handlers for temporary quick-draw activation
+const handleKeyDown = (event) => {
+  // Only activate when creating/editing a boulder problem and Command/Ctrl is pressed
+  if ((event.metaKey || event.ctrlKey) && isCreatingOrEditing.value && !isCommandKeyHeld.value) {
+    isCommandKeyHeld.value = true;
+    
+    // Store current tool if not already in quick-draw mode
+    if (props.boulderHoldSelectionTool !== 'quick-draw') {
+      previousToolBeforeCommand.value = props.boulderHoldSelectionTool;
+      emit('tool-selection-change', 'quick-draw');
+    }
+  }
+};
+
+const handleKeyUp = (event) => {
+  // Restore previous tool when Command/Ctrl is released
+  if ((!event.metaKey && !event.ctrlKey) && isCommandKeyHeld.value) {
+    isCommandKeyHeld.value = false;
+    
+    // Restore previous tool if we stored one
+    if (previousToolBeforeCommand.value) {
+      emit('tool-selection-change', previousToolBeforeCommand.value);
+      previousToolBeforeCommand.value = null;
+    }
+  }
+};
+
 onMounted(() => {
   nextTick(() => {
     setupCanvas();
   });
+  
+  // Add keyboard event listeners for Command key shortcut
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
 });
 
 onUnmounted(() => {
+  // Clean up keyboard event listeners
+  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keyup', handleKeyUp);
 });
 
 // Watch for drawing mode changes
