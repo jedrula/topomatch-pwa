@@ -44,6 +44,12 @@ const router = createRouter({
       meta: { requiresAdmin: true },
     },
     {
+      path: '/admin/healthcheck',
+      name: 'admin-healthcheck',
+      component: () => import('../views/AdminHealthcheckView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
       path: '/push-test',
       name: 'push-test',
       component: () => import('../views/PushNotificationTestView.vue'),
