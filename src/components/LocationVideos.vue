@@ -142,6 +142,19 @@
                   </svg>
                 </button>
 
+                <!-- Reassign climber button (admin or owner) -->
+                <button
+                  v-if="canReassignVideo(video)"
+                  @click.stop="handleReassignClick(video)"
+                  class="w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-green-600 hover:text-green-700 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
+                  :aria-label="`Reassign climber for video ${index + 1}`"
+                  title="Reassign to different climber"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </button>
+
                 <!-- Manual assign button (pick problem) -->
                 <button
                   v-if="canReprocessVideo(video)"
@@ -204,6 +217,13 @@
       @success="handleRoutesettingChanged"
     />
 
+    <!-- Reassign Climber Dialog -->
+    <ReassignClimberDialog
+      :video="videoToReassign"
+      @close="videoToReassign = null"
+      @success="handleClimberReassigned"
+    />
+
     <!-- Video Player Shorts -->
     <VideoPlayerShorts
       v-if="route.query.videoId"
@@ -228,6 +248,7 @@ import VideoPlayerShorts from './VideoPlayerShorts.vue';
 import VideoGridItem from './VideoGridItem.vue';
 import ChangeRoutesettingDialog from './ChangeRoutesettingDialog.vue';
 import VideoDeleteConfirmDialog from './VideoDeleteConfirmDialog.vue';
+import ReassignClimberDialog from './ReassignClimberDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -278,6 +299,9 @@ const isDeletingAll = ref(false);
 // Routesetting change state
 const videoToChangeRoutesetting = ref(null);
 const availableRoutesettings = computed(() => props.allRoutesettings || []);
+
+// Reassign climber state
+const videoToReassign = ref(null);
 
 // Default poster image (gray placeholder with play icon)
 const defaultPoster = getDefaultVideoPoster();
@@ -330,6 +354,15 @@ const canReprocessVideo = (video) => {
   );
 };
 
+const canReassignVideo = (video) => {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return false;
+  
+  // Can reassign if:
+  // 1. User is admin OR it's the user's video
+  return video.userId === currentUser.uid || userStore.isAdmin;
+};
+
 const handleReprocessClick = (video) => {
   emit('reprocess-video', video);
 };
@@ -347,6 +380,16 @@ const handleChangeRoutesettingClick = (video) => {
 
 const handleRoutesettingChanged = (videoId) => {
   videoToChangeRoutesetting.value = null;
+  emit('routesetting-changed', videoId);
+};
+
+const handleReassignClick = (video) => {
+  videoToReassign.value = video;
+};
+
+const handleClimberReassigned = async (videoId) => {
+  videoToReassign.value = null;
+  // Reload videos to show updated climber name
   emit('routesetting-changed', videoId);
 };
 
