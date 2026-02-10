@@ -244,6 +244,22 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         console.log('📊 Logging analysis diagnostics...');
         const bestFrame = job.extractedFrames?.[job.bestFrameIndex];
         
+        // Regenerate keypoint rows WITH debug data for diagnostics
+        // (includes all distances and skipped holds, not just top 3)
+        const bestMatchImage = job.comparisonImages?.find(img => img.imageId === job.matchedImageId);
+        const matchedImageProblems = job.boulderProblems?.filter(
+          problem => problem.imageId === job.matchedImageId
+        ) || [];
+        
+        const keypointRowsWithDebug = bestFrame && bestMatchImage ? 
+          getKeypointRows(
+            bestFrame, 
+            job.extractedFrames, 
+            bestMatchImage, 
+            matchedImageProblems,
+            true // ← Enable debug data for diagnostics
+          ) : [];
+        
         await analysisDiagnosticsService.logSnapshot({
           ascentId: job.ascentId,
           locationId: job.locationId,
@@ -263,13 +279,14 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
             serverQuality: job.serverHomographyQuality?.quality,
             matchVisualizationUrl: job.serverMatchResult?.visualizationUrl,
             combinedDebugUrl: job.serverMatchResult?.combinedDebugUrl,
-            localizedTransforms: job.serverMatchResult?.localizedTransforms || job.localizedTransforms || [],
+            localizedTransformsFrame1: job.localizedTransformsFrame1 || [],
+            localizedTransformsFrame2: job.localizedTransformsFrame2 || [],
           },
           transformedKeypoints: {
             original: bestFrame?.originalPoints,
             image: bestFrame?.transformedPoints
           },
-          keypointRows: [],
+          keypointRows: keypointRowsWithDebug,
           scoreSummary: job.scores?.slice(0, 5).map(s => ({
             problemId: s.id,
             name: s.name,
@@ -462,22 +479,27 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       throw new Error('No poses detected in any frames');
     }
     
-    // Select best frame for image matching using multi-factor scoring
-    job.bestFrameIndex = _selectBestFrame(job.extractedFrames);
-    console.log(`🎯 Selected frame ${job.bestFrameIndex + 1} as best for image matching`);
+    // Select best 2 frames for image matching using multi-factor scoring
+    const bestFrames = _selectBestFrames(job.extractedFrames, 2);
+    job.bestFrameIndex = bestFrames[0];
+    job.secondBestFrameIndex = bestFrames[1];
+    console.log(`🎯 Selected frames ${job.bestFrameIndex + 1} and ${job.secondBestFrameIndex !== undefined ? job.secondBestFrameIndex + 1 : 'N/A'} as best for analysis`);
   };
 
   /**
-   * Helper: Select best frame for image matching
+   * Helper: Select best N frames for image matching
    * Uses multi-factor scoring: pose confidence (50%), temporal position (30%), keypoint spread (20%)
+   * @param {Array} frames - All extracted frames
+   * @param {number} count - Number of best frames to return
+   * @returns {Array} - Indices of the best frames
    */
-  const _selectBestFrame = (frames) => {
+  const _selectBestFrames = (frames, count = 2) => {
     const framesWithPoses = frames.map((frame, index) => ({ frame, index }))
       .filter(({ frame }) => frame.poseData);
     
-    if (framesWithPoses.length === 0) return 0;
+    if (framesWithPoses.length === 0) return [0];
     
-    console.log(`\n🎯 Selecting best frame from ${framesWithPoses.length} frames with poses...`);
+    console.log(`\n🎯 Selecting best ${count} frames from ${framesWithPoses.length} frames with poses...`);
     
     const scoredFrames = framesWithPoses.map(({ frame, index }) => {
       const keypoints = frame.poseData.keypoints;
@@ -520,17 +542,16 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     });
     
     scoredFrames.sort((a, b) => b.compositeScore - a.compositeScore);
-    const best = scoredFrames[0];
     
-    console.log(`   Frame Selection Scores:`);
-    scoredFrames.slice(0, 3).forEach((scored, rank) => {
+    console.log(`   Frame Selection Scores (top ${Math.min(count, scoredFrames.length)}):`);
+    scoredFrames.slice(0, count).forEach((scored, rank) => {
       console.log(`   ${rank + 1}. Frame ${scored.index + 1}: ${(scored.compositeScore * 100).toFixed(1)}% ` +
         `(pose: ${(scored.poseConfidence * 100).toFixed(0)}%, ` +
         `spread: ${(scored.normalizedSpread * 100).toFixed(0)}%, ` +
         `tempo: ${(scored.temporalScore * 100).toFixed(0)}%)`);
     });
     
-    return best.index;
+    return scoredFrames.slice(0, count).map(s => s.index);
   };
 
   /**
@@ -666,35 +687,28 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     const matchedImage = job.comparisonImages?.find(img => img.imageId === bestMatch.imageId);
     
     if (USE_SERVER_HOMOGRAPHY && bestFrame?.imageData && matchedImage?.url) {
-      console.log(`\n🔬 Requesting server-side LoFTR homography...`);
-      try {
-        // Pass video frame dimensions so server knows coordinate space
-        const videoDimensions = {
-          width: bestFrame.imageData.width,
-          height: bestFrame.imageData.height
-        };
-        
-        // Fetch location image
-        const locationImageBlob = await fetch(matchedImage.url).then(r => r.blob());
-        
-        // Load blob as image to get dimensions
-        const locationImage = await new Promise((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = URL.createObjectURL(locationImageBlob);
-        });
-        
-        const locationDimensions = {
-          width: locationImage.naturalWidth,
-          height: locationImage.naturalHeight
-        };
-        
-        console.log(`   📐 Sending dimensions: video ${videoDimensions.width}×${videoDimensions.height}, location ${locationDimensions.width}×${locationDimensions.height}`);
-        
-        // Extract 4 body extremity keypoints for localized homography
+      console.log(`\n🔬 Requesting server-side LoFTR homography for dual frames...`);
+      
+      // Fetch location image once (will be used for both frames)
+      const locationImageBlob = await fetch(matchedImage.url).then(r => r.blob());
+      
+      // Load blob as image to get dimensions
+      const locationImage = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = URL.createObjectURL(locationImageBlob);
+      });
+      
+      const locationDimensions = {
+        width: locationImage.naturalWidth,
+        height: locationImage.naturalHeight
+      };
+      
+      // Helper function to extract transform points from a frame
+      const extractTransformPoints = (frame) => {
         const transformPoints = [];
-        if (bestFrame.poseData?.keypoints) {
+        if (frame.poseData?.keypoints) {
           const extremityMapping = {
             left_wrist: 'leftHand',
             right_wrist: 'rightHand',
@@ -703,7 +717,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
           };
           
           for (const [id, keypointType] of Object.entries(extremityMapping)) {
-            const kp = bestFrame.poseData.keypoints[keypointType];
+            const kp = frame.poseData.keypoints[keypointType];
             if (kp && kp.confidence > 0.5) {  // Only use confident keypoints
               transformPoints.push({
                 x: kp.x,
@@ -713,72 +727,107 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
               });
             }
           }
-          
-          if (transformPoints.length > 0) {
-            console.log(`   🎯 Requesting localized homography for ${transformPoints.length} body extremities`);
-          }
         }
-        
-        // Send to server with explicit dimensions and transform points
-        const serverResult = await matchImagesOnServer(
+        return transformPoints;
+      };
+      
+      // Match FIRST frame
+      const videoDimensions = {
+        width: bestFrame.imageData.width,
+        height: bestFrame.imageData.height
+      };
+      const transformPoints1 = extractTransformPoints(bestFrame);
+      
+      console.log(`   📐 Frame 1 dimensions: ${videoDimensions.width}×${videoDimensions.height}`);
+      console.log(`   🎯 Frame 1: ${transformPoints1.length} body extremities`);
+      
+      try {
+        const serverResult1 = await matchImagesOnServer(
           bestFrame.imageData, 
           locationImageBlob, 
           job.ascentId,
           videoDimensions,
           locationDimensions,
-          transformPoints  // Include extremity points for localized transforms
+          transformPoints1
         );
         
-        // Clean up object URL
-        URL.revokeObjectURL(locationImage.src);
-        
-        // ✅ ALWAYS store server result for diagnostics (even if homography_matrix is null)
-        // Server may still return useful debug URLs, localized transforms, pose debug, etc.
+        // Store first frame results
         job.serverMatchResult = {
-          matchId: serverResult.match_id,
-          totalMatches: serverResult.total_matches,
-          inlierMatches: serverResult.inlier_matches,
-          inlierRatio: serverResult.inlier_ratio,
-          combinedDebugUrl: serverResult.debug_images?.combined_url,
-          poseDebugUrl: serverResult.pose_debug_url,
-          visualizationUrl: serverResult.visualizationUrl || serverResult.download_url,
-          localizedTransforms: serverResult.localized_transforms || []
+          matchId: serverResult1.match_id,
+          totalMatches: serverResult1.total_matches,
+          inlierMatches: serverResult1.inlier_matches,
+          inlierRatio: serverResult1.inlier_ratio,
+          combinedDebugUrl: serverResult1.debug_images?.combined_url,
+          poseDebugUrl: serverResult1.pose_debug_url,
+          visualizationUrl: serverResult1.visualizationUrl || serverResult1.download_url,
+          localizedTransforms: serverResult1.localized_transforms || []
         };
         
-        if (serverResult?.homography_matrix) {
-          console.log(`✅ Server homography received!`);
-          console.log(`   Inliers: ${serverResult.inlier_matches}/${serverResult.total_matches} (${(serverResult.inlier_ratio * 100).toFixed(1)}%)`);
-          console.log(`   Quality: ${serverResult.matchQuality}`);
-          
-          // Store server homography - will be used in Step 4 (scoring)
-          job.serverHomographyMatrix = serverResult.homography_matrix;
+        if (serverResult1?.homography_matrix) {
+          console.log(`   ✅ Frame 1 homography: ${serverResult1.inlier_matches}/${serverResult1.total_matches} inliers (${(serverResult1.inlier_ratio * 100).toFixed(1)}%)`);
+          job.serverHomographyMatrix = serverResult1.homography_matrix;
           job.serverHomographyQuality = {
-            inlierMatches: serverResult.inlier_matches,
-            totalMatches: serverResult.total_matches,
-            inlierRatio: serverResult.inlier_ratio,
-            quality: serverResult.matchQuality
+            inlierMatches: serverResult1.inlier_matches,
+            totalMatches: serverResult1.total_matches,
+            inlierRatio: serverResult1.inlier_ratio,
+            quality: serverResult1.matchQuality
           };
-        } else {
-          console.warn(`⚠️ Server response missing homography_matrix, falling back to frontend`);
         }
         
-        // Store localized transforms if received
-        if (serverResult.localized_transforms && serverResult.localized_transforms.length > 0) {
-          job.localizedTransforms = serverResult.localized_transforms;
-          console.log(`   🎯 Stored ${serverResult.localized_transforms.length} localized transformations`);
+        if (serverResult1.localized_transforms && serverResult1.localized_transforms.length > 0) {
+          job.localizedTransformsFrame1 = serverResult1.localized_transforms;
+          console.log(`   🎯 Frame 1: Stored ${serverResult1.localized_transforms.length} localized transforms`);
         }
       } catch (err) {
-        console.warn(`⚠️ Server homography failed: ${err.message}, falling back to frontend`);
+        console.warn(`   ⚠️ Frame 1 server homography failed: ${err.message}`);
       }
+      
+      // Match SECOND frame (if available)
+      if (job.secondBestFrameIndex !== undefined && job.secondBestFrameIndex !== job.bestFrameIndex) {
+        const secondFrame = job.extractedFrames[job.secondBestFrameIndex];
+        
+        if (secondFrame?.imageData && secondFrame?.poseData) {
+          const transformPoints2 = extractTransformPoints(secondFrame);
+          console.log(`   🎯 Frame 2: ${transformPoints2.length} body extremities`);
+          
+          try {
+            const serverResult2 = await matchImagesOnServer(
+              secondFrame.imageData, 
+              locationImageBlob, 
+              job.ascentId + '_frame2',  // Different match ID
+              videoDimensions,
+              locationDimensions,
+              transformPoints2
+            );
+            
+            if (serverResult2?.homography_matrix) {
+              console.log(`   ✅ Frame 2 homography: ${serverResult2.inlier_matches}/${serverResult2.total_matches} inliers (${(serverResult2.inlier_ratio * 100).toFixed(1)}%)`);
+            }
+            
+            if (serverResult2.localized_transforms && serverResult2.localized_transforms.length > 0) {
+              job.localizedTransformsFrame2 = serverResult2.localized_transforms;
+              console.log(`   🎯 Frame 2: Stored ${serverResult2.localized_transforms.length} localized transforms`);
+            }
+          } catch (err) {
+            console.warn(`   ⚠️ Frame 2 server homography failed: ${err.message}`);
+          }
+        }
+      }
+      
+      // Clean up object URL
+      URL.revokeObjectURL(locationImage.src);
     }
     
     // 🎯 SKIP FRONTEND HOMOGRAPHY if we have localized transforms from server
     // Localized transforms are MORE ACCURATE than global homography for pose→hold matching
     // They provide per-keypoint transformations rather than single global matrix
-    const skipFrontendHomography = job.localizedTransforms && job.localizedTransforms.length > 0;
+    const skipFrontendHomography = (job.localizedTransformsFrame1 && job.localizedTransformsFrame1.length > 0) ||
+                                   (job.localizedTransformsFrame2 && job.localizedTransformsFrame2.length > 0);
     
     if (skipFrontendHomography) {
-      console.log(`\n🎯 Skipping frontend homography (using ${job.localizedTransforms.length} localized transforms from server)`);
+      const frame1Count = job.localizedTransformsFrame1?.length || 0;
+      const frame2Count = job.localizedTransformsFrame2?.length || 0;
+      console.log(`\n🎯 Skipping frontend homography (using ${frame1Count} + ${frame2Count} localized transforms from server)`);
       
       // Still need to set matchedImageId and dimensions for next steps
       job.matchedImageId = bestMatch.imageId;
@@ -955,7 +1004,12 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     job.status = 'scoring';
     job.progress = PROGRESS.SCORING.start;
     
-    if (!job.homographyMatrix && !(job.localizedTransforms && job.localizedTransforms.length > 0)) {
+    // Check for homography OR localized transforms (frame-specific)
+    const hasHomography = !!job.homographyMatrix;
+    const hasLocalizedTransforms = (job.localizedTransformsFrame1 && job.localizedTransformsFrame1.length > 0) ||
+                                   (job.localizedTransformsFrame2 && job.localizedTransformsFrame2.length > 0);
+    
+    if (!hasHomography && !hasLocalizedTransforms) {
       throw new Error('No homography or localized transforms - cannot transform coordinates');
     }
     
@@ -994,129 +1048,149 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
     console.log(`✓ Homography matrix exists`);
     console.log(`📊 Frame poseData structure check:`, job.extractedFrames[0]?.poseData);
     
-    // Transform ONLY the best frame (not all frames)
+    // Transform the best frame AND second best frame (if available)
     const transformedFrames = [];
-    const bestFrame = job.extractedFrames[job.bestFrameIndex];
-    
-    console.log(`\n🔄 Transforming keypoints for BEST frame (${job.bestFrameIndex + 1})...`);
-    
-    if (!bestFrame.poseData) {
-      throw new Error('Best frame has no pose data');
+    const framesToTransform = [job.bestFrameIndex];
+    if (job.secondBestFrameIndex !== undefined && job.secondBestFrameIndex !== job.bestFrameIndex) {
+      framesToTransform.push(job.secondBestFrameIndex);
     }
+    
+    console.log(`\n🔄 Transforming keypoints for ${framesToTransform.length} frame(s): [${framesToTransform.map(i => i + 1).join(', ')}]...`);
+    
+    for (const frameIndex of framesToTransform) {
+      const frame = job.extractedFrames[frameIndex];
       
-    console.log(`   ✓ Has pose data, extracting keypoints...`);
-    
-    const videoKeypoints = [];
-    const keypointTypes = ['leftHand', 'rightHand', 'leftFoot', 'rightFoot'];
-    
-    for (const type of keypointTypes) {
-      const kp = bestFrame.poseData.keypoints[type];
-      if (kp && kp.confidence > 0.3) {
-        videoKeypoints.push({ x: kp.x, y: kp.y, type, confidence: kp.confidence });
-        console.log(`   ✓ ${type}: confidence=${kp.confidence.toFixed(2)}`);
+      if (!frame.poseData) {
+        console.warn(`   ⚠️ Frame ${frameIndex + 1} has no pose data, skipping`);
+        continue;
       }
-    }
-    
-    if (videoKeypoints.length === 0) {
-      throw new Error('Best frame has no valid keypoints');
-    }
-    
-    console.log(`   Collected ${videoKeypoints.length} keypoints`);
-    
-    // Transform keypoints from video coordinates to image coordinates
-    // Use localized transforms if available (most accurate), otherwise fallback to global homography
-    let imageKeypoints = [];
-    
-    if (job.localizedTransforms && job.localizedTransforms.length > 0) {
-      console.log(`   🎯 Using localized transformations for ${job.localizedTransforms.length} keypoints`);
-      
-      // Map keypoint types to localized transform names
-      const typeToName = {
-        'leftHand': 'Left Wrist',
-        'rightHand': 'Right Wrist',
-        'leftFoot': 'Left Ankle',
-        'rightFoot': 'Right Ankle'
-      };
-      
-      // Use localized transform for each keypoint
-      for (const kp of videoKeypoints) {
-        const transformName = typeToName[kp.type];
-        const localizedTransform = job.localizedTransforms.find(t => t.name === transformName);
         
-        if (localizedTransform) {
-          // Use the pre-transformed target point from server
-          imageKeypoints.push({
-            x: localizedTransform.target_point.x,
-            y: localizedTransform.target_point.y,
-            type: kp.type,
-            confidence: kp.confidence
-          });
-          const fallbackIndicator = localizedTransform.fallback_used ? ' (fallback)' : '';
-          console.log(`   ✓ ${kp.type}: localized transform${fallbackIndicator}`);
-          console.log(`      └─ Server transform: ${transformName} → (${localizedTransform.target_point.x.toFixed(2)}, ${localizedTransform.target_point.y.toFixed(2)})`);
-        } else {
-          // Fallback to global homography for this keypoint if no localized transform
-          const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
-          const transformed = transformPoints([kp], homographyToUse);
-          imageKeypoints.push(transformed[0]);
-          console.log(`   ⚠️ ${kp.type}: using global homography (no localized transform)`);
-          if (transformed[0]) {
-            console.log(`      └─ Fallback transform: (${transformed[0].x?.toFixed(2)}, ${transformed[0].y?.toFixed(2)})`);
-          }
+      console.log(`\n   Processing frame ${frameIndex + 1}...`);
+      
+      const videoKeypoints = [];
+      const keypointTypes = ['leftHand', 'rightHand', 'leftFoot', 'rightFoot'];
+      
+      for (const type of keypointTypes) {
+        const kp = frame.poseData.keypoints[type];
+        if (kp && kp.confidence > 0.3) {
+          videoKeypoints.push({ x: kp.x, y: kp.y, type, confidence: kp.confidence });
+          console.log(`      ✓ ${type}: confidence=${kp.confidence.toFixed(2)}`);
         }
       }
-      // Extra: Log all transformed keypoints
-      console.log('   🔎 All transformed keypoints:', imageKeypoints);
-    } else {
-      // Use global homography (legacy path)
-      const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
-      const homographySource = job.serverHomographyMatrix ? '(server homography)' : 'SuperPoint (frontend)';
       
-      console.log(`   🔄 Using ${homographySource} global homography for transformation`);
-      if (job.serverHomographyQuality) {
-        console.log(`      Server quality: ${job.serverHomographyQuality.inlierMatches} inliers (${(job.serverHomographyQuality.inlierRatio * 100).toFixed(1)}%)`);
+      if (videoKeypoints.length === 0) {
+        console.warn(`   ⚠️ Frame ${frameIndex + 1} has no valid keypoints, skipping`);
+        continue;
       }
       
-      imageKeypoints = transformPoints(videoKeypoints, homographyToUse);
-    }
-    
-    if (!imageKeypoints || !Array.isArray(imageKeypoints) || imageKeypoints.length === 0) {
-      console.warn('⚠️ Keypoint transformation failed - no valid transformed points');
-      console.warn('   This can happen if homography is invalid or all points fall outside image bounds');
-      console.warn('   Skipping problem scoring for this frame');
-      return []; // Return empty scores instead of throwing
-    }
-    
-    // Build originalPoints and transformedPoints arrays for getKeypointRows
-    const originalPoints = videoKeypoints.map(kp => ({
-      name: kp.type,
-      x: kp.x,
-      y: kp.y,
-      confidence: kp.confidence
-    }));
-    
-    const transformedPoints = imageKeypoints.map(kp => ({
-      name: kp.type,
-      x: kp.x,
-      y: kp.y,
-      confidence: kp.confidence
-    }));
-    
-    transformedFrames.push({
-      ...bestFrame,
-      frameIndex: job.bestFrameIndex, // Preserve original frame number for logging
-      originalPoints,
-      transformedPoints,
-      poseData: {
-        keypoints: imageKeypoints.reduce((acc, kp) => {
-          acc[kp.type] = { x: kp.x, y: kp.y, confidence: kp.confidence };
-          return acc;
-        }, {}),
-        confidence: bestFrame.poseData.confidence
+      console.log(`      Collected ${videoKeypoints.length} keypoints`);
+      
+      // Transform keypoints from video coordinates to image coordinates
+      // Use localized transforms if available (most accurate), otherwise fallback to global homography
+      let imageKeypoints = [];
+      
+      // Determine which localized transforms to use for this frame
+      const isFirstFrame = frameIndex === job.bestFrameIndex;
+      const localizedTransforms = isFirstFrame ? job.localizedTransformsFrame1 : job.localizedTransformsFrame2;
+      
+      console.log(`      🔍 DEBUG: Frame ${frameIndex + 1}, isFirstFrame=${isFirstFrame}`);
+      console.log(`      🔍 Available transforms:`, localizedTransforms?.map(t => t.name) || 'none');
+      console.log(`      🔍 Keypoints to transform:`, videoKeypoints.map(kp => kp.type));
+      
+      if (localizedTransforms && localizedTransforms.length > 0) {
+        console.log(`      🎯 Using localized transformations for frame ${frameIndex + 1} (${localizedTransforms.length} keypoints)`);
+        
+        // Map keypoint types to localized transform names
+        const typeToName = {
+          'leftHand': 'Left Wrist',
+          'rightHand': 'Right Wrist',
+          'leftFoot': 'Left Ankle',
+          'rightFoot': 'Right Ankle'
+        };
+        
+        // Use localized transform for each keypoint
+        for (const kp of videoKeypoints) {
+          const transformName = typeToName[kp.type];
+          const localizedTransform = localizedTransforms.find(t => t.name === transformName);
+          
+          if (localizedTransform) {
+            // Use the pre-transformed target point from server
+            imageKeypoints.push({
+              x: localizedTransform.target_point.x,
+              y: localizedTransform.target_point.y,
+              type: kp.type,
+              confidence: kp.confidence
+            });
+            const fallbackIndicator = localizedTransform.fallback_used ? ' (fallback)' : '';
+            console.log(`      ✓ ${kp.type}: localized transform${fallbackIndicator}`);
+          } else {
+            // Fallback to global homography for this keypoint if no localized transform
+            const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
+            if (homographyToUse) {
+              const transformed = transformPoints([kp], homographyToUse);
+              if (transformed && transformed[0]) {
+                imageKeypoints.push(transformed[0]);
+                console.log(`      ⚠️ ${kp.type}: using global homography (no localized transform)`);
+              } else {
+                console.warn(`      ✗ ${kp.type}: transformation failed, skipping`);
+              }
+            } else {
+              console.warn(`      ✗ ${kp.type}: no homography matrix available, skipping`);
+            }
+          }
+        }
+      } else {
+        // Use global homography (legacy path)
+        const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
+        const homographySource = job.serverHomographyMatrix ? 'server homography' : 'SuperPoint (frontend)';
+        
+        console.log(`      🔄 Using ${homographySource} for transformation`);
+        imageKeypoints = transformPoints(videoKeypoints, homographyToUse);
       }
-    });
+      
+      if (!imageKeypoints || !Array.isArray(imageKeypoints) || imageKeypoints.length === 0) {
+        console.warn(`      ⚠️ Keypoint transformation failed for frame ${frameIndex + 1}, skipping`);
+        continue;
+      }
+      
+      // Build originalPoints and transformedPoints arrays
+      const originalPoints = videoKeypoints.map(kp => ({
+        name: kp.type,
+        x: kp.x,
+        y: kp.y,
+        confidence: kp.confidence
+      }));
+      
+      const transformedPoints = imageKeypoints.map(kp => ({
+        name: kp.type,
+        x: kp.x,
+        y: kp.y,
+        confidence: kp.confidence
+      }));
+      
+      transformedFrames.push({
+        ...frame,
+        frameIndex, // Preserve original frame number
+        originalPoints,
+        transformedPoints,
+        poseData: {
+          keypoints: imageKeypoints.reduce((acc, kp) => {
+            acc[kp.type] = { x: kp.x, y: kp.y, confidence: kp.confidence };
+            return acc;
+          }, {}),
+          confidence: frame.poseData.confidence
+        }
+      });
+      
+      console.log(`      ✓ Frame ${frameIndex + 1} transformed successfully`);
+    }
     
-    console.log(`   ✓ Transformed ${transformedFrames.length} frames to image coordinates`);
+    if (transformedFrames.length === 0) {
+      console.warn('⚠️ No frames could be transformed - skipping problem scoring');
+      return [];
+    }
+    
+    console.log(`\n✓ Successfully transformed ${transformedFrames.length} frame(s)`);
     
     // Validate boulder problems is an array
     if (!Array.isArray(job.boulderProblems)) {
@@ -1148,14 +1222,14 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       hasMetadata: !!job.holdDetection?.detectionResults?.metadata
     });
     console.log(`   📐 Coordinate spaces:`);
-    console.log(`      Video frame: ${bestFrame.imageData?.width}×${bestFrame.imageData?.height}`);
+    console.log(`      Video frame: ${transformedFrames[0].imageData?.width}×${transformedFrames[0].imageData?.height}`);
     console.log(`      Location image (topo): ${bestMatchImage.referenceImageDimensions.width}×${bestMatchImage.referenceImageDimensions.height}`);
     console.log(`      Detection image (AI): ${job.holdDetection?.detectionResults?.metadata?.imageDimensions?.width}×${job.holdDetection?.detectionResults?.metadata?.imageDimensions?.height}`);
     
     // Create the getKeypointRowsForFrame function that calculateProblemScores expects
     // 🎯 IMPORTANT: Pass matchedImageProblems (filtered), not all problems
-    const getKeypointRowsForFrame = (frame) => {
-      const rows = getKeypointRows(frame, transformedFrames, bestMatchImage, matchedImageProblems);
+    const getKeypointRowsForFrame = (frame, includeDebugData = false) => {
+      const rows = getKeypointRows(frame, transformedFrames, bestMatchImage, matchedImageProblems, includeDebugData);
       console.log(`   🔍 getKeypointRows returned ${rows.length} rows for frame`);
       if (rows.length > 0) {
         console.log(`      First keypoint's 3 closest holds:`);
@@ -1163,6 +1237,8 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         console.log(`        2nd: ${rows[0].secondClosestHold?.id} (problem: ${rows[0].secondClosestProblem?.name || 'none'})`);
         console.log(`        3rd: ${rows[0].thirdClosestHold?.id} (problem: ${rows[0].thirdClosestProblem?.name || 'none'})`);
       }
+      // Store for diagnostics (with debug data for analysis reports)
+      job.keypointRows = rows;
       return rows;
     };
     

@@ -219,9 +219,33 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
       hold,
       distance: Math.round(distance),
       score,
-      problem: null // Will be assigned for top 3 only
+      problem: null, // Will be assigned for top 3 only
+      skippedReason: null // Track if hold was skipped and why
     };
-  }).filter(Boolean); // Remove nulls from failed coordinate extraction
+  }).filter((item) => {
+    // Collect skipped holds for debugging
+    if (!item) {
+      return false; // Filter out nulls from failed coordinate extraction
+    }
+    return true;
+  });
+
+  // Track skipped holds (those that failed coordinate extraction)
+  const skippedHolds = allHolds.map((hold) => {
+    try {
+      extractHoldCoordinates(hold);
+      return null; // Successfully extracted, not skipped
+    } catch (err) {
+      // Find problem name if this hold belongs to one
+      const problem = boulderProblems && hold.id ? 
+        findBoulderProblemForHold(hold.id, boulderProblems) : null;
+      return {
+        problemName: problem?.name || 'Unknown',
+        holdId: hold.id,
+        reason: err.message
+      };
+    }
+  }).filter(Boolean);
 
   // STEP 3: Sort and get top 3
   holdsWithDistances.sort((a, b) => a.distance - b.distance);
@@ -239,11 +263,26 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
   const secondClosest = top3[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
   const thirdClosest = top3[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
 
+  // Build debug data (all distances with problem names)
+  const allDistances = holdsWithDistances.map(item => {
+    const problem = boulderProblems && item.hold.id ? 
+      findBoulderProblemForHold(item.hold.id, boulderProblems) : null;
+    return {
+      problemName: problem?.name || `Hold ${item.hold.id}`,
+      distance: item.distance
+    };
+  });
+
   return { 
     closest, 
     secondClosest, 
     thirdClosest,
-    allHoldsCount: allHolds.length
+    allHoldsCount: allHolds.length,
+    debugData: {
+      totalHolds: allHolds.length,
+      allDistances,
+      skippedHolds
+    }
   };
 }
 
@@ -253,9 +292,10 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
  * @param {Array} extractedFrames - Array of all extracted frames
  * @param {Object} bestMatchImage - The matched image data
  * @param {Array} boulderProblems - Array of boulder problems
+ * @param {boolean} includeDebugData - Whether to include detailed debug data for diagnostics
  * @returns {Array} - Array of keypoint data with hold matching info
  */
-export function getKeypointRows(frame, extractedFrames, bestMatchImage, boulderProblems) {
+export function getKeypointRows(frame, extractedFrames, bestMatchImage, boulderProblems, includeDebugData = false) {
   const keypointData = [];
 
   // Simplified: The transformed points already have all the data we need!
@@ -280,7 +320,7 @@ export function getKeypointRows(frame, extractedFrames, bestMatchImage, boulderP
         'rightFoot': 'Right Ankle'
       };
 
-      keypointData.push({
+      const keypointRow = {
         name: displayNames[transformedPoint.name] || transformedPoint.name,
         original: originalPoint,
         transformed: transformedPoint,
@@ -298,7 +338,18 @@ export function getKeypointRows(frame, extractedFrames, bestMatchImage, boulderP
         thirdClosestProblem: holdsInfo.thirdClosest.problem,
         thirdClosestDistance: holdsInfo.thirdClosest.distance,
         thirdClosestScore: holdsInfo.thirdClosest.score,
-      });
+      };
+
+      // Add debug data if requested (for diagnostics)
+      if (includeDebugData && holdsInfo.debugData) {
+        keypointRow.keypointX = transformedPoint.x;
+        keypointRow.keypointY = transformedPoint.y;
+        keypointRow.totalProblemsEvaluated = holdsInfo.debugData.totalHolds;
+        keypointRow.allDistances = holdsInfo.debugData.allDistances;
+        keypointRow.skippedProblems = holdsInfo.debugData.skippedHolds;
+      }
+
+      keypointData.push(keypointRow);
     });
   }
 

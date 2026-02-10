@@ -184,10 +184,95 @@
 
           <!-- Scores -->
           <div v-if="report.scores && report.scores.length > 0" class="mt-3">
-            <div class="text-sm font-medium text-gray-700 mb-2">Top Matches:</div>
+            <div class="text-sm font-medium text-gray-700 mb-2">Top Matches (Overall):</div>
             <div class="space-y-1">
               <div v-for="(score, i) in report.scores.slice(0, 3)" :key="i" class="text-sm">
                 {{ i + 1 }}. {{ score.name }} - {{ (score.score * 100).toFixed(1) }}%
+              </div>
+            </div>
+          </div>
+
+          <!-- Per-Limb Scoring -->
+          <div v-if="report.keypointRows && report.keypointRows.length > 0" class="mt-3">
+            <div class="text-sm font-medium text-gray-700 mb-2">
+              Per-Limb Top 3 Problems:
+              <span class="text-xs text-gray-500 font-normal ml-2">
+                (Check expanded details for raw coordinates and all distances)
+              </span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div v-for="(row, i) in report.keypointRows" :key="i" class="bg-gray-50 p-3 rounded border">
+                <div class="font-medium text-sm text-gray-900 mb-2">{{ row.name }}</div>
+                
+                <!-- Anomaly warning: Has 3rd but missing 1st/2nd -->
+                <div 
+                  v-if="(row.thirdClosestProblem && !row.closestProblem) || (row.thirdClosestProblem && !row.secondClosestProblem)"
+                  class="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800"
+                >
+                  ⚠️ Data anomaly: Missing rank {{ !row.closestProblem ? '1' : '' }}{{ !row.closestProblem && !row.secondClosestProblem ? ' and ' : '' }}{{ !row.secondClosestProblem && row.closestProblem ? '2' : '' }}
+                  <div class="text-yellow-700 mt-1">
+                    Possible causes: Invalid hold data, scoring logic skipped entries, or data structure error
+                  </div>
+                  <!-- Show raw values for debugging -->
+                  <details class="mt-2">
+                    <summary class="cursor-pointer text-yellow-800 font-medium">🔍 Show raw data</summary>
+                    <div class="mt-2 p-2 bg-white rounded text-xs font-mono space-y-1">
+                      <div>closestProblem: {{ JSON.stringify(row.closestProblem) }}</div>
+                      <div>closestHold: {{ JSON.stringify(row.closestHold) }}</div>
+                      <div>distanceToHold: {{ row.distanceToHold }}</div>
+                      <div class="mt-1 pt-1 border-t">secondClosestProblem: {{ JSON.stringify(row.secondClosestProblem) }}</div>
+                      <div>secondClosestHold: {{ JSON.stringify(row.secondClosestHold) }}</div>
+                      <div>secondClosestDistance: {{ row.secondClosestDistance }}</div>
+                      <div class="mt-1 pt-1 border-t">thirdClosestProblem: {{ JSON.stringify(row.thirdClosestProblem) }}</div>
+                      <div>thirdClosestHold: {{ JSON.stringify(row.thirdClosestHold) }}</div>
+                      <div>thirdClosestDistance: {{ row.thirdClosestDistance }}</div>
+                    </div>
+                  </details>
+                </div>
+                
+                <div class="space-y-1.5 text-xs">
+                  <div v-if="row.closestProblem" class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <span class="text-gray-500">1.</span>
+                      <span class="ml-1 font-medium">{{ row.closestProblem.name }}</span>
+                      <span v-if="row.closestProblem.grade" class="ml-1 text-gray-500">({{ row.closestProblem.grade }})</span>
+                    </div>
+                    <div class="text-gray-600 ml-2">{{ row.distanceToHold }}px</div>
+                  </div>
+                  <div v-else-if="row.secondClosestProblem || row.thirdClosestProblem" class="text-gray-400 italic">
+                    1. [Not found]
+                  </div>
+                  
+                  <div v-if="row.secondClosestProblem" class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <span class="text-gray-500">2.</span>
+                      <span class="ml-1">{{ row.secondClosestProblem.name }}</span>
+                      <span v-if="row.secondClosestProblem.grade" class="ml-1 text-gray-500">({{ row.secondClosestProblem.grade }})</span>
+                    </div>
+                    <div class="text-gray-600 ml-2">{{ row.secondClosestDistance }}px</div>
+                  </div>
+                  <div v-else-if="row.thirdClosestProblem" class="text-gray-400 italic">
+                    2. [Not found]
+                  </div>
+                  
+                  <div v-if="row.thirdClosestProblem" class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <span class="text-gray-500">3.</span>
+                      <span class="ml-1">{{ row.thirdClosestProblem.name }}</span>
+                      <span v-if="row.thirdClosestProblem.grade" class="ml-1 text-gray-500">({{ row.thirdClosestProblem.grade }})</span>
+                    </div>
+                    <div class="text-gray-600 ml-2">{{ row.thirdClosestDistance }}px</div>
+                  </div>
+                  
+                  <div v-if="!row.closestProblem && !row.secondClosestProblem && !row.thirdClosestProblem" class="text-gray-400 italic">
+                    No problems found nearby
+                  </div>
+                  
+                  <!-- Debug info when available -->
+                  <div v-if="row.debugInfo" class="mt-2 p-2 bg-gray-100 rounded text-xs font-mono text-gray-600">
+                    {{ row.debugInfo }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -302,6 +387,49 @@
             <div class="font-medium text-gray-700 mb-2">User Agent:</div>
             <div class="text-gray-600 break-all">{{ report.device.userAgent }}</div>
           </div>
+
+          <!-- Raw Keypoint Data (for debugging missing closest problems) -->
+          <div v-if="report.keypointRows?.length" class="bg-gray-50 p-3 rounded text-xs">
+            <div class="font-medium text-gray-700 mb-2">🔍 Raw Keypoint Data (for debugging):</div>
+            <div class="space-y-3">
+              <div v-for="(row, i) in report.keypointRows" :key="`keypoint-${i}`" class="bg-white p-2 rounded border">
+                <div class="font-medium text-gray-900 mb-1">{{ row.name }}</div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span class="text-gray-500">Keypoint XY:</span>
+                    <span class="ml-1 font-mono">
+                      {{ row.keypointX !== undefined ? `(${row.keypointX.toFixed(1)}, ${row.keypointY.toFixed(1)})` : 'N/A' }}
+                    </span>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">Problems evaluated:</span>
+                    <span class="ml-1">{{ row.totalProblemsEvaluated || 'N/A' }}</span>
+                  </div>
+                </div>
+                
+                <!-- All distances if available -->
+                <div v-if="row.allDistances?.length" class="mt-2 pt-2 border-t">
+                  <div class="text-gray-600 font-medium mb-1">All distances calculated:</div>
+                  <div class="max-h-32 overflow-y-auto space-y-1">
+                    <div v-for="(dist, j) in row.allDistances" :key="`dist-${j}`" class="flex justify-between">
+                      <span>{{ j + 1 }}. {{ dist.problemName }}</span>
+                      <span class="text-gray-600">{{ dist.distance }}px</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Skipped problems with reasons -->
+                <div v-if="row.skippedProblems?.length" class="mt-2 pt-2 border-t">
+                  <div class="text-red-600 font-medium mb-1">⚠️ Skipped problems ({{ row.skippedProblems.length }}):</div>
+                  <div class="max-h-32 overflow-y-auto space-y-1">
+                    <div v-for="(skip, k) in row.skippedProblems" :key="`skip-${k}`" class="text-red-700">
+                      {{ skip.problemName }}: {{ skip.reason }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -325,11 +453,16 @@
           ✕
         </button>
         <img 
-          :src="selectedImage" 
+          v-if="selectedImageBlobUrl"
+          :src="selectedImageBlobUrl" 
           alt="Debug visualization"
           class="max-w-full max-h-[90vh] object-contain"
           @click.stop
         />
+        <div v-else class="text-white text-center">
+          <div class="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-2"></div>
+          Loading image...
+        </div>
       </div>
     </div>
   </div>
@@ -351,6 +484,7 @@ const userIdFilter = ref('');
 const ascentIdFilter = ref('');
 const expandedReports = ref(new Set());
 const selectedImage = ref(null);
+const selectedImageBlobUrl = ref(null);
 
 const manualCount = computed(() => 
   filteredReports.value.filter(r => !r.autoReported && !r.reportType).length
@@ -534,11 +668,38 @@ const formatLogTime = (timestamp) => {
   return date.toLocaleTimeString();
 };
 
-const viewImage = (url) => {
+// TODO: Remove this workaround once server is updated to use Content-Disposition: inline
+// Currently server returns Content-Disposition: attachment which blocks <img> display
+const viewImage = async (url) => {
   selectedImage.value = url;
+  
+  try {
+    // Fetch image as blob to bypass Content-Disposition: attachment header
+    const response = await fetch(url, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to fetch image:', response.status);
+      return;
+    }
+    
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    selectedImageBlobUrl.value = blobUrl;
+  } catch (error) {
+    console.error('Error loading image:', error);
+  }
 };
 
 const closeImage = () => {
+  // Clean up blob URL to prevent memory leaks
+  if (selectedImageBlobUrl.value) {
+    URL.revokeObjectURL(selectedImageBlobUrl.value);
+    selectedImageBlobUrl.value = null;
+  }
   selectedImage.value = null;
 };
 

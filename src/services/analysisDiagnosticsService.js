@@ -49,10 +49,12 @@ const sanitizeKeypointRows = (rows = []) => rows.map((row) => ({
   distanceToHold: typeof row.distanceToHold === 'number' ? Math.round(row.distanceToHold) : null,
   closestScore: typeof row.closestScore === 'number' ? Number(row.closestScore.toFixed(3)) : null,
   closestHold: sanitizeHold(row.closestHold),
-  secondClosestHold: sanitizeHold(row.secondClosestHold),
-  thirdClosestHold: sanitizeHold(row.thirdClosestHold),
   closestProblem: sanitizeProblem(row.closestProblem),
+  secondClosestDistance: typeof row.secondClosestDistance === 'number' ? Math.round(row.secondClosestDistance) : null,
+  secondClosestHold: sanitizeHold(row.secondClosestHold),
   secondClosestProblem: sanitizeProblem(row.secondClosestProblem),
+  thirdClosestDistance: typeof row.thirdClosestDistance === 'number' ? Math.round(row.thirdClosestDistance) : null,
+  thirdClosestHold: sanitizeHold(row.thirdClosestHold),
   thirdClosestProblem: sanitizeProblem(row.thirdClosestProblem),
 }));
 
