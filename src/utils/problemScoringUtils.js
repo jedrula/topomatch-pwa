@@ -46,11 +46,12 @@ export function calculateProblemScores(transformedFrames, getKeypointRowsForFram
       // - This prevents unreliable detections from skewing results
       const confidence = keypoint.confidence || 0.5; // Default to 50% if missing
       
-      const candidates = [
-        { problem: keypoint.closestProblem, hold: keypoint.closestHold, score: keypoint.closestScore },
-        { problem: keypoint.secondClosestProblem, hold: keypoint.secondClosestHold, score: keypoint.secondClosestScore },
-        { problem: keypoint.thirdClosestProblem, hold: keypoint.thirdClosestHold, score: keypoint.thirdClosestScore }
-      ];
+      // Iterate over all closest holds (configurable via CLOSEST_HOLDS_COUNT)
+      const candidates = (keypoint.closestHolds || []).map(item => ({
+        problem: item.problem,
+        hold: item.hold,
+        score: item.score
+      }));
       
       // Group candidates by problem to only count the best (closest) hold per problem
       const bestByProblem = new Map(); // problemId -> { problem, hold, score }
