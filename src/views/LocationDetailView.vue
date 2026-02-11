@@ -729,13 +729,13 @@ const loadLocationImages = async () => {
     // Filter images by current routesetting
     const imageRecords = await locationService.getLocationImages(locationId.value, currentRoutesetting.value);
 
-    // Transform the records to the format expected by the template
+    // Use server data as-is (includes detectionResults, dimensions, manualHolds, etc.)
     images.value = imageRecords.map((record) => ({
+      ...record,
       id: record.imageId,
       imageId: record.imageId,
       url: record.downloadUrl,
       name: record.fileName,
-      routesettings: record.routesettings || [],
     }));
 
   } catch (err) {

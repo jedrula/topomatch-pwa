@@ -111,12 +111,29 @@ export function findBoulderProblemForHold(holdId, boulderProblems) {
  * @param {Array} boulderProblems - Array of boulder problem objects
  * @returns {Object} - Object with closest, secondClosest, thirdClosest holds
  */
+/**
+ * Number of closest holds to track per keypoint
+ * Increase this to track more alternatives (e.g., top 5 instead of top 3)
+ */
+const CLOSEST_HOLDS_COUNT = 3;
+
+/**
+ * Find closest holds to a keypoint
+ * Returns the N closest holds with their distances and associated problems
+ * 
+ * @param {number} keypointX - Transformed keypoint X in reference image space
+ * @param {number} keypointY - Transformed keypoint Y in reference image space
+ * @param {Object} bestMatchImage - Matched image with dimensions and holds
+ * @param {Array} boulderProblems - Boulder problems with hold associations
+ * @returns {Object} { closestHolds: [{hold, problem, distance, score}], allHoldsCount, allDistances, skippedProblems }
+ */
 export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderProblems) {
   if (!bestMatchImage || !bestMatchImage.name) {
     return { 
-      closest: { hold: null, problem: null, distance: Infinity, score: 0 },
-      secondClosest: { hold: null, problem: null, distance: Infinity, score: 0 },
-      thirdClosest: { hold: null, problem: null, distance: Infinity, score: 0 }
+      closestHolds: Array(CLOSEST_HOLDS_COUNT).fill({ hold: null, problem: null, distance: Infinity, score: 0 }),
+      allHoldsCount: 0,
+      allDistances: [],
+      skippedProblems: []
     };
   }
 
@@ -247,21 +264,26 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
     }
   }).filter(Boolean);
 
-  // STEP 3: Sort and get top 3
+  // STEP 3: Sort and get top N
   holdsWithDistances.sort((a, b) => a.distance - b.distance);
-  const top3 = holdsWithDistances.slice(0, 3);
+  const topN = holdsWithDistances.slice(0, CLOSEST_HOLDS_COUNT);
   
-  // STEP 4: Find boulder problems ONLY for the top 3 winners
-  top3.forEach(item => {
+  // STEP 4: Find boulder problems ONLY for the top N winners
+  topN.forEach(item => {
     if (boulderProblems && item.hold.id) {
       item.problem = findBoulderProblemForHold(item.hold.id, boulderProblems);
     }
   });
   
-  // Extract results
-  const closest = top3[0] || { hold: null, problem: null, distance: Infinity, score: 0 };
-  const secondClosest = top3[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
-  const thirdClosest = top3[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
+  // Pad with null entries if we didn't find enough holds
+  while (topN.length < CLOSEST_HOLDS_COUNT) {
+    topN.push({ hold: null, problem: null, distance: Infinity, score: 0 });
+  }
+  
+  // Legacy named properties (for backward compatibility - will be removed)
+  const closest = topN[0];
+  const secondClosest = topN[1];
+  const thirdClosest = topN[2];
 
   // Build debug data (all distances with problem names)
   const allDistances = holdsWithDistances.map(item => {
@@ -274,9 +296,15 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
   });
 
   return { 
+    // New array-based API (use this going forward)
+    closestHolds: topN,
+    
+    // Legacy named properties (DEPRECATED - for backward compatibility only)
     closest, 
     secondClosest, 
     thirdClosest,
+    
+    // Metadata
     allHoldsCount: allHolds.length,
     debugData: {
       totalHolds: allHolds.length,

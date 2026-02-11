@@ -64,14 +64,10 @@ export const analysisDiagnosticsService = {
   async logSnapshot({
     ascentId,
     locationId = null,
-    bestFrameIndex = null,
-    frameDimensions = null,
-    poseConfidence = null,
     matchedImageId = null,
     matchedImageUrl = null,
     matchSummary = {},
-    transformedKeypoints = {},
-    keypointRows = [],
+    frames = [],
     scoreSummary = [],
     holdsSummary = {},
     userId: explicitUserId = null,
@@ -83,18 +79,13 @@ export const analysisDiagnosticsService = {
 
     const user = explicitUserId ? { uid: explicitUserId } : getCurrentUser();
 
+    // Use ascentId as document ID to ensure one diagnostic per ascent
     const docRef = doc(db, COLLECTION, ascentId);
     const payload = {
       ascentId,
       userId: (explicitUserId || user?.uid) ?? null,
       locationId: locationId || null,
-      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      bestFrame: {
-        index: typeof bestFrameIndex === 'number' ? bestFrameIndex : null,
-        ...(frameDimensions || {}),
-        poseConfidence: typeof poseConfidence === 'number' ? Number(poseConfidence.toFixed(3)) : null,
-      },
       match: {
         matchedImageId: matchedImageId || null,
         matchedImageUrl: matchedImageUrl || null,
@@ -107,12 +98,9 @@ export const analysisDiagnosticsService = {
         matchVisualizationUrl: matchSummary.matchVisualizationUrl || null,
         combinedDebugUrl: matchSummary.combinedDebugUrl || null,
         localizedTransforms: matchSummary.localizedTransforms || [],
+        localizedTransformsCounts: matchSummary.localizedTransformsCounts || [],
       },
-      keypoints: {
-        video: sanitizePoints(transformedKeypoints.original || []),
-        image: sanitizePoints(transformedKeypoints.image || []),
-      },
-      keypointRows: sanitizeKeypointRows(keypointRows),
+      frames: frames || [],
       scores: scoreSummary || [],
       holdsSummary: {
         totalHolds: holdsSummary.totalHolds ?? null,
@@ -121,7 +109,11 @@ export const analysisDiagnosticsService = {
       },
     };
 
-    await setDoc(docRef, payload);
+    // Use merge to preserve createdAt on updates, set it on first creation
+    await setDoc(docRef, {
+      ...payload,
+      createdAt: serverTimestamp(), // Only set if document doesn't exist
+    }, { merge: true });
   },
 
   async fetchLatest({ limitCount = 100, userId = null } = {}) {

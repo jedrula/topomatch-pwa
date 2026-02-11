@@ -184,7 +184,9 @@
 
           <!-- Scores -->
           <div v-if="report.scores && report.scores.length > 0" class="mt-3">
-            <div class="text-sm font-medium text-gray-700 mb-2">Top Matches (Overall):</div>
+            <div class="text-sm font-medium text-gray-700 mb-2">
+              Top Matches (Overall - Averaged across {{ report.frames?.length || 1 }} frame{{ (report.frames?.length || 1) > 1 ? 's' : '' }}):
+            </div>
             <div class="space-y-1">
               <div v-for="(score, i) in report.scores.slice(0, 3)" :key="i" class="text-sm">
                 {{ i + 1 }}. {{ score.name }} - {{ (score.score * 100).toFixed(1) }}%
@@ -192,103 +194,59 @@
             </div>
           </div>
 
-          <!-- Per-Limb Scoring -->
-          <div v-if="report.keypointRows && report.keypointRows.length > 0" class="mt-3">
-            <div class="text-sm font-medium text-gray-700 mb-2">
-              Per-Limb Top 3 Problems:
-              <span class="text-xs text-gray-500 font-normal ml-2">
-                (Check expanded details for raw coordinates and all distances)
-              </span>
+          <!-- Multi-Frame Analysis -->
+          <div v-if="report.frames && report.frames.length > 0" class="mt-4 border-t pt-3">
+            <div class="text-sm font-medium text-gray-700 mb-3">
+              🎯 Per-Frame Limb Matches ({{ report.frames.length }} frame{{ report.frames.length > 1 ? 's' : '' }}):
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div v-for="(row, i) in report.keypointRows" :key="i" class="bg-gray-50 p-3 rounded border">
-                <div class="font-medium text-sm text-gray-900 mb-2">{{ row.name }}</div>
-                
-                <!-- Anomaly warning: Has 3rd but missing 1st/2nd -->
-                <div 
-                  v-if="(row.thirdClosestProblem && !row.closestProblem) || (row.thirdClosestProblem && !row.secondClosestProblem)"
-                  class="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800"
-                >
-                  ⚠️ Data anomaly: Missing rank {{ !row.closestProblem ? '1' : '' }}{{ !row.closestProblem && !row.secondClosestProblem ? ' and ' : '' }}{{ !row.secondClosestProblem && row.closestProblem ? '2' : '' }}
-                  <div class="text-yellow-700 mt-1">
-                    Possible causes: Invalid hold data, scoring logic skipped entries, or data structure error
-                  </div>
-                  <!-- Show raw values for debugging -->
-                  <details class="mt-2">
-                    <summary class="cursor-pointer text-yellow-800 font-medium">🔍 Show raw data</summary>
-                    <div class="mt-2 p-2 bg-white rounded text-xs font-mono space-y-1">
-                      <div>closestProblem: {{ JSON.stringify(row.closestProblem) }}</div>
-                      <div>closestHold: {{ JSON.stringify(row.closestHold) }}</div>
-                      <div>distanceToHold: {{ row.distanceToHold }}</div>
-                      <div class="mt-1 pt-1 border-t">secondClosestProblem: {{ JSON.stringify(row.secondClosestProblem) }}</div>
-                      <div>secondClosestHold: {{ JSON.stringify(row.secondClosestHold) }}</div>
-                      <div>secondClosestDistance: {{ row.secondClosestDistance }}</div>
-                      <div class="mt-1 pt-1 border-t">thirdClosestProblem: {{ JSON.stringify(row.thirdClosestProblem) }}</div>
-                      <div>thirdClosestHold: {{ JSON.stringify(row.thirdClosestHold) }}</div>
-                      <div>thirdClosestDistance: {{ row.thirdClosestDistance }}</div>
-                    </div>
-                  </details>
-                </div>
-                
-                <div class="space-y-1.5 text-xs">
-                  <div v-if="row.closestProblem" class="flex items-start justify-between">
-                    <div class="flex-1">
-                      <span class="text-gray-500">1.</span>
-                      <span class="ml-1 font-medium">{{ row.closestProblem.name }}</span>
-                      <span v-if="row.closestProblem.grade" class="ml-1 text-gray-500">({{ row.closestProblem.grade }})</span>
-                    </div>
-                    <div class="text-gray-600 ml-2">{{ row.distanceToHold }}px</div>
-                  </div>
-                  <div v-else-if="row.secondClosestProblem || row.thirdClosestProblem" class="text-gray-400 italic">
-                    1. [Not found]
-                  </div>
-                  
-                  <div v-if="row.secondClosestProblem" class="flex items-start justify-between">
-                    <div class="flex-1">
-                      <span class="text-gray-500">2.</span>
-                      <span class="ml-1">{{ row.secondClosestProblem.name }}</span>
-                      <span v-if="row.secondClosestProblem.grade" class="ml-1 text-gray-500">({{ row.secondClosestProblem.grade }})</span>
-                    </div>
-                    <div class="text-gray-600 ml-2">{{ row.secondClosestDistance }}px</div>
-                  </div>
-                  <div v-else-if="row.thirdClosestProblem" class="text-gray-400 italic">
-                    2. [Not found]
-                  </div>
-                  
-                  <div v-if="row.thirdClosestProblem" class="flex items-start justify-between">
-                    <div class="flex-1">
-                      <span class="text-gray-500">3.</span>
-                      <span class="ml-1">{{ row.thirdClosestProblem.name }}</span>
-                      <span v-if="row.thirdClosestProblem.grade" class="ml-1 text-gray-500">({{ row.thirdClosestProblem.grade }})</span>
-                    </div>
-                    <div class="text-gray-600 ml-2">{{ row.thirdClosestDistance }}px</div>
-                  </div>
-                  
-                  <div v-if="!row.closestProblem && !row.secondClosestProblem && !row.thirdClosestProblem" class="text-gray-400 italic">
-                    No problems found nearby
-                  </div>
-                  
-                  <!-- Debug info when available -->
-                  <div v-if="row.debugInfo" class="mt-2 p-2 bg-gray-100 rounded text-xs font-mono text-gray-600">
-                    {{ row.debugInfo }}
+            
+            <div v-for="(frame, frameIdx) in report.frames" :key="frameIdx" class="mb-4 bg-blue-50 p-3 rounded">
+              <div class="font-medium text-sm text-blue-900 mb-2">
+                Frame {{ frameIdx + 1 }} (Video Frame #{{ frame.frameIndex + 1 }})
+              </div>
+              
+              <!-- Per-Frame Scoring -->
+              <div v-if="frame.scoring && frame.scoring.length > 0" class="mb-3 bg-white p-2 rounded">
+                <div class="text-xs font-medium text-gray-700 mb-1">This Frame's Contribution:</div>
+                <div class="space-y-0.5">
+                  <div v-for="(score, i) in frame.scoring" :key="i" class="text-xs">
+                    {{ i + 1 }}. {{ score.name }}: {{ (score.score * 100).toFixed(1) }}% ({{ score.matches }} matches)
                   </div>
                 </div>
+              </div>
+              
+              <!-- Per-Limb Hold Matches -->
+              <div v-if="frame.limbHolds && frame.limbHolds.length > 0">
+                <div class="grid grid-cols-2 gap-2">
+                  <div v-for="(limb, i) in frame.limbHolds" :key="i" class="bg-white p-2 rounded text-xs">
+                    <div class="font-medium text-gray-900 mb-1">{{ limb.limbName }}</div>
+                    <div class="text-gray-600 text-[10px] mb-1.5">
+                      Target: ({{ limb.targetPoint.x }}, {{ limb.targetPoint.y }})
+                      <span class="text-gray-500">• {{ (limb.confidence * 100).toFixed(0) }}% conf</span>
+                    </div>
+                    <div v-if="limb.closestHolds && limb.closestHolds.length > 0" class="space-y-0.5">
+                      <div v-for="(hold, j) in limb.closestHolds" :key="j" class="text-gray-700 text-[11px]">
+                        <span class="font-mono">{{ hold.distance }}px</span>
+                        <span class="mx-0.5">→</span>
+                        <span :style="{ color: hold.problemColor }" class="font-medium">{{ hold.problemName }}</span>
+                        <span class="text-gray-400 text-[10px] ml-0.5">({{ hold.holdId }})</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-xs text-gray-500 italic">
+                No limb data for this frame
               </div>
             </div>
           </div>
 
           <!-- Localized Transforms -->
-          <div v-if="report.match?.localizedTransforms && report.match.localizedTransforms.length > 0" class="mt-3">
+          <div v-if="report.match?.localizedTransformsCounts && report.match.localizedTransformsCounts.length > 0" class="mt-3">
             <div class="text-sm font-medium text-gray-700 mb-2">Localized Transforms:</div>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div v-for="(transform, i) in report.match.localizedTransforms" :key="i" class="bg-gray-50 p-2 rounded">
-                <div class="font-medium">{{ transform.name }}</div>
-                <div class="text-gray-600">
-                  Confidence: {{ (transform.confidence * 100).toFixed(1) }}%
-                </div>
-                <div class="text-gray-600">
-                  Inliers: {{ transform.inlier_count }}/{{ transform.total_matches }}
-                </div>
+            <div class="text-xs text-gray-600">
+              <div v-for="(count, frameIdx) in report.match.localizedTransformsCounts" :key="frameIdx">
+                Frame {{ frameIdx + 1 }}: {{ count }} transforms
               </div>
             </div>
           </div>
