@@ -102,7 +102,7 @@ const handleHover = (isEntering, event) => {
   stroke: transparent;
   stroke-width: 50;
   paint-order: stroke fill;
-  pointer-events: stroke;
+  pointer-events: all;
   cursor: pointer;
 }
 
@@ -111,7 +111,7 @@ const handleHover = (isEntering, event) => {
   stroke: transparent;
   stroke-width: 8;
   paint-order: stroke fill;
-  pointer-events: stroke;
+  pointer-events: all;
   cursor: pointer;
 }
 
@@ -135,7 +135,7 @@ const handleHover = (isEntering, event) => {
   fill: transparent !important;
   filter: drop-shadow(0 0 8px var(--hold-color));
   animation: pulse-selected 1s ease-in-out infinite;
-  pointer-events: stroke;
+  pointer-events: all;
 }
 
 @keyframes pulse-selected {

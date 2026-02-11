@@ -69,7 +69,6 @@ const props = defineProps({
 
 defineEmits(['click']);
 
-
 const thumbnailUrl = computed(() => {
   // Handle both flat (transformed) and nested (raw) structures
   return props.ascent.thumbnailUrl || props.ascent.video?.thumbnailUrl || getDefaultVideoPoster();

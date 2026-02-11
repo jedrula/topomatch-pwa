@@ -50,7 +50,7 @@
     <canvas
       v-if="isAnyDrawingMode"
       ref="drawingCanvas"
-      class="absolute inset-0 w-full h-full z-30 cursor-crosshair pointer-events-auto"
+      class="z-30 cursor-crosshair pointer-events-auto"
       @mousedown="startDrawing"
       @mousemove="updateDrawing"
       @mouseup="finishDrawing"
@@ -127,6 +127,7 @@
               ? 'bg-blue-500 text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
           ]"
+          title="Quick Draw Mode - Click holds or drag to draw new holds. TIP: Hold ⌘/Ctrl to temporarily activate Quick Draw!"
         >
           <span>⚡</span>
           <span>Quick Draw</span>
@@ -285,6 +286,10 @@ const hoveredProblemIdLocal = ref(null);
 const isDrawing = ref(false);
 const drawingPath = ref([]); // Points that make up the free drawing path
 
+// Command key shortcut state for temporary quick-draw mode
+const isCommandKeyHeld = ref(false);
+const previousToolBeforeCommand = ref(null);
+
 // Dragging functionality for Hold Selection Mode panel
 const {
   isDragging: isDraggingToolPanel,
@@ -376,13 +381,18 @@ const svgViewBox = computed(() => {
 const getCanvasCoordinates = (event) => {
   const canvas = drawingCanvas.value;
   const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-
+  
+  // For touch events, use the first touch point
+  const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+  const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+  
+  // Calculate coordinates relative to canvas (no scaling needed - canvas size = display size)
   const coords = {
-    x: (event.clientX - rect.left) * scaleX,
-    y: (event.clientY - rect.top) * scaleY,
+    x: clientX - rect.left,
+    y: clientY - rect.top,
   };
+
+  console.log('🖱️ Canvas coords:', coords, 'from client:', { clientX, clientY }, 'rect:', { left: rect.left, top: rect.top });
 
   return coords;
 };
@@ -398,7 +408,9 @@ const getImageCoordinates = (canvasX, canvasY) => {
     x: canvasX * scaleX,
     y: canvasY * scaleY,
   };
+console.log('🖼️ Image coords:', coords, 'from canvas:', { canvasX, canvasY }, 'scale:', { scaleX, scaleY });
 
+  
   return coords;
 };
 
@@ -900,15 +912,33 @@ function setupCanvas() {
 
   // Wait for next tick to ensure DOM is updated
   nextTick(() => {
-    // Set canvas size to match the actual displayed image size
-    const rect = img.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    // Get the actual position and size of the image
+    const imgRect = img.getBoundingClientRect();
+    const containerRect = canvas.parentElement.getBoundingClientRect();
+    
+    // Set canvas internal resolution to match image display size
+    canvas.width = imgRect.width;
+    canvas.height = imgRect.height;
 
-    // Set canvas style dimensions to match
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
+    // Position canvas to exactly overlay the image
+    // Calculate offset from container to image
+    const offsetLeft = imgRect.left - containerRect.left;
+    const offsetTop = imgRect.top - containerRect.top;
+    
+    canvas.style.position = 'absolute';
+    canvas.style.left = offsetLeft + 'px';
+    canvas.style.top = offsetTop + 'px';
+    canvas.style.width = imgRect.width + 'px';
+    canvas.style.height = imgRect.height + 'px';
 
+    console.log('📐 Canvas setup:', {
+      canvasInternalSize: { width: canvas.width, height: canvas.height },
+      canvasPosition: { left: offsetLeft, top: offsetTop },
+      canvasDisplaySize: { width: imgRect.width, height: imgRect.height },
+      imagePosition: { left: imgRect.left, top: imgRect.top },
+      imageNaturalSize: { width: img.naturalWidth, height: img.naturalHeight },
+      containerPosition: { left: containerRect.left, top: containerRect.top }
+    });
 
     // Clear any existing drawing
     const ctx = canvas.getContext('2d');
@@ -916,13 +946,47 @@ function setupCanvas() {
   });
 }
 
+// Command key handlers for temporary quick-draw activation
+const handleKeyDown = (event) => {
+  // Only activate when creating/editing a boulder problem and Command/Ctrl is pressed
+  if ((event.metaKey || event.ctrlKey) && isCreatingOrEditing.value && !isCommandKeyHeld.value) {
+    isCommandKeyHeld.value = true;
+    
+    // Store current tool if not already in quick-draw mode
+    if (props.boulderHoldSelectionTool !== 'quick-draw') {
+      previousToolBeforeCommand.value = props.boulderHoldSelectionTool;
+      emit('tool-selection-change', 'quick-draw');
+    }
+  }
+};
+
+const handleKeyUp = (event) => {
+  // Restore previous tool when Command/Ctrl is released
+  if ((!event.metaKey && !event.ctrlKey) && isCommandKeyHeld.value) {
+    isCommandKeyHeld.value = false;
+    
+    // Restore previous tool if we stored one
+    if (previousToolBeforeCommand.value) {
+      emit('tool-selection-change', previousToolBeforeCommand.value);
+      previousToolBeforeCommand.value = null;
+    }
+  }
+};
+
 onMounted(() => {
   nextTick(() => {
     setupCanvas();
   });
+  
+  // Add keyboard event listeners for Command key shortcut
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
 });
 
 onUnmounted(() => {
+  // Clean up keyboard event listeners
+  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keyup', handleKeyUp);
 });
 
 // Watch for drawing mode changes

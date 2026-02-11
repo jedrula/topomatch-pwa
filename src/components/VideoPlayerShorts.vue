@@ -79,7 +79,7 @@
 
       <!-- Empty state -->
       <div 
-        v-else-if="videos.length === 0"
+        v-else-if="videos.length === 0 && !loading"
         class="w-full h-full flex items-center justify-center text-white"
       >
         <div class="text-center">

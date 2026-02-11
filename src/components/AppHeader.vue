@@ -15,7 +15,7 @@
         <div class="flex items-center gap-1">
           <router-link
             v-if="userStore.canViewLocations"
-            to="/"
+            to="/pick-location"
             class="h-8 px-3 flex items-center text-[13px] text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-100/60 transition-all"
             :class="{ 'text-gray-900 bg-gray-100/80': isLocationRoute }"
           >
@@ -28,6 +28,14 @@
             :class="{ 'text-gray-900 bg-gray-100/80': isJobsRoute }"
           >
             Jobs
+          </router-link>
+          <router-link
+            v-if="userStore.isAdmin"
+            to="/admin"
+            class="h-8 px-3 flex items-center text-[13px] text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-100/60 transition-all"
+            :class="{ 'text-gray-900 bg-gray-100/80': $route.path.startsWith('/admin') }"
+          >
+            Admin
           </router-link>
         </div>
 
@@ -90,7 +98,7 @@
       <div class="px-4 py-3 space-y-0.5">
         <router-link
           v-if="userStore.canViewLocations"
-          to="/"
+          to="/pick-location"
           @click="closeMobileMenu"
           class="h-9 px-3 flex items-center text-[14px] text-gray-700 hover:bg-gray-100/60 rounded-md transition-colors"
           :class="{ 'bg-gray-100/80 text-gray-900': isLocationRoute }"
@@ -105,6 +113,15 @@
           :class="{ 'bg-gray-100/80 text-gray-900': isJobsRoute }"
         >
           Jobs
+        </router-link>
+        <router-link
+          v-if="userStore.isAdmin"
+          to="/admin"
+          @click="closeMobileMenu"
+          class="h-9 px-3 flex items-center text-[14px] text-gray-700 hover:bg-gray-100/60 rounded-md transition-colors"
+          :class="{ 'bg-gray-100/80 text-gray-900': $route.path.startsWith('/admin') }"
+        >
+          Admin
         </router-link>
         
         <div v-if="userStore.isLoggedIn" class="pt-3 mt-3 border-t border-gray-200/60 space-y-0.5">

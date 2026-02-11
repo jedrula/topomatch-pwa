@@ -18,13 +18,24 @@
         v-if="currentImage"
         class="absolute bottom-6 right-6 text-white text-right bg-black bg-opacity-50 p-3 rounded-lg text-sm z-40"
       >
-        <div class="text-xs text-gray-300">
+        <div class="text-xs text-gray-300 flex items-center gap-2">
           <p v-if="currentImageProblems.length > 0" class="text-blue-300">
             {{ currentImageProblems.length }} boulder problem{{ currentImageProblems.length === 1 ? '' : 's' }}
           </p>
           <p v-else class="text-gray-400">
             No boulder problems
           </p>
+          <!-- Edit icon for admin users -->
+          <RouterLink
+            v-if="userStore.isAdmin"
+            :to="`/location/${locationId}/holds-server?imageId=${currentImage.imageId}&imageName=${encodeURIComponent(currentImage.name)}`"
+            class="text-white hover:text-blue-300 transition-colors"
+            title="Edit holds and problems"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </RouterLink>
         </div>
       </div>
 
@@ -178,13 +189,14 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, RouterLink } from 'vue-router';
 import ImageWithHolds from './ImageWithHolds.vue';
 import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
 import BoulderProblemDrawer from './BoulderProblemDrawer.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
+import { useUserStore } from '@/stores/userStore';
 import { getResponsiveImageUrls } from '@/utils/imageResize.js';
 import { boulderProblemsServiceV2 } from '@/services/boulderProblemsServiceV2.js';
 import { videoService } from '@/services/videoService.js';
@@ -217,6 +229,7 @@ const emit = defineEmits(['close', 'navigate', 'navigate-next', 'navigate-previo
 const route = useRoute();
 const router = useRouter();
 const boulderProblemsStore = useBoulderProblemsStore();
+const userStore = useUserStore();
 
 // Assignment mode detection
 const isAssignmentMode = computed(() => !!route.query.assignVideoId);

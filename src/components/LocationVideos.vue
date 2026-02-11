@@ -39,7 +39,7 @@
       </div>
 
       <!-- Empty state -->
-      <div v-else-if="videos.length === 0" class="text-center py-12">
+      <div v-else-if="videos.length === 0 && !route.query.videoId" class="text-center py-12">
         <div class="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
           <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2z" />
@@ -110,39 +110,56 @@
                 <span class="text-xs text-gray-700 font-medium">{{ getVideoProgressText(video) }}</span>
               </div>
 
-              <!-- Action buttons (only shown when NOT analyzing) -->
-              <template v-else>
-                <!-- Delete button (only for video owner) -->
-                <button
-                  v-if="canDeleteVideo(video)"
-                  @click.stop="handleDeleteClick(video)"
-                  class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-red-600 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
-                  :aria-label="`Delete video ${index + 1}`"
-                  title="Delete video"
+              <!-- Action buttons container (top-right) - all buttons in one container to prevent overlap -->
+              <div
+                v-else
+                class="absolute top-2 right-2 flex gap-1 z-10"
+              >
+                <!-- Diagnostics button (admin only) -->
+                <router-link
+                  v-if="userStore.isAdmin && video.ascentId"
+                  :to="`/admin/diagnostics?ascentId=${video.ascentId}`"
+                  @click.stop
+                  class="w-8 h-8 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
+                  :aria-label="`View diagnostics for video ${index + 1}`"
+                  title="View analysis diagnostics (right-click to open in new tab)"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                </router-link>
+
+                <!-- Change routesetting button (admin only) -->
+                <button
+                  v-if="userStore.isAdmin"
+                  @click.stop="handleChangeRoutesettingClick(video)"
+                  class="w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-purple-600 hover:text-purple-700 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
+                  :aria-label="`Change routesetting for video ${index + 1}`"
+                  title="Change routesetting (clears problem assignment)"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                   </svg>
                 </button>
 
-                <!-- Re-process button (only for unclassified videos that belong to user) -->
+                <!-- Reassign climber button (admin or owner) -->
                 <button
-                  v-if="canReprocessVideo(video)"
-                  @click.stop="handleReprocessClick(video)"
-                  class="absolute top-2 right-12 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
-                  :aria-label="`Re-process video ${index + 1}`"
-                  title="Re-analyze video to detect problem"
+                  v-if="canReassignVideo(video)"
+                  @click.stop="handleReassignClick(video)"
+                  class="w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-green-600 hover:text-green-700 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
+                  :aria-label="`Reassign climber for video ${index + 1}`"
+                  title="Reassign to different climber"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </button>
 
-                <!-- Manual assign button (only for unclassified videos that belong to user) -->
+                <!-- Manual assign button (pick problem) -->
                 <button
                   v-if="canReprocessVideo(video)"
                   @click.stop="handleManualAssignClick(video)"
-                  class="absolute top-2 right-[88px] w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-blue-600 hover:text-blue-700 rounded-full shadow-sm transition-all z-10"
+                  class="w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-blue-600 hover:text-blue-700 rounded-full shadow-sm transition-all"
                   :class="[isTouchDevice ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
                   :aria-label="`Manually assign problem to video ${index + 1}`"
                   title="Pick a problem from images"
@@ -152,19 +169,32 @@
                   </svg>
                 </button>
 
-                <!-- Change routesetting button (admin only) -->
+                <!-- Re-process button -->
                 <button
-                  v-if="userStore.isAdmin"
-                  @click.stop="handleChangeRoutesettingClick(video)"
-                  class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-purple-600 hover:text-purple-700 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100 z-10"
-                  :aria-label="`Change routesetting for video ${index + 1}`"
-                  title="Change routesetting (clears problem assignment)"
+                  v-if="canReprocessVideo(video)"
+                  @click.stop="handleReprocessClick(video)"
+                  class="w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
+                  :aria-label="`Re-process video ${index + 1}`"
+                  title="Re-analyze video to detect problem (or fix wrong detection)"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                   </svg>
                 </button>
-              </template>
+
+                <!-- Delete button -->
+                <button
+                  v-if="canDeleteVideo(video)"
+                  @click.stop="handleDeleteClick(video)"
+                  class="w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-red-600 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
+                  :aria-label="`Delete video ${index + 1}`"
+                  title="Delete video"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                  </svg>
+                </button>
+              </div>
             </template>
           </VideoGridItem>
         </div>
@@ -185,6 +215,13 @@
       :available-routesettings="availableRoutesettings"
       @close="videoToChangeRoutesetting = null"
       @success="handleRoutesettingChanged"
+    />
+
+    <!-- Reassign Climber Dialog -->
+    <ReassignClimberDialog
+      :video="videoToReassign"
+      @close="videoToReassign = null"
+      @success="handleClimberReassigned"
     />
 
     <!-- Video Player Shorts -->
@@ -211,6 +248,7 @@ import VideoPlayerShorts from './VideoPlayerShorts.vue';
 import VideoGridItem from './VideoGridItem.vue';
 import ChangeRoutesettingDialog from './ChangeRoutesettingDialog.vue';
 import VideoDeleteConfirmDialog from './VideoDeleteConfirmDialog.vue';
+import ReassignClimberDialog from './ReassignClimberDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -262,6 +300,9 @@ const isDeletingAll = ref(false);
 const videoToChangeRoutesetting = ref(null);
 const availableRoutesettings = computed(() => props.allRoutesettings || []);
 
+// Reassign climber state
+const videoToReassign = ref(null);
+
 // Default poster image (gray placeholder with play icon)
 const defaultPoster = getDefaultVideoPoster();
 
@@ -303,14 +344,22 @@ const canReprocessVideo = (video) => {
   
   // Can re-process if:
   // 1. It's the user's video OR user is admin
-  // 2. Video doesn't have a problemId (unclassified)
-  // 3. Video is not currently uploading or analyzing
+  // 2. Video is not currently uploading or analyzing
+  // Note: Allow re-analysis even if problem is already detected (might be wrong)
   return (
     (video.userId === currentUser.uid || userStore.isAdmin) &&
-    !video.problemId &&
     !video.isUploading &&
     !video.isAnalyzing
   );
+};
+
+const canReassignVideo = (video) => {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return false;
+  
+  // Can reassign if:
+  // 1. User is admin OR it's the user's video
+  return video.userId === currentUser.uid || userStore.isAdmin;
 };
 
 const handleReprocessClick = (video) => {
@@ -330,6 +379,16 @@ const handleChangeRoutesettingClick = (video) => {
 
 const handleRoutesettingChanged = (videoId) => {
   videoToChangeRoutesetting.value = null;
+  emit('routesetting-changed', videoId);
+};
+
+const handleReassignClick = (video) => {
+  videoToReassign.value = video;
+};
+
+const handleClimberReassigned = async (videoId) => {
+  videoToReassign.value = null;
+  // Reload videos to show updated climber name
   emit('routesetting-changed', videoId);
 };
 
@@ -425,8 +484,19 @@ const videoPlayerTitle = computed(() => {
 
 // Function to provide videos to VideoPlayerShorts
 const getPlayerVideos = async () => {
+  // If videos aren't loaded yet (hard refresh case), fetch them directly
+  let allVideos = props.videos;
+  if (allVideos.length === 0 && props.location?.id) {
+    try {
+      allVideos = await videoService.getLocationVideos(props.location.id);
+    } catch (error) {
+      console.error('Failed to load videos for player:', error);
+      return [];
+    }
+  }
+  
   // Get videos that have a URL (local or server)
-  let filteredVideos = props.videos.filter(video => video.url || video.downloadUrl);
+  let filteredVideos = allVideos.filter(video => video.url || video.downloadUrl);
   
   // If problemId is in query params, filter to only that problem's videos
   const problemId = route.query.problemId;

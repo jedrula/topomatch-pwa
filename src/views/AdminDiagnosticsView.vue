@@ -16,9 +16,9 @@
         <div class="text-sm text-gray-600">Auto Reports</div>
         <div class="text-2xl font-bold">{{ autoCount }}</div>
       </div>
-      <div class="bg-red-50 p-4 rounded-lg border border-red-200">
-        <div class="text-sm text-red-600">Last 24h</div>
-        <div class="text-2xl font-bold text-red-700">{{ recentCount }}</div>
+      <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+        <div class="text-sm text-purple-600">Analysis Reports</div>
+        <div class="text-2xl font-bold text-purple-700">{{ analysisCount }}</div>
       </div>
     </div>
 
@@ -36,6 +36,10 @@
         <label class="flex items-center gap-2">
           <input type="radio" v-model="filter" value="auto" />
           <span>Auto Only</span>
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="radio" v-model="filter" value="analysis" />
+          <span>Analysis Only</span>
         </label>
       </div>
       
@@ -80,6 +84,22 @@
           </span>
         </div>
       </div>
+
+      <!-- Ascent Filter -->
+      <div v-if="ascentIdFilter" class="border-t pt-4">
+        <div class="flex items-center gap-3">
+          <label class="text-sm font-medium text-gray-700">Filtered by Ascent:</label>
+          <div class="px-3 py-1 bg-purple-50 border border-purple-200 rounded text-sm font-mono">
+            {{ ascentIdFilter }}
+          </div>
+          <button
+            @click="clearAscentFilter"
+            class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Loading State -->
@@ -98,6 +118,13 @@
         <div class="flex items-start justify-between mb-3">
           <div class="flex items-center gap-3">
             <span
+              v-if="report.reportType === 'analysis'"
+              class="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700"
+            >
+              Analysis
+            </span>
+            <span
+              v-else
               :class="[
                 'px-2 py-1 rounded text-xs font-medium',
                 report.autoReported
@@ -119,8 +146,115 @@
           </div>
         </div>
 
-        <!-- Error Message -->
-        <div class="mb-3">
+        <!-- Analysis Report Content -->
+        <div v-if="report.reportType === 'analysis'" class="space-y-3">
+          <div class="font-medium text-gray-900">
+            Analysis: {{ report.ascentId }}
+          </div>
+          
+          <!-- Match Info -->
+          <div v-if="report.match" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div>
+              <span class="text-gray-500">Match ID:</span>
+              <span class="ml-1 font-medium text-xs break-all">{{ report.match.matchId || 'N/A' }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Total Matches:</span>
+              <span class="ml-1 font-medium">{{ report.match.totalMatches || 'N/A' }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Inliers:</span>
+              <span class="ml-1 font-medium">{{ report.match.homographyInliers || 'N/A' }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Quality:</span>
+              <span class="ml-1 font-medium">{{ report.match.serverQuality || 'N/A' }}</span>
+            </div>
+          </div>
+
+          <!-- Debug Images -->
+          <div v-if="report.match?.combinedDebugUrl" class="mt-3">
+            <button 
+              @click="viewImage(report.match.combinedDebugUrl)"
+              class="inline-block px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+            >
+              View Combined Debug Image
+            </button>
+          </div>
+
+          <!-- Scores -->
+          <div v-if="report.scores && report.scores.length > 0" class="mt-3">
+            <div class="text-sm font-medium text-gray-700 mb-2">
+              Top Matches (Overall - Averaged across {{ report.frames?.length || 1 }} frame{{ (report.frames?.length || 1) > 1 ? 's' : '' }}):
+            </div>
+            <div class="space-y-1">
+              <div v-for="(score, i) in report.scores.slice(0, 3)" :key="i" class="text-sm">
+                {{ i + 1 }}. {{ score.name }} - {{ (score.score * 100).toFixed(1) }}%
+              </div>
+            </div>
+          </div>
+
+          <!-- Multi-Frame Analysis -->
+          <div v-if="report.frames && report.frames.length > 0" class="mt-4 border-t pt-3">
+            <div class="text-sm font-medium text-gray-700 mb-3">
+              🎯 Per-Frame Limb Matches ({{ report.frames.length }} frame{{ report.frames.length > 1 ? 's' : '' }}):
+            </div>
+            
+            <div v-for="(frame, frameIdx) in report.frames" :key="frameIdx" class="mb-4 bg-blue-50 p-3 rounded">
+              <div class="font-medium text-sm text-blue-900 mb-2">
+                Frame {{ frameIdx + 1 }} (Video Frame #{{ frame.frameIndex + 1 }})
+              </div>
+              
+              <!-- Per-Frame Scoring -->
+              <div v-if="frame.scoring && frame.scoring.length > 0" class="mb-3 bg-white p-2 rounded">
+                <div class="text-xs font-medium text-gray-700 mb-1">This Frame's Contribution:</div>
+                <div class="space-y-0.5">
+                  <div v-for="(score, i) in frame.scoring" :key="i" class="text-xs">
+                    {{ i + 1 }}. {{ score.name }}: {{ (score.score * 100).toFixed(1) }}% ({{ score.matches }} matches)
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Per-Limb Hold Matches -->
+              <div v-if="frame.limbHolds && frame.limbHolds.length > 0">
+                <div class="grid grid-cols-2 gap-2">
+                  <div v-for="(limb, i) in frame.limbHolds" :key="i" class="bg-white p-2 rounded text-xs">
+                    <div class="font-medium text-gray-900 mb-1">{{ limb.limbName }}</div>
+                    <div class="text-gray-600 text-[10px] mb-1.5">
+                      Target: ({{ limb.targetPoint.x }}, {{ limb.targetPoint.y }})
+                      <span class="text-gray-500">• {{ (limb.confidence * 100).toFixed(0) }}% conf</span>
+                    </div>
+                    <div v-if="limb.closestHolds && limb.closestHolds.length > 0" class="space-y-0.5">
+                      <div v-for="(hold, j) in limb.closestHolds" :key="j" class="text-gray-700 text-[11px]">
+                        <span class="font-mono">{{ hold.distance }}px</span>
+                        <span class="mx-0.5">→</span>
+                        <span :style="{ color: hold.problemColor }" class="font-medium">{{ hold.problemName }}</span>
+                        <span class="text-gray-400 text-[10px] ml-0.5">({{ hold.holdId }})</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-xs text-gray-500 italic">
+                No limb data for this frame
+              </div>
+            </div>
+          </div>
+
+          <!-- Localized Transforms -->
+          <div v-if="report.match?.localizedTransformsCounts && report.match.localizedTransformsCounts.length > 0" class="mt-3">
+            <div class="text-sm font-medium text-gray-700 mb-2">Localized Transforms:</div>
+            <div class="text-xs text-gray-600">
+              <div v-for="(count, frameIdx) in report.match.localizedTransformsCounts" :key="frameIdx">
+                Frame {{ frameIdx + 1 }}: {{ count }} transforms
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Report Content -->
+        <!-- Error Report Content -->
+        <div v-else class="mb-3">
           <div class="font-medium text-gray-900 mb-1">
             {{ getErrorMessage(report) }}
           </div>
@@ -211,6 +345,49 @@
             <div class="font-medium text-gray-700 mb-2">User Agent:</div>
             <div class="text-gray-600 break-all">{{ report.device.userAgent }}</div>
           </div>
+
+          <!-- Raw Keypoint Data (for debugging missing closest problems) -->
+          <div v-if="report.keypointRows?.length" class="bg-gray-50 p-3 rounded text-xs">
+            <div class="font-medium text-gray-700 mb-2">🔍 Raw Keypoint Data (for debugging):</div>
+            <div class="space-y-3">
+              <div v-for="(row, i) in report.keypointRows" :key="`keypoint-${i}`" class="bg-white p-2 rounded border">
+                <div class="font-medium text-gray-900 mb-1">{{ row.name }}</div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span class="text-gray-500">Keypoint XY:</span>
+                    <span class="ml-1 font-mono">
+                      {{ row.keypointX !== undefined ? `(${row.keypointX.toFixed(1)}, ${row.keypointY.toFixed(1)})` : 'N/A' }}
+                    </span>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">Problems evaluated:</span>
+                    <span class="ml-1">{{ row.totalProblemsEvaluated || 'N/A' }}</span>
+                  </div>
+                </div>
+                
+                <!-- All distances if available -->
+                <div v-if="row.allDistances?.length" class="mt-2 pt-2 border-t">
+                  <div class="text-gray-600 font-medium mb-1">All distances calculated:</div>
+                  <div class="max-h-32 overflow-y-auto space-y-1">
+                    <div v-for="(dist, j) in row.allDistances" :key="`dist-${j}`" class="flex justify-between">
+                      <span>{{ j + 1 }}. {{ dist.problemName }}</span>
+                      <span class="text-gray-600">{{ dist.distance }}px</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Skipped problems with reasons -->
+                <div v-if="row.skippedProblems?.length" class="mt-2 pt-2 border-t">
+                  <div class="text-red-600 font-medium mb-1">⚠️ Skipped problems ({{ row.skippedProblems.length }}):</div>
+                  <div class="max-h-32 overflow-y-auto space-y-1">
+                    <div v-for="(skip, k) in row.skippedProblems" :key="`skip-${k}`" class="text-red-700">
+                      {{ skip.problemName }}: {{ skip.reason }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -219,26 +396,64 @@
         No reports found
       </div>
     </div>
+
+    <!-- Image Modal -->
+    <div 
+      v-if="selectedImage" 
+      @click="closeImage"
+      class="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+    >
+      <div class="relative max-w-full max-h-full">
+        <button 
+          @click="closeImage"
+          class="absolute -top-10 right-0 text-white hover:text-gray-300 text-2xl"
+        >
+          ✕
+        </button>
+        <img 
+          v-if="selectedImageBlobUrl"
+          :src="selectedImageBlobUrl" 
+          alt="Debug visualization"
+          class="max-w-full max-h-[90vh] object-contain"
+          @click.stop
+        />
+        <div v-else class="text-white text-center">
+          <div class="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-2"></div>
+          Loading image...
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db } from '@/services/firebase';
+import { analysisDiagnosticsService } from '@/services/analysisDiagnosticsService';
 
+const route = useRoute();
+const router = useRouter();
 const reports = ref([]);
 const loading = ref(true);
 const filter = ref('all');
 const userIdFilter = ref('');
+const ascentIdFilter = ref('');
 const expandedReports = ref(new Set());
+const selectedImage = ref(null);
+const selectedImageBlobUrl = ref(null);
 
 const manualCount = computed(() => 
-  filteredReports.value.filter(r => !r.autoReported).length
+  filteredReports.value.filter(r => !r.autoReported && !r.reportType).length
 );
 
 const autoCount = computed(() => 
-  filteredReports.value.filter(r => r.autoReported).length
+  filteredReports.value.filter(r => r.autoReported && !r.reportType).length
+);
+
+const analysisCount = computed(() => 
+  filteredReports.value.filter(r => r.reportType === 'analysis').length
 );
 
 const recentCount = computed(() => {
@@ -258,48 +473,76 @@ const uniqueUsers = computed(() => {
 });
 
 const filteredReports = computed(() => {
+  let filtered = reports.value;
+  
   if (filter.value === 'manual') {
-    return reports.value.filter(r => !r.autoReported);
+    filtered = filtered.filter(r => !r.autoReported && !r.reportType);
+  } else if (filter.value === 'auto') {
+    filtered = filtered.filter(r => r.autoReported && !r.reportType);
+  } else if (filter.value === 'analysis') {
+    filtered = filtered.filter(r => r.reportType === 'analysis');
   }
-  if (filter.value === 'auto') {
-    return reports.value.filter(r => r.autoReported);
+  
+  if (userIdFilter.value) {
+    filtered = filtered.filter(r => r.userId === userIdFilter.value);
   }
-  return reports.value;
+  
+  if (ascentIdFilter.value) {
+    filtered = filtered.filter(r => r.ascentId === ascentIdFilter.value);
+  }
+  
+  return filtered;
 });
 
 const loadReports = async () => {
   loading.value = true;
   try {
-    // Build query with optional user filter
-    let q;
-    if (userIdFilter.value) {
-      q = query(
-        collection(db, 'diagnosticReports'),
-        where('userId', '==', userIdFilter.value),
-        orderBy('timestamp', 'desc'),
-        limit(100)
-      );
-    } else {
-      q = query(
-        collection(db, 'diagnosticReports'),
-        orderBy('timestamp', 'desc'),
-        limit(100)
-      );
-    }
+    // Load both diagnosticReports and analysisDiagnostics
+    const [errorReports, analysisReports] = await Promise.all([
+      loadErrorReports(),
+      loadAnalysisReports()
+    ]);
     
-    const snapshot = await getDocs(q);
-    reports.value = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    // Already sorted by timestamp desc from Firestore query
-    // No additional sorting needed - newest reports appear first
+    // Combine and sort by timestamp
+    reports.value = [...errorReports, ...analysisReports].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      return timeB - timeA; // Newest first
+    });
   } catch (error) {
     console.error('Failed to load reports:', error);
   } finally {
     loading.value = false;
   }
+};
+
+const loadErrorReports = async () => {
+  let q;
+  if (userIdFilter.value) {
+    q = query(
+      collection(db, 'diagnosticReports'),
+      where('userId', '==', userIdFilter.value),
+      orderBy('timestamp', 'desc'),
+      limit(100)
+    );
+  } else {
+    q = query(
+      collection(db, 'diagnosticReports'),
+      orderBy('timestamp', 'desc'),
+      limit(100)
+    );
+  }
+  
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+};
+
+const loadAnalysisReports = async () => {
+  const opts = userIdFilter.value ? { userId: userIdFilter.value, limitCount: 100 } : { limitCount: 100 };
+  return await analysisDiagnosticsService.fetchLatest(opts);
 };
 
 const toggleExpanded = (reportId) => {
@@ -318,6 +561,14 @@ const selectUser = (userId) => {
 const clearUserFilter = () => {
   userIdFilter.value = '';
   loadReports();
+};
+
+const clearAscentFilter = () => {
+  ascentIdFilter.value = '';
+  // Also clear URL param
+  if (route.query.ascentId) {
+    router.replace({ query: {} });
+  }
 };
 
 const handleUserFilterChange = () => {
@@ -375,7 +626,59 @@ const formatLogTime = (timestamp) => {
   return date.toLocaleTimeString();
 };
 
+// TODO: Remove this workaround once server is updated to use Content-Disposition: inline
+// Currently server returns Content-Disposition: attachment which blocks <img> display
+const viewImage = async (url) => {
+  selectedImage.value = url;
+  
+  try {
+    // Fetch image as blob to bypass Content-Disposition: attachment header
+    const response = await fetch(url, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to fetch image:', response.status);
+      return;
+    }
+    
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    selectedImageBlobUrl.value = blobUrl;
+  } catch (error) {
+    console.error('Error loading image:', error);
+  }
+};
+
+const closeImage = () => {
+  // Clean up blob URL to prevent memory leaks
+  if (selectedImageBlobUrl.value) {
+    URL.revokeObjectURL(selectedImageBlobUrl.value);
+    selectedImageBlobUrl.value = null;
+  }
+  selectedImage.value = null;
+};
+
 onMounted(() => {
+  // Check for ascentId in URL params
+  if (route.query.ascentId) {
+    ascentIdFilter.value = route.query.ascentId;
+    filter.value = 'analysis'; // Auto-switch to analysis filter
+  }
   loadReports();
+});
+
+// Watch for URL param changes
+watch(() => route.query.ascentId, (newAscentId) => {
+  if (newAscentId) {
+    ascentIdFilter.value = newAscentId;
+    filter.value = 'analysis';
+    // Auto-expand the report if only one result
+    if (filteredReports.value.length === 1) {
+      expandedReports.value.add(filteredReports.value[0].id);
+    }
+  }
 });
 </script>

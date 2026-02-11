@@ -147,6 +147,37 @@
 
 
 
+        <!-- No Routesetting Banner (only shown when no routesettings exist) -->
+        <div 
+          v-if="allRoutesettings.length === 0 && userStore.canEditLocations"
+          class="border border-blue-200 bg-blue-50 rounded-lg p-4"
+        >
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <svg class="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <div class="text-[13px] font-medium text-blue-900">
+                  No routesetting yet
+                </div>
+                <div class="text-[12px] text-blue-700 mt-0.5">
+                  Create a routesetting to organize images and problems by reset date. This is required before uploading images.
+                </div>
+              </div>
+            </div>
+            <router-link
+              :to="`/location/${locationId}/routesettings`"
+              class="h-8 px-3 text-[13px] text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-all flex-shrink-0 flex items-center gap-1.5 font-medium whitespace-nowrap"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Create First Routesetting
+            </router-link>
+          </div>
+        </div>
+
         <!-- Historical Routesetting Banner (only shown when NOT viewing latest) -->
         <div 
           v-if="allRoutesettings.length > 0 && currentRoutesetting !== allRoutesettings[0]"
@@ -191,7 +222,6 @@
 
         <!-- Videos/Betas section -->
         <LocationVideos
-          ref="locationVideosRef"
           :videos="displayVideos"
           :loading="videosLoading"
           :location="location"
@@ -277,11 +307,9 @@
       @navigate-previous="navigatePrevious"
     />
 
-    <!-- TODO we should use a VideoPicker and decide if its ios, desktop, mobile web etc. inside it -->
-    <!-- iOS Native Video Picker Button -->
-    <IosVideoPickerButton 
+    <!-- Video Upload Button (platform-agnostic - handles iOS native + web fallback) -->
+    <VideoUploadButton 
       v-if="userStore.user"
-      :show-text="true"
       :allow-trim="true"
       @video-selected="handleVideoFileSelected"
     />
@@ -298,7 +326,7 @@ import { useBoulderProblemsStore } from '../stores/boulderProblemsStore.js';
 import { useVideoAnalysis } from '../composables/useVideoAnalysis.js';
 import { useToast } from '../composables/useToast.js';
 import ImageUploadModal from '../components/ImageUploadModal.vue';
-import IosVideoPickerButton from '../components/IosVideoPickerButton.vue';
+import VideoUploadButton from '../components/VideoUploadButton.vue';
 import ImageGallerySimplified from '../components/ImageGallerySimplified.vue';
 import BetaVideoUploadModal from '../components/BetaVideoUploadModal.vue';
 import ToastNotification from '../components/ToastNotification.vue';
@@ -342,7 +370,6 @@ const {
 const authModal = inject('authModal');
 
 const betaUploadModalRef = ref(null);
-const locationVideosRef = ref(null);
 const location = ref(null);
 const allRoutesettings = ref([]); // All routesettings for this location
 const images = ref([]); // Placeholder for location images
@@ -702,13 +729,13 @@ const loadLocationImages = async () => {
     // Filter images by current routesetting
     const imageRecords = await locationService.getLocationImages(locationId.value, currentRoutesetting.value);
 
-    // Transform the records to the format expected by the template
+    // Use server data as-is (includes detectionResults, dimensions, manualHolds, etc.)
     images.value = imageRecords.map((record) => ({
+      ...record,
       id: record.imageId,
       imageId: record.imageId,
       url: record.downloadUrl,
       name: record.fileName,
-      routesettings: record.routesettings || [],
     }));
 
   } catch (err) {
@@ -859,7 +886,7 @@ const openProblemVideos = async (problem) => {
   }
 };
 
-// Handle video file selection from IosVideoPickerButton
+// Handle video file selection from VideoUploadButton
 // Receives File object directly (not event) from both native iOS and web fallback
 const handleVideoFileSelected = async (file) => {
   if (!file) return;

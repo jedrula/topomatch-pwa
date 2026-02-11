@@ -1,5 +1,5 @@
 <template>
-  <!-- iOS Native Video Picker Button -->
+  <!-- Video Upload Button with scroll-based text hiding -->
   <button
     @click="showChoiceDialog = true"
     :class="[
@@ -75,12 +75,10 @@
 <script setup>
 import { ref } from 'vue';
 import { Capacitor } from '@capacitor/core';
+import { IosVideoEditor } from 'capacitor-plugin-ios-video-editor';
+import { useScrollHeaderVisibility } from '../composables/useScrollHeaderVisibility.js';
 
 const props = defineProps({
-  showText: {
-    type: Boolean,
-    default: false,
-  },
   allowTrim: {
     type: Boolean,
     default: true,
@@ -91,14 +89,15 @@ const emit = defineEmits(['video-selected']);
 
 const showChoiceDialog = ref(false);
 
+// Show/hide text based on scroll position
+const { showText } = useScrollHeaderVisibility();
+
 const pickVideo = async (source) => {
   showChoiceDialog.value = false;
   
   try {
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
-      // Use native iOS video editor
-      const { IosVideoEditor } = await import('capacitor-plugin-ios-video-editor');
-      
+      // Use native iOS video editor (imported statically for instant response)
       const result = await IosVideoEditor.pickAndEditVideo({
         source: source,
         allowTrim: props.allowTrim,

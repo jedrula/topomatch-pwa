@@ -121,5 +121,12 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid; // Users can only create reports for themselves
       allow update, delete: if false; // Reports are immutable
     }
+
+    // Analysis diagnostics - one per ascent, can be updated on reanalysis
+    match /analysisDiagnostics/{diagnosticId} {
+      allow read: if isAdmin(); // Only admins can read diagnostics
+      allow create, update: if isAuthenticated() && request.resource.data.userId == request.auth.uid; // Users can create/update their own analysis
+      allow delete: if false; // Cannot delete diagnostics
+    }
   }
 }

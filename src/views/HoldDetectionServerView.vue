@@ -61,6 +61,7 @@
               <div
                 ref="imageContainer"
                 class="relative bg-gray-100 rounded-lg overflow-hidden min-h-64"
+                :class="{ 'fullscreen-overlay': isFullscreen }"
                 style="aspect-ratio: auto"
               >
                 <!-- Fullscreen Toggle Button -->
@@ -95,7 +96,8 @@
                     />
                   </svg>
                 </button>
-                <!-- Loading state when no image is available -->
+                
+                <!-- Zoom Indicator (only in fullscreen) -->
                 <div
                   v-if="route.query.imageId && !currentImage && !imageLoadError"
                   class="w-full h-64 flex items-center justify-center"
@@ -198,8 +200,8 @@
 
                 <!-- Fullscreen Boulder Problems Manager - inside image container for fullscreen visibility -->
                 <BoulderProblemsManager
-                  v-show="isFullscreen"
-                  v-if="route.params.locationId"
+                  v-if="isFullscreen && route.params.locationId"
+                  key="fullscreen-manager"
                   v-bind="boulderProblemsManagerProps"
                   v-model:model-value-problem-name="sharedProblemName"
                   v-model:model-value-selected-grade="sharedSelectedGrade"
@@ -411,8 +413,8 @@
         <div class="space-y-6">
           <!-- Boulder Problems Manager -->
           <BoulderProblemsManager
-            v-show="!isFullscreen"
-            v-if="route.params.locationId"
+            v-if="!isFullscreen && route.params.locationId"
+            key="normal-manager"
             v-bind="boulderProblemsManagerProps"
             v-model:model-value-problem-name="sharedProblemName"
             v-model:model-value-selected-grade="sharedSelectedGrade"
@@ -675,7 +677,7 @@ const imageLoaded = ref(false);
 const currentImage = ref(null); // TODO: Add proper image type
 const imageLoadError = ref(null);
 
-// Fullscreen state
+// Fullscreen state (pseudo-fullscreen using CSS, not native API)
 const isFullscreen = ref(false)
 
 // Shared state for boulder problem form (persists across fullscreen toggle)
@@ -771,25 +773,16 @@ const onImageLoad = () => {
   // Image loaded - ready for interactions
 };
 
-// Fullscreen functionality
-const toggleFullscreen = async () => {
-  try {
-    if (!isFullscreen.value) {
-      // Enter fullscreen
-      const element = imageContainer.value;
-      if (!element) return;
-
-      if (element.requestFullscreen) {
-        await element.requestFullscreen();
-      }
-    } else {
-      // Exit fullscreen
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      }
-    }
-  } catch (error) {
-    console.error('Fullscreen toggle failed:', error);
+// Pseudo-fullscreen toggle (CSS-based, not native API)
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value;
+  
+  if (isFullscreen.value) {
+    // Prevent body scroll when in fullscreen
+    document.body.style.overflow = 'hidden';
+  } else {
+    // Restore body scroll
+    document.body.style.overflow = '';
   }
 }
 
@@ -1470,27 +1463,13 @@ onMounted(async () => {
 
   // Note: No API health check needed - detection is automatic via Cloud Function
   // API health check only used for manual testing (available in "How It Works" section)
-
-  // Add fullscreen event listeners
-  const handleFullscreenChange = () => {
-    isFullscreen.value = !!(
-      document.fullscreenElement
-    )
-  }
-
-  document.addEventListener('fullscreenchange', handleFullscreenChange);
-  document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-  document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-  document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 });
 
 onUnmounted(() => {
-  // Clean up fullscreen event listeners
-  const handleFullscreenChange = () => {};
-  document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-  document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-  document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+  // Restore body scroll if fullscreen was active
+  if (isFullscreen.value) {
+    document.body.style.overflow = '';
+  }
 });
 
 // Floating card event handlers
@@ -1528,20 +1507,26 @@ const handleFloatingCardMouseLeave = () => {
 </script>
 
 <style scoped>
-/* Fullscreen styles */
-:global(.fullscreen-container) {
+/* Pseudo-fullscreen overlay (keeps browser chrome for native zoom) */
+.fullscreen-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
   background: black !important;
   border-radius: 0 !important;
-  padding: 0 !important;
   margin: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 100vw !important;
-  height: 100vh !important;
+  overflow: auto !important;
 }
 
-:global(.fullscreen-container img) {
+.fullscreen-overlay img {
   max-width: 100vw !important;
   max-height: 100vh !important;
   width: auto !important;
@@ -1549,73 +1534,5 @@ const handleFloatingCardMouseLeave = () => {
   object-fit: contain !important;
 }
 
-:global(.fullscreen-container .absolute) {
-  /* Ensure overlays maintain same positioning relative to image */
-  position: absolute !important;
-}
-
-/* Fullscreen using native fullscreen API */
-:fullscreen {
-  background: black !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-}
-
-:fullscreen img {
-  max-width: 100vw !important;
-  max-height: 100vh !important;
-  width: auto !important;
-  height: auto !important;
-  object-fit: contain !important;
-}
-
-:-webkit-full-screen {
-  background: black !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-}
-
-:-webkit-full-screen img {
-  max-width: 100vw !important;
-  max-height: 100vh !important;
-  width: auto !important;
-  height: auto !important;
-  object-fit: contain !important;
-}
-
-:-moz-full-screen {
-  background: black !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-}
-
-:-moz-full-screen img {
-  max-width: 100vw !important;
-  max-height: 100vh !important;
-  width: auto !important;
-  height: auto !important;
-  object-fit: contain !important;
-}
-
-:-ms-fullscreen {
-  background: black !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-}
-
-:-ms-fullscreen img {
-  max-width: 100vw !important;
-  max-height: 100vh !important;
-  width: auto !important;
-  height: auto !important;
-  object-fit: contain !important;
-}
+/* Remove old native fullscreen styles - no longer needed */
 </style>

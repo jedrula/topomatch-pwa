@@ -5,7 +5,7 @@ import {
   list,
   getMetadata,
 } from 'firebase/storage';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { storage, db } from './firebase';
 import { getCurrentUser } from './authService';
 import { ascentService } from './ascentService';
@@ -571,7 +571,6 @@ export const videoService = {
    */
   async assignProblemToVideo(ascentId, problemId, locationId) {
     try {
-      const { doc, updateDoc, getDoc } = await import('firebase/firestore');
       const { boulderProblemsServiceV2 } = await import('./boulderProblemsServiceV2.js');
       
       // Get the problem details to create a snapshot
@@ -594,6 +593,29 @@ export const videoService = {
       console.log(`✅ Successfully assigned problem ${problemId} to video ${ascentId}`);
     } catch (error) {
       console.error('Error assigning problem to video:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Reassign a video to a different user
+   * @param {string} ascentId - The ascent/video ID
+   * @param {string} newUserId - The new user's ID
+   * @param {string} newUserName - The new user's display name
+   * @returns {Promise<void>}
+   */
+  async reassignVideo(ascentId, newUserId, newUserName) {
+    try {
+      // Update the ascent document with new user info
+      const ascentRef = doc(db, 'ascents', ascentId);
+      await updateDoc(ascentRef, {
+        userId: newUserId,
+        userName: newUserName,
+      });
+      
+      console.log(`✅ Successfully reassigned video ${ascentId} to user ${newUserName}`);
+    } catch (error) {
+      console.error('Error reassigning video:', error);
       throw error;
     }
   },

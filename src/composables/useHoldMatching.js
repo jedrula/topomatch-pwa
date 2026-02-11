@@ -111,12 +111,29 @@ export function findBoulderProblemForHold(holdId, boulderProblems) {
  * @param {Array} boulderProblems - Array of boulder problem objects
  * @returns {Object} - Object with closest, secondClosest, thirdClosest holds
  */
+/**
+ * Number of closest holds to track per keypoint
+ * Increase this to track more alternatives (e.g., top 5 instead of top 3)
+ */
+const CLOSEST_HOLDS_COUNT = 3;
+
+/**
+ * Find closest holds to a keypoint
+ * Returns the N closest holds with their distances and associated problems
+ * 
+ * @param {number} keypointX - Transformed keypoint X in reference image space
+ * @param {number} keypointY - Transformed keypoint Y in reference image space
+ * @param {Object} bestMatchImage - Matched image with dimensions and holds
+ * @param {Array} boulderProblems - Boulder problems with hold associations
+ * @returns {Object} { closestHolds: [{hold, problem, distance, score}], allHoldsCount, allDistances, skippedProblems }
+ */
 export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderProblems) {
   if (!bestMatchImage || !bestMatchImage.name) {
     return { 
-      closest: { hold: null, problem: null, distance: Infinity, score: 0 },
-      secondClosest: { hold: null, problem: null, distance: Infinity, score: 0 },
-      thirdClosest: { hold: null, problem: null, distance: Infinity, score: 0 }
+      closestHolds: Array(CLOSEST_HOLDS_COUNT).fill({ hold: null, problem: null, distance: Infinity, score: 0 }),
+      allHoldsCount: 0,
+      allDistances: [],
+      skippedProblems: []
     };
   }
 
@@ -219,31 +236,81 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
       hold,
       distance: Math.round(distance),
       score,
-      problem: null // Will be assigned for top 3 only
+      problem: null, // Will be assigned for top 3 only
+      skippedReason: null // Track if hold was skipped and why
     };
-  }).filter(Boolean); // Remove nulls from failed coordinate extraction
+  }).filter((item) => {
+    // Collect skipped holds for debugging
+    if (!item) {
+      return false; // Filter out nulls from failed coordinate extraction
+    }
+    return true;
+  });
 
-  // STEP 3: Sort and get top 3
+  // Track skipped holds (those that failed coordinate extraction)
+  const skippedHolds = allHolds.map((hold) => {
+    try {
+      extractHoldCoordinates(hold);
+      return null; // Successfully extracted, not skipped
+    } catch (err) {
+      // Find problem name if this hold belongs to one
+      const problem = boulderProblems && hold.id ? 
+        findBoulderProblemForHold(hold.id, boulderProblems) : null;
+      return {
+        problemName: problem?.name || 'Unknown',
+        holdId: hold.id,
+        reason: err.message
+      };
+    }
+  }).filter(Boolean);
+
+  // STEP 3: Sort and get top N
   holdsWithDistances.sort((a, b) => a.distance - b.distance);
-  const top3 = holdsWithDistances.slice(0, 3);
+  const topN = holdsWithDistances.slice(0, CLOSEST_HOLDS_COUNT);
   
-  // STEP 4: Find boulder problems ONLY for the top 3 winners
-  top3.forEach(item => {
+  // STEP 4: Find boulder problems ONLY for the top N winners
+  topN.forEach(item => {
     if (boulderProblems && item.hold.id) {
       item.problem = findBoulderProblemForHold(item.hold.id, boulderProblems);
     }
   });
   
-  // Extract results
-  const closest = top3[0] || { hold: null, problem: null, distance: Infinity, score: 0 };
-  const secondClosest = top3[1] || { hold: null, problem: null, distance: Infinity, score: 0 };
-  const thirdClosest = top3[2] || { hold: null, problem: null, distance: Infinity, score: 0 };
+  // Pad with null entries if we didn't find enough holds
+  while (topN.length < CLOSEST_HOLDS_COUNT) {
+    topN.push({ hold: null, problem: null, distance: Infinity, score: 0 });
+  }
+  
+  // Legacy named properties (for backward compatibility - will be removed)
+  const closest = topN[0];
+  const secondClosest = topN[1];
+  const thirdClosest = topN[2];
+
+  // Build debug data (all distances with problem names)
+  const allDistances = holdsWithDistances.map(item => {
+    const problem = boulderProblems && item.hold.id ? 
+      findBoulderProblemForHold(item.hold.id, boulderProblems) : null;
+    return {
+      problemName: problem?.name || `Hold ${item.hold.id}`,
+      distance: item.distance
+    };
+  });
 
   return { 
+    // New array-based API (use this going forward)
+    closestHolds: topN,
+    
+    // Legacy named properties (DEPRECATED - for backward compatibility only)
     closest, 
     secondClosest, 
     thirdClosest,
-    allHoldsCount: allHolds.length
+    
+    // Metadata
+    allHoldsCount: allHolds.length,
+    debugData: {
+      totalHolds: allHolds.length,
+      allDistances,
+      skippedHolds
+    }
   };
 }
 
@@ -253,9 +320,10 @@ export function findClosestHolds(keypointX, keypointY, bestMatchImage, boulderPr
  * @param {Array} extractedFrames - Array of all extracted frames
  * @param {Object} bestMatchImage - The matched image data
  * @param {Array} boulderProblems - Array of boulder problems
+ * @param {boolean} includeDebugData - Whether to include detailed debug data for diagnostics
  * @returns {Array} - Array of keypoint data with hold matching info
  */
-export function getKeypointRows(frame, extractedFrames, bestMatchImage, boulderProblems) {
+export function getKeypointRows(frame, extractedFrames, bestMatchImage, boulderProblems, includeDebugData = false) {
   const keypointData = [];
 
   // Simplified: The transformed points already have all the data we need!
@@ -280,7 +348,7 @@ export function getKeypointRows(frame, extractedFrames, bestMatchImage, boulderP
         'rightFoot': 'Right Ankle'
       };
 
-      keypointData.push({
+      const keypointRow = {
         name: displayNames[transformedPoint.name] || transformedPoint.name,
         original: originalPoint,
         transformed: transformedPoint,
@@ -298,7 +366,18 @@ export function getKeypointRows(frame, extractedFrames, bestMatchImage, boulderP
         thirdClosestProblem: holdsInfo.thirdClosest.problem,
         thirdClosestDistance: holdsInfo.thirdClosest.distance,
         thirdClosestScore: holdsInfo.thirdClosest.score,
-      });
+      };
+
+      // Add debug data if requested (for diagnostics)
+      if (includeDebugData && holdsInfo.debugData) {
+        keypointRow.keypointX = transformedPoint.x;
+        keypointRow.keypointY = transformedPoint.y;
+        keypointRow.totalProblemsEvaluated = holdsInfo.debugData.totalHolds;
+        keypointRow.allDistances = holdsInfo.debugData.allDistances;
+        keypointRow.skippedProblems = holdsInfo.debugData.skippedHolds;
+      }
+
+      keypointData.push(keypointRow);
     });
   }
 
