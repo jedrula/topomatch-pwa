@@ -206,6 +206,12 @@
           </div>
         </div>
 
+        <!-- Gym Floorplan -->
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+          <h2 class="text-base font-semibold text-gray-900 mb-4">Gym Floorplan</h2>
+          <GymFloorplan />
+        </div>
+
         <!-- Images section -->
         <LocationImages
           :images="images"
@@ -333,6 +339,7 @@ import ToastNotification from '../components/ToastNotification.vue';
 import LocationImages from '../components/LocationImages.vue';
 import LocationVideos from '../components/LocationVideos.vue';
 import LocationBoulderProblems from '../components/LocationBoulderProblems.vue';
+import GymFloorplan from '../components/GymFloorplan.vue';
 import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
