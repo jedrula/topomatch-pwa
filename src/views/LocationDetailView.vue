@@ -209,7 +209,12 @@
         <!-- Gym Floorplan -->
         <div class="bg-white rounded-lg border border-gray-200 p-4">
           <h2 class="text-base font-semibold text-gray-900 mb-4">Gym Floorplan</h2>
-          <GymFloorplan />
+          <GymFloorplan 
+            :images="images"
+            @section-select="handleSectionSelect"
+            @sections-change="handleSectionsChange"
+            @outline-change="handleOutlineChange"
+          />
         </div>
 
         <!-- Images section -->
@@ -789,6 +794,22 @@ const loadProblemVideoCounts = async () => {
   } catch (err) {
     console.error('Error loading problem video counts:', err);
   }
+};
+
+// Handle floorplan events
+const handleSectionSelect = (sectionId) => {
+  console.log('Section selected:', sectionId);
+  // TODO: Could scroll to section's photos or show section details
+};
+
+const handleSectionsChange = (newSections) => {
+  console.log('Sections changed:', newSections);
+  // TODO: Save to Firestore - location.floorplan.sections
+};
+
+const handleOutlineChange = (newOutline) => {
+  console.log('Outline changed:', newOutline);
+  // TODO: Save to Firestore - location.floorplan.outline
 };
 
 // Handle video deletion
