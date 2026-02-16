@@ -13,7 +13,7 @@
     />
 
     <!-- Viewer or Editor -->
-    <div v-if="!props.isEditMode" class="grid grid-cols-1 md:grid-cols-2 gap-4" style="max-height: 500px">
+    <div v-if="!props.isEditMode" class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div class="overflow-hidden" style="max-height: 500px">
         <FloorplanViewer
           :sections="sections"
