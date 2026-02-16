@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <!-- Toolbar -->
     <FloorplanToolbar
-      :is-edit-mode="isEditMode"
+      :is-edit-mode="props.isEditMode"
       :draw-mode="drawMode"
       :edit-outline="editOutline"
       :has-selected-section="!!selectedSection"
@@ -13,7 +13,7 @@
     />
 
     <!-- Viewer or Editor -->
-    <div v-if="!isEditMode" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div v-if="!props.isEditMode" class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <FloorplanViewer
           :sections="sections"
@@ -46,7 +46,7 @@
     </div>
 
     <FloorplanEditor
-      v-if="isEditMode"
+      v-if="props.isEditMode"
       :sections="sections"
       :outline="outline"
       :selected-section="selectedSectionId"
@@ -64,22 +64,22 @@
 
     <!-- Section properties panel -->
     <FloorplanPropertiesPanel
-      v-if="selectedSection && isEditMode && drawMode === 'none'"
+      v-if="selectedSection && props.isEditMode && drawMode === 'none'"
       :section="selectedSection"
       @update-field="updateSectionField"
     />
 
     <!-- Hint when editing and no outline -->
-    <p v-if="isEditMode && outline.length === 0 && drawMode === 'none'" class="text-xs text-gray-500">
+    <p v-if="props.isEditMode && outline.length === 0 && drawMode === 'none'" class="text-xs text-gray-500">
       💡 Start by clicking points on the canvas to draw the gym outline. Double-click to finish (min 3 points). Or click "Add Section" to draw sections directly.
     </p>
-    <p v-else-if="isEditMode && drawMode === 'outline'" class="text-xs text-gray-500">
+    <p v-else-if="props.isEditMode && drawMode === 'outline'" class="text-xs text-gray-500">
       Click to place vertices. Double-click to close the shape (min 3 points). This will replace the current outline.
     </p>
-    <p v-else-if="isEditMode && drawMode === 'section'" class="text-xs text-gray-500">
+    <p v-else-if="props.isEditMode && drawMode === 'section'" class="text-xs text-gray-500">
       Click to place vertices. Double-click to close the shape (min 3 points).
     </p>
-    <p v-else-if="isEditMode && editOutline" class="text-xs text-gray-500">
+    <p v-else-if="props.isEditMode && editOutline" class="text-xs text-gray-500">
       Drag vertices to reshape. Click midpoints to add vertices. Double-click a vertex to remove it.
     </p>
   </div>
@@ -101,15 +101,18 @@ const props = defineProps({
   floorplan: {
     type: Object,
     default: () => ({ outline: [], sections: [] })
+  },
+  isEditMode: {
+    type: Boolean,
+    default: false
   }
 });
 
-const emit = defineEmits(['section-select', 'sections-change', 'outline-change']);
+const emit = defineEmits(['section-select', 'sections-change', 'outline-change', 'update:isEditMode']);
 
 const GRID = 10;
 
 // State
-const isEditMode = ref(false);
 const editOutline = ref(false);
 const drawMode = ref('none');
 const selectedSectionId = ref(null);
@@ -129,13 +132,16 @@ function snap(v) {
 }
 
 function toggleEditMode() {
-  isEditMode.value = !isEditMode.value;
-  if (!isEditMode.value) {
+  const newValue = !props.isEditMode;
+  emit('update:isEditMode', newValue);
+  
+  if (!newValue) {
+    // Exiting edit mode - clean up
     drawMode.value = 'none';
     editOutline.value = false;
     selectedSectionId.value = null;
   } else {
-    // Auto-start outline drawing if no outline exists
+    // Entering edit mode - auto-start outline drawing if no outline exists
     if (outline.value.length === 0) {
       drawMode.value = 'outline';
     }
