@@ -1,11 +1,14 @@
 <template>
   <div class="animate-in fade-in h-full flex flex-col">
-    <!-- Photo panorama strip -->
-    <div v-if="displayImages.length > 0" class="flex-1 flex gap-1 overflow-x-auto overflow-y-auto rounded-lg border border-gray-200">
+    <!-- Photo panorama strip - horizontal scroll -->
+    <div v-if="displayImages.length > 0" class="flex-1 flex flex-row gap-2 overflow-x-auto overflow-y-hidden rounded-lg border border-gray-200 p-2">
       <div
         v-for="(image, i) in displayImages"
         :key="`${image.imageId}-${i}`"
-        class="relative flex-shrink-0 cursor-pointer"
+        :class="[
+          'relative flex-shrink-0 cursor-pointer transition-all duration-200',
+          overIdx === i && dragIdx !== null && dragIdx !== i ? 'ring-2 ring-blue-500' : ''
+        ]"
         :draggable="isEditMode"
         @dragstart="handleDragStart(i)"
         @dragover="handleDragOver($event, i)"
@@ -21,20 +24,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
           </svg>
         </div>
-        <div
-          :class="[
-            'transition-all duration-200',
-            overIdx === i && dragIdx !== null && dragIdx !== i ? 'ring-2 ring-blue-500' : ''
-          ]"
-        >
-          <img
-            :src="image.url"
-            :alt="`${section.name} photo ${i + 1}`"
-            class="h-full w-auto object-cover"
-            style="min-width: 140px"
-            crossorigin="anonymous"
-          />
-        </div>
+        <img
+          :src="image.url"
+          :alt="`${section.name} photo ${i + 1}`"
+          class="h-full w-auto object-contain"
+          crossorigin="anonymous"
+        />
       </div>
     </div>
 

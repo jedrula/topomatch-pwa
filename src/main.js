@@ -1,5 +1,6 @@
 import './assets/main.css';
 import 'floating-vue/dist/style.css';
+import '@imengyu/vue3-context-menu/lib/vue3-context-menu.css';
 
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';

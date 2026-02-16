@@ -261,11 +261,13 @@
           :location-name="location?.name"
           :can-upload="userStore.canUploadImages"
           :can-edit-holds="userStore.canEditLocations"
+          :sections="location?.floorplan?.sections || []"
           :get-resized-image-url="getResizedImageUrl"
           @upload="handleUploadClick"
           @image-click="openImageModal"
           @analyze-holds="openHoldDetection"
           @delete-image="handleDeleteImage"
+          @move-to-section="handleMoveImageToSection"
         />
 
         <!-- Videos/Betas section -->
@@ -1174,6 +1176,49 @@ const handleDeleteImage = async (image) => {
   } catch (error) {
     console.error('Error deleting image:', error);
     alert('Failed to delete image. Please try again.');
+  }
+};
+
+const handleMoveImageToSection = async (image, sectionId) => {
+  try {
+    const section = location.value?.floorplan?.sections?.find(s => s.id === sectionId);
+    if (!section) {
+      console.error('Section not found:', sectionId);
+      return;
+    }
+
+    // Update sections: remove image from all sections, then add to target section
+    const updatedSections = location.value.floorplan.sections.map(s => {
+      const imageIds = s.imageIds || [];
+      
+      if (s.id === sectionId) {
+        // Add to target section if not already present
+        if (!imageIds.includes(image.imageId)) {
+          return { ...s, imageIds: [...imageIds, image.imageId] };
+        }
+        return s;
+      } else {
+        // Remove from other sections
+        const filteredIds = imageIds.filter(id => id !== image.imageId);
+        if (filteredIds.length !== imageIds.length) {
+          return { ...s, imageIds: filteredIds };
+        }
+        return s;
+      }
+    });
+
+    // Save to Firestore
+    await locationService.updateLocation(locationId.value, {
+      'floorplan.sections': updatedSections
+    });
+
+    // Update local state
+    location.value.floorplan.sections = updatedSections;
+
+    toast.success(`Image moved to ${section.name}`);
+  } catch (error) {
+    console.error('Error moving image to section:', error);
+    toast.error('Failed to move image');
   }
 };
 

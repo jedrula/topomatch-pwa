@@ -13,8 +13,8 @@
     />
 
     <!-- Viewer or Editor -->
-    <div v-if="!props.isEditMode" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
+    <div v-if="!props.isEditMode" class="grid grid-cols-1 md:grid-cols-2 gap-4" style="max-height: 500px">
+      <div class="overflow-hidden" style="max-height: 500px">
         <FloorplanViewer
           :sections="sections"
           :outline="outline"
@@ -24,7 +24,7 @@
       </div>
       
       <!-- Right panel: Section detail or empty state -->
-      <div class="h-full">
+      <div class="overflow-hidden flex flex-col" style="max-height: 500px">
         <!-- Section detail (photo gallery) when section is selected -->
         <FloorplanSectionDetail
           v-if="selectedSection"

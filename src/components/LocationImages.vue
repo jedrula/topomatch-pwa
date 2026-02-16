@@ -86,8 +86,39 @@
             </div>
           </div>
 
-          <!-- Regular image display -->
-          <template v-else>
+          <!-- Regular image display with context menu -->
+          <div v-else-if="!isHeicFile(image.name) && canEditHolds" class="relative" @contextmenu="(e) => onContextMenu(e, image)">
+            <picture>
+              <source
+                :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
+                type="image/webp"
+                @error="() => {}"
+              />
+              <img
+                :src="getResizedImageUrl(image.url, '300x300', 'jpeg')"
+                :alt="`Photo of ${locationName || 'climbing location'}`"
+                class="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                @click="$emit('image-click', image)"
+                @error="(e) => e.target.src = image.url"
+                loading="lazy"
+                crossorigin="anonymous"
+              />
+            </picture>
+            
+            <!-- Three-dots menu button -->
+            <button
+              @click="(e) => onContextMenu(e, image)"
+              class="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              aria-label="Image options"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
+          </div>
+          
+          <!-- Regular image display without context menu -->
+          <template v-else-if="!isHeicFile(image.name)">
             <!-- Processing state for recently uploaded images -->
             <div
               v-if="isRecentUpload(image)"
@@ -118,32 +149,6 @@
                 crossorigin="anonymous"
               />
             </picture>
-            
-            <!-- Hold detection button for admins -->
-            <button
-              v-if="canEditHolds"
-              @click.stop="$emit('analyze-holds', image)"
-              class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-gray-700 hover:text-green-600 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
-              title="Analyze holds and create boulder problems"
-              :aria-label="`Analyze holds in ${image.name}`"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-            
-            <!-- Delete button for admins -->
-            <button
-              v-if="canEditHolds"
-              @click.stop="$emit('delete-image', image)"
-              class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-gray-700 hover:text-red-600 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
-              title="Delete this image and all associated boulder problems"
-              :aria-label="`Delete ${image.name}`"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
           </template>
         </div>
       </div>
@@ -153,8 +158,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import ContextMenu from '@imengyu/vue3-context-menu';
 
-defineProps({
+const props = defineProps({
   images: {
     type: Array,
     required: true,
@@ -176,17 +182,57 @@ defineProps({
     type: Boolean,
     default: false
   },
+  sections: {
+    type: Array,
+    default: () => []
+  },
   getResizedImageUrl: {
     type: Function,
     required: true
   }
 });
 
-defineEmits(['upload', 'image-click', 'analyze-holds', 'delete-image']);
-
 const isHeicFile = (filename) => {
   return filename?.toLowerCase().endsWith('.heic') || filename?.toLowerCase().endsWith('.heif');
 };
+
+const onContextMenu = (e, image) => {
+  e.preventDefault();
+  
+  const menuItems = [
+    {
+      label: 'Analyze holds',
+      onClick: () => emit('analyze-holds', image)
+    }
+  ];
+  
+  // Add "Move to..." submenu if sections exist
+  if (props.sections && props.sections.length > 0) {
+    menuItems.push({
+      label: `Move to...`,
+      children: props.sections.map(section => ({
+        label: section.name,
+        onClick: () => emit('move-to-section', image, section.id)
+      }))
+    });
+  }
+  
+  menuItems.push(
+    { divided: true },
+    {
+      label: 'Delete image',
+      onClick: () => emit('delete-image', image)
+    }
+  );
+  
+  ContextMenu.showContextMenu({
+    x: e.x,
+    y: e.y,
+    items: menuItems
+  });
+};
+
+const emit = defineEmits(['upload', 'image-click', 'analyze-holds', 'delete-image', 'move-to-section']);
 
 // Simple check: is this image uploaded in the last 5 seconds?
 const now = ref(Date.now());
