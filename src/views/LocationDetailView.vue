@@ -211,6 +211,7 @@
           <h2 class="text-base font-semibold text-gray-900 mb-4">Gym Floorplan</h2>
           <GymFloorplan 
             :images="images"
+            :floorplan="location?.floorplan"
             @section-select="handleSectionSelect"
             @sections-change="handleSectionsChange"
             @outline-change="handleOutlineChange"
@@ -799,17 +800,47 @@ const loadProblemVideoCounts = async () => {
 // Handle floorplan events
 const handleSectionSelect = (sectionId) => {
   console.log('Section selected:', sectionId);
-  // TODO: Could scroll to section's photos or show section details
+  // Could scroll to section's photos or show section details in future
 };
 
-const handleSectionsChange = (newSections) => {
-  console.log('Sections changed:', newSections);
-  // TODO: Save to Firestore - location.floorplan.sections
+const handleSectionsChange = async (newSections) => {
+  try {
+    // Optimistically update local state
+    if (location.value) {
+      if (!location.value.floorplan) {
+        location.value.floorplan = {};
+      }
+      location.value.floorplan.sections = newSections;
+    }
+    
+    // Persist to Firestore
+    await locationService.updateLocation(locationId.value, {
+      'floorplan.sections': newSections
+    });
+  } catch (err) {
+    console.error('Error saving floorplan sections:', err);
+    toast.error('Failed to save floorplan changes');
+  }
 };
 
-const handleOutlineChange = (newOutline) => {
-  console.log('Outline changed:', newOutline);
-  // TODO: Save to Firestore - location.floorplan.outline
+const handleOutlineChange = async (newOutline) => {
+  try {
+    // Optimistically update local state
+    if (location.value) {
+      if (!location.value.floorplan) {
+        location.value.floorplan = {};
+      }
+      location.value.floorplan.outline = newOutline;
+    }
+    
+    // Persist to Firestore
+    await locationService.updateLocation(locationId.value, {
+      'floorplan.outline': newOutline
+    });
+  } catch (err) {
+    console.error('Error saving floorplan outline:', err);
+    toast.error('Failed to save floorplan changes');
+  }
 };
 
 // Handle video deletion

@@ -9,7 +9,7 @@
           'w-full h-auto border-2 rounded-lg',
           drawMode !== 'none' ? 'border-blue-500 cursor-crosshair' : 'border-gray-200'
         ]"
-        style="max-height: 500px"
+        style="max-height: 300px"
         @click="handleSvgClick"
         @dblclick="handleSvgDoubleClick"
       >
@@ -26,7 +26,8 @@
         <polygon
           :points="pointsToString(offsetPoints(outline))"
           class="floorplan-outline"
-          :class="{ 'editing': editOutline }"
+          :class="{ 'editing': editOutline, 'cursor-pointer': !drawMode }"
+          @click.stop="handleOutlineClick"
         />
 
         <!-- Outline vertices (when editing outline) -->
@@ -60,7 +61,7 @@
               'floorplan-section transition-all duration-200',
               { 'active': selectedSection === section.id }
             ]"
-            @click="handleSectionClick(section.id)"
+            @click.stop="handleSectionClick(section.id)"
           />
           
           <!-- Section label -->
@@ -96,20 +97,17 @@
             font-size="10"
             class="fill-gray-500 pointer-events-none"
           >
-            {{ section.imageIndexes?.length || 0 }} photos
+            {{ section.imageIds?.length || 0 }} photos
           </text>
 
-          <!-- Section vertices -->
-          <template v-if="drawMode === 'none'">
+          <!-- Section vertices (show when selected) -->
+          <template v-if="drawMode === 'none' && selectedSection === section.id">
             <g v-for="(point, i) in section.points" :key="`sv-${section.id}-${i}`">
               <circle
                 :cx="point.x + offset.x"
                 :cy="point.y + offset.y"
-                :r="selectedSection === section.id ? HANDLE_RADIUS + 2 : HANDLE_RADIUS"
-                :class="[
-                  'cursor-grab transition-all',
-                  selectedSection === section.id ? 'fill-blue-600' : 'fill-gray-400'
-                ]"
+                :r="HANDLE_RADIUS + 2"
+                class="cursor-grab transition-all fill-blue-600"
                 @mousedown="handleVertexDown($event, 'section-vertex', section.id, i)"
                 @dblclick.stop="$emit('remove-section-vertex', section.id, i)"
               />
@@ -118,11 +116,8 @@
                 v-if="section.points.length < 20"
                 :cx="midpoint(point, section.points[(i + 1) % section.points.length]).x + offset.x"
                 :cy="midpoint(point, section.points[(i + 1) % section.points.length]).y + offset.y"
-                r="4"
-                :class="[
-                  'opacity-50 hover:opacity-100 cursor-pointer transition-opacity',
-                  selectedSection === section.id ? 'fill-blue-400' : 'fill-gray-300'
-                ]"
+                r="5"
+                class="fill-blue-400 opacity-50 hover:opacity-100 cursor-pointer transition-opacity"
                 @click.stop="$emit('add-section-vertex', section.id, i)"
               />
             </g>
@@ -159,15 +154,6 @@
         </g>
       </svg>
     </div>
-
-    <!-- Hints -->
-    <p v-if="drawMode !== 'none'" class="text-xs text-gray-500">
-      Click to place vertices. <strong>Double-click</strong> to close the shape (min 3 points).
-      <span v-if="drawMode === 'outline'"> This will replace the current floorplan outline.</span>
-    </p>
-    <p v-else-if="editOutline" class="text-xs text-gray-500">
-      Drag vertices to reshape. Click midpoints to add vertices. Double-click a vertex to remove it.
-    </p>
   </div>
 </template>
 
@@ -199,9 +185,8 @@ const props = defineProps({
 
 const emit = defineEmits([
   'section-select',
-  'section-move',
+  'outline-select',
   'vertex-move',
-  'drawing-point-add',
   'drawing-finish',
   'add-outline-vertex',
   'remove-outline-vertex',
@@ -224,12 +209,22 @@ const drawingPoints = ref([]);
 const editTarget = ref(null);
 const dragStart = ref({ x: 0, y: 0 });
 const origPoints = ref([]);
+const wasDragging = ref(false);
 
 function snap(v) {
   return Math.round(v / GRID) * GRID;
 }
 
 function getBBox(points) {
+  if (!points || points.length === 0) {
+    // Default viewBox when no outline exists (larger = more zoomed out)
+    return {
+      minX: 0,
+      minY: 0,
+      maxX: 2000,
+      maxY: 1500
+    };
+  }
   const xs = points.map(p => p.x);
   const ys = points.map(p => p.y);
   return {
@@ -298,7 +293,19 @@ function handleSectionClick(sectionId) {
   emit('section-select', sectionId);
 }
 
+function handleOutlineClick() {
+  if (props.drawMode !== 'none') return;
+  if (props.outline.length === 0) return;
+  emit('outline-select');
+}
+
 function handleSvgClick(e) {
+  // Ignore click if we just finished dragging
+  if (wasDragging.value) {
+    wasDragging.value = false;
+    return;
+  }
+  
   if (props.drawMode === 'none') {
     emit('section-select', null);
     return;
@@ -335,12 +342,14 @@ function handleVertexDown(e, kind, sectionId, vertexIdx) {
     }
   } else if (kind === 'outline-vertex') {
     origPoints.value = props.outline.map(p => ({ ...p }));
+    emit('outline-select');
   }
 }
 
 function handleMouseMove(e) {
   if (!editTarget.value) return;
 
+  wasDragging.value = true;
   const pt = getSVGPoint(e);
   const dx = pt.x - dragStart.value.x;
   const dy = pt.y - dragStart.value.y;
@@ -355,6 +364,7 @@ function handleMouseMove(e) {
 
 function handleMouseUp() {
   editTarget.value = null;
+  // wasDragging will be checked and cleared by the next click event
 }
 
 onMounted(() => {

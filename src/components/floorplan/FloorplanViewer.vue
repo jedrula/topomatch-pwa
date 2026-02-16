@@ -3,7 +3,7 @@
     <svg
       :viewBox="`0 0 ${viewBox.width} ${viewBox.height}`"
       class="w-full h-auto"
-      style="max-height: 500px"
+      style="max-height: 300px"
     >
       <!-- Floorplan outline -->
       <polygon
@@ -55,7 +55,7 @@
           font-size="10"
           class="fill-gray-500 pointer-events-none"
         >
-          {{ section.imageIndexes?.length || 0 }} photos
+          {{ section.imageIds?.length || 0 }} photos
         </text>
       </g>
     </svg>
@@ -90,6 +90,15 @@ const typeIcons = {
 };
 
 function getBBox(points) {
+  if (!points || points.length === 0) {
+    // Default viewBox when no outline exists (larger = more zoomed out)
+    return {
+      minX: 0,
+      minY: 0,
+      maxX: 2000,
+      maxY: 1500
+    };
+  }
   const xs = points.map(p => p.x);
   const ys = points.map(p => p.y);
   return {

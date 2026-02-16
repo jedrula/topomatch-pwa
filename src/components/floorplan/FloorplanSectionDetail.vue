@@ -3,7 +3,7 @@
     <div class="mb-3">
       <h3 class="text-xl font-bold">{{ section.name }}</h3>
       <p class="text-sm text-gray-500 font-mono capitalize">
-        {{ section.type }} · {{ section.imageIndexes?.length || 0 }} photos
+        {{ section.type }} · {{ section.imageIds?.length || 0 }} photos
       </p>
     </div>
 
@@ -81,15 +81,15 @@ const emit = defineEmits(['image-reorder', 'image-click']);
 const dragIdx = ref(null);
 const overIdx = ref(null);
 
-// Get images for this section based on imageIndexes
+// Get images for this section based on imageIds
 const displayImages = computed(() => {
-  if (!props.section.imageIndexes || props.section.imageIndexes.length === 0) {
+  if (!props.section.imageIds || props.section.imageIds.length === 0) {
     return [];
   }
   
-  return props.section.imageIndexes
-    .map(idx => props.images[idx])
-    .filter(Boolean); // Filter out undefined if index out of bounds
+  return props.section.imageIds
+    .map(imageId => props.images.find(img => img.imageId === imageId))
+    .filter(Boolean); // Filter out undefined if image not found
 });
 
 function handleDragStart(idx) {
@@ -108,11 +108,11 @@ function handleDrop(idx) {
     return;
   }
 
-  const newIndexes = [...props.section.imageIndexes];
-  const [moved] = newIndexes.splice(dragIdx.value, 1);
-  newIndexes.splice(idx, 0, moved);
+  const newIds = [...props.section.imageIds];
+  const [moved] = newIds.splice(dragIdx.value, 1);
+  newIds.splice(idx, 0, moved);
 
-  emit('image-reorder', props.section.id, newIndexes);
+  emit('image-reorder', props.section.id, newIds);
 
   dragIdx.value = null;
   overIdx.value = null;

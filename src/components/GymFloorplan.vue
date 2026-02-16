@@ -8,8 +8,8 @@
       :has-selected-section="!!selectedSection"
       @toggle-edit-mode="toggleEditMode"
       @toggle-draw-mode="toggleDrawMode"
-      @toggle-edit-outline="toggleEditOutline"
       @delete-section="deleteSection"
+      @delete-outline="deleteOutline"
     />
 
     <!-- Viewer or Editor -->
@@ -29,6 +29,7 @@
       :draw-mode="drawMode"
       :edit-outline="editOutline"
       @section-select="handleSectionSelect"
+      @outline-select="handleOutlineSelect"
       @vertex-move="handleVertexMove"
       @drawing-finish="handleDrawingFinish"
       @add-outline-vertex="addOutlineVertex"
@@ -61,21 +62,39 @@
         Select a section on the floorplan to see wall photos
       </p>
     </div>
+
+    <!-- Hint when editing and no outline -->
+    <p v-if="isEditMode && outline.length === 0 && drawMode === 'none'" class="text-xs text-gray-500">
+      💡 Start by clicking points on the canvas to draw the gym outline. Double-click to finish (min 3 points). Or click "Add Section" to draw sections directly.
+    </p>
+    <p v-else-if="isEditMode && drawMode === 'outline'" class="text-xs text-gray-500">
+      Click to place vertices. Double-click to close the shape (min 3 points). This will replace the current outline.
+    </p>
+    <p v-else-if="isEditMode && drawMode === 'section'" class="text-xs text-gray-500">
+      Click to place vertices. Double-click to close the shape (min 3 points).
+    </p>
+    <p v-else-if="isEditMode && editOutline" class="text-xs text-gray-500">
+      Drag vertices to reshape. Click midpoints to add vertices. Double-click a vertex to remove it.
+    </p>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import FloorplanViewer from './floorplan/FloorplanViewer.vue';
 import FloorplanEditor from './floorplan/FloorplanEditor.vue';
 import FloorplanToolbar from './floorplan/FloorplanToolbar.vue';
 import FloorplanPropertiesPanel from './floorplan/FloorplanPropertiesPanel.vue';
 import FloorplanSectionDetail from './floorplan/FloorplanSectionDetail.vue';
 
-defineProps({
+const props = defineProps({
   images: {
     type: Array,
     default: () => []
+  },
+  floorplan: {
+    type: Object,
+    default: () => ({ outline: [], sections: [] })
   }
 });
 
@@ -89,42 +108,9 @@ const editOutline = ref(false);
 const drawMode = ref('none');
 const selectedSectionId = ref(null);
 
-// Sample data (will be replaced with Firestore data)
-const outline = ref([
-  { x: 20, y: 20 },
-  { x: 480, y: 20 },
-  { x: 480, y: 300 },
-  { x: 400, y: 380 },
-  { x: 100, y: 380 },
-  { x: 20, y: 320 }
-]);
-
-const sections = ref([
-  {
-    id: 'slab-zone',
-    name: 'Slab Zone',
-    type: 'slab',
-    imageIndexes: [0, 1, 2],
-    points: [
-      { x: 40, y: 40 },
-      { x: 230, y: 40 },
-      { x: 230, y: 170 },
-      { x: 40, y: 170 }
-    ]
-  },
-  {
-    id: 'overhang-wall',
-    name: 'Overhang Wall',
-    type: 'overhang',
-    imageIndexes: [1, 3, 0],
-    points: [
-      { x: 250, y: 40 },
-      { x: 460, y: 40 },
-      { x: 460, y: 170 },
-      { x: 250, y: 170 }
-    ]
-  }
-]);
+// Use computed properties directly from props - no watchers needed
+const outline = computed(() => props.floorplan?.outline || []);
+const sections = computed(() => props.floorplan?.sections || []);
 
 // Computed
 const selectedSection = computed(() => {
@@ -142,6 +128,11 @@ function toggleEditMode() {
     drawMode.value = 'none';
     editOutline.value = false;
     selectedSectionId.value = null;
+  } else {
+    // Auto-start outline drawing if no outline exists
+    if (outline.value.length === 0) {
+      drawMode.value = 'outline';
+    }
   }
 }
 
@@ -151,14 +142,16 @@ function toggleDrawMode(mode) {
   } else {
     drawMode.value = mode;
     editOutline.value = false;
+    selectedSectionId.value = null;
   }
 }
 
-function toggleEditOutline() {
-  editOutline.value = !editOutline.value;
-  if (editOutline.value) {
-    drawMode.value = 'none';
-  }
+function handleOutlineSelect() {
+  // Select outline for editing
+  editOutline.value = true;
+  selectedSectionId.value = null;
+  drawMode.value = 'none';
+  console.log('Outline selected for editing');
 }
 
 function handleSectionClick(sectionId) {
@@ -168,33 +161,46 @@ function handleSectionClick(sectionId) {
 
 function handleSectionSelect(sectionId) {
   selectedSectionId.value = sectionId;
+  editOutline.value = false; // Deselect outline when selecting section
   emit('section-select', sectionId);
 }
 
 function handleVertexMove({ target, dx, dy, origPoints }) {
   if (target.kind === 'section-vertex') {
-    const section = sections.value.find(s => s.id === target.sectionId);
-    if (section) {
-      section.points = origPoints.map((p, i) =>
-        i === target.vertexIdx
-          ? { x: snap(p.x + dx), y: snap(p.y + dy) }
-          : { ...p }
-      );
-    }
+    const updatedSections = sections.value.map(s => {
+      if (s.id !== target.sectionId) return s;
+      return {
+        ...s,
+        points: origPoints.map((p, i) =>
+          i === target.vertexIdx
+            ? { x: snap(p.x + dx), y: snap(p.y + dy) }
+            : { ...p }
+        )
+      };
+    });
+    selectedSectionId.value = target.sectionId;
+    emit('sections-change', updatedSections);
   } else if (target.kind === 'section-move') {
-    const section = sections.value.find(s => s.id === target.sectionId);
-    if (section) {
-      section.points = origPoints.map(p => ({
-        x: snap(p.x + dx),
-        y: snap(p.y + dy)
-      }));
-    }
+    const updatedSections = sections.value.map(s => {
+      if (s.id !== target.sectionId) return s;
+      return {
+        ...s,
+        points: origPoints.map(p => ({
+          x: snap(p.x + dx),
+          y: snap(p.y + dy)
+        }))
+      };
+    });
+    selectedSectionId.value = target.sectionId;
+    emit('sections-change', updatedSections);
   } else if (target.kind === 'outline-vertex') {
-    outline.value = origPoints.map((p, i) =>
+    const updatedOutline = origPoints.map((p, i) =>
       i === target.vertexIdx
         ? { x: snap(p.x + dx), y: snap(p.y + dy) }
         : { ...p }
     );
+    editOutline.value = true;
+    emit('outline-change', updatedOutline);
   }
 }
 
@@ -204,24 +210,29 @@ function handleDrawingFinish(mode, points) {
       id: `section-${Date.now()}`,
       name: 'New Section',
       type: 'vertical',
-      imageIndexes: [],
+      imageIds: [],
       points
     };
-    sections.value.push(newSection);
     selectedSectionId.value = newSection.id;
-    emit('sections-change', sections.value);
+    emit('sections-change', [...sections.value, newSection]);
   } else if (mode === 'outline' && points.length >= 3) {
-    outline.value = points;
-    emit('outline-change', outline.value);
+    emit('outline-change', points);
   }
   drawMode.value = 'none';
 }
 
 function deleteSection() {
   if (!selectedSection.value) return;
-  sections.value = sections.value.filter(s => s.id !== selectedSectionId.value);
+  const updatedSections = sections.value.filter(s => s.id !== selectedSectionId.value);
   selectedSectionId.value = null;
-  emit('sections-change', sections.value);
+  emit('sections-change', updatedSections);
+}
+
+function deleteOutline() {
+  editOutline.value = false;
+  drawMode.value = 'outline';
+  emit('outline-change', []);
+  console.log('Outline deleted, starting redraw');
 }
 
 function addOutlineVertex(afterIdx) {
@@ -231,49 +242,55 @@ function addOutlineVertex(afterIdx) {
     x: snap((a.x + b.x) / 2),
     y: snap((a.y + b.y) / 2)
   };
-  outline.value.splice(afterIdx + 1, 0, mid);
-  emit('outline-change', outline.value);
+  const updatedOutline = [...outline.value];
+  updatedOutline.splice(afterIdx + 1, 0, mid);
+  emit('outline-change', updatedOutline);
 }
 
 function removeOutlineVertex(idx) {
   if (outline.value.length <= 3) return;
-  outline.value = outline.value.filter((_, i) => i !== idx);
-  emit('outline-change', outline.value);
+  const updatedOutline = outline.value.filter((_, i) => i !== idx);
+  emit('outline-change', updatedOutline);
 }
 
 function addSectionVertex(sectionId, afterIdx) {
-  const section = sections.value.find(s => s.id === sectionId);
-  if (!section) return;
-  const a = section.points[afterIdx];
-  const b = section.points[(afterIdx + 1) % section.points.length];
-  const mid = {
-    x: snap((a.x + b.x) / 2),
-    y: snap((a.y + b.y) / 2)
-  };
-  section.points.splice(afterIdx + 1, 0, mid);
-  emit('sections-change', sections.value);
+  const updatedSections = sections.value.map(s => {
+    if (s.id !== sectionId) return s;
+    const a = s.points[afterIdx];
+    const b = s.points[(afterIdx + 1) % s.points.length];
+    const mid = {
+      x: snap((a.x + b.x) / 2),
+      y: snap((a.y + b.y) / 2)
+    };
+    const newPoints = [...s.points];
+    newPoints.splice(afterIdx + 1, 0, mid);
+    return { ...s, points: newPoints };
+  });
+  emit('sections-change', updatedSections);
 }
 
 function removeSectionVertex(sectionId, idx) {
-  const section = sections.value.find(s => s.id === sectionId);
-  if (!section || section.points.length <= 3) return;
-  section.points = section.points.filter((_, i) => i !== idx);
-  emit('sections-change', sections.value);
+  const updatedSections = sections.value.map(s => {
+    if (s.id !== sectionId) return s;
+    if (s.points.length <= 3) return s;
+    return { ...s, points: s.points.filter((_, i) => i !== idx) };
+  });
+  emit('sections-change', updatedSections);
 }
 
 function updateSectionField(field, value) {
-  if (selectedSection.value) {
-    selectedSection.value[field] = value;
-    emit('sections-change', sections.value);
-  }
+  if (!selectedSection.value) return;
+  const updatedSections = sections.value.map(s =>
+    s.id === selectedSection.value.id ? { ...s, [field]: value } : s
+  );
+  emit('sections-change', updatedSections);
 }
 
-function handleImageReorder(sectionId, newIndexes) {
-  const section = sections.value.find(s => s.id === sectionId);
-  if (section) {
-    section.imageIndexes = newIndexes;
-    emit('sections-change', sections.value);
-  }
+function handleImageReorder(sectionId, newIds) {
+  const updatedSections = sections.value.map(s =>
+    s.id === sectionId ? { ...s, imageIds: newIds } : s
+  );
+  emit('sections-change', updatedSections);
 }
 </script>
 
