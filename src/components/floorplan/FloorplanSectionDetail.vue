@@ -1,7 +1,21 @@
 <template>
   <div class="animate-in fade-in h-full flex flex-col">
     <!-- Photo panorama strip - horizontal scroll -->
-    <div v-if="displayImages.length > 0" class="flex-1 flex flex-row gap-2 overflow-x-auto overflow-y-hidden rounded-lg border border-gray-200 p-2">
+    <div v-if="displayImages.length > 0" class="flex-1 flex flex-col min-h-0">
+      <!-- Add photos button when photos exist -->
+      <div class="mb-2 flex justify-end flex-shrink-0">
+        <button
+          @click="$emit('add-photos-to-section')"
+          class="h-7 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-medium rounded transition-colors inline-flex items-center gap-1"
+          title="Add more photos to this section"
+        >
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Add Photos
+        </button>
+      </div>
+      <div class="flex-1 min-h-0 flex flex-row gap-2 overflow-x-auto overflow-y-hidden rounded-lg border border-gray-200 p-2">
       <div
         v-for="(image, i) in displayImages"
         :key="`${image.imageId}-${i}`"
@@ -15,6 +29,7 @@
         @drop="handleDrop(i)"
         @dragend="handleDragEnd"
         @click="$emit('image-click', image)"
+        @contextmenu="(e) => showContextMenu(e, image)"
       >
         <div
           v-if="isEditMode"
@@ -31,6 +46,7 @@
           crossorigin="anonymous"
         />
       </div>
+      </div>
     </div>
 
     <!-- Empty state -->
@@ -39,7 +55,16 @@
         <svg class="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <p class="text-sm text-gray-500">No photos assigned to this section</p>
+        <p class="text-sm text-gray-500 mb-3">No photos assigned to this section</p>
+        <button
+          @click="$emit('add-photos-to-section')"
+          class="btn-sm inline-flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Add Photos
+        </button>
       </div>
     </div>
 
@@ -58,6 +83,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useImageContextMenu } from '../../composables/useImageContextMenu';
 
 const props = defineProps({
   section: {
@@ -71,10 +97,22 @@ const props = defineProps({
   isEditMode: {
     type: Boolean,
     default: false
+  },
+  allSections: {
+    type: Array,
+    default: () => []
   }
 });
 
-const emit = defineEmits(['image-reorder', 'image-click']);
+const emit = defineEmits(['image-reorder', 'image-click', 'analyze-holds', 'delete-image', 'move-to-section', 'add-photos-to-section']);
+
+const { showContextMenu } = useImageContextMenu({
+  onAnalyze: (image) => emit('analyze-holds', image),
+  onDelete: (image) => emit('delete-image', image),
+  onMove: (image, sectionId) => emit('move-to-section', image, sectionId),
+  sections: computed(() => props.allSections),
+  currentSectionId: computed(() => props.section.id)
+});
 
 // Drag state
 const dragIdx = ref(null);

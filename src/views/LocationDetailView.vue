@@ -246,17 +246,23 @@
             ref="floorplanRef"
             :is-edit-mode="isFloorplanEditMode" 
             :images="images"
+            :has-any-photos="images.length > 0"
             :floorplan="location?.floorplan"
             @update:isEditMode="isFloorplanEditMode = $event"
             @section-select="handleSectionSelect"
             @sections-change="handleSectionsChange"
             @outline-change="handleOutlineChange"
+            @analyze-holds="openHoldDetection"
+            @delete-image="handleDeleteImage"
+            @move-to-section="handleMoveImageToSection"
+            @upload-photos="handleUploadClick"
+            @add-photos-to-section="handleUploadClick"
           />
         </div>
 
         <!-- Images section -->
         <LocationImages
-          :images="images"
+          :images="unassignedImages"
           :loading="imagesLoading"
           :location-name="location?.name"
           :can-upload="userStore.canUploadImages"
@@ -482,6 +488,24 @@ const filteredComparisonImages = computed(() => {
     Array.isArray(img.routesettings) && 
     img.routesettings.includes(currentRoutesetting.value)
   );
+});
+
+// Filter images to only show those NOT assigned to any floorplan section
+const unassignedImages = computed(() => {
+  if (!location.value?.floorplan?.sections) {
+    return filteredComparisonImages.value;
+  }
+  
+  // Collect all imageIds that are assigned to sections
+  const assignedImageIds = new Set();
+  location.value.floorplan.sections.forEach(section => {
+    if (section.imageIds && Array.isArray(section.imageIds)) {
+      section.imageIds.forEach(id => assignedImageIds.add(id));
+    }
+  });
+  
+  // Return only images that are NOT in any section
+  return filteredComparisonImages.value.filter(img => !assignedImageIds.has(img.imageId));
 });
 
 const displayVideos = computed(() => {
@@ -1170,6 +1194,32 @@ const handleDeleteImage = async (image) => {
     
     // Remove from local array
     images.value = images.value.filter(img => img.imageId !== image.imageId);
+    
+    // Remove imageId from all floorplan sections
+    if (location.value?.floorplan?.sections) {
+      const updatedSections = location.value.floorplan.sections.map(section => {
+        if (section.imageIds && section.imageIds.includes(image.imageId)) {
+          return {
+            ...section,
+            imageIds: section.imageIds.filter(id => id !== image.imageId)
+          };
+        }
+        return section;
+      });
+      
+      // Update floorplan in Firestore if any section was modified
+      const sectionsChanged = updatedSections.some((section, idx) => 
+        section.imageIds?.length !== location.value.floorplan.sections[idx].imageIds?.length
+      );
+      
+      if (sectionsChanged) {
+        await locationService.updateLocation(locationId.value, {
+          'floorplan.sections': updatedSections
+        });
+        // Update local state
+        location.value.floorplan.sections = updatedSections;
+      }
+    }
     
     // Refresh boulder problems since some may have been deleted
     await boulderProblemsStore.loadProblemsForLocation(locationId.value, currentRoutesetting.value);

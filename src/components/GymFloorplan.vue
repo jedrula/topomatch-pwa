@@ -14,7 +14,7 @@
 
     <!-- Viewer or Editor -->
     <div v-if="!props.isEditMode" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="overflow-hidden" style="max-height: 500px">
+      <div class="overflow-hidden" style="max-height: 400px">
         <FloorplanViewer
           :sections="sections"
           :outline="outline"
@@ -24,23 +24,51 @@
       </div>
       
       <!-- Right panel: Section detail or empty state -->
-      <div class="overflow-hidden flex flex-col" style="max-height: 500px">
+      <div class="overflow-hidden flex flex-col" style="max-height: 400px">
         <!-- Section detail (photo gallery) when section is selected -->
         <FloorplanSectionDetail
           v-if="selectedSection"
           :section="selectedSection"
           :images="images"
+          :all-sections="sections"
           @image-reorder="handleImageReorder"
+          @analyze-holds="(image) => $emit('analyze-holds', image)"
+          @delete-image="(image) => $emit('delete-image', image)"
+          @move-to-section="(image, sectionId) => $emit('move-to-section', image, sectionId)"
+          @add-photos-to-section="$emit('add-photos-to-section')"
         />
         
         <!-- Empty state when no section is selected -->
         <div v-else class="flex flex-col items-center justify-center text-center py-8 md:py-0 md:min-h-[300px]">
-          <svg class="w-8 h-8 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-          </svg>
-          <p class="text-gray-500 text-xs">
-            Select a section on the floorplan to see wall photos
-          </p>
+          <!-- Show message based on whether location has any photos -->
+          <template v-if="hasAnyPhotos">
+            <svg class="w-8 h-8 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+            <p class="text-gray-500 text-xs">
+              Select a section on the floorplan to see wall photos
+            </p>
+          </template>
+          <template v-else>
+            <div class="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 class="text-[15px] font-semibold text-gray-900 mb-1">No photos yet</h3>
+            <p class="text-[13px] text-gray-500 mb-6 max-w-sm mx-auto">
+              Share photos of boulder problems, climbing routes, or the area to help other climbers visualize this location.
+            </p>
+            <button
+              @click="$emit('upload-photos')"
+              class="btn inline-flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Upload Photos
+            </button>
+          </template>
         </div>
       </div>
     </div>
@@ -94,6 +122,10 @@ import FloorplanPropertiesPanel from './floorplan/FloorplanPropertiesPanel.vue';
 import FloorplanSectionDetail from './floorplan/FloorplanSectionDetail.vue';
 
 const props = defineProps({
+  hasAnyPhotos: {
+    type: Boolean,
+    default: false
+  },
   images: {
     type: Array,
     default: () => []
@@ -108,7 +140,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['section-select', 'sections-change', 'outline-change', 'update:isEditMode']);
+const emit = defineEmits(['section-select', 'sections-change', 'outline-change', 'update:isEditMode', 'analyze-holds', 'delete-image', 'move-to-section', 'upload-photos', 'add-photos-to-section']);
 
 const GRID = 10;
 
