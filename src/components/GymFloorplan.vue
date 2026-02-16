@@ -40,8 +40,15 @@
         
         <!-- Empty state when no section is selected -->
         <div v-else class="flex flex-col items-center justify-center text-center py-8 md:py-0 md:min-h-[300px]">
+          <!-- Loading state -->
+          <template v-if="loading">
+            <div class="animate-pulse">
+              <div class="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-3"></div>
+              <div class="h-4 bg-gray-200 rounded w-48 mx-auto"></div>
+            </div>
+          </template>
           <!-- Show message based on whether location has any photos -->
-          <template v-if="hasAnyPhotos">
+          <template v-else-if="hasAnyPhotos">
             <svg class="w-8 h-8 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
@@ -56,10 +63,11 @@
               </svg>
             </div>
             <h3 class="text-[15px] font-semibold text-gray-900 mb-1">No photos yet</h3>
-            <p class="text-[13px] text-gray-500 mb-6 max-w-sm mx-auto">
+            <p class="text-[13px] text-gray-500" :class="canUpload ? 'mb-6' : 'mb-0'">
               Share photos of boulder problems, climbing routes, or the area to help other climbers visualize this location.
             </p>
             <button
+              v-if="canUpload"
               @click="$emit('upload-photos')"
               class="btn inline-flex items-center gap-2"
             >
@@ -123,6 +131,14 @@ import FloorplanSectionDetail from './floorplan/FloorplanSectionDetail.vue';
 
 const props = defineProps({
   hasAnyPhotos: {
+    type: Boolean,
+    default: false
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  },
+  canUpload: {
     type: Boolean,
     default: false
   },
