@@ -48,7 +48,7 @@
             </p>
           </div>
           
-          <!-- Actions: Heart + Notify + Three Dots -->
+          <!-- Actions: Heart + Edit Layout + Notify + Three Dots -->
           <div class="flex items-center gap-1 flex-shrink-0">
             <!-- Like Button with count badge -->
             <div class="relative">
@@ -72,6 +72,18 @@
                 {{ location.likesCount }}
               </span>
             </div>
+            
+            <!-- Edit Layout Button (shown only for editors) -->
+            <button
+              v-if="userStore.canEditLocations"
+              @click="scrollToFloorplan"
+              class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              title="Edit floorplan layout"
+            >
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
             
             <!-- Notify Button (Bell Icon) -->
             <button
@@ -207,8 +219,17 @@
         </div>
 
         <!-- Gym Floorplan -->
-        <div class="bg-white rounded-lg border border-gray-200 p-4">
-          <h2 class="text-base font-semibold text-gray-900 mb-4">Gym Floorplan</h2>
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="section-header">Floorplan — tap a section</h2>
+            <button
+              v-if="userStore.canEditLocations"
+              @click="scrollToFloorplan"
+              class="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            >
+              Edit layout
+            </button>
+          </div>
           <GymFloorplan 
             :images="images"
             :floorplan="location?.floorplan"
@@ -1039,6 +1060,14 @@ if (typeof window !== 'undefined') {
 const editLocation = () => {
   // Navigate to edit form (could be same AddLocationView in edit mode)
   router.push(`/location/${locationId.value}/edit`);
+};
+
+const scrollToFloorplan = () => {
+  // Scroll to floorplan section smoothly
+  const floorplanElement = document.querySelector('.bg-white.rounded-lg.p-4');
+  if (floorplanElement) {
+    floorplanElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 };
 
 const handleToggleLike = async () => {

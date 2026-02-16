@@ -26,8 +26,8 @@
         <polygon
           :points="pointsToString(offsetPoints(outline))"
           class="floorplan-outline"
-          :class="{ 'editing': editOutline, 'cursor-pointer': !drawMode }"
-          @click.stop="handleOutlineClick"
+          :class="{ 'editing': editOutline, 'cursor-pointer': drawMode === 'none' }"
+          @click="handleOutlineClick"
         />
 
         <!-- Outline vertices (when editing outline) -->
@@ -59,9 +59,10 @@
             :points="pointsToString(offsetPoints(section.points))"
             :class="[
               'floorplan-section transition-all duration-200',
-              { 'active': selectedSection === section.id }
+              { 'active': selectedSection === section.id, 'cursor-move': drawMode === 'none' && selectedSection === section.id }
             ]"
             @click.stop="handleSectionClick(section.id)"
+            @mousedown.stop="drawMode === 'none' && selectedSection === section.id && handleVertexDown($event, 'section-move', section.id, -1)"
           />
           
           <!-- Section label -->
@@ -81,7 +82,7 @@
             :x="centroid(offsetPoints(section.points)).x"
             :y="centroid(offsetPoints(section.points)).y + 6"
             text-anchor="middle"
-            font-size="12"
+            font-size="13"
             font-weight="600"
             :class="[
               'transition-colors duration-200 pointer-events-none',
@@ -195,7 +196,7 @@ const emit = defineEmits([
 ]);
 
 const GRID = 10;
-const HANDLE_RADIUS = 6;
+const HANDLE_RADIUS = 7;
 
 const typeIcons = {
   slab: '◣',
@@ -217,12 +218,12 @@ function snap(v) {
 
 function getBBox(points) {
   if (!points || points.length === 0) {
-    // Default viewBox when no outline exists (larger = more zoomed out)
+    // Default viewBox when no outline exists (smaller = more zoomed in)
     return {
       minX: 0,
       minY: 0,
-      maxX: 2000,
-      maxY: 1500
+      maxX: 1000,
+      maxY: 800
     };
   }
   const xs = points.map(p => p.x);
@@ -293,9 +294,10 @@ function handleSectionClick(sectionId) {
   emit('section-select', sectionId);
 }
 
-function handleOutlineClick() {
-  if (props.drawMode !== 'none') return;
+function handleOutlineClick(e) {
+  if (props.drawMode !== 'none') return; // Let it bubble to SVG handler
   if (props.outline.length === 0) return;
+  e.stopPropagation(); // Only stop if we're handling it
   emit('outline-select');
 }
 

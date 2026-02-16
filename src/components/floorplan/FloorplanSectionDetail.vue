@@ -1,6 +1,6 @@
 <template>
-  <div class="animate-in fade-in">
-    <div class="mb-3">
+  <div class="animate-in fade-in h-full flex flex-col">
+    <div class="mb-3 flex-shrink-0">
       <h3 class="text-xl font-bold">{{ section.name }}</h3>
       <p class="text-sm text-gray-500 font-mono capitalize">
         {{ section.type }} · {{ section.imageIds?.length || 0 }} photos
@@ -8,7 +8,7 @@
     </div>
 
     <!-- Photo panorama strip -->
-    <div v-if="displayImages.length > 0" class="flex gap-1 overflow-x-auto rounded-lg border border-gray-200">
+    <div v-if="displayImages.length > 0" class="flex-1 flex gap-1 overflow-x-auto overflow-y-auto rounded-lg border border-gray-200">
       <div
         v-for="(image, i) in displayImages"
         :key="`${image.imageId}-${i}`"
@@ -37,7 +37,7 @@
           <img
             :src="image.url"
             :alt="`${section.name} photo ${i + 1}`"
-            class="h-44 w-auto object-cover"
+            class="h-full w-auto object-cover"
             style="min-width: 140px"
             crossorigin="anonymous"
           />
@@ -46,7 +46,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else class="flex items-center justify-center h-44 border border-gray-200 rounded-lg bg-gray-50">
+    <div v-else class="flex items-center justify-center h-full border border-gray-200 rounded-lg bg-gray-50">
       <div class="text-center">
         <svg class="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

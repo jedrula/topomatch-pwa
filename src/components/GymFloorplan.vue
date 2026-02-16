@@ -13,16 +13,40 @@
     />
 
     <!-- Viewer or Editor -->
-    <FloorplanViewer
-      v-if="!isEditMode"
-      :sections="sections"
-      :outline="outline"
-      :active-section="selectedSectionId"
-      @section-click="handleSectionClick"
-    />
+    <div v-if="!isEditMode" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <FloorplanViewer
+          :sections="sections"
+          :outline="outline"
+          :active-section="selectedSectionId"
+          @section-click="handleSectionClick"
+        />
+      </div>
+      
+      <!-- Right panel: Section detail or empty state -->
+      <div class="h-full">
+        <!-- Section detail (photo gallery) when section is selected -->
+        <FloorplanSectionDetail
+          v-if="selectedSection"
+          :section="selectedSection"
+          :images="images"
+          @image-reorder="handleImageReorder"
+        />
+        
+        <!-- Empty state when no section is selected -->
+        <div v-else class="flex flex-col items-center justify-center text-center py-8 md:py-0 md:min-h-[300px]">
+          <svg class="w-8 h-8 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+          </svg>
+          <p class="text-gray-500 text-xs">
+            Select a section on the floorplan to see wall photos
+          </p>
+        </div>
+      </div>
+    </div>
 
     <FloorplanEditor
-      v-else
+      v-if="isEditMode"
       :sections="sections"
       :outline="outline"
       :selected-section="selectedSectionId"
@@ -44,24 +68,6 @@
       :section="selectedSection"
       @update-field="updateSectionField"
     />
-
-    <!-- Section detail (photo gallery) -->
-    <FloorplanSectionDetail
-      v-if="selectedSection && !isEditMode"
-      :section="selectedSection"
-      :images="images"
-      @image-reorder="handleImageReorder"
-    />
-
-    <!-- Empty state -->
-    <div v-if="!selectedSection && !isEditMode" class="flex flex-col items-center justify-center text-center py-12">
-      <svg class="w-12 h-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-      </svg>
-      <p class="text-gray-500 text-sm">
-        Select a section on the floorplan to see wall photos
-      </p>
-    </div>
 
     <!-- Hint when editing and no outline -->
     <p v-if="isEditMode && outline.length === 0 && drawMode === 'none'" class="text-xs text-gray-500">
