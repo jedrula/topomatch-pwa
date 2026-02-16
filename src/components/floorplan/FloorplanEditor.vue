@@ -32,14 +32,23 @@
 
         <!-- Outline vertices (when editing outline) -->
         <template v-if="editOutline">
-          <g v-for="(point, i) in outline" :key="`ov-${i}`">
+          <g v-for="(point, i) in outline" :key="`ov-${i}`" style="z-index: 100">
+            <!-- Larger invisible hit area for easier clicking -->
+            <circle
+              :cx="point.x + offset.x"
+              :cy="point.y + offset.y"
+              r="15"
+              class="fill-transparent cursor-grab"
+              @mousedown="handleVertexDown($event, 'outline-vertex', null, i)"
+              @click.stop
+              @dblclick.stop="$emit('remove-outline-vertex', i)"
+            />
+            <!-- Visible handle -->
             <circle
               :cx="point.x + offset.x"
               :cy="point.y + offset.y"
               :r="HANDLE_RADIUS + 2"
-              class="fill-blue-600 cursor-grab"
-              @mousedown="handleVertexDown($event, 'outline-vertex', null, i)"
-              @dblclick.stop="$emit('remove-outline-vertex', i)"
+              class="fill-blue-600 pointer-events-none"
             />
             <!-- Midpoint handle -->
             <circle
@@ -103,14 +112,23 @@
 
           <!-- Section vertices (show when selected) -->
           <template v-if="drawMode === 'none' && selectedSection === section.id">
-            <g v-for="(point, i) in section.points" :key="`sv-${section.id}-${i}`">
+            <g v-for="(point, i) in section.points" :key="`sv-${section.id}-${i}`" style="z-index: 100">
+              <!-- Larger invisible hit area for easier clicking -->
+              <circle
+                :cx="point.x + offset.x"
+                :cy="point.y + offset.y"
+                r="15"
+                class="fill-transparent cursor-grab"
+                @mousedown="handleVertexDown($event, 'section-vertex', section.id, i)"
+                @click.stop
+                @dblclick.stop="$emit('remove-section-vertex', section.id, i)"
+              />
+              <!-- Visible handle -->
               <circle
                 :cx="point.x + offset.x"
                 :cy="point.y + offset.y"
                 :r="HANDLE_RADIUS + 2"
-                class="cursor-grab transition-all fill-blue-600"
-                @mousedown="handleVertexDown($event, 'section-vertex', section.id, i)"
-                @dblclick.stop="$emit('remove-section-vertex', section.id, i)"
+                class="fill-blue-600 pointer-events-none"
               />
               <!-- Midpoint handle -->
               <circle
@@ -329,7 +347,7 @@ function handleSvgDoubleClick(e) {
 
 function handleVertexDown(e, kind, sectionId, vertexIdx) {
   e.stopPropagation();
-  e.preventDefault();
+  // Don't preventDefault - let dblclick events through
   if (props.drawMode !== 'none') return;
 
   const pt = getSVGPoint(e);
@@ -340,11 +358,9 @@ function handleVertexDown(e, kind, sectionId, vertexIdx) {
     const section = props.sections.find(s => s.id === sectionId);
     if (section) {
       origPoints.value = section.points.map(p => ({ ...p }));
-      emit('section-select', sectionId);
     }
   } else if (kind === 'outline-vertex') {
     origPoints.value = props.outline.map(p => ({ ...p }));
-    emit('outline-select');
   }
 }
 
@@ -365,6 +381,8 @@ function handleMouseMove(e) {
 }
 
 function handleMouseUp() {
+  // Don't emit selection when clicking vertices - they're for editing, not selecting
+  // Selection happens via clicking the outline/section polygon itself
   editTarget.value = null;
   // wasDragging will be checked and cleared by the next click event
 }

@@ -3,6 +3,7 @@
     <!-- Toolbar -->
     <FloorplanToolbar
       :is-edit-mode="props.isEditMode"
+      :has-outline="outline.length > 0"
       :draw-mode="drawMode"
       :edit-outline="editOutline"
       :has-selected-section="!!selectedSection"
