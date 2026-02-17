@@ -254,6 +254,7 @@
             @section-select="handleSectionSelect"
             @sections-change="handleSectionsChange"
             @outline-change="handleOutlineChange"
+            @image-click="openImageModal"
             @analyze-holds="openHoldDetection"
             @delete-image="handleDeleteImage"
             @move-to-section="handleMoveImageToSection"

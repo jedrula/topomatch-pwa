@@ -15,12 +15,12 @@
           Add Photos
         </button>
       </div>
-      <div class="flex-1 min-h-0 flex flex-row gap-2 overflow-x-auto overflow-y-hidden rounded-lg border border-gray-200 p-2">
+      <div class="flex-1 min-h-0 flex flex-row rounded-lg border border-gray-200 overflow-hidden">
       <div
         v-for="(image, i) in displayImages"
         :key="`${image.imageId}-${i}`"
         :class="[
-          'relative flex-shrink-0 cursor-pointer transition-all duration-200',
+          'relative flex-1 cursor-pointer transition-all duration-200',
           overIdx === i && dragIdx !== null && dragIdx !== i ? 'ring-2 ring-blue-500' : ''
         ]"
         :draggable="isEditMode"
@@ -42,7 +42,7 @@
         <img
           :src="image.url"
           :alt="`${section.name} photo ${i + 1}`"
-          class="h-full w-auto object-contain"
+          class="w-full h-full object-cover"
           crossorigin="anonymous"
         />
       </div>

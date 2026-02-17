@@ -15,7 +15,7 @@
 
     <!-- Viewer or Editor -->
     <div v-if="!props.isEditMode" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="overflow-hidden" style="max-height: 400px">
+      <div class="overflow-hidden flex items-center" style="max-height: 400px">
         <FloorplanViewer
           :sections="sections"
           :outline="outline"
@@ -33,6 +33,7 @@
           :images="images"
           :all-sections="sections"
           @image-reorder="handleImageReorder"
+          @image-click="(image) => $emit('image-click', image)"
           @analyze-holds="(image) => $emit('analyze-holds', image)"
           @delete-image="(image) => $emit('delete-image', image)"
           @move-to-section="(image, sectionId) => $emit('move-to-section', image, sectionId)"
@@ -157,7 +158,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['section-select', 'sections-change', 'outline-change', 'update:isEditMode', 'analyze-holds', 'delete-image', 'move-to-section', 'upload-photos', 'add-photos-to-section']);
+const emit = defineEmits(['section-select', 'sections-change', 'outline-change', 'update:isEditMode', 'image-click', 'analyze-holds', 'delete-image', 'move-to-section', 'upload-photos', 'add-photos-to-section']);
 
 const GRID = 10;
 
