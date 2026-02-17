@@ -1,9 +1,10 @@
 <template>
-  <div>
+  <!-- Only show if loading OR if there are unassigned images to display -->
+  <div v-if="loading || images.length > 0">
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
       <h2 class="section-header">
-        Photos
+        Other Photos
         <span v-if="!loading && images.length > 0" class="section-header-count ml-1.5">({{ images.length }})</span>
       </h2>
       <button
@@ -36,30 +37,7 @@
         </div>
       </div>
 
-      <!-- Empty state -->
-      <div v-else-if="images.length === 0" class="text-center py-12">
-        <div class="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <h3 class="text-[15px] font-semibold text-gray-900 mb-1">No photos yet</h3>
-        <p class="text-[13px] text-gray-500 mb-6 max-w-sm mx-auto">
-          Share photos of boulder problems, climbing routes, or the area to help other climbers visualize this location.
-        </p>
-        <button
-          v-if="canUpload"
-          @click="$emit('upload')"
-          class="btn inline-flex items-center gap-2"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Upload Photos
-        </button>
-      </div>
-
-      <!-- Images grid -->
+      <!-- Images grid (no empty state - component hidden if no images) -->
       <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <div
           v-for="image in images"
@@ -86,8 +64,39 @@
             </div>
           </div>
 
-          <!-- Regular image display -->
-          <template v-else>
+          <!-- Regular image display with context menu -->
+          <div v-else-if="!isHeicFile(image.name) && canEditHolds" class="relative" @contextmenu="(e) => showContextMenu(e, image)">
+            <picture>
+              <source
+                :srcset="getResizedImageUrl(image.url, '300x300', 'webp')"
+                type="image/webp"
+                @error="() => {}"
+              />
+              <img
+                :src="getResizedImageUrl(image.url, '300x300', 'jpeg')"
+                :alt="`Photo of ${locationName || 'climbing location'}`"
+                class="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                @click="$emit('image-click', image)"
+                @error="(e) => e.target.src = image.url"
+                loading="lazy"
+                crossorigin="anonymous"
+              />
+            </picture>
+            
+            <!-- Three-dots menu button -->
+            <button
+              @click="(e) => showContextMenu(e, image)"
+              class="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              aria-label="Image options"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
+          </div>
+          
+          <!-- Regular image display without context menu -->
+          <template v-else-if="!isHeicFile(image.name)">
             <!-- Processing state for recently uploaded images -->
             <div
               v-if="isRecentUpload(image)"
@@ -118,32 +127,6 @@
                 crossorigin="anonymous"
               />
             </picture>
-            
-            <!-- Hold detection button for admins -->
-            <button
-              v-if="canEditHolds"
-              @click.stop="$emit('analyze-holds', image)"
-              class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-gray-700 hover:text-green-600 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
-              title="Analyze holds and create boulder problems"
-              :aria-label="`Analyze holds in ${image.name}`"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-            
-            <!-- Delete button for admins -->
-            <button
-              v-if="canEditHolds"
-              @click.stop="$emit('delete-image', image)"
-              class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center bg-white/90 hover:bg-white text-gray-700 hover:text-red-600 rounded-full shadow-sm transition-all opacity-0 group-hover:opacity-100"
-              title="Delete this image and all associated boulder problems"
-              :aria-label="`Delete ${image.name}`"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
           </template>
         </div>
       </div>
@@ -153,8 +136,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useImageContextMenu } from '../composables/useImageContextMenu';
 
-defineProps({
+const props = defineProps({
   images: {
     type: Array,
     required: true,
@@ -176,17 +160,29 @@ defineProps({
     type: Boolean,
     default: false
   },
+  sections: {
+    type: Array,
+    default: () => []
+  },
   getResizedImageUrl: {
     type: Function,
     required: true
   }
 });
 
-defineEmits(['upload', 'image-click', 'analyze-holds', 'delete-image']);
-
 const isHeicFile = (filename) => {
   return filename?.toLowerCase().endsWith('.heic') || filename?.toLowerCase().endsWith('.heif');
 };
+
+const emit = defineEmits(['upload', 'image-click', 'analyze-holds', 'delete-image', 'move-to-section']);
+
+// Setup context menu composable
+const { showContextMenu } = useImageContextMenu({
+  onAnalyze: (image) => emit('analyze-holds', image),
+  onDelete: (image) => emit('delete-image', image),
+  onMove: (image, sectionId) => emit('move-to-section', image, sectionId),
+  sections: computed(() => props.sections)
+});
 
 // Simple check: is this image uploaded in the last 5 seconds?
 const now = ref(Date.now());

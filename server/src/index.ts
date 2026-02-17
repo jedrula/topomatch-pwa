@@ -165,6 +165,16 @@ interface Location {
   gradingSystem?: GradingSystem;
   routesettings?: string[]; // Array of ISO timestamps, last one is current
   likesCount?: number; // Total number of likes
+  floorplan?: {
+    outline: Array<{ x: number; y: number }>;
+    sections: Array<{
+      id: string;
+      name: string;
+      type: 'slab' | 'vertical' | 'overhang' | 'cave';
+      imageIds: string[]; // References to LocationImage.imageId
+      points: Array<{ x: number; y: number }>;
+    }>;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -307,6 +317,10 @@ export const createLocation = onCall({region: REGION}, async (request) => {
       address: address || "",
       description: description || "",
       likesCount: 0,
+      floorplan: {
+        outline: [],
+        sections: []
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -491,17 +505,13 @@ export const getLocation = onCall({region: REGION}, async (request) => {
 // Update a location
 export const updateLocation = onCall({region: REGION}, async (request) => {
   try {
-    const { locationId, name, address, description, heroImageUrl, gradingSystem } = request.data;
+    const { locationId, name, address, description, heroImageUrl, gradingSystem, ...otherFields } = request.data;
 
     if (!locationId) {
       throw new Error("Location ID is required");
     }
 
-    if (!name) {
-      throw new Error("Name is required");
-    }
-
-    // Get the current location to check for existing hero image
+    // Get the current location
     const currentDoc = await db.collection("locations").doc(locationId).get();
     if (!currentDoc.exists) {
       throw new Error("Location not found");
@@ -510,7 +520,7 @@ export const updateLocation = onCall({region: REGION}, async (request) => {
     const currentData = currentDoc.data() as Location;
 
     // If hero image is being changed and there was an old one, delete the old file
-    if (currentData.heroImageUrl && heroImageUrl !== currentData.heroImageUrl) {
+    if (currentData.heroImageUrl && heroImageUrl && heroImageUrl !== currentData.heroImageUrl) {
       const oldHeroImagePath = getFilePathFromUrl(currentData.heroImageUrl);
       if (oldHeroImagePath) {
         try {
@@ -524,12 +534,23 @@ export const updateLocation = onCall({region: REGION}, async (request) => {
     }
 
     const updateData: Partial<Location> = {
-      name,
-      name_lowercase: name.toLowerCase(), // Update lowercase version for prefix search
-      address: address || "",
-      description: description || "",
       updatedAt: new Date(),
+      ...otherFields, // Include any other fields (like floorplan.sections, floorplan.outline)
     };
+
+    // Only include these fields if they're provided
+    if (name !== undefined) {
+      updateData.name = name;
+      updateData.name_lowercase = name.toLowerCase(); // Update lowercase version for prefix search
+    }
+
+    if (address !== undefined) {
+      updateData.address = address || "";
+    }
+
+    if (description !== undefined) {
+      updateData.description = description || "";
+    }
 
     // Only include heroImageUrl if it's provided and not empty
     if (heroImageUrl && heroImageUrl.trim() !== "") {

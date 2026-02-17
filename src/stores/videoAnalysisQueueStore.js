@@ -305,9 +305,16 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
             }
           }
           
+          const debugUrls = job.debugUrlsFrames?.[i] || {};
+          
           framesData.push({
             frameIndex,
             limbHolds,
+            debugUrls: {
+              combinedDebugUrl: debugUrls.combinedDebugUrl || null,
+              visualizationUrl: debugUrls.visualizationUrl || null,
+              poseDebugUrl: debugUrls.poseDebugUrl || null
+            }
           });
         }
         
@@ -321,11 +328,11 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
             // Use EXACT same algorithm as problemScoringUtils.js
             keypointRows.forEach(keypoint => {
               const confidence = keypoint.confidence || 0.5;
-              const candidates = [
-                { problem: keypoint.closestProblem, hold: keypoint.closestHold, score: keypoint.closestScore },
-                { problem: keypoint.secondClosestProblem, hold: keypoint.secondClosestHold, score: keypoint.secondClosestScore },
-                { problem: keypoint.thirdClosestProblem, hold: keypoint.thirdClosestHold, score: keypoint.thirdClosestScore }
-              ];
+              const candidates = (keypoint.closestHolds || []).map(item => ({
+                problem: item.problem,
+                hold: item.hold,
+                score: item.score
+              }));
               
               // Deduplicate: only count best hold per problem for this keypoint
               const bestByProblem = new Map();
@@ -843,6 +850,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
       
       // Match all selected frames
       job.localizedTransformsFrames = []; // Array of transform arrays, one per frame
+      job.debugUrlsFrames = []; // Array of debug URLs, one per frame
       
       for (let i = 0; i < job.selectedFrameIndices.length; i++) {
         const frameIndex = job.selectedFrameIndices[i];
@@ -902,9 +910,21 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
           } else {
             job.localizedTransformsFrames[i] = [];
           }
+          
+          // Store debug URLs for this frame
+          job.debugUrlsFrames[i] = {
+            combinedDebugUrl: serverResult.debug_images?.combined_url || null,
+            visualizationUrl: serverResult.visualizationUrl || serverResult.download_url || null,
+            poseDebugUrl: serverResult.pose_debug_url || null
+          };
         } catch (err) {
           console.warn(`   ⚠️ Frame ${i + 1} server homography failed: ${err.message}`);
           job.localizedTransformsFrames[i] = [];
+          job.debugUrlsFrames[i] = {
+            combinedDebugUrl: null,
+            visualizationUrl: null,
+            poseDebugUrl: null
+          };
         }
       }
       
@@ -1216,7 +1236,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
             // Fallback to global homography for this keypoint if no localized transform
             const homographyToUse = job.serverHomographyMatrix || job.homographyMatrix;
             if (homographyToUse) {
-              const transformed = transformPoints([kp], homographyToUse);
+              const transformed = await transformPoints([kp], homographyToUse);
               if (transformed && transformed[0]) {
                 imageKeypoints.push(transformed[0]);
                 console.log(`      ⚠️ ${kp.type}: using global homography (no localized transform)`);
@@ -1234,7 +1254,7 @@ export const useVideoAnalysisQueueStore = defineStore('videoAnalysisQueue', () =
         const homographySource = job.serverHomographyMatrix ? 'server homography' : 'SuperPoint (frontend)';
         
         console.log(`      🔄 Using ${homographySource} for transformation`);
-        imageKeypoints = transformPoints(videoKeypoints, homographyToUse);
+        imageKeypoints = await transformPoints(videoKeypoints, homographyToUse);
       }
       
       if (!imageKeypoints || !Array.isArray(imageKeypoints) || imageKeypoints.length === 0) {

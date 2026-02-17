@@ -98,6 +98,13 @@
   --color-gray-300: #d4d4d4;
   --color-gray-400: #a3a3a3;
   --color-gray-500: #737373;
+  
+  /* Floorplan colors - Dark modern palette */
+  --floorplan-bg: 220 14% 16%;           /* Dark background for room */
+  --floorplan-section: 220 12% 22%;       /* Section fill */
+  --floorplan-section-hover: 32 40% 25%;  /* Hover state */
+  --floorplan-section-active: 32 60% 30%; /* Active/selected state */
+  --floorplan-border: 220 10% 30%;        /* Border color */
   --color-gray-600: #525252;
   --color-gray-700: #404040;
   --color-gray-800: #262626;

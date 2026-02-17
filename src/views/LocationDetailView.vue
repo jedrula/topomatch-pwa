@@ -48,7 +48,7 @@
             </p>
           </div>
           
-          <!-- Actions: Heart + Notify + Three Dots -->
+          <!-- Actions: Heart + Edit Layout + Notify + Three Dots -->
           <div class="flex items-center gap-1 flex-shrink-0">
             <!-- Like Button with count badge -->
             <div class="relative">
@@ -72,6 +72,18 @@
                 {{ location.likesCount }}
               </span>
             </div>
+            
+            <!-- Edit Layout Button (shown only for editors) -->
+            <button
+              v-if="userStore.canEditLocations"
+              @click="scrollToFloorplan"
+              class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              title="Edit floorplan layout"
+            >
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
             
             <!-- Notify Button (Bell Icon) -->
             <button
@@ -206,18 +218,65 @@
           </div>
         </div>
 
+        <!-- Gym Floorplan -->
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="section-header">Floorplan — tap a section</h2>
+            <button
+              v-if="userStore.canEditLocations"
+              @click="toggleFloorplanEditMode"
+              :class="[
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                isFloorplanEditMode
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ]"
+            >
+              <svg v-if="isFloorplanEditMode" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              {{ isFloorplanEditMode ? 'View Mode' : 'Edit Layout' }}
+            </button>
+          </div>
+          <GymFloorplan
+            ref="floorplanRef"
+            :is-edit-mode="isFloorplanEditMode" 
+            :images="images"
+            :loading="imagesLoading"
+            :has-any-photos="images.length > 0"
+            :can-upload="userStore.canUploadImages"
+            :floorplan="location?.floorplan"
+            @update:isEditMode="isFloorplanEditMode = $event"
+            @section-select="handleSectionSelect"
+            @sections-change="handleSectionsChange"
+            @outline-change="handleOutlineChange"
+            @image-click="openImageModal"
+            @analyze-holds="openHoldDetection"
+            @delete-image="handleDeleteImage"
+            @move-to-section="handleMoveImageToSection"
+            @upload-photos="handleUploadClick"
+            @add-photos-to-section="handleUploadClick"
+          />
+        </div>
+
         <!-- Images section -->
         <LocationImages
-          :images="images"
+          :images="unassignedImages"
           :loading="imagesLoading"
           :location-name="location?.name"
           :can-upload="userStore.canUploadImages"
           :can-edit-holds="userStore.canEditLocations"
+          :sections="location?.floorplan?.sections || []"
           :get-resized-image-url="getResizedImageUrl"
           @upload="handleUploadClick"
           @image-click="openImageModal"
           @analyze-holds="openHoldDetection"
           @delete-image="handleDeleteImage"
+          @move-to-section="handleMoveImageToSection"
         />
 
         <!-- Videos/Betas section -->
@@ -333,6 +392,7 @@ import ToastNotification from '../components/ToastNotification.vue';
 import LocationImages from '../components/LocationImages.vue';
 import LocationVideos from '../components/LocationVideos.vue';
 import LocationBoulderProblems from '../components/LocationBoulderProblems.vue';
+import GymFloorplan from '../components/GymFloorplan.vue';
 import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
@@ -353,6 +413,16 @@ const boulderProblemsStore = useBoulderProblemsStore();
 const analysisStore = useVideoAnalysisQueueStore();
 const uploadQueue = useVideoUploadQueueStore();
 const toast = useToast();
+
+// Component refs
+const floorplanRef = ref(null);
+
+// Floorplan state
+const isFloorplanEditMode = ref(false);
+
+const toggleFloorplanEditMode = () => {
+  isFloorplanEditMode.value = !isFloorplanEditMode.value;
+};
 
 // Video analysis composable
 const {
@@ -421,6 +491,24 @@ const filteredComparisonImages = computed(() => {
     Array.isArray(img.routesettings) && 
     img.routesettings.includes(currentRoutesetting.value)
   );
+});
+
+// Filter images to only show those NOT assigned to any floorplan section
+const unassignedImages = computed(() => {
+  if (!location.value?.floorplan?.sections) {
+    return filteredComparisonImages.value;
+  }
+  
+  // Collect all imageIds that are assigned to sections
+  const assignedImageIds = new Set();
+  location.value.floorplan.sections.forEach(section => {
+    if (section.imageIds && Array.isArray(section.imageIds)) {
+      section.imageIds.forEach(id => assignedImageIds.add(id));
+    }
+  });
+  
+  // Return only images that are NOT in any section
+  return filteredComparisonImages.value.filter(img => !assignedImageIds.has(img.imageId));
 });
 
 const displayVideos = computed(() => {
@@ -784,6 +872,52 @@ const loadProblemVideoCounts = async () => {
   }
 };
 
+// Handle floorplan events
+const handleSectionSelect = (sectionId) => {
+  console.log('Section selected:', sectionId);
+  // Could scroll to section's photos or show section details in future
+};
+
+const handleSectionsChange = async (newSections) => {
+  try {
+    // Optimistically update local state
+    if (location.value) {
+      if (!location.value.floorplan) {
+        location.value.floorplan = {};
+      }
+      location.value.floorplan.sections = newSections;
+    }
+    
+    // Persist to Firestore
+    await locationService.updateLocation(locationId.value, {
+      'floorplan.sections': newSections
+    });
+  } catch (err) {
+    console.error('Error saving floorplan sections:', err);
+    toast.error('Failed to save floorplan changes');
+  }
+};
+
+const handleOutlineChange = async (newOutline) => {
+  try {
+    // Optimistically update local state
+    if (location.value) {
+      if (!location.value.floorplan) {
+        location.value.floorplan = {};
+      }
+      location.value.floorplan.outline = newOutline;
+    }
+    
+    // Persist to Firestore
+    await locationService.updateLocation(locationId.value, {
+      'floorplan.outline': newOutline
+    });
+  } catch (err) {
+    console.error('Error saving floorplan outline:', err);
+    toast.error('Failed to save floorplan changes');
+  }
+};
+
 // Handle video deletion
 const handleVideoDeleted = async (videoId) => {
   // Find the video to get its problemId before removing it
@@ -982,6 +1116,13 @@ const editLocation = () => {
   router.push(`/location/${locationId.value}/edit`);
 };
 
+const scrollToFloorplan = () => {
+  // Scroll to floorplan section smoothly using component ref
+  if (floorplanRef.value?.$el) {
+    floorplanRef.value.$el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+};
+
 const handleToggleLike = async () => {
   if (!userStore.user) {
     authModal.open();
@@ -1056,11 +1197,80 @@ const handleDeleteImage = async (image) => {
     // Remove from local array
     images.value = images.value.filter(img => img.imageId !== image.imageId);
     
+    // Remove imageId from all floorplan sections
+    if (location.value?.floorplan?.sections) {
+      const updatedSections = location.value.floorplan.sections.map(section => {
+        if (section.imageIds && section.imageIds.includes(image.imageId)) {
+          return {
+            ...section,
+            imageIds: section.imageIds.filter(id => id !== image.imageId)
+          };
+        }
+        return section;
+      });
+      
+      // Update floorplan in Firestore if any section was modified
+      const sectionsChanged = updatedSections.some((section, idx) => 
+        section.imageIds?.length !== location.value.floorplan.sections[idx].imageIds?.length
+      );
+      
+      if (sectionsChanged) {
+        await locationService.updateLocation(locationId.value, {
+          'floorplan.sections': updatedSections
+        });
+        // Update local state
+        location.value.floorplan.sections = updatedSections;
+      }
+    }
+    
     // Refresh boulder problems since some may have been deleted
     await boulderProblemsStore.loadProblemsForLocation(locationId.value, currentRoutesetting.value);
   } catch (error) {
     console.error('Error deleting image:', error);
     alert('Failed to delete image. Please try again.');
+  }
+};
+
+const handleMoveImageToSection = async (image, sectionId) => {
+  try {
+    const section = location.value?.floorplan?.sections?.find(s => s.id === sectionId);
+    if (!section) {
+      console.error('Section not found:', sectionId);
+      return;
+    }
+
+    // Update sections: remove image from all sections, then add to target section
+    const updatedSections = location.value.floorplan.sections.map(s => {
+      const imageIds = s.imageIds || [];
+      
+      if (s.id === sectionId) {
+        // Add to target section if not already present
+        if (!imageIds.includes(image.imageId)) {
+          return { ...s, imageIds: [...imageIds, image.imageId] };
+        }
+        return s;
+      } else {
+        // Remove from other sections
+        const filteredIds = imageIds.filter(id => id !== image.imageId);
+        if (filteredIds.length !== imageIds.length) {
+          return { ...s, imageIds: filteredIds };
+        }
+        return s;
+      }
+    });
+
+    // Save to Firestore
+    await locationService.updateLocation(locationId.value, {
+      'floorplan.sections': updatedSections
+    });
+
+    // Update local state
+    location.value.floorplan.sections = updatedSections;
+
+    toast.success(`Image moved to ${section.name}`);
+  } catch (error) {
+    console.error('Error moving image to section:', error);
+    toast.error('Failed to move image');
   }
 };
 

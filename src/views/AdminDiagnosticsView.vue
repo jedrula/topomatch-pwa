@@ -172,16 +172,6 @@
             </div>
           </div>
 
-          <!-- Debug Images -->
-          <div v-if="report.match?.combinedDebugUrl" class="mt-3">
-            <button 
-              @click="viewImage(report.match.combinedDebugUrl)"
-              class="inline-block px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
-            >
-              View Combined Debug Image
-            </button>
-          </div>
-
           <!-- Scores -->
           <div v-if="report.scores && report.scores.length > 0" class="mt-3">
             <div class="text-sm font-medium text-gray-700 mb-2">
@@ -201,8 +191,33 @@
             </div>
             
             <div v-for="(frame, frameIdx) in report.frames" :key="frameIdx" class="mb-4 bg-blue-50 p-3 rounded">
-              <div class="font-medium text-sm text-blue-900 mb-2">
-                Frame {{ frameIdx + 1 }} (Video Frame #{{ frame.frameIndex + 1 }})
+              <div class="flex items-center justify-between mb-2">
+                <div class="font-medium text-sm text-blue-900">
+                  Frame {{ frameIdx + 1 }} (Video Frame #{{ frame.frameIndex + 1 }})
+                </div>
+                <div v-if="frame.debugUrls" class="flex gap-2">
+                  <button
+                    v-if="frame.debugUrls.combinedDebugUrl"
+                    @click="viewImage(frame.debugUrls.combinedDebugUrl)"
+                    class="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    🖼️ Combined
+                  </button>
+                  <button
+                    v-if="frame.debugUrls.visualizationUrl"
+                    @click="viewImage(frame.debugUrls.visualizationUrl)"
+                    class="text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  >
+                    🎯 Matches
+                  </button>
+                  <button
+                    v-if="frame.debugUrls.poseDebugUrl"
+                    @click="viewImage(frame.debugUrls.poseDebugUrl)"
+                    class="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    🤸 Pose
+                  </button>
+                </div>
               </div>
               
               <!-- Per-Frame Scoring -->

@@ -4,62 +4,6 @@ import { getCurrentUser } from './authService.js';
 
 const COLLECTION = 'analysisDiagnostics';
 
-const toNumber = (value) => (typeof value === 'number' ? Number(value.toFixed(2)) : null);
-
-const sanitizePoint = (point) => {
-  if (!point) return null;
-  return {
-    name: point.name || point.type || null,
-    x: toNumber(point.x),
-    y: toNumber(point.y),
-    confidence: typeof point.confidence === 'number' ? Number(point.confidence.toFixed(2)) : null,
-  };
-};
-
-const sanitizeHold = (hold) => {
-  if (!hold) return null;
-  const centerX = hold.centerX ?? hold.centerPoint?.x ?? null;
-  const centerY = hold.centerY ?? hold.centerPoint?.y ?? null;
-  const width = hold.width ?? hold.boundingWidth ?? hold.bounds?.width ?? null;
-  const height = hold.height ?? hold.boundingHeight ?? hold.bounds?.height ?? null;
-  return {
-    id: hold.id || hold.holdId || null,
-    centerX: toNumber(centerX ?? null),
-    centerY: toNumber(centerY ?? null),
-    width: toNumber(width ?? null),
-    height: toNumber(height ?? null),
-    color: hold.color || hold.hexColor || null,
-    source: hold.source || hold.type || null,
-  };
-};
-
-const sanitizeProblem = (problem) => {
-  if (!problem) return null;
-  return {
-    id: problem.id || problem.problemId || null,
-    name: problem.name || null,
-    grade: problem.grade || null,
-    color: problem.color || null,
-  };
-};
-
-const sanitizeKeypointRows = (rows = []) => rows.map((row) => ({
-  name: row.name,
-  confidence: typeof row.confidence === 'number' ? Number(row.confidence.toFixed(2)) : null,
-  distanceToHold: typeof row.distanceToHold === 'number' ? Math.round(row.distanceToHold) : null,
-  closestScore: typeof row.closestScore === 'number' ? Number(row.closestScore.toFixed(3)) : null,
-  closestHold: sanitizeHold(row.closestHold),
-  closestProblem: sanitizeProblem(row.closestProblem),
-  secondClosestDistance: typeof row.secondClosestDistance === 'number' ? Math.round(row.secondClosestDistance) : null,
-  secondClosestHold: sanitizeHold(row.secondClosestHold),
-  secondClosestProblem: sanitizeProblem(row.secondClosestProblem),
-  thirdClosestDistance: typeof row.thirdClosestDistance === 'number' ? Math.round(row.thirdClosestDistance) : null,
-  thirdClosestHold: sanitizeHold(row.thirdClosestHold),
-  thirdClosestProblem: sanitizeProblem(row.thirdClosestProblem),
-}));
-
-const sanitizePoints = (points = []) => points.map(sanitizePoint).filter(Boolean);
-
 export const analysisDiagnosticsService = {
   async logSnapshot({
     ascentId,
