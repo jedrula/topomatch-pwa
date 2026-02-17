@@ -269,7 +269,7 @@ function handleVertexMove({ target, dx, dy, origPoints }) {
 function handleDrawingFinish(mode, points) {
   if (mode === 'section' && points.length >= 3) {
     const newSection = {
-      id: `section-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: 'New Section',
       type: 'vertical',
       imageIds: [],

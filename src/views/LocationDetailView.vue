@@ -1117,10 +1117,9 @@ const editLocation = () => {
 };
 
 const scrollToFloorplan = () => {
-  // Scroll to floorplan section smoothly
-  const floorplanElement = document.querySelector('.bg-white.rounded-lg.p-4');
-  if (floorplanElement) {
-    floorplanElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Scroll to floorplan section smoothly using component ref
+  if (floorplanRef.value?.$el) {
+    floorplanRef.value.$el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 };
 

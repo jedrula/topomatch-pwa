@@ -45,8 +45,8 @@ export function useImageContextMenu({ onAnalyze, onDelete, onMove, sections, cur
     );
     
     ContextMenu.showContextMenu({
-      x: event.x,
-      y: event.y,
+      x: event.clientX,
+      y: event.clientY,
       items: menuItems
     });
   };

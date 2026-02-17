@@ -83,9 +83,8 @@ defineProps({
 });
 
 defineEmits([
-  'toggle-edit-mode',
   'toggle-draw-mode',
-  'toggle-edit-outline',
+  'delete-outline',
   'delete-section'
 ]);
 </script>

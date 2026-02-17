@@ -6,7 +6,6 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 
 import FloatingVue from 'floating-vue';
-import VueKonva from 'vue-konva';
 
 import App from './App.vue';
 import router from './router';
@@ -58,7 +57,6 @@ const app = createApp(App);
 
 app.use(router);
 app.use(FloatingVue);
-app.use(VueKonva);
 
 app.use(pinia);
 

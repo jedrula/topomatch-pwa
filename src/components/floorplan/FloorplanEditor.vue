@@ -207,6 +207,7 @@ const emit = defineEmits([
   'outline-select',
   'vertex-move',
   'drawing-finish',
+  'drawing-point-add',
   'add-outline-vertex',
   'remove-outline-vertex',
   'add-section-vertex',
