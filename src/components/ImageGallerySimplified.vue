@@ -16,8 +16,20 @@
       <!-- Image info - Bottom right corner -->
       <div
         v-if="currentImage"
-        class="absolute bottom-6 right-6 text-white text-right bg-black bg-opacity-50 p-3 rounded-lg text-sm z-40"
+        class="absolute bottom-6 right-6 text-white text-right bg-black bg-opacity-50 p-3 rounded-lg text-sm z-40 space-y-2"
       >
+        <!-- Miniature floorplan showing current section -->
+        <div v-if="floorplan?.outline?.length > 0" class="mb-2">
+          <div class="text-[10px] text-gray-400 mb-1">{{ currentImageSection?.name || 'Unassigned' }}</div>
+          <div class="w-32 h-20 bg-black bg-opacity-30 rounded overflow-hidden">
+            <FloorplanViewer
+              :sections="floorplan.sections || []"
+              :outline="floorplan.outline || []"
+              :active-section="currentImageSection?.id"
+            />
+          </div>
+        </div>
+        
         <div class="text-xs text-gray-300 flex items-center gap-2">
           <p v-if="currentImageProblems.length > 0" class="text-blue-300">
             {{ currentImageProblems.length }} boulder problem{{ currentImageProblems.length === 1 ? '' : 's' }}
@@ -194,6 +206,7 @@ import ImageWithHolds from './ImageWithHolds.vue';
 import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
 import BoulderProblemDrawer from './BoulderProblemDrawer.vue';
+import FloorplanViewer from './floorplan/FloorplanViewer.vue';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore';
 import { useUserStore } from '@/stores/userStore';
@@ -222,6 +235,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  floorplan: {
+    type: Object,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['close', 'navigate', 'navigate-next', 'navigate-previous']);
@@ -233,6 +250,15 @@ const userStore = useUserStore();
 
 // Assignment mode detection
 const isAssignmentMode = computed(() => !!route.query.assignVideoId);
+
+// Find which section contains the current image
+const currentImageSection = computed(() => {
+  if (!currentImage.value || !props.floorplan?.sections) return null;
+  
+  return props.floorplan.sections.find(section => 
+    section.imageIds?.includes(currentImage.value.imageId)
+  );
+});
 
 // Detect mobile/touch device (reuse existing logic from handleProblemClick)
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;

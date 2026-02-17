@@ -356,11 +356,12 @@
 
     <!-- Image Gallery Modal -->
     <ImageGallerySimplified
-      :images="images"
+      :images="sortedImages"
       :initial-index="initialImageIndex"
       :is-open="isGalleryOpen"
       :location-id="locationId"
       :boulder-problems="boulderProblemsStore.boulderProblems || []"
+      :floorplan="location?.floorplan"
       @close="closeGallery"
       @navigate-next="navigateNext"
       @navigate-previous="navigatePrevious"
@@ -756,15 +757,48 @@ const totalProblems = computed(() => {
   return boulderProblemsStore.boulderProblems.length;
 });
 
+// Sort images by section order (same logic as in ImageGallerySimplified)
+const sortedImages = computed(() => {
+  if (!location.value?.floorplan?.sections || location.value.floorplan.sections.length === 0) {
+    return images.value; // No sections, return original order
+  }
+  
+  const result = [];
+  const assignedImageIds = new Set();
+  
+  // Iterate through sections in order (array order = section order)
+  location.value.floorplan.sections.forEach(section => {
+    if (section.imageIds && Array.isArray(section.imageIds)) {
+      // For each imageId in this section, find the actual image object
+      section.imageIds.forEach(imageId => {
+        const image = images.value.find(img => img.imageId === imageId);
+        if (image) {
+          result.push(image);
+          assignedImageIds.add(imageId);
+        }
+      });
+    }
+  });
+  
+  // Append unassigned images at the end
+  images.value.forEach(image => {
+    if (!assignedImageIds.has(image.imageId)) {
+      result.push(image);
+    }
+  });
+  
+  return result;
+});
+
 // Gallery state
 const isGalleryOpen = computed(() => {
   return route.query.imageId !== undefined;
 });
 
 const initialImageIndex = computed(() => {
-  if (!route.query.imageId || !images.value.length) return 0;
+  if (!route.query.imageId || !sortedImages.value.length) return 0;
 
-  const index = images.value.findIndex((img) => img.imageId === route.query.imageId);
+  const index = sortedImages.value.findIndex((img) => img.imageId === route.query.imageId);
   return index !== -1 ? index : 0;
 });
 
@@ -1280,18 +1314,18 @@ const closeGallery = () => {
 };
 
 const navigateToImage = (direction) => {
-  if (!images.value.length) return;
+  if (!sortedImages.value.length) return;
   
   const currentIndex = initialImageIndex.value;
   let newIndex;
   
   if (direction === 'next') {
-    newIndex = currentIndex >= images.value.length - 1 ? 0 : currentIndex + 1;
+    newIndex = currentIndex >= sortedImages.value.length - 1 ? 0 : currentIndex + 1;
   } else {
-    newIndex = currentIndex <= 0 ? images.value.length - 1 : currentIndex - 1;
+    newIndex = currentIndex <= 0 ? sortedImages.value.length - 1 : currentIndex - 1;
   }
   
-  const newImageId = images.value[newIndex].imageId;
+  const newImageId = sortedImages.value[newIndex].imageId;
   router.push({
     query: { ...route.query, imageId: newImageId }
   });
