@@ -17,7 +17,7 @@
       </div>
       <div class="flex-1 min-h-0 flex flex-row rounded-lg border border-gray-200 overflow-hidden">
       <div
-        v-for="(image, i) in displayImages"
+        v-for="(image, i) in displayImagesWithThumbnails"
         :key="`${image.imageId}-${i}`"
         :class="[
           'relative flex-1 cursor-pointer transition-all duration-200',
@@ -40,7 +40,7 @@
           </svg>
         </div>
         <img
-          :src="image.url"
+          :src="image.thumbnailUrl"
           :alt="`${section.name} photo ${i + 1}`"
           class="w-full h-full object-cover"
           crossorigin="anonymous"
@@ -85,6 +85,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useImageContextMenu } from '../../composables/useImageContextMenu';
+import { getResizedImageUrl } from '../../utils/imageResize';
 
 const props = defineProps({
   section: {
@@ -132,6 +133,14 @@ const displayImages = computed(() => {
   return props.section.imageIds
     .map(imageId => props.images.find(img => img.imageId === imageId))
     .filter(Boolean); // Filter out undefined if image not found
+});
+
+// Get thumbnail URLs for faster loading in panorama view
+const displayImagesWithThumbnails = computed(() => {
+  return displayImages.value.map(image => ({
+    ...image,
+    thumbnailUrl: getResizedImageUrl(image.url, '300x300', 'webp')
+  }));
 });
 
 function handleDragStart(idx) {
