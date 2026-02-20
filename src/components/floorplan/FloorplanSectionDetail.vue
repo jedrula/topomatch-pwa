@@ -3,7 +3,7 @@
     <!-- Photo panorama strip - horizontal scroll -->
     <div v-if="displayImages.length > 0" class="flex-1 flex flex-col min-h-0">
       <!-- Add photos button when photos exist -->
-      <div class="mb-2 flex justify-end flex-shrink-0">
+      <div v-if="canUpload" class="mb-2 flex justify-end flex-shrink-0">
         <button
           @click="$emit('add-photos-to-section')"
           class="h-7 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-medium rounded transition-colors inline-flex items-center gap-1"
@@ -57,6 +57,7 @@
         </svg>
         <p class="text-sm text-gray-500 mb-3">No photos assigned to this section</p>
         <button
+          v-if="canUpload"
           @click="$emit('add-photos-to-section')"
           class="btn-sm inline-flex items-center gap-2"
         >
@@ -101,6 +102,10 @@ const props = defineProps({
   allSections: {
     type: Array,
     default: () => []
+  },
+  canUpload: {
+    type: Boolean,
+    default: false
   }
 });
 

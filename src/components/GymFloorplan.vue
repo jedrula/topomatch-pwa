@@ -32,6 +32,7 @@
           :section="selectedSection"
           :images="images"
           :all-sections="sections"
+          :can-upload="canUpload"
           @image-reorder="handleImageReorder"
           @image-click="(image) => $emit('image-click', image)"
           @analyze-holds="(image) => $emit('analyze-holds', image)"
