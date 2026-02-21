@@ -51,6 +51,7 @@
     "@tailwindcss/vite": "^4.1.11",
     "@techstark/opencv-js": "^4.12.0-release.1",
     "@vueform/slider": "^2.1.10",
+    "@vueuse/core": "^14.2.1",
     "bowser": "^2.11.0",
     "browser-image-compression": "^2.0.2",
     "capacitor-plugin-ios-video-editor": "file:capacitor-plugin-ios-video-editor",
@@ -64,6 +65,7 @@
     "tailwindcss": "^4.1.11",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0",
+    "vuedraggable": "^4.1.0",
     "wasm-feature-detect": "^1.8.0"
   },
   "devDependencies": {

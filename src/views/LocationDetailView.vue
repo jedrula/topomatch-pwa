@@ -356,11 +356,12 @@
 
     <!-- Image Gallery Modal -->
     <ImageGallerySimplified
-      :images="images"
+      :images="sortedImages"
       :initial-index="initialImageIndex"
       :is-open="isGalleryOpen"
       :location-id="locationId"
       :boulder-problems="boulderProblemsStore.boulderProblems || []"
+      :floorplan="location?.floorplan"
       @close="closeGallery"
       @navigate-next="navigateNext"
       @navigate-previous="navigatePrevious"
@@ -397,6 +398,7 @@ import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
 import { useLocationLikesStore } from '../stores/locationLikesStore.js';
+import { useSortedImages } from '../composables/useSortedImages.js';
 import { generateUUID } from '../utils/uuid.js';
 import { useVideoAnalysisQueueStore, getCurrentStep } from '../stores/videoAnalysisQueueStore.js';
 import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
@@ -756,15 +758,18 @@ const totalProblems = computed(() => {
   return boulderProblemsStore.boulderProblems.length;
 });
 
+// Sort images by section order
+const sortedImages = useSortedImages(images, computed(() => location.value?.floorplan));
+
 // Gallery state
 const isGalleryOpen = computed(() => {
   return route.query.imageId !== undefined;
 });
 
 const initialImageIndex = computed(() => {
-  if (!route.query.imageId || !images.value.length) return 0;
+  if (!route.query.imageId || !sortedImages.value.length) return 0;
 
-  const index = images.value.findIndex((img) => img.imageId === route.query.imageId);
+  const index = sortedImages.value.findIndex((img) => img.imageId === route.query.imageId);
   return index !== -1 ? index : 0;
 });
 
@@ -1280,18 +1285,18 @@ const closeGallery = () => {
 };
 
 const navigateToImage = (direction) => {
-  if (!images.value.length) return;
+  if (!sortedImages.value.length) return;
   
   const currentIndex = initialImageIndex.value;
   let newIndex;
   
   if (direction === 'next') {
-    newIndex = currentIndex >= images.value.length - 1 ? 0 : currentIndex + 1;
+    newIndex = currentIndex >= sortedImages.value.length - 1 ? 0 : currentIndex + 1;
   } else {
-    newIndex = currentIndex <= 0 ? images.value.length - 1 : currentIndex - 1;
+    newIndex = currentIndex <= 0 ? sortedImages.value.length - 1 : currentIndex - 1;
   }
   
-  const newImageId = images.value[newIndex].imageId;
+  const newImageId = sortedImages.value[newIndex].imageId;
   router.push({
     query: { ...route.query, imageId: newImageId }
   });

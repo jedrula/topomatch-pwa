@@ -85,6 +85,34 @@
                 {{ testResult.message }}
               </div>
             </div>
+
+            <!-- Test match-images API -->
+            <div>
+              <button
+                v-if="config?.holdDetection?.serverUrl"
+                @click="testMatchImages"
+                :disabled="testingMatch"
+                class="h-9 px-4 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span v-if="!testingMatch">Test Match Images API</span>
+                <span v-else class="flex items-center gap-2">
+                  <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Testing...
+                </span>
+              </button>
+              <div v-if="matchTestResult" class="mt-2">
+                <div class="px-3 py-2 rounded-md text-sm font-medium" :class="matchTestResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                  {{ matchTestResult.message }}
+                </div>
+                <details v-if="matchTestResult.details" class="mt-2 text-xs">
+                  <summary class="cursor-pointer text-gray-700 font-medium">Response Details</summary>
+                  <pre class="mt-2 p-2 bg-gray-50 border border-gray-200 rounded overflow-x-auto">{{ matchTestResult.details }}</pre>
+                </details>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -121,6 +149,13 @@ const error = ref(null);
 const config = ref(null);
 const testing = ref(false);
 const testResult = ref(null);
+const testingMatch = ref(false);
+const matchTestResult = ref(null);
+
+// 100x100 test images with actual features (checkerboard pattern)
+// These have corners and edges that feature detectors can find
+const TEST_IMAGE_1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAA0UlEQVR42u3QMQEAAAgDILV/b3hA8yUFhiYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwzAUcmAABjLfBCAAAAABJRU5ErkJggg==';
+const TEST_IMAGE_2 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAA50lEQVR42u3PsQ0AIAwDwfD+O9NRsAVNxgURBSQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB9dAAE2AAFN6qQGAAAAAElFTkSuQmCC';
 
 const loadConfig = async () => {
   loading.value = true;
@@ -169,6 +204,93 @@ const testHoldDetection = async () => {
     };
   } finally {
     testing.value = false;
+  }
+};
+
+const testMatchImages = async () => {
+  if (!config.value?.holdDetection?.serverUrl) return;
+  
+  testingMatch.value = true;
+  matchTestResult.value = null;
+  
+  try {
+    // Extract base64 data from data URL
+    const image1Base64 = TEST_IMAGE_1.split(',')[1];
+    const image2Base64 = TEST_IMAGE_2.split(',')[1];
+    
+    // Mimic real transform points structure from extractTransformPoints()
+    const requestBody = {
+      image1: image1Base64,
+      image2: image2Base64,
+      output_filename: 'health_check_test.jpg',
+      video_dimensions: { width: 100, height: 100 },
+      location_dimensions: { width: 100, height: 100 },
+      transform_points: [
+        { id: 'left_wrist', name: 'Left Wrist', x: 25, y: 25 },
+        { id: 'right_wrist', name: 'Right Wrist', x: 75, y: 25 },
+        { id: 'left_ankle', name: 'Left Ankle', x: 25, y: 75 },
+        { id: 'right_ankle', name: 'Right Ankle', x: 75, y: 75 }
+      ],
+      create_debug_images: true
+    };
+    
+    console.log('🔬 Testing match-images API with sample data...');
+    const startTime = performance.now();
+    
+    const response = await fetch(`${config.value.holdDetection.serverUrl}/api/v1/match-images`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+    
+    if (response.ok) {
+      const result = await response.json();
+      
+      // Check for debug URLs
+      const hasDebugUrls = !!(
+        result.debug_images?.combined_url ||
+        result.visualizationUrl ||
+        result.download_url ||
+        result.pose_debug_url
+      );
+      
+      matchTestResult.value = {
+        success: true,
+        message: `✅ API responding (${elapsed}s) - Debug URLs: ${hasDebugUrls ? '✅ Present' : '❌ Missing'}`,
+        details: JSON.stringify({
+          elapsed: `${elapsed}s`,
+          hasHomography: !!result.homography_matrix,
+          inliers: result.inlier_matches || 0,
+          totalMatches: result.total_matches || 0,
+          localizedTransforms: result.localized_transforms?.length || 0,
+          debugUrls: {
+            combined: result.debug_images?.combined_url || null,
+            visualization: result.visualizationUrl || result.download_url || null,
+            poseDebug: result.pose_debug_url || null
+          }
+        }, null, 2)
+      };
+    } else {
+      const errorText = await response.text();
+      matchTestResult.value = {
+        success: false,
+        message: `❌ API error: HTTP ${response.status}`,
+        details: errorText
+      };
+    }
+  } catch (err) {
+    matchTestResult.value = {
+      success: false,
+      message: `❌ Request failed: ${err.message}`,
+      details: err.stack
+    };
+  } finally {
+    testingMatch.value = false;
   }
 };
 

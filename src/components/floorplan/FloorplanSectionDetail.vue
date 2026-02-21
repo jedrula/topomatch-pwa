@@ -3,7 +3,7 @@
     <!-- Photo panorama strip - horizontal scroll -->
     <div v-if="displayImages.length > 0" class="flex-1 flex flex-col min-h-0">
       <!-- Add photos button when photos exist -->
-      <div class="mb-2 flex justify-end flex-shrink-0">
+      <div v-if="canUpload" class="mb-2 flex justify-end flex-shrink-0">
         <button
           @click="$emit('add-photos-to-section')"
           class="h-7 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-medium rounded transition-colors inline-flex items-center gap-1"
@@ -16,36 +16,32 @@
         </button>
       </div>
       <div class="flex-1 min-h-0 flex flex-row rounded-lg border border-gray-200 overflow-hidden">
-      <div
-        v-for="(image, i) in displayImages"
-        :key="`${image.imageId}-${i}`"
-        :class="[
-          'relative flex-1 cursor-pointer transition-all duration-200',
-          overIdx === i && dragIdx !== null && dragIdx !== i ? 'ring-2 ring-blue-500' : ''
-        ]"
-        :draggable="isEditMode"
-        @dragstart="handleDragStart(i)"
-        @dragover="handleDragOver($event, i)"
-        @drop="handleDrop(i)"
-        @dragend="handleDragEnd"
-        @click="$emit('image-click', image)"
-        @contextmenu="(e) => showContextMenu(e, image)"
-      >
-        <div
-          v-if="isEditMode"
-          class="absolute top-1 left-1 z-10 bg-white/70 rounded p-0.5"
+        <draggable
+          v-model="draggableImages"
+          item-key="imageId"
+          class="flex flex-row w-full"
+          :animation="200"
+          ghost-class="opacity-50"
+          :disabled="!canUpload"
+          @end="handleReorder"
         >
-          <svg class="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-          </svg>
-        </div>
-        <img
-          :src="image.url"
-          :alt="`${section.name} photo ${i + 1}`"
-          class="w-full h-full object-cover"
-          crossorigin="anonymous"
-        />
-      </div>
+          <template #item="{ element: image, index: i }">
+            <div
+              :key="image.imageId"
+              class="relative flex-1 transition-all duration-200"
+              :class="{ 'cursor-move': canUpload, 'cursor-pointer': !canUpload }"
+              @click="$emit('image-click', image)"
+              @contextmenu="(e) => showContextMenu(e, image)"
+            >
+              <img
+                :src="image.thumbnailUrl"
+                :alt="`${section.name} photo ${i + 1}`"
+                class="w-full h-full object-cover pointer-events-none"
+                crossorigin="anonymous"
+              />
+            </div>
+          </template>
+        </draggable>
       </div>
     </div>
 
@@ -57,6 +53,7 @@
         </svg>
         <p class="text-sm text-gray-500 mb-3">No photos assigned to this section</p>
         <button
+          v-if="canUpload"
           @click="$emit('add-photos-to-section')"
           class="btn-sm inline-flex items-center gap-2"
         >
@@ -83,7 +80,9 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import draggable from 'vuedraggable';
 import { useImageContextMenu } from '../../composables/useImageContextMenu';
+import { getResizedImageUrl } from '../../utils/imageResize';
 
 const props = defineProps({
   section: {
@@ -94,13 +93,13 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  isEditMode: {
-    type: Boolean,
-    default: false
-  },
   allSections: {
     type: Array,
     default: () => []
+  },
+  canUpload: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -114,10 +113,6 @@ const { showContextMenu } = useImageContextMenu({
   currentSectionId: computed(() => props.section.id)
 });
 
-// Drag state
-const dragIdx = ref(null);
-const overIdx = ref(null);
-
 // Get images for this section based on imageIds
 const displayImages = computed(() => {
   if (!props.section.imageIds || props.section.imageIds.length === 0) {
@@ -129,35 +124,31 @@ const displayImages = computed(() => {
     .filter(Boolean); // Filter out undefined if image not found
 });
 
-function handleDragStart(idx) {
-  dragIdx.value = idx;
-}
+// Get thumbnail URLs for faster loading in panorama view
+const displayImagesWithThumbnails = computed(() => {
+  return displayImages.value.map(image => ({
+    ...image,
+    thumbnailUrl: getResizedImageUrl(image.url, '300x300', 'webp')
+  }));
+});
 
-function handleDragOver(e, idx) {
-  e.preventDefault();
-  overIdx.value = idx;
-}
-
-function handleDrop(idx) {
-  if (dragIdx.value === null || dragIdx.value === idx) {
-    dragIdx.value = null;
-    overIdx.value = null;
-    return;
+// Two-way binding for draggable component
+const draggableImages = computed({
+  get: () => {
+    return displayImagesWithThumbnails.value;
+  },
+  set: (newValue) => {
+    // Updates handled in handleReorder
   }
+});
 
-  const newIds = [...props.section.imageIds];
-  const [moved] = newIds.splice(dragIdx.value, 1);
-  newIds.splice(idx, 0, moved);
-
-  emit('image-reorder', props.section.id, newIds);
-
-  dragIdx.value = null;
-  overIdx.value = null;
-}
-
-function handleDragEnd() {
-  dragIdx.value = null;
-  overIdx.value = null;
+function handleReorder(event) {
+  // Use displayed images to ensure indices match what user sees
+  const displayedIds = displayImages.value.map(img => img.imageId);
+  const [movedId] = displayedIds.splice(event.oldIndex, 1);
+  displayedIds.splice(event.newIndex, 0, movedId);
+  
+  emit('image-reorder', props.section.id, displayedIds);
 }
 </script>
 

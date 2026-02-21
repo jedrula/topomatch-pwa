@@ -109,6 +109,34 @@ class RoutesettingService {
   }
 
   /**
+   * Add images to an existing routesetting (e.g., carry over from previous routesettings)
+   * 
+   * @param {string} routesetting - The routesetting to add images to
+   * @param {string[]} imageIds - Image IDs to add
+   */
+  async addImagesToRoutesetting(routesetting, imageIds) {
+    try {
+      const user = getCurrentUser();
+      if (!user) {
+        throw new Error('Must be authenticated to edit routesetting');
+      }
+
+      // Add routesetting to each image's array
+      for (const imageId of imageIds) {
+        const imageRef = doc(db, 'locationImages', imageId);
+        await updateDoc(imageRef, {
+          routesettings: arrayUnion(routesetting)
+        });
+      }
+
+      console.log(`✅ Added ${imageIds.length} images to routesetting ${routesetting}`);
+    } catch (error) {
+      console.error('Error adding images to routesetting:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Remove image from a routesetting
    * Soft delete: only removes from this routesetting's array
    * Hard delete: if image only belongs to this routesetting, delete the image document

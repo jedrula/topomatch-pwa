@@ -29,6 +29,9 @@ ios/App/build
 firebase-emulator-data/*
 !firebase-emulator-data/README.md
 
+# Firebase credentials - debug scripts
+server/debug/scripts/firebase-config.js
+
 # Backup system
 backups/dev-exports/
 backups/prod-exports/
