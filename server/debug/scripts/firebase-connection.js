@@ -15,17 +15,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore as getFirestoreSDK, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth as getAuthSDK, connectAuthEmulator } from 'firebase/auth';
 import { getStorage as getStorageSDK, connectStorageEmulator } from 'firebase/storage';
-
-// Firebase config - same as in src/services/firebase.js
-const firebaseConfig = {
-  apiKey: "AIzaSyCg15AShJBuH-xBQjUrzJ9qDbL8qY_Gjzs",
-  authDomain: "offline-vue-pwa.firebaseapp.com",
-  projectId: "offline-vue-pwa",
-  storageBucket: "offline-vue-pwa.firebasestorage.app",
-  messagingSenderId: "628646056337",
-  appId: "1:628646056337:web:1fea68dcf3efa063ea4ee6",
-  measurementId: "G-XRFHHQ5RS7"
-};
+import { firebaseConfig } from './firebase-config.js';
 
 // Initialize Firebase
 let app;
