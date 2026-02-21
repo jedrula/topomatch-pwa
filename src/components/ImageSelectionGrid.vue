@@ -34,7 +34,8 @@
         @click="toggleSelection(image.imageId)"
         class="relative aspect-square cursor-pointer border-2 rounded-md overflow-hidden transition-all"
         :class="{
-          [`border-${color}-500 ring-2 ring-${color}-200`]: selectedImageIds.includes(image.imageId),
+          'border-blue-500 ring-2 ring-blue-200': selectedImageIds.includes(image.imageId) && color === 'blue',
+          'border-green-500 ring-2 ring-green-200': selectedImageIds.includes(image.imageId) && color === 'green',
           'border-gray-200 hover:border-gray-300': !selectedImageIds.includes(image.imageId)
         }"
       >
@@ -50,7 +51,10 @@
           v-if="selectedImageIds.includes(image.imageId)"
           class="absolute top-1 right-1"
         >
-          <div :class="`bg-${color}-600 rounded-full p-0.5 shadow-md`">
+          <div class="rounded-full p-0.5 shadow-md" :class="{
+            'bg-blue-600': color === 'blue',
+            'bg-green-600': color === 'green'
+          }">
             <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
             </svg>

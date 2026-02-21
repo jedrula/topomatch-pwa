@@ -141,12 +141,12 @@ const draggableImages = computed({
 });
 
 function handleReorder(event) {
-  // Calculate new order based on the drag event indices
-  const newIds = [...props.section.imageIds];
-  const [movedId] = newIds.splice(event.oldIndex, 1);
-  newIds.splice(event.newIndex, 0, movedId);
+  // Use displayed images to ensure indices match what user sees
+  const displayedIds = displayImages.value.map(img => img.imageId);
+  const [movedId] = displayedIds.splice(event.oldIndex, 1);
+  displayedIds.splice(event.newIndex, 0, movedId);
   
-  emit('image-reorder', props.section.id, newIds);
+  emit('image-reorder', props.section.id, displayedIds);
 }
 </script>
 

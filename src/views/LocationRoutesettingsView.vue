@@ -364,7 +364,7 @@ function cancelCreate() {
 async function openEditFormForRoutesetting(routesetting) {
   editingRoutesetting.value = routesetting;
   showEditForm.value = true;
-  availableImagesForEdit.value = [];
+  availableImagesForEditRaw.value = [];
   selectedImageIdsForEdit.value = [];
   
   // Load this routesetting's images to exclude them
