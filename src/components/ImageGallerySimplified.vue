@@ -85,9 +85,6 @@
       <div 
         ref="imageContainer" 
         class="relative w-full h-full flex items-center justify-center"
-        @touchstart="handleTouchStart"
-        @touchmove="handleTouchMove" 
-        @touchend="handleTouchEnd"
         @click="handleBackgroundClick"
       >
         <!-- Loading state -->
@@ -202,6 +199,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
+import { useSwipe } from '@vueuse/core';
 import ImageWithHolds from './ImageWithHolds.vue';
 import HoldSvg from './HoldSvg.vue';
 import FloatingBoulderProblemCard from './FloatingBoulderProblemCard.vue';
@@ -263,12 +261,24 @@ const currentImageSection = computed(() => {
 // Detect mobile/touch device (reuse existing logic from handleProblemClick)
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-// Touch/swipe handling
-const touchStartX = ref(0);
-const touchStartY = ref(0);
-const touchEndX = ref(0);
-const touchEndY = ref(0);
-const minSwipeDistance = 50; // Minimum distance for swipe detection
+// Touch/swipe handling with VueUse
+const imageContainer = ref(null);
+const maxTapMovement = 10; // Maximum movement to still be considered a tap
+
+const { lengthX, lengthY, isSwiping } = useSwipe(imageContainer, {
+  threshold: 50, // Minimum distance for swipe detection
+  onSwipe(e) {
+    console.log('🔄 [SWIPE] onSwipe triggered', { lengthX: lengthX.value, lengthY: lengthY.value, isSwiping: isSwiping.value });
+  },
+  onSwipeStart(e) {
+    console.log('👆 [SWIPE] onSwipeStart', { target: e.target?.tagName });
+  },
+  onSwipeEnd(e, direction) {
+    console.log('✅ [SWIPE] onSwipeEnd', { direction, lengthX: lengthX.value, lengthY: lengthY.value });
+    if (direction === 'left') navigateNext();
+    if (direction === 'right') navigatePrevious();
+  },
+});
 
 // Keyboard navigation
 const handleKeyDown = (event) => {
@@ -286,47 +296,9 @@ const handleKeyDown = (event) => {
   }
 };
 
-// Touch handlers
-const handleTouchStart = (event) => {
-  touchStartX.value = event.touches[0].clientX;
-  touchStartY.value = event.touches[0].clientY;
-};
-
-const handleTouchMove = (event) => {
-  // Calculate deltas to determine if this is a horizontal swipe
-  const currentX = event.touches[0].clientX;
-  const currentY = event.touches[0].clientY;
-  const deltaX = Math.abs(currentX - touchStartX.value);
-  const deltaY = Math.abs(currentY - touchStartY.value);
-  
-  // Only prevent default if horizontal swipe is more significant than vertical
-  // This allows vertical scrolling while enabling horizontal image navigation
-  if (deltaX > deltaY && deltaX > 10) {
-    event.preventDefault();
-  }
-};
-
-const handleTouchEnd = (event) => {
-  touchEndX.value = event.changedTouches[0].clientX;
-  touchEndY.value = event.changedTouches[0].clientY;
-  
-  const deltaX = touchEndX.value - touchStartX.value;
-  const deltaY = touchEndY.value - touchStartY.value;
-  
-  // Check if horizontal swipe is more significant than vertical
-  if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
-    if (deltaX > 0) {
-      // Swipe right - go to previous image
-      navigatePrevious();
-    } else {
-      // Swipe left - go to next image  
-      navigateNext();
-    }
-  }
-};
-
 // Helper function to hide floating card
 const hideFloatingCard = () => {
+  console.log('❌ [DRAWER] Closing drawer');
   if (tooltipHideTimeout) {
     clearTimeout(tooltipHideTimeout);
     tooltipHideTimeout = null;
@@ -383,7 +355,6 @@ const navigatePrevious = () => {
 const holdDetectionPersistenceStore = useHoldDetectionPersistenceStore();
 
 // Refs
-const imageContainer = ref(null);
 const climbingImage = ref(null);
 const imageLoaded = ref(false);
 const imageMetadata = ref(null);
@@ -626,17 +597,62 @@ const handleFloatingCardMouseLeave = () => {
 
 // Boulder problem interaction handlers
 const handleProblemClick = (problem, event) => {
+  console.log('🎯 [HOLD CLICK] Problem clicked', { 
+    problemId: problem.id, 
+    isTouchDevice,
+    lengthX: lengthX.value, 
+    lengthY: lengthY.value,
+    eventType: event?.type
+  });
+  
   // On mobile/touch devices, clicking a hold should show the drawer
   // (since hover doesn't work on touch screens)
   if (isTouchDevice) {
-    // Stop propagation so it doesn't trigger handleBackgroundClick
+    // Check if this was a swipe gesture (not a tap)
+    // If touch moved more than maxTapMovement pixels, ignore the click
+    const totalMovement = Math.sqrt(lengthX.value * lengthX.value + lengthY.value * lengthY.value);
+    
+    console.log('📏 [TAP CHECK]', { 
+      totalMovement, 
+      maxTapMovement, 
+      isTap: totalMovement <= maxTapMovement,
+      lengthX: lengthX.value,
+      lengthY: lengthY.value
+    });
+    
+    if (totalMovement > maxTapMovement) {
+      // This was a swipe, not a tap - trigger navigation manually
+      // (onSwipeEnd doesn't fire because click event interrupts the gesture)
+      console.log('↔️ [SWIPE DETECTED] Triggering navigation');
+      
+      // Determine direction based on lengthX (horizontal movement)
+      if (Math.abs(lengthX.value) > Math.abs(lengthY.value)) {
+        // Horizontal swipe is dominant
+        if (lengthX.value > 0) {
+          console.log('➡️ Swipe right - navigating to previous');
+          navigatePrevious();
+        } else {
+          console.log('⬅️ Swipe left - navigating to next');
+          navigateNext();
+        }
+      }
+      
+      return;
+    }
+    
+    console.log('👆 [TAP DETECTED] Opening drawer');
+    
+    // Only stop propagation after confirming it's a tap (not a swipe)
+    // This prevents handleBackgroundClick from closing the drawer
     event?.stopPropagation();
     
     // If this problem's card is already visible, hide it (toggle behavior)
     if (floatingCard.value.visible && floatingCard.value.problem?.id === problem.id) {
+      console.log('🔄 [DRAWER] Toggling drawer off (already open)');
       floatingCard.value.visible = false;
       hoveredProblemId.value = null;
     } else {
+      console.log('✨ [DRAWER] Opening drawer for problem', problem.id);
       // Pre-fetch videos for this problem (non-blocking)
       fetchProblemVideos(problem.id);
       
@@ -655,9 +671,16 @@ const handleProblemClick = (problem, event) => {
 };
 
 const handleBackgroundClick = (event) => {
+  console.log('🖼️ [BACKGROUND CLICK]', { 
+    hasVisibleDrawer: floatingCard.value.visible,
+    isTouchDevice,
+    target: event.target?.tagName
+  });
+  
   // Close the drawer on mobile when clicking anywhere that isn't a hold
   // Holds use .stop on their events, so if this handler fires, it's not a hold
   if (isTouchDevice && floatingCard.value.visible) {
+    console.log('❌ [DRAWER] Closing drawer via background click');
     floatingCard.value.visible = false;
     hoveredProblemId.value = null;
   }

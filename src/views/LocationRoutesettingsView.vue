@@ -52,12 +52,21 @@
                 <span v-if="viewingRoutesetting === allRoutesettings[0]" class="ml-2 text-[11px] text-green-600 font-medium">(Latest)</span>
               </div>
             </div>
-            <button
-              @click="viewRoutesetting(viewingRoutesetting)"
-              class="h-9 px-4 text-[13px] text-blue-700 border border-blue-700 rounded-md hover:bg-blue-100 transition-all"
-            >
-              View
-            </button>
+            <div class="flex gap-2">
+              <button
+                v-if="userStore.canEditLocations"
+                @click="openEditFormForRoutesetting(viewingRoutesetting)"
+                class="h-9 px-4 text-[13px] text-green-700 border border-green-700 rounded-md hover:bg-green-100 transition-all"
+              >
+                Edit
+              </button>
+              <button
+                @click="viewRoutesetting(viewingRoutesetting)"
+                class="h-9 px-4 text-[13px] text-blue-700 border border-blue-700 rounded-md hover:bg-blue-100 transition-all"
+              >
+                View
+              </button>
+            </div>
           </div>
         </div>
 
@@ -100,12 +109,21 @@
                     </div>
                   </div>
                 </div>
-                <button
-                  @click="viewRoutesetting(setting)"
-                  class="h-8 px-3 text-[13px] text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-all"
-                >
-                  View
-                </button>
+                <div class="flex gap-2">
+                  <button
+                    v-if="userStore.canEditLocations"
+                    @click="openEditFormForRoutesetting(setting)"
+                    class="h-8 px-3 text-[13px] text-green-600 border border-green-600 rounded-md hover:bg-green-50 transition-all"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    @click="viewRoutesetting(setting)"
+                    class="h-8 px-3 text-[13px] text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-all"
+                  >
+                    View
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -134,6 +152,60 @@
           </button>
         </div>
 
+        <!-- Edit Form -->
+        <div v-if="showEditForm" class="card">
+          <h3 class="text-[16px] font-semibold text-gray-900 mb-5">Edit Routesetting: {{ formatDate(editingRoutesetting) }}</h3>
+          
+          <div class="space-y-5">
+            <!-- Previous Routesetting Info -->
+            <div v-if="previousRoutesetting">
+              <label class="block text-[13px] font-medium text-gray-700 mb-2">
+                Carry over images from previous routesetting
+              </label>
+              <div class="text-[12px] text-gray-500 mb-4 p-3 bg-blue-50 rounded-md border border-blue-200">
+                📅 <strong>{{ formatDate(previousRoutesetting) }}</strong> ({{ getRelativeTime(previousRoutesetting) }})
+              </div>
+
+              <!-- Available Images Grid -->
+              <div v-if="availableImagesForEdit.length > 0">
+                <ImageSelectionGrid
+                  :images="availableImagesForEdit"
+                  v-model:selectedImageIds="selectedImageIdsForEdit"
+                  label="Available images"
+                  description="Select which images to add to this routesetting"
+                  color="green"
+                />
+              </div>
+              
+              <!-- No images available message -->
+              <div v-else class="text-[13px] text-gray-500 p-4 bg-gray-50 rounded-md border border-gray-200/60">
+                No images available from previous routesetting (all already included or none exist)
+              </div>
+            </div>
+
+            <!-- No previous routesetting message -->
+            <div v-else class="text-[13px] text-gray-500 p-4 bg-gray-50 rounded-md border border-gray-200/60">
+              This is the oldest routesetting. No previous routesetting to carry over images from.
+            </div>
+
+            <div class="flex gap-3 pt-2">
+              <button
+                @click="saveEditedRoutesetting"
+                :disabled="selectedImageIdsForEdit.length === 0 || isEditing"
+                class="btn flex-1"
+              >
+                {{ isEditing ? 'Saving...' : `Add ${selectedImageIdsForEdit.length} image${selectedImageIdsForEdit.length !== 1 ? 's' : ''}` }}
+              </button>
+              <button
+                @click="cancelEdit"
+                class="btn-secondary px-6"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Create Form -->
         <div v-if="showCreateForm" class="card">
           <h3 class="text-[16px] font-semibold text-gray-900 mb-5">Create New Routesetting</h3>
@@ -151,64 +223,13 @@
 
             <!-- Image Selection -->
             <div v-if="availableImages.length" class="border-t border-gray-200/60 pt-5">
-              <label class="block text-[13px] font-medium text-gray-700 mb-2">
-                Carry forward images <span class="text-gray-500">({{ selectedImageIds.length }}/{{ availableImages.length }})</span>
-              </label>
-              <div class="text-[12px] text-gray-500 mb-3">
-                Select which images from the current routesetting are still relevant
-              </div>
-              
-              <!-- Select All / Deselect All -->
-              <div class="flex gap-3 mb-3">
-                <button
-                  @click="selectAllImages"
-                  type="button"
-                  class="text-[12px] text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Select All
-                </button>
-                <span class="text-gray-300">|</span>
-                <button
-                  @click="deselectAllImages"
-                  type="button"
-                  class="text-[12px] text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Deselect All
-                </button>
-              </div>
-
-              <!-- Image Grid -->
-              <div class="grid grid-cols-3 gap-2 max-h-72 overflow-y-auto bg-gray-50 p-2 rounded-md border border-gray-200/60">
-                <div
-                  v-for="image in availableImages"
-                  :key="image.imageId"
-                  @click="toggleImageSelection(image.imageId)"
-                  class="relative aspect-square cursor-pointer border-2 rounded-md overflow-hidden transition-all"
-                  :class="{
-                    'border-blue-500 ring-2 ring-blue-200': selectedImageIds.includes(image.imageId),
-                    'border-gray-200 hover:border-gray-300': !selectedImageIds.includes(image.imageId)
-                  }"
-                >
-                  <img
-                    :src="image.url"
-                    :alt="image.name"
-                    crossorigin="anonymous"
-                    class="w-full h-full object-cover"
-                    :class="{ 'opacity-50': !selectedImageIds.includes(image.imageId) }"
-                  />
-                  <!-- Checkmark overlay -->
-                  <div
-                    v-if="selectedImageIds.includes(image.imageId)"
-                    class="absolute top-1 right-1"
-                  >
-                    <div class="bg-blue-600 rounded-full p-0.5 shadow-md">
-                      <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ImageSelectionGrid
+                :images="availableImages"
+                v-model:selectedImageIds="selectedImageIds"
+                label="Carry forward images"
+                description="Select which images from the current routesetting are still relevant"
+                color="blue"
+              />
             </div>
 
             <div class="flex gap-3 pt-2">
@@ -239,7 +260,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/userStore';
 import { routesettingService } from '@/services/routesettingService';
 import { locationService } from '@/services/locationService';
+import { useSortedImages } from '@/composables/useSortedImages';
 import ToastNotification from '@/components/ToastNotification.vue';
+import ImageSelectionGrid from '@/components/ImageSelectionGrid.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -257,10 +280,30 @@ const newSettingDate = ref('');
 const isCreating = ref(false);
 const selectedImageIds = ref([]);
 const availableImages = ref([]);
+const showEditForm = ref(false);
+const editingRoutesetting = ref(null);
+const isEditing = ref(false);
+const availableImagesForEditRaw = ref([]);
+const selectedImageIdsForEdit = ref([]);
+const currentRoutesettingImageIds = ref([]);
+
+// Sort edit images by section order
+const availableImagesForEdit = useSortedImages(
+  availableImagesForEditRaw,
+  computed(() => location.value?.floorplan)
+);
 
 const otherRoutesettings = computed(() => {
   // Show all routesettings except the one currently being viewed
   return allRoutesettings.value.filter(s => s !== viewingRoutesetting.value);
+});
+
+const previousRoutesetting = computed(() => {
+  // Get the immediately previous routesetting (the one right before the one being edited)
+  if (!editingRoutesetting.value) return null;
+  const olderRoutesettings = allRoutesettings.value.filter(s => s < editingRoutesetting.value);
+  // Return the most recent one (closest to the one being edited)
+  return olderRoutesettings.length > 0 ? olderRoutesettings[0] : null;
 });
 
 const todayWithTime = computed(() => {
@@ -318,6 +361,82 @@ function cancelCreate() {
   availableImages.value = [];
 }
 
+async function openEditFormForRoutesetting(routesetting) {
+  editingRoutesetting.value = routesetting;
+  showEditForm.value = true;
+  availableImagesForEdit.value = [];
+  selectedImageIdsForEdit.value = [];
+  
+  // Load this routesetting's images to exclude them
+  try {
+    const currentImages = await locationService.getLocationImages(locationId.value, routesetting);
+    currentRoutesettingImageIds.value = currentImages.map(img => img.imageId);
+    
+    // Automatically load images from the previous routesetting
+    await loadImagesFromPreviousRoutesetting();
+  } catch (error) {
+    console.error('Error loading current images:', error);
+    currentRoutesettingImageIds.value = [];
+  }
+}
+
+function cancelEdit() {
+  showEditForm.value = false;
+  editingRoutesetting.value = null;
+  availableImagesForEditRaw.value = [];
+  selectedImageIdsForEdit.value = [];
+  currentRoutesettingImageIds.value = [];
+}
+
+async function loadImagesFromPreviousRoutesetting() {
+  if (!previousRoutesetting.value) {
+    availableImagesForEditRaw.value = [];
+    selectedImageIdsForEdit.value = [];
+    return;
+  }
+  
+  try {
+    // Load all images from the previous routesetting
+    const images = await locationService.getLocationImages(locationId.value, previousRoutesetting.value);
+    
+    // Filter out images that are already in the current routesetting
+    availableImagesForEditRaw.value = images
+      .filter(img => !currentRoutesettingImageIds.value.includes(img.imageId))
+      .map(img => ({
+        imageId: img.imageId,
+        url: img.downloadUrl,
+        name: img.fileName
+      }));
+    
+    selectedImageIdsForEdit.value = [];
+  } catch (error) {
+    console.error('Error loading images from previous routesetting:', error);
+    availableImagesForEditRaw.value = [];
+    selectedImageIdsForEdit.value = [];
+  }
+}
+
+async function saveEditedRoutesetting() {
+  if (selectedImageIdsForEdit.value.length === 0) return;
+  
+  isEditing.value = true;
+  try {
+    await routesettingService.addImagesToRoutesetting(
+      editingRoutesetting.value,
+      selectedImageIdsForEdit.value
+    );
+    
+    // Close edit form and show success
+    cancelEdit();
+    alert(`Successfully added ${selectedImageIdsForEdit.value.length} image${selectedImageIdsForEdit.value.length !== 1 ? 's' : ''} to this routesetting`);
+  } catch (error) {
+    console.error('Error editing routesetting:', error);
+    alert('Failed to edit routesetting: ' + error.message);
+  } finally {
+    isEditing.value = false;
+  }
+}
+
 async function loadCurrentImages() {
   try {
     // Load images for latest routesetting (if exists)
@@ -341,23 +460,6 @@ async function loadCurrentImages() {
     availableImages.value = [];
     selectedImageIds.value = [];
   }
-}
-
-function toggleImageSelection(imageId) {
-  const index = selectedImageIds.value.indexOf(imageId);
-  if (index > -1) {
-    selectedImageIds.value.splice(index, 1);
-  } else {
-    selectedImageIds.value.push(imageId);
-  }
-}
-
-function selectAllImages() {
-  selectedImageIds.value = availableImages.value.map(img => img.imageId);
-}
-
-function deselectAllImages() {
-  selectedImageIds.value = [];
 }
 
 async function createRoutesetting() {

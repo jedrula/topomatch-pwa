@@ -16,36 +16,30 @@
         </button>
       </div>
       <div class="flex-1 min-h-0 flex flex-row rounded-lg border border-gray-200 overflow-hidden">
-      <div
-        v-for="(image, i) in displayImagesWithThumbnails"
-        :key="`${image.imageId}-${i}`"
-        :class="[
-          'relative flex-1 cursor-pointer transition-all duration-200',
-          overIdx === i && dragIdx !== null && dragIdx !== i ? 'ring-2 ring-blue-500' : ''
-        ]"
-        :draggable="isEditMode"
-        @dragstart="handleDragStart(i)"
-        @dragover="handleDragOver($event, i)"
-        @drop="handleDrop(i)"
-        @dragend="handleDragEnd"
-        @click="$emit('image-click', image)"
-        @contextmenu="(e) => showContextMenu(e, image)"
-      >
-        <div
-          v-if="isEditMode"
-          class="absolute top-1 left-1 z-10 bg-white/70 rounded p-0.5"
+        <draggable
+          v-model="draggableImages"
+          item-key="imageId"
+          class="flex flex-row w-full"
+          :animation="200"
+          ghost-class="opacity-50"
+          @end="handleReorder"
         >
-          <svg class="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-          </svg>
-        </div>
-        <img
-          :src="image.thumbnailUrl"
-          :alt="`${section.name} photo ${i + 1}`"
-          class="w-full h-full object-cover"
-          crossorigin="anonymous"
-        />
-      </div>
+          <template #item="{ element: image, index: i }">
+            <div
+              :key="image.imageId"
+              class="relative flex-1 cursor-move transition-all duration-200"
+              @click="$emit('image-click', image)"
+              @contextmenu="(e) => showContextMenu(e, image)"
+            >
+              <img
+                :src="image.thumbnailUrl"
+                :alt="`${section.name} photo ${i + 1}`"
+                class="w-full h-full object-cover pointer-events-none"
+                crossorigin="anonymous"
+              />
+            </div>
+          </template>
+        </draggable>
       </div>
     </div>
 
@@ -84,6 +78,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import draggable from 'vuedraggable';
 import { useImageContextMenu } from '../../composables/useImageContextMenu';
 import { getResizedImageUrl } from '../../utils/imageResize';
 
@@ -95,10 +90,6 @@ const props = defineProps({
   images: {
     type: Array,
     default: () => []
-  },
-  isEditMode: {
-    type: Boolean,
-    default: false
   },
   allSections: {
     type: Array,
@@ -120,10 +111,6 @@ const { showContextMenu } = useImageContextMenu({
   currentSectionId: computed(() => props.section.id)
 });
 
-// Drag state
-const dragIdx = ref(null);
-const overIdx = ref(null);
-
 // Get images for this section based on imageIds
 const displayImages = computed(() => {
   if (!props.section.imageIds || props.section.imageIds.length === 0) {
@@ -143,35 +130,23 @@ const displayImagesWithThumbnails = computed(() => {
   }));
 });
 
-function handleDragStart(idx) {
-  dragIdx.value = idx;
-}
-
-function handleDragOver(e, idx) {
-  e.preventDefault();
-  overIdx.value = idx;
-}
-
-function handleDrop(idx) {
-  if (dragIdx.value === null || dragIdx.value === idx) {
-    dragIdx.value = null;
-    overIdx.value = null;
-    return;
+// Two-way binding for draggable component
+const draggableImages = computed({
+  get: () => {
+    return displayImagesWithThumbnails.value;
+  },
+  set: (newValue) => {
+    // Updates handled in handleReorder
   }
+});
 
+function handleReorder(event) {
+  // Calculate new order based on the drag event indices
   const newIds = [...props.section.imageIds];
-  const [moved] = newIds.splice(dragIdx.value, 1);
-  newIds.splice(idx, 0, moved);
-
+  const [movedId] = newIds.splice(event.oldIndex, 1);
+  newIds.splice(event.newIndex, 0, movedId);
+  
   emit('image-reorder', props.section.id, newIds);
-
-  dragIdx.value = null;
-  overIdx.value = null;
-}
-
-function handleDragEnd() {
-  dragIdx.value = null;
-  overIdx.value = null;
 }
 </script>
 

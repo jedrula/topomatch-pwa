@@ -398,6 +398,7 @@ import { formatDate, isSameDateTime } from '../utils/dateUtils.js';
 import { getGradeLabel, getGradeDifficulty, getGradeColor } from '../utils/gradingUtils.js';
 import { useUserStore } from '../stores/userStore.js';
 import { useLocationLikesStore } from '../stores/locationLikesStore.js';
+import { useSortedImages } from '../composables/useSortedImages.js';
 import { generateUUID } from '../utils/uuid.js';
 import { useVideoAnalysisQueueStore, getCurrentStep } from '../stores/videoAnalysisQueueStore.js';
 import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
@@ -757,38 +758,8 @@ const totalProblems = computed(() => {
   return boulderProblemsStore.boulderProblems.length;
 });
 
-// Sort images by section order (same logic as in ImageGallerySimplified)
-const sortedImages = computed(() => {
-  if (!location.value?.floorplan?.sections || location.value.floorplan.sections.length === 0) {
-    return images.value; // No sections, return original order
-  }
-  
-  const result = [];
-  const assignedImageIds = new Set();
-  
-  // Iterate through sections in order (array order = section order)
-  location.value.floorplan.sections.forEach(section => {
-    if (section.imageIds && Array.isArray(section.imageIds)) {
-      // For each imageId in this section, find the actual image object
-      section.imageIds.forEach(imageId => {
-        const image = images.value.find(img => img.imageId === imageId);
-        if (image) {
-          result.push(image);
-          assignedImageIds.add(imageId);
-        }
-      });
-    }
-  });
-  
-  // Append unassigned images at the end
-  images.value.forEach(image => {
-    if (!assignedImageIds.has(image.imageId)) {
-      result.push(image);
-    }
-  });
-  
-  return result;
-});
+// Sort images by section order
+const sortedImages = useSortedImages(images, computed(() => location.value?.floorplan));
 
 // Gallery state
 const isGalleryOpen = computed(() => {
