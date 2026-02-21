@@ -22,12 +22,14 @@
           class="flex flex-row w-full"
           :animation="200"
           ghost-class="opacity-50"
+          :disabled="!canUpload"
           @end="handleReorder"
         >
           <template #item="{ element: image, index: i }">
             <div
               :key="image.imageId"
-              class="relative flex-1 cursor-move transition-all duration-200"
+              class="relative flex-1 transition-all duration-200"
+              :class="{ 'cursor-move': canUpload, 'cursor-pointer': !canUpload }"
               @click="$emit('image-click', image)"
               @contextmenu="(e) => showContextMenu(e, image)"
             >
