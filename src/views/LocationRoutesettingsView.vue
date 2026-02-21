@@ -261,12 +261,14 @@ import { useUserStore } from '@/stores/userStore';
 import { routesettingService } from '@/services/routesettingService';
 import { locationService } from '@/services/locationService';
 import { useSortedImages } from '@/composables/useSortedImages';
+import { useToast } from '@/composables/useToast';
 import ToastNotification from '@/components/ToastNotification.vue';
 import ImageSelectionGrid from '@/components/ImageSelectionGrid.vue';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const toast = useToast();
 
 const locationId = computed(() => route.params.locationId);
 
@@ -426,12 +428,13 @@ async function saveEditedRoutesetting() {
       selectedImageIdsForEdit.value
     );
     
-    // Close edit form and show success
+    const count = selectedImageIdsForEdit.value.length;
+    toast.success(`Successfully added ${count} image${count !== 1 ? 's' : ''} to this routesetting`);
     cancelEdit();
-    alert(`Successfully added ${selectedImageIdsForEdit.value.length} image${selectedImageIdsForEdit.value.length !== 1 ? 's' : ''} to this routesetting`);
   } catch (error) {
     console.error('Error editing routesetting:', error);
-    alert('Failed to edit routesetting: ' + error.message);
+    toast.error('Failed to edit routesetting: ' + error.message);
+    // Keep form open on error so user can retry
   } finally {
     isEditing.value = false;
   }
