@@ -186,12 +186,9 @@ export const videoService = {
         throw new Error('Video file size must be less than 500MB');
       }
 
-      // Generate unique video ID
-      const videoId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Determine file extension from the original file
-      const fileExtension = videoFile.name.split('.').pop() || 'mp4';
-      const fileName = `${videoId}.${fileExtension}`;
+      // Use ascentId end-to-end (Firestore doc ID + Storage object name)
+      const fileExtension = (videoFile.name.split('.').pop() || 'mp4').toLowerCase();
+      const fileName = `${ascentId}.${fileExtension}`;
 
       // Upload to videos/raw/{userId}/{videoId}.ext - this triggers transcoding
       const videoPath = `videos/raw/${user.uid}/${fileName}`;
@@ -226,7 +223,7 @@ export const videoService = {
               const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
 
               const result = {
-                videoId,
+                videoId: ascentId,
                 downloadUrl,
                 metadata: {
                   locationId,
