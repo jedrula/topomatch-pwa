@@ -150,17 +150,12 @@ onDetectionStatusChange(locationId, imageId, callback) {
 
 ### 6. Environment Configuration
 
-**Add to `server/.env`:**
-```bash
-HOLD_DETECTION_SERVER_URL=https://6d2401b5f155.ngrok-free.app
-```
+**Configure in Firestore (single source of truth):**
 
-**Load in Cloud Function:**
-```typescript
-import { defineString } from 'firebase-functions/params';
+- Document: `app-config/backend`
+- Field: `holdDetection.serverUrl`
 
-const DETECTION_SERVER_URL = defineString('HOLD_DETECTION_SERVER_URL');
-```
+You can set it via `/admin/healthcheck` (admin-only) or directly in Firestore Console.
 
 ## Implementation Steps
 

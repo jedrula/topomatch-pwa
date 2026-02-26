@@ -1,12 +1,8 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { defineString } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import fetch from "node-fetch";
-
-const DETECTION_SERVER_URL = defineString("HOLD_DETECTION_SERVER_URL", {
-  description: "URL of the hold detection server",
-});
+import { getHoldDetectionServerUrl } from "../services/appConfig";
 
 // Detection server types
 interface RawDetectionHold {
@@ -75,7 +71,9 @@ export async function handleLocationImageUpload(
   const imageId = match[2];
 
   logger.info(`🖼️ Processing hold detection: locationId=${locationId}, imageId=${imageId}`);
-  logger.info(`📡 Detection server: ${DETECTION_SERVER_URL.value()}`);
+
+  const detectionServerUrl = await getHoldDetectionServerUrl();
+  logger.info(`📡 Detection server: ${detectionServerUrl}`);
 
   const db = getFirestore();
   const holdDetectionRef = db
@@ -121,7 +119,7 @@ export async function handleLocationImageUpload(
 
     let uploadResponse;
     try {
-      uploadResponse = await fetch(`${DETECTION_SERVER_URL.value()}/api/v1/process`, {
+      uploadResponse = await fetch(`${detectionServerUrl}/api/v1/process`, {
         method: "POST",
         headers: {
           "ngrok-skip-browser-warning": "true",
@@ -160,7 +158,7 @@ export async function handleLocationImageUpload(
 
     while (attempts < maxAttempts) {
       const statusResponse = await fetch(
-        `${DETECTION_SERVER_URL.value()}/api/v1/status/${jobId}`,
+        `${detectionServerUrl}/api/v1/status/${jobId}`,
         {
           headers: { "ngrok-skip-browser-warning": "true" },
         }

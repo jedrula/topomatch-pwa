@@ -21,8 +21,7 @@
  * 
  * **Integration:** Called from videoAnalysisQueueStore after best match is found
  */
-
-const MATCH_API_BASE = import.meta.env.VITE_HOLD_DETECTION_API_URL || 'http://localhost:8000';
+import { getHoldDetectionServerUrl } from '@/services/appConfigService'
 
 /**
  * Extract dimensions from image source
@@ -146,6 +145,8 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
   try {
     console.log('🚀 [Server Matching] Starting image match request...');
     const startTime = performance.now();
+
+    const matchApiBaseUrl = await getHoldDetectionServerUrl();
     
     // Extract dimensions if not provided
     const video_dims = videoDimensions || extractDimensions(videoFrame);
@@ -168,7 +169,7 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
     
     // Make API request
     const requestStartTime = performance.now();
-    console.log(`   🌐 Sending request to ${MATCH_API_BASE}/api/v1/match-images...`);
+    console.log(`   🌐 Sending request to ${matchApiBaseUrl}/api/v1/match-images...`);
     
     // Build request body - only include location_dimensions if we have valid values
     const requestBody = {
@@ -191,10 +192,11 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
         transformPoints.map(p => `${p.name || p.id} (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`).join(', '));
     }
     
-    const response = await fetch(`${MATCH_API_BASE}/api/v1/match-images`, {
+    const response = await fetch(`${matchApiBaseUrl}/api/v1/match-images`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
       },
       body: JSON.stringify(requestBody)
     });
@@ -212,7 +214,7 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
     console.log(`✅ [Server Matching] Complete in ${(totalTime / 1000).toFixed(2)}s`);
     console.log(`   📊 Matches: ${result.inlier_matches}/${result.total_matches} inliers (${(result.inlier_ratio * 100).toFixed(1)}%)`);
     console.log(`   🎯 Quality: ${assessMatchQuality(result.inlier_ratio)}`);
-    console.log(`   🖼️  Visualization: ${MATCH_API_BASE}${result.download_url}`);
+    console.log(`   🖼️  Visualization: ${matchApiBaseUrl}${result.download_url}`);
     
     // Log localized transforms if present
     if (result.localized_transforms && result.localized_transforms.length > 0) {
@@ -226,7 +228,7 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
     return {
       ...result,
       matchQuality: assessMatchQuality(result.inlier_ratio),
-      visualizationUrl: `${MATCH_API_BASE}${result.download_url}`,
+      visualizationUrl: `${matchApiBaseUrl}${result.download_url}`,
       processingTime: totalTime
     };
     

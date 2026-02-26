@@ -38,11 +38,11 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Server URL</label>
               <div class="flex items-center gap-2">
                 <div class="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm font-mono text-gray-900">
-                  {{ config?.holdDetection?.serverUrl || 'Not configured' }}
+                  {{ firestoreConfig?.holdDetection?.serverUrl || 'Not configured' }}
                 </div>
                 <a
-                  v-if="config?.holdDetection?.serverUrl"
-                  :href="config.holdDetection.serverUrl"
+                  v-if="firestoreConfig?.holdDetection?.serverUrl"
+                  :href="firestoreConfig.holdDetection.serverUrl"
                   target="_blank"
                   class="h-9 px-4 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors flex items-center gap-2"
                 >
@@ -52,10 +52,30 @@
                   Open
                 </a>
               </div>
+
+              <div class="flex items-center gap-2 mt-3">
+                <input
+                  v-model="serverUrlDraft"
+                  placeholder="https://…"
+                  class="flex-1 h-9 px-3 border border-gray-300 rounded-md text-sm font-mono text-gray-900"
+                />
+                <button
+                  @click="saveServerUrl"
+                  :disabled="savingServerUrl"
+                  class="h-9 px-4 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="!savingServerUrl">Save</span>
+                  <span v-else>Saving...</span>
+                </button>
+              </div>
+
+              <div v-if="serverUrlSaveResult" class="mt-2 px-3 py-2 rounded-md text-sm font-medium" :class="serverUrlSaveResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                {{ serverUrlSaveResult.message }}
+              </div>
             </div>
 
             <!-- Status indicator -->
-            <div v-if="!config?.holdDetection?.configured">
+            <div v-if="!firestoreConfig?.holdDetection?.serverUrl">
               <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
               <div class="flex items-center gap-2">
                 <div class="px-3 py-1.5 rounded-md text-sm font-medium bg-red-100 text-red-800">
@@ -67,7 +87,7 @@
             <!-- Test endpoint button -->
             <div>
               <button
-                v-if="config?.holdDetection?.serverUrl"
+                v-if="firestoreConfig?.holdDetection?.serverUrl"
                 @click="testHoldDetection"
                 :disabled="testing"
                 class="h-9 px-4 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -89,7 +109,7 @@
             <!-- Test match-images API -->
             <div>
               <button
-                v-if="config?.holdDetection?.serverUrl"
+                v-if="firestoreConfig?.holdDetection?.serverUrl"
                 @click="testMatchImages"
                 :disabled="testingMatch"
                 class="h-9 px-4 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -129,7 +149,7 @@
               </div>
               <div>
                 <div class="text-xs text-gray-500 mb-1">Last Updated</div>
-                <div class="text-sm font-medium text-gray-900">{{ formatTimestamp(config?.timestamp) }}</div>
+                <div class="text-sm font-medium text-gray-900">{{ formatTimestamp(firestoreConfig?.updatedAt || config?.timestamp) }}</div>
               </div>
             </div>
           </div>
@@ -143,44 +163,91 @@
 import { ref, onMounted } from 'vue';
 import { functions } from '@/services/firebase';
 import { httpsCallable } from 'firebase/functions';
+import { getBackendAppConfig, setHoldDetectionServerUrl } from '@/services/appConfigService'
 
 const loading = ref(true);
 const error = ref(null);
 const config = ref(null);
+const firestoreConfig = ref(null);
 const testing = ref(false);
 const testResult = ref(null);
 const testingMatch = ref(false);
 const matchTestResult = ref(null);
+
+const serverUrlDraft = ref('')
+const savingServerUrl = ref(false)
+const serverUrlSaveResult = ref(null)
 
 // 100x100 test images with actual features (checkerboard pattern)
 // These have corners and edges that feature detectors can find
 const TEST_IMAGE_1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAA0UlEQVR42u3QMQEAAAgDILV/b3hA8yUFhiYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwzAUcmAABjLfBCAAAAABJRU5ErkJggg==';
 const TEST_IMAGE_2 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAA50lEQVR42u3PsQ0AIAwDwfD+O9NRsAVNxgURBSQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB9dAAE2AAFN6qQGAAAAAElFTkSuQmCC';
 
-const loadConfig = async () => {
-  loading.value = true;
+const loadConfig = async ({ silent = false } = {}) => {
+  if (!silent) loading.value = true;
   error.value = null;
   
   try {
-    const getBackendConfig = httpsCallable(functions, 'getBackendConfig');
-    const result = await getBackendConfig();
-    config.value = result.data;
+    const [backendConfig, appConfig] = await Promise.all([
+      httpsCallable(functions, 'getBackendConfig')().then(r => r.data).catch(() => null),
+      getBackendAppConfig({ forceRefresh: true }).catch(() => null)
+    ])
+
+    config.value = backendConfig
+    firestoreConfig.value = appConfig
+    serverUrlDraft.value = firestoreConfig.value?.holdDetection?.serverUrl || ''
   } catch (err) {
     console.error('Error loading backend config:', err);
     error.value = err.message || 'Failed to load configuration';
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 };
 
+const saveServerUrl = async () => {
+  savingServerUrl.value = true
+  serverUrlSaveResult.value = null
+
+  try {
+    const nextUrl = serverUrlDraft.value?.trim()
+    if (!nextUrl) {
+      throw new Error('Please enter a URL')
+    }
+    if (!/^https?:\/\//i.test(nextUrl)) {
+      throw new Error('URL must start with http:// or https://')
+    }
+
+    const saved = await setHoldDetectionServerUrl(nextUrl)
+    serverUrlDraft.value = saved
+    serverUrlSaveResult.value = { success: true, message: '✅ Saved' }
+
+    firestoreConfig.value = {
+      ...(firestoreConfig.value || {}),
+      holdDetection: {
+        ...(firestoreConfig.value?.holdDetection || {}),
+        serverUrl: saved,
+      }
+    }
+
+    await loadConfig({ silent: true })
+  } catch (err) {
+    serverUrlSaveResult.value = {
+      success: false,
+      message: `❌ Save failed: ${err.message || err}`
+    }
+  } finally {
+    savingServerUrl.value = false
+  }
+}
+
 const testHoldDetection = async () => {
-  if (!config.value?.holdDetection?.serverUrl) return;
+  if (!firestoreConfig.value?.holdDetection?.serverUrl) return;
   
   testing.value = true;
   testResult.value = null;
   
   try {
-    const response = await fetch(`${config.value.holdDetection.serverUrl}/health`, {
+    const response = await fetch(`${firestoreConfig.value.holdDetection.serverUrl}/health`, {
       headers: {
         'ngrok-skip-browser-warning': 'true'
       }
@@ -208,7 +275,7 @@ const testHoldDetection = async () => {
 };
 
 const testMatchImages = async () => {
-  if (!config.value?.holdDetection?.serverUrl) return;
+  if (!firestoreConfig.value?.holdDetection?.serverUrl) return;
   
   testingMatch.value = true;
   matchTestResult.value = null;
@@ -237,7 +304,7 @@ const testMatchImages = async () => {
     console.log('🔬 Testing match-images API with sample data...');
     const startTime = performance.now();
     
-    const response = await fetch(`${config.value.holdDetection.serverUrl}/api/v1/match-images`, {
+    const response = await fetch(`${firestoreConfig.value.holdDetection.serverUrl}/api/v1/match-images`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -296,6 +363,9 @@ const testMatchImages = async () => {
 
 const formatTimestamp = (timestamp) => {
   if (!timestamp) return 'Unknown';
+  if (typeof timestamp?.toDate === 'function') {
+    return timestamp.toDate().toLocaleString();
+  }
   return new Date(timestamp).toLocaleString();
 };
 

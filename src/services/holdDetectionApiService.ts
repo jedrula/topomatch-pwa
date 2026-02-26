@@ -21,16 +21,15 @@ import {
 } from '@/types/holdDetectionApi'
 
 import { convertApiResponseToFrontendFormat } from '@/types/holdDetectionUtils'
+import { getHoldDetectionServerUrl } from '@/services/appConfigService'
 
 /**
  * Get the configured API URL
- * Note: Frontend no longer needs this for automatic detection (handled by Cloud Function)
- * This is kept only for admin testing/debugging purposes
+ * Single source of truth: Firestore app-config/backend.holdDetection.serverUrl
+ * Note: automatic detection is handled by a Cloud Function; this is for admin testing/debugging.
  */
-function getApiUrl(): string {
-  // Hardcoded fallback - update this manually if needed for admin testing
-  // Production detection uses Cloud Function with HOLD_DETECTION_SERVER_URL config
-  return 'https://c31c8f31de2b.ngrok-free.app'
+async function getApiUrl(): Promise<string> {
+  return getHoldDetectionServerUrl()
 }
 
 /**
@@ -38,7 +37,7 @@ function getApiUrl(): string {
  */
 export async function checkApiHealth(): Promise<boolean> {
   try {
-    const baseUrl = getApiUrl()
+    const baseUrl = await getApiUrl()
     const response = await fetch(`${baseUrl}/health`, {
       method: 'GET',
       headers: {
@@ -70,7 +69,7 @@ export async function uploadImageForProcessing(
   }
 ): Promise<string> {
   try {
-    const baseUrl = getApiUrl()
+    const baseUrl = await getApiUrl()
     const formData = new FormData()
     formData.append('file', imageFile, imageFile.name)
     
@@ -118,7 +117,7 @@ export async function pollForJobResults(
   intervalMs: number = 2000
 ): Promise<FrontendDetectionResults> {
   let attempts = 0
-  const baseUrl = getApiUrl()
+  const baseUrl = await getApiUrl()
   
   const poll = async (): Promise<FrontendDetectionResults> => {
     attempts++

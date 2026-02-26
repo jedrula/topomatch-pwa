@@ -1,10 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineString } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
-
-const DETECTION_SERVER_URL = defineString("HOLD_DETECTION_SERVER_URL", {
-  description: "URL of the hold detection server",
-});
+import { getHoldDetectionServerUrl } from "./services/appConfig";
 
 /**
  * Get backend configuration (admin only)
@@ -30,10 +26,17 @@ export const getBackendConfig = onCall(
 
     logger.info(`Admin ${request.auth.uid} requested backend config`);
 
+    let serverUrl: string | null = null;
+    try {
+      serverUrl = await getHoldDetectionServerUrl({ forceRefresh: true });
+    } catch (error) {
+      serverUrl = null;
+    }
+
     return {
       holdDetection: {
-        serverUrl: DETECTION_SERVER_URL.value(),
-        configured: !!DETECTION_SERVER_URL.value(),
+        serverUrl,
+        configured: !!serverUrl,
       },
       region: "europe-west1",
       timestamp: new Date().toISOString(),
