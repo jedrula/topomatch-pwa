@@ -78,5 +78,14 @@ service firebase.storage {
       allow write: if false; // Only Cloud Functions can write transcoded videos
       allow delete: if isOwner(userId) || isAdmin();
     }
+
+    // Analysis diagnostic images - any authenticated user can write their own,
+    // anyone can read (covered by the global read rule above).
+    match /diagnostics/{ascentId}/{filename} {
+      allow write: if isAuthenticated() &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+      allow delete: if isAdmin();
+    }
   }
 }
