@@ -33,16 +33,11 @@ export async function handleRawVideoUpload(
 
   const userId = pathParts[2];
   const fileNameWithExt = pathParts[3];
-  const videoId = fileNameWithExt.split(".")[0];
+  // The file is always uploaded as {ascentId}.{ext} — the filename IS the ascentId.
+  // This matches how handleTranscodedVideo reads ascentId from the path (no metadata needed).
+  const ascentId = fileNameWithExt.split(".")[0];
 
-  // Get ascentId from metadata (required)
-  const ascentId = event.data.metadata?.ascentId;
-  if (!ascentId || typeof ascentId !== "string") {
-    logger.error(`Missing ascentId in metadata for ${filePath}`);
-    return null;
-  }
-
-  logger.info(`🎥 Processing video: userId=${userId}, videoId=${videoId}, ascentId=${ascentId}`);
+  logger.info(`🎥 Processing video: userId=${userId}, ascentId=${ascentId}`);
 
   const db = getFirestore();
   const ascentRef = db.collection("ascents").doc(ascentId);
