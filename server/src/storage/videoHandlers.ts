@@ -12,10 +12,7 @@ const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
  * Handle raw video upload - start transcoding
  * Path: videos/raw/{userId}/{videoId}.{ext}
  */
-export async function handleRawVideoUpload(
-  filePath: string,
-  event: any
-): Promise<any> {
+export async function handleRawVideoUpload(filePath: string, event: any): Promise<any> {
   const contentType = event.data.contentType;
 
   // Validate video content type
@@ -49,7 +46,7 @@ export async function handleRawVideoUpload(
 
     // Update ascent with initial video data
     await ascentRef.update({
-      "video.videoId": videoId,
+      "video.videoId": ascentId,
       "video.status": "transcoding",
       "video.originalPath": filePath,
       "video.mimeType": mimeType,
@@ -116,7 +113,7 @@ export async function handleRawVideoUpload(
     logger.info(`✅ Transcoding job created: ${job.name}`);
 
     // Store job ID in Firestore for future debugging/monitoring
-    const jobId = job.name?.split('/').pop(); // Extract just the ID part
+    const jobId = job.name?.split("/").pop(); // Extract just the ID part
     await ascentRef.update({
       "video.transcoderJobId": jobId,
       "video.transcoderJobFullPath": job.name,
@@ -133,10 +130,7 @@ export async function handleRawVideoUpload(
  * Handle transcoded video completion - update Firestore and generate thumbnail
  * Path: videos/transcoded/{userId}/{ascentId}/video.mp4
  */
-export async function handleTranscodedVideo(
-  filePath: string,
-  event: any
-): Promise<any> {
+export async function handleTranscodedVideo(filePath: string, event: any): Promise<any> {
   // Parse path: videos/transcoded/{userId}/{ascentId}/video.mp4
   const pathParts = filePath.split("/");
   if (pathParts.length !== 5) {

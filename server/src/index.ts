@@ -925,6 +925,36 @@ export const getBoulderProblems = onCall({region: REGION}, async (request) => {
       }
     }
 
+    // Count videos (ready ascents) per problem in a single query
+    // to avoid N+1 calls from the client.
+    const problemIds = problems.map((p: any) => p.id);
+    if (problemIds.length > 0) {
+      // Firestore 'in' supports up to 30 values — batch if needed
+      const batches: string[][] = [];
+      for (let i = 0; i < problemIds.length; i += 30) {
+        batches.push(problemIds.slice(i, i + 30));
+      }
+
+      const videoCounts = new Map<string, number>();
+      await Promise.all(
+        batches.map(async (batch) => {
+          const snap = await db
+            .collection("ascents")
+            .where("problemId", "in", batch)
+            .where("video.status", "==", "ready")
+            .get();
+          snap.forEach((doc) => {
+            const pid = doc.data().problemId;
+            videoCounts.set(pid, (videoCounts.get(pid) || 0) + 1);
+          });
+        }),
+      );
+
+      for (const p of problems) {
+        (p as any).videoCount = videoCounts.get(p.id) || 0;
+      }
+    }
+
     logger.info(
       `Retrieved ${problems.length} boulder problems for location ${locationId}${
         imageId ? ` and image ${imageId}` : ""
