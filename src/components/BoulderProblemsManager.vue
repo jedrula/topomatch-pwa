@@ -131,11 +131,16 @@
               :class="editingProblem ? 'border-blue-600' : 'border-green-600'"
             />
             <button
-              @click="() => { problemColor = '#ffffff'; onColorChange({ target: { value: '#ffffff' } }); }"
-              title="Reset color to white"
-              class="text-gray-400 hover:text-gray-600 transition-colors"
+              @click="resetColorFromHolds"
+              :disabled="isExtractingColor"
+              title="Auto-detect color from holds"
+              class="text-gray-400 hover:text-gray-600 disabled:opacity-40 transition-colors"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-3.5 h-3.5"
+                :class="isExtractingColor ? 'animate-spin' : ''"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
@@ -557,6 +562,7 @@ import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore';
 import { useDraggable } from '@/composables/useDraggable.js';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
+import { getDominantHoldColor } from '@/utils/colorUtils.js';
 import Slider from '@vueform/slider';
 
 const props = defineProps({
@@ -583,6 +589,10 @@ const props = defineProps({
   modelValueProblemColor: {
     type: String,
     default: '#ffffff',
+  },
+  climbingImage: {
+    type: Object,
+    default: null,
   },
 });
 
@@ -627,6 +637,25 @@ const onColorChange = (e) => {
 
 // Expandable grade sections state
 const expandedGrades = ref(new Set());
+
+// Extracting dominant color from hold regions
+const isExtractingColor = ref(false);
+
+const resetColorFromHolds = async () => {
+  const problem = editingProblem.value || boulderProblemsStore.activeProblem;
+  const holds = problem?.holds;
+  isExtractingColor.value = true;
+  try {
+    const color = (holds?.length && props.climbingImage)
+      ? await getDominantHoldColor(props.climbingImage, holds)
+      : null;
+    const resolved = color ?? '#ffffff';
+    problemColor.value = resolved;
+    onColorChange({ target: { value: resolved } });
+  } finally {
+    isExtractingColor.value = false;
+  }
+};
 
 // Initialize selectedGrade with first grade from the system
 const initializeDefaultGrade = () => {
