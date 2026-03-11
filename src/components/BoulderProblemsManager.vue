@@ -121,15 +121,25 @@
                 : `Creating Problem #${boulderProblemsStore.activeProblem.id}`
             }}
           </h4>
-          <div
-            class="w-4 h-4 rounded-full border-2"
-            :class="editingProblem ? 'border-blue-600' : 'border-green-600'"
-            :style="{
-              backgroundColor: editingProblem
-                ? editingProblem.color
-                : boulderProblemsStore.activeProblemColor,
-            }"
-          ></div>
+          <div class="flex items-center gap-1">
+            <input
+              type="color"
+              v-model="problemColor"
+              @input="onColorChange"
+              title="Problem color"
+              class="w-8 h-8 rounded-full border-2 cursor-pointer p-0.5"
+              :class="editingProblem ? 'border-blue-600' : 'border-green-600'"
+            />
+            <button
+              @click="() => { problemColor = '#ffffff'; onColorChange({ target: { value: '#ffffff' } }); }"
+              title="Reset color to white"
+              class="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Problem Name Input -->
@@ -570,6 +580,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  modelValueProblemColor: {
+    type: String,
+    default: '#ffffff',
+  },
 });
 
 const emit = defineEmits([
@@ -580,6 +594,7 @@ const emit = defineEmits([
   'filtered-problems-change',
   'update:modelValueProblemName',
   'update:modelValueSelectedGrade',
+  'update:modelValueProblemColor',
 ]);
 
 const route = useRoute();
@@ -596,6 +611,19 @@ const selectedGrade = computed({
   get: () => props.modelValueSelectedGrade,
   set: (value) => emit('update:modelValueSelectedGrade', value)
 });
+const problemColor = computed({
+  get: () => props.modelValueProblemColor,
+  set: (value) => emit('update:modelValueProblemColor', value)
+});
+
+const onColorChange = (e) => {
+  const newColor = e.target.value;
+  if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
+    boulderProblemsStore.updateProblemColor(boulderProblemsStore.activeProblem.id, newColor);
+  } else if (editingProblem.value) {
+    boulderProblemsStore.updateProblemColor(editingProblem.value.id, newColor);
+  }
+};
 
 // Expandable grade sections state
 const expandedGrades = ref(new Set());
@@ -685,7 +713,7 @@ const editingProblem = computed(() => {
 
 const startCreatingProblem = async () => {
   try {
-    await boulderProblemsStore.createNewProblem(selectedGrade.value, problemName.value);
+    await boulderProblemsStore.createNewProblem(selectedGrade.value, problemName.value, problemColor.value);
     // Reset form
     problemName.value = '';
     initializeDefaultGrade();
@@ -696,7 +724,7 @@ const startCreatingProblem = async () => {
 };
 
 const finishProblem = async () => {
-  // Update the problem with the final name and grade
+  // Update the problem with the final name, grade and color
   if (boulderProblemsStore.activeProblem) {
     await boulderProblemsStore.updateProblemName(
       boulderProblemsStore.activeProblem.id,
@@ -706,6 +734,10 @@ const finishProblem = async () => {
       boulderProblemsStore.activeProblem.id,
       selectedGrade.value
     );
+    boulderProblemsStore.updateProblemColor(
+      boulderProblemsStore.activeProblem.id,
+      problemColor.value
+    );
   }
 
   await boulderProblemsStore.finishCreatingProblem();
@@ -713,6 +745,7 @@ const finishProblem = async () => {
   // Reset form
   problemName.value = '';
   initializeDefaultGrade();
+  problemColor.value = '#ffffff';
   emit('tool-selection-change', 'single');
 };
 
@@ -722,6 +755,7 @@ const cancelProblem = async () => {
   // Reset form
   problemName.value = '';
   initializeDefaultGrade();
+  problemColor.value = '#ffffff';
   emit('tool-selection-change', 'single');
 };
 
@@ -743,6 +777,7 @@ const editProblem = (problem) => {
   // Pre-populate the form with existing values
   problemName.value = problem.name;
   selectedGrade.value = getGradeLabel(problem.grade);
+  problemColor.value = problem.color || '#ffffff';
 
   // Reset tool selection to single when starting edit
   emit('tool-selection-change', 'single');
@@ -760,6 +795,7 @@ const saveEdit = async () => {
     // Update the local problem data
     boulderProblemsStore.updateProblemName(currentEditingProblem.id, problemName.value);
     boulderProblemsStore.updateProblemGrade(currentEditingProblem.id, selectedGrade.value);
+    boulderProblemsStore.updateProblemColor(currentEditingProblem.id, problemColor.value);
 
     // Save all changes to server
     await boulderProblemsStore.saveProblemChanges(currentEditingProblem.id);
@@ -770,6 +806,7 @@ const saveEdit = async () => {
     // Reset form state
     problemName.value = '';
     initializeDefaultGrade();
+    problemColor.value = '#ffffff';
   } catch (error) {
     console.error('Error saving boulder problem:', error);
     // Error is already handled in the store and displayed in the UI
@@ -808,6 +845,7 @@ const cancelEdit = async () => {
   // Reset form state
   problemName.value = '';
   initializeDefaultGrade();
+  problemColor.value = '#ffffff';
   emit('tool-selection-change', 'single');
 };
 
@@ -987,14 +1025,17 @@ watch(
     if (newEditingProblem) {
       problemName.value = newEditingProblem.name;
       selectedGrade.value = getGradeLabel(newEditingProblem.grade);
+      problemColor.value = newEditingProblem.color || '#ffffff';
     }
 
     // When stopping editing, clear the form
     if (!newEditingProblem && oldEditingProblem) {
       problemName.value = '';
       initializeDefaultGrade();
+      problemColor.value = '#ffffff';
     }
-  }
+  },
+  { immediate: true }
 );
 
 // Watch filtered problems and emit them to parent for hold highlighting

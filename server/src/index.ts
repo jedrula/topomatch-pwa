@@ -818,7 +818,7 @@ export const createBoulderProblem = onCall({region: REGION}, async (request) => 
       grade: problemData.grade,
       holds: problemData.holds || [],
       imageId: problemData.imageId,
-      color: problemData.color || "#ef4444",
+      color: problemData.color || "#ffffff",
       createdAt: new Date(),
       updatedAt: new Date(),
       createdBy: request.auth.uid,

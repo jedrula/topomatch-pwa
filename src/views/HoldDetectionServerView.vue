@@ -205,6 +205,7 @@
                   v-bind="boulderProblemsManagerProps"
                   v-model:model-value-problem-name="sharedProblemName"
                   v-model:model-value-selected-grade="sharedSelectedGrade"
+                  v-model:model-value-problem-color="sharedProblemColor"
                   :is-fullscreen="true"
                   v-on="boulderProblemsManagerEvents"
                 />
@@ -418,6 +419,7 @@
             v-bind="boulderProblemsManagerProps"
             v-model:model-value-problem-name="sharedProblemName"
             v-model:model-value-selected-grade="sharedSelectedGrade"
+            v-model:model-value-problem-color="sharedProblemColor"
             :is-fullscreen="false"
             v-on="boulderProblemsManagerEvents"
           />
@@ -683,6 +685,7 @@ const isFullscreen = ref(false)
 // Shared state for boulder problem form (persists across fullscreen toggle)
 const sharedProblemName = ref('');
 const sharedSelectedGrade = ref('');
+const sharedProblemColor = ref('#ffffff');
 
 // Hold interaction state
 const hoveredProblemId = ref(null);

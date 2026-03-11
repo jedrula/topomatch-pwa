@@ -78,22 +78,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     return gradeObject.label || '';
   };
 
-  // Colors for visual distinction of boulder problems
-  const problemColors = [
-    '#ef4444', // red
-    '#f97316', // orange
-    '#eab308', // yellow
-    '#22c55e', // green
-    '#06b6d4', // cyan
-    '#3b82f6', // blue
-    '#8b5cf6', // violet
-    '#ec4899', // pink
-    '#f59e0b', // amber
-    '#10b981', // emerald
-    '#6366f1', // indigo
-    '#d946ef', // fuchsia
-  ];
-
   // Computed
   const sortedProblems = computed(() => {
     return [...boulderProblems.value].sort((a, b) => {
@@ -107,7 +91,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
 
   const activeProblemColor = computed(() => {
     if (!activeProblem.value) return null;
-    return activeProblem.value.color || problemColors[0];
+    return activeProblem.value.color || '#ffffff';
   });
 
   // Helper function to generate next local ID for optimistic updates
@@ -145,20 +129,18 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
         // result is now { problems: [], metadata: {} }
         const problems = result.problems || result; // fallback for old format
         
-        // Add color property based on index if not present
-        boulderProblems.value = problems.map((problem, index) => ({
+        boulderProblems.value = problems.map((problem) => ({
           ...problem,
-          color: problem.color || problemColors[index % problemColors.length],
+          color: problem.color || '#ffffff',
         }));
 
         return result; // Return the full result including metadata
       } else {
         const problems = await boulderProblemsService.getBoulderProblems(locationId, routesetting);
         
-        // Add color property based on index if not present
-        boulderProblems.value = problems.map((problem, index) => ({
+        boulderProblems.value = problems.map((problem) => ({
           ...problem,
-          color: problem.color || problemColors[index % problemColors.length],
+          color: problem.color || '#ffffff',
         }));
 
         return { problems, metadata: null };
@@ -172,7 +154,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     }
   };
 
-  const createNewProblem = async (gradeLabel, name = '') => {
+  const createNewProblem = async (gradeLabel, name = '', color = '#ffffff') => {
     if (!currentLocationId.value || !currentImageId.value) {
       throw new Error('Location and image must be set before creating problems');
     }
@@ -182,7 +164,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
       getGradeObjectFromLabel(gradeLabel) ||
       (grades.value.length > 0 ? getGradeObjectFromLabel(grades.value[0]) : null);
 
-    const colorIndex = boulderProblems.value.length % problemColors.length;
     const problemName = name || `Problem ${boulderProblems.value.length + 1}`;
 
     // Create optimistic local problem (no viewBox stored here anymore)
@@ -192,7 +173,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
       grade: gradeObject,
       holds: [],
       imageId: currentImageId.value,
-      color: problemColors[colorIndex],
+      color,
       createdAt: new Date(),
       updatedAt: new Date(),
       isLocalOnly: true, // Flag for optimistic update
@@ -208,7 +189,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
         name: problemName,
         grade: gradeObject,
         imageId: currentImageId.value,
-        color: problemColors[colorIndex],
+        color,
         holds: [],
       });
 
@@ -251,6 +232,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
             name: activeProblem.value.name,
             grade: activeProblem.value.grade,
             holds: activeProblem.value.holds,
+            color: activeProblem.value.color,
           }
         );
       }
@@ -414,6 +396,18 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     }
   };
 
+  const updateProblemColor = (problemId, newColor) => {
+    const problem = boulderProblems.value.find((p) => p.id === problemId);
+    if (!problem) return;
+
+    problem.color = newColor;
+
+    // Mark problem as having unsaved changes (unless it's local only or being created)
+    if (!problem.isLocalOnly && !isCreatingProblem.value) {
+      problemsWithUnsavedChanges.value.add(problemId);
+    }
+  };
+
   const updateProblem = (updatedProblem) => {
     const problemIndex = boulderProblems.value.findIndex((p) => p.id === updatedProblem.id);
     if (problemIndex === -1) return;
@@ -487,6 +481,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
         name: problem.name,
         grade: problem.grade,
         holds: problem.holds,
+        color: problem.color,
       });
 
       // Remove from unsaved changes
@@ -615,7 +610,6 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     currentLocationGradingSystem,
     grades,
     gradingSystem,
-    problemColors,
     isSaving,
 
     // Computed
@@ -640,6 +634,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     deleteProblem,
     updateProblemName,
     updateProblemGrade,
+    updateProblemColor,
     updateProblem,
     showOnlyProblem,
     showAllProblems,
