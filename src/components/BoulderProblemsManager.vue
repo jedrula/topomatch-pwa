@@ -626,13 +626,23 @@ const problemColor = computed({
   set: (value) => emit('update:modelValueProblemColor', value)
 });
 
-const onColorChange = (e) => {
-  const newColor = e.target.value;
+// Whether the user has manually picked a color for the current problem.
+// While false, each hold click will auto-update the color.
+const colorUserTouched = ref(false);
+
+// Sync a hex color to v-model + store without marking it as user-chosen.
+const applyColor = (hex) => {
+  problemColor.value = hex;
   if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
-    boulderProblemsStore.updateProblemColor(boulderProblemsStore.activeProblem.id, newColor);
+    boulderProblemsStore.updateProblemColor(boulderProblemsStore.activeProblem.id, hex);
   } else if (editingProblem.value) {
-    boulderProblemsStore.updateProblemColor(editingProblem.value.id, newColor);
+    boulderProblemsStore.updateProblemColor(editingProblem.value.id, hex);
   }
+};
+
+const onColorChange = (e) => {
+  colorUserTouched.value = true;
+  applyColor(e.target.value);
 };
 
 // Expandable grade sections state
@@ -649,13 +659,28 @@ const resetColorFromHolds = async () => {
     const color = (holds?.length && props.climbingImage)
       ? await getDominantHoldColor(props.climbingImage, holds)
       : null;
-    const resolved = color ?? '#ffffff';
-    problemColor.value = resolved;
-    onColorChange({ target: { value: resolved } });
+    applyColor(color ?? '#ffffff');
   } finally {
     isExtractingColor.value = false;
   }
 };
+
+// Auto-detect dominant color on every hold click while creating a problem,
+// as long as the user has not manually touched the color picker.
+watch(
+  () => boulderProblemsStore.activeProblem?.holds?.length,
+  async (newLen) => {
+    if (
+      !boulderProblemsStore.isCreatingProblem ||
+      colorUserTouched.value ||
+      !props.climbingImage ||
+      !newLen
+    ) return;
+    const holds = boulderProblemsStore.activeProblem?.holds;
+    const color = await getDominantHoldColor(props.climbingImage, holds);
+    if (color) applyColor(color);
+  }
+);
 
 // Initialize selectedGrade with first grade from the system
 const initializeDefaultGrade = () => {
@@ -742,6 +767,7 @@ const editingProblem = computed(() => {
 
 const startCreatingProblem = async () => {
   try {
+    colorUserTouched.value = false;
     await boulderProblemsStore.createNewProblem(selectedGrade.value, problemName.value, problemColor.value);
     // Reset form
     problemName.value = '';
@@ -775,6 +801,7 @@ const finishProblem = async () => {
   problemName.value = '';
   initializeDefaultGrade();
   problemColor.value = '#ffffff';
+  colorUserTouched.value = false;
   emit('tool-selection-change', 'single');
 };
 
@@ -785,6 +812,7 @@ const cancelProblem = async () => {
   problemName.value = '';
   initializeDefaultGrade();
   problemColor.value = '#ffffff';
+  colorUserTouched.value = false;
   emit('tool-selection-change', 'single');
 };
 
