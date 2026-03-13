@@ -19,6 +19,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "problemId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "ascents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "locationId",
           "order": "ASCENDING"
         },

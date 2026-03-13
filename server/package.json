@@ -25,7 +25,7 @@
     "migrate:production:dryrun": "GCLOUD_PROJECT=topomatch-pwa MIGRATING_PRODUCTION=true GOOGLE_APPLICATION_CREDENTIALS=./topomatch-pwa-firebase-adminsdk.json fireway --require=ts-node/register migrate --dryrun",
     "make-admin": "node scripts/make-admin.js",
     "make-admin:emulator": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/make-admin.js",
-    "indexes:save": "firebase firestore:indexes --project topomatch-pwa > ../firestore.indexes.json",
+    "indexes:save": "firebase firestore:indexes --project topomatch-pwa > ./firestore.indexes.json",
     "check-admin": "node scripts/check-admin.js",
     "check-admin:emulator": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/check-admin.js"
   },
