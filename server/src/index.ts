@@ -26,6 +26,9 @@ export {notifyNewRoutesetting} from "./notifications";
 // Backend configuration (admin only)
 export {getBackendConfig} from "./getBackendConfig";
 
+// Follow system
+export {toggleFollow, getFollowData, getFollowCounts} from "./followSystem";
+
 // Configure Storage emulator BEFORE initializing Firebase Admin
 // This must be set before any Storage client is created
 if (process.env.FUNCTIONS_EMULATOR === "true") {
