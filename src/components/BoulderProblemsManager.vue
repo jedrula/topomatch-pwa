@@ -131,11 +131,16 @@
               :class="editingProblem ? 'border-blue-600' : 'border-green-600'"
             />
             <button
-              @click="() => { problemColor = '#ffffff'; onColorChange({ target: { value: '#ffffff' } }); }"
-              title="Reset color to white"
-              class="text-gray-400 hover:text-gray-600 transition-colors"
+              @click="resetColorFromHolds"
+              :disabled="isExtractingColor"
+              title="Auto-detect color from holds"
+              class="text-gray-400 hover:text-gray-600 disabled:opacity-40 transition-colors"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-3.5 h-3.5"
+                :class="isExtractingColor ? 'animate-spin' : ''"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
@@ -557,6 +562,7 @@ import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore';
 import { useDraggable } from '@/composables/useDraggable.js';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
+import { getDominantHoldColor } from '@/utils/colorUtils.js';
 import Slider from '@vueform/slider';
 
 const props = defineProps({
@@ -583,6 +589,10 @@ const props = defineProps({
   modelValueProblemColor: {
     type: String,
     default: '#ffffff',
+  },
+  climbingImage: {
+    type: Object,
+    default: null,
   },
 });
 
@@ -616,17 +626,61 @@ const problemColor = computed({
   set: (value) => emit('update:modelValueProblemColor', value)
 });
 
-const onColorChange = (e) => {
-  const newColor = e.target.value;
+// Whether the user has manually picked a color for the current problem.
+// While false, each hold click will auto-update the color.
+const colorUserTouched = ref(false);
+
+// Sync a hex color to v-model + store without marking it as user-chosen.
+const applyColor = (hex) => {
+  problemColor.value = hex;
   if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
-    boulderProblemsStore.updateProblemColor(boulderProblemsStore.activeProblem.id, newColor);
+    boulderProblemsStore.updateProblemColor(boulderProblemsStore.activeProblem.id, hex);
   } else if (editingProblem.value) {
-    boulderProblemsStore.updateProblemColor(editingProblem.value.id, newColor);
+    boulderProblemsStore.updateProblemColor(editingProblem.value.id, hex);
   }
+};
+
+const onColorChange = (e) => {
+  colorUserTouched.value = true;
+  applyColor(e.target.value);
 };
 
 // Expandable grade sections state
 const expandedGrades = ref(new Set());
+
+// Extracting dominant color from hold regions
+const isExtractingColor = ref(false);
+
+const resetColorFromHolds = async () => {
+  const problem = editingProblem.value || boulderProblemsStore.activeProblem;
+  const holds = problem?.holds;
+  isExtractingColor.value = true;
+  try {
+    const color = (holds?.length && props.climbingImage)
+      ? await getDominantHoldColor(props.climbingImage, holds)
+      : null;
+    applyColor(color ?? '#ffffff');
+  } finally {
+    isExtractingColor.value = false;
+  }
+};
+
+// Auto-detect dominant color on every hold click while creating a problem,
+// as long as the user has not manually touched the color picker.
+watch(
+  () => boulderProblemsStore.activeProblem?.holds?.length,
+  async (newLen) => {
+    if (
+      !boulderProblemsStore.isCreatingProblem ||
+      colorUserTouched.value ||
+      !props.climbingImage ||
+      !newLen
+    ) return;
+    const holds = boulderProblemsStore.activeProblem?.holds;
+    const color = await getDominantHoldColor(props.climbingImage, holds);
+    if (color) applyColor(color);
+  }
+);
 
 // Initialize selectedGrade with first grade from the system
 const initializeDefaultGrade = () => {
@@ -713,6 +767,7 @@ const editingProblem = computed(() => {
 
 const startCreatingProblem = async () => {
   try {
+    colorUserTouched.value = false;
     await boulderProblemsStore.createNewProblem(selectedGrade.value, problemName.value, problemColor.value);
     // Reset form
     problemName.value = '';
@@ -746,6 +801,7 @@ const finishProblem = async () => {
   problemName.value = '';
   initializeDefaultGrade();
   problemColor.value = '#ffffff';
+  colorUserTouched.value = false;
   emit('tool-selection-change', 'single');
 };
 
@@ -756,6 +812,7 @@ const cancelProblem = async () => {
   problemName.value = '';
   initializeDefaultGrade();
   problemColor.value = '#ffffff';
+  colorUserTouched.value = false;
   emit('tool-selection-change', 'single');
 };
 
