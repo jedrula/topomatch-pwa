@@ -18,27 +18,30 @@ export const toggleFollow = onCall({region: REGION}, async (request) => {
   const db = getFirestore();
   const docId = `${request.auth.uid}_${targetUserId}`;
   const ref = db.collection("follows").doc(docId);
-  const snap = await ref.get();
 
-  if (snap.exists) {
-    await ref.delete();
-    return {isFollowing: false};
-  } else {
-    await ref.set({
-      followerId: request.auth.uid,
-      followeeId: targetUserId,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    return {isFollowing: true};
-  }
+  const isFollowing = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists) {
+      tx.delete(ref);
+      return false;
+    } else {
+      tx.set(ref, {
+        followerId: request.auth!.uid,
+        followeeId: targetUserId,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return true;
+    }
+  });
+
+  return {isFollowing};
 });
 
 export const getFollowData = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required");
   }
-  const rawUserId = (request.data as {userId?: string}).userId;
-  const userId = rawUserId === "me" ? request.auth.uid : rawUserId;
+  const userId = (request.data as {userId?: string}).userId;
   if (!userId) {
     throw new HttpsError("invalid-argument", "userId is required");
   }
