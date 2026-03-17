@@ -224,6 +224,57 @@ const handleHover = (isEntering, event) => {
   pointer-events: none;
 }
 
+/* Volume mode interactions */
+.interaction-volume-target {
+  opacity: 0.6;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.interaction-volume-target :deep(path) {
+  stroke: #d97706;
+  stroke-width: 2;
+  fill: rgba(217, 119, 6, 0.1);
+}
+
+.interaction-volume-marked {
+  opacity: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.interaction-volume-marked :deep(path) {
+  stroke: #f59e0b;
+  stroke-width: 4;
+  fill: rgba(245, 158, 11, 0.5);
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8));
+  animation: pulse-volume 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-volume {
+  0%, 100% {
+    fill: rgba(245, 158, 11, 0.5);
+    stroke-opacity: 1;
+  }
+  50% {
+    fill: rgba(245, 158, 11, 0.35);
+    stroke-opacity: 0.7;
+  }
+}
+
+.interaction-volume-hover {
+  opacity: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.interaction-volume-hover :deep(path) {
+  stroke: #b45309;
+  stroke-width: 3;
+  fill: rgba(217, 119, 6, 0.3);
+  filter: drop-shadow(0 0 10px rgba(217, 119, 6, 0.8));
+}
+
 /* Interaction allowed states */
 .allowed-selectable {
   cursor: pointer;

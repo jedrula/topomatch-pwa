@@ -38,8 +38,10 @@ export const PoseModel = {
  * 🎯 Desktop web uses this model (mobile web uses dummy, iOS uses Vision Framework)
  * 
  * TODO: MediaPipe models currently broken - stick with YOLO for now
+ * 
+ * YOLO11S gives significantly better wrist/ankle detection than YOLO11N (38 MB vs 11 MB)
  */
-export const ACTIVE_POSE_MODEL = PoseModel.YOLO11N;
+export const ACTIVE_POSE_MODEL = PoseModel.YOLO11S;
 
 /**
  * Model metadata for runtime use

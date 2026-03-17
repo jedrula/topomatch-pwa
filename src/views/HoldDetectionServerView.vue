@@ -298,6 +298,29 @@
                   </svg>
                   <span>{{ magicWandActive ? "Magic Wand ON" : "Magic Wand" }}</span>
                 </button>
+
+                <!-- Mark Volume Button -->
+                <button
+                  v-if="serverStore.hasResults && !boulderProblemsStore.isCreatingProblem && !editingState.isEditing"
+                  @click="toggleVolumeMode"
+                  :class="[
+                    'px-6 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
+                    serverStore.isVolumeMode
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                      : 'border border-amber-500 text-amber-700 hover:bg-amber-50',
+                  ]"
+                  title="Mark Volume: Click a hold to toggle it as a volume"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
+                  <span>{{ serverStore.isVolumeMode ? "Volume Mode ON" : "Mark Volume" }}</span>
+                </button>
               </div>
 
               <!-- How It Works -->
@@ -846,6 +869,8 @@ const toggleDrawingMode = () => {
     if (magicWandActive.value) {
       toggleMagicWand();
     }
+    // Disable volume mode
+    serverStore.setVolumeMode(false);
     // Load existing manual holds for this image
     serverStore.loadManualHolds(route.params.locationId, route.query.imageId);
   } else {
@@ -863,11 +888,27 @@ const toggleDeleteMode = () => {
     if (magicWandActive.value) {
       toggleMagicWand();
     }
+    // Disable volume mode
+    serverStore.setVolumeMode(false);
     // Load existing manual holds for this image
     serverStore.loadManualHolds(route.params.locationId, route.query.imageId);
   } else {
     // Save manual holds when exiting delete mode
     serverStore.saveManualHolds(route.params.locationId, route.query.imageId, imageUrl.value);
+  }
+};
+
+const toggleVolumeMode = () => {
+  const newVolumeMode = !serverStore.isVolumeMode;
+  serverStore.setVolumeMode(newVolumeMode);
+
+  if (newVolumeMode) {
+    // Disable other modes
+    if (magicWandActive.value) {
+      toggleMagicWand();
+    }
+    serverStore.setDeleteMode(false);
+    serverStore.setDrawingMode(false);
   }
 };
 
@@ -1133,7 +1174,13 @@ const handleHoldClick = (hold, holdIndex) => {
     return; // Don't proceed with other logic when using boulder magic wand
   }
 
-  // Priority 2: Standalone Magic Wand functionality (when not in boulder mode)
+  // Priority 2: Volume mode - toggle volume flag on the hold
+  if (serverStore.isVolumeMode) {
+    serverStore.toggleHoldVolume(hold, route.params.locationId, route.query.imageId);
+    return;
+  }
+
+  // Priority 3: Standalone Magic Wand functionality (when not in boulder mode)
   if (!isBoulderMode && magicWandActive.value) {
 
     // Get all holds from AI + manual holds
@@ -1160,7 +1207,7 @@ const handleHoldClick = (hold, holdIndex) => {
     return; // Don't proceed with normal hold selection when standalone magic wand is active
   }
 
-  // Priority 3: Normal boulder creation/editing (single hold selection)
+  // Priority 4: Normal boulder creation/editing (single hold selection)
   if (isBoulderMode) {
     // Normal hold selection logic for boulder problems
 
@@ -1219,7 +1266,7 @@ const handleHoldClick = (hold, holdIndex) => {
     return; // Don't proceed with other logic when in boulder mode
   }
 
-  // Priority 4: No special mode active - ignore click
+  // Priority 5: No special mode active - ignore click
 };
 
 // Helper function to get problem ID for a hold

@@ -29,6 +29,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
   const manualHolds = ref([])
   const isDrawingMode = ref(false)
   const isDeleteMode = ref(false)
+  const isVolumeMode = ref(false)
   const isAdminHighlightMode = ref(false)
   
   // Compression settings (for UI compatibility)
@@ -270,6 +271,37 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     }
   }
   
+  const setVolumeMode = (enabled) => {
+    isVolumeMode.value = enabled
+    if (enabled) {
+      isDrawingMode.value = false
+      isDeleteMode.value = false
+      isAdminHighlightMode.value = false
+    }
+  }
+
+  const toggleHoldVolume = async (hold, locationId, imageId) => {
+    if (!hold || !locationId || !imageId) return
+
+    try {
+      await holdDetectionService.toggleHoldVolume(locationId, imageId, hold.id)
+
+      // Update local state
+      if (results.value?.holds) {
+        const aiHold = results.value.holds.find(h => h.id === hold.id)
+        if (aiHold) {
+          aiHold.volume = !aiHold.volume
+        }
+      }
+      const manualHold = manualHolds.value.find(h => h.id === hold.id)
+      if (manualHold) {
+        manualHold.volume = !manualHold.volume
+      }
+    } catch (error) {
+      console.error('Error toggling hold volume:', error)
+    }
+  }
+
   const setAdminHighlightMode = (enabled) => {
     isAdminHighlightMode.value = enabled
     if (enabled) {
@@ -339,7 +371,8 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
               height: hold.height,
               confidence: hold.confidence,
               type: hold.holdType,
-              svgMarkup: hold.svgMarkup
+              svgMarkup: hold.svgMarkup,
+              volume: hold.volume || false
             })),
             svg_markups: aiHolds.map(hold => hold.svgMarkup || ''),
             // Include timing information from metadata
@@ -383,6 +416,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     manualHolds,
     isDrawingMode,
     isDeleteMode,
+    isVolumeMode,
     isAdminHighlightMode,
     compressionSettings,
     
@@ -404,6 +438,8 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     clearManualHolds,
     setDrawingMode,
     setDeleteMode,
+    setVolumeMode,
+    toggleHoldVolume,
     setAdminHighlightMode,
     loadManualHolds,
     saveManualHolds,

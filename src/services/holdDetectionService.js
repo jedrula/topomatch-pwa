@@ -227,6 +227,46 @@ export const holdDetectionService = {
   },
 
   /**
+   * Toggle volume flag on a hold (AI or manual)
+   */
+  async toggleHoldVolume(locationId, imageId, holdId) {
+    const docRef = doc(db, 'locations', locationId, 'holdDetections', imageId)
+    const docSnap = await getDoc(docRef)
+    
+    if (!docSnap.exists()) return false
+
+    const data = docSnap.data()
+    const aiHolds = data.detectionResults?.aiHolds || []
+    const manualHolds = data.detectionResults?.manualHolds || []
+    
+    let found = false
+    const updatedAIHolds = aiHolds.map(hold => {
+      if (hold.id === holdId) {
+        found = true
+        return { ...hold, volume: !hold.volume }
+      }
+      return hold
+    })
+    const updatedManualHolds = manualHolds.map(hold => {
+      if (hold.id === holdId) {
+        found = true
+        return { ...hold, volume: !hold.volume }
+      }
+      return hold
+    })
+
+    if (!found) return false
+
+    await updateDoc(docRef, {
+      'detectionResults.aiHolds': updatedAIHolds,
+      'detectionResults.manualHolds': updatedManualHolds,
+      updatedAt: serverTimestamp()
+    })
+
+    return true
+  },
+
+  /**
    * Trigger AI detection via Firebase Function
    */
   async runAIDetection(locationId, imageId, imageUrl, options = {}) {

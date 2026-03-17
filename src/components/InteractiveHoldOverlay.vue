@@ -2,7 +2,7 @@
   <div class="absolute inset-0 w-full h-full pointer-events-none">
     <!-- Main SVG overlay with both AI and manual holds -->
     <svg
-      v-if="aiSvgMarkups.length > 0 || serverStore.manualHolds.length > 0 || serverStore.isDrawingMode || serverStore.isDeleteMode"
+      v-if="aiSvgMarkups.length > 0 || serverStore.manualHolds.length > 0 || serverStore.isDrawingMode || serverStore.isDeleteMode || serverStore.isVolumeMode"
       class="absolute inset-0 w-full h-full pointer-events-none z-10"
       :viewBox="svgViewBox"
       preserveAspectRatio="xMidYMid meet"
@@ -649,6 +649,14 @@ const getHoldInteraction = (hold) => {
     }
   }
 
+  // Volume mode: highlight volumes and make all holds interactive
+  if (serverStore.isVolumeMode) {
+    if (hoveredHoldIndex.value === hold.id) {
+      return 'volume-hover';
+    }
+    return hold.volume ? 'volume-marked' : 'volume-target';
+  }
+
   // During drawing mode, make existing holds visible with reduced opacity
   if (serverStore.isDrawingMode) {
     if (hoveredHoldIndex.value === hold.id) {
@@ -742,6 +750,11 @@ const getHoldInteractionAllowed = (hold) => {
   // In delete mode, both AI and manual holds are selectable for deletion
   if (serverStore.isDeleteMode) {
     return 'selectable'; // All holds can be deleted
+  }
+
+  // In volume mode, all holds are selectable for volume marking
+  if (serverStore.isVolumeMode) {
+    return 'selectable';
   }
 
   // Magic Wand mode - only selected holds are clickable
