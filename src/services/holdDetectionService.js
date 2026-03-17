@@ -227,6 +227,31 @@ export const holdDetectionService = {
   },
 
   /**
+   * Crop holds - keep only holds with specified IDs, remove the rest
+   */
+  async cropHolds(locationId, imageId, holdIdsToKeep) {
+    const docRef = doc(db, 'locations', locationId, 'holdDetections', imageId)
+    const docSnap = await getDoc(docRef)
+    
+    if (!docSnap.exists()) return
+
+    const data = docSnap.data()
+    const keepSet = new Set(holdIdsToKeep)
+    const updatedAIHolds = (data.detectionResults?.aiHolds || []).filter(h => keepSet.has(h.id))
+    const updatedManualHolds = (data.detectionResults?.manualHolds || []).filter(h => keepSet.has(h.id))
+
+    await updateDoc(docRef, {
+      'detectionResults.aiHolds': updatedAIHolds,
+      'detectionResults.manualHolds': updatedManualHolds,
+      'detectionResults.metadata.detectionSource': this.determineDetectionSource({
+        aiHolds: updatedAIHolds,
+        manualHolds: updatedManualHolds
+      }),
+      updatedAt: serverTimestamp()
+    })
+  },
+
+  /**
    * Toggle volume flag on a hold (AI or manual)
    */
   async toggleHoldVolume(locationId, imageId, holdId) {

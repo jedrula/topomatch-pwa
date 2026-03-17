@@ -2,7 +2,7 @@
   <div class="absolute inset-0 w-full h-full pointer-events-none">
     <!-- Main SVG overlay with both AI and manual holds -->
     <svg
-      v-if="aiSvgMarkups.length > 0 || serverStore.manualHolds.length > 0 || serverStore.isDrawingMode || serverStore.isDeleteMode || serverStore.isVolumeMode"
+      v-if="aiSvgMarkups.length > 0 || serverStore.manualHolds.length > 0 || serverStore.isDrawingMode || serverStore.isDeleteMode || serverStore.isVolumeMode || serverStore.isCropMode"
       class="absolute inset-0 w-full h-full pointer-events-none z-10"
       :viewBox="svgViewBox"
       preserveAspectRatio="xMidYMid meet"
@@ -35,6 +35,7 @@
       />
 
       <!-- Drawing preview -->
+      <!-- Drawing preview -->
       <g v-if="drawingPath.length > 1 && isAnyDrawingMode">
         <path
           :d="createPreviewPath()"
@@ -42,6 +43,64 @@
           stroke="#3b82f6"
           stroke-width="2"
           stroke-dasharray="5,5"
+        />
+      </g>
+
+      <!-- Crop polygon preview -->
+      <g v-if="serverStore.isCropMode">
+        <!-- Filled polygon when we have points -->
+        <polygon
+          v-if="cropPoints.length >= 2"
+          :points="cropPoints.map(p => `${p.x},${p.y}`).join(' ')"
+          fill="rgba(225, 29, 72, 0.15)"
+          stroke="#e11d48"
+          stroke-width="3"
+          stroke-dasharray="8,4"
+        />
+        <!-- Line from last point to cursor -->
+        <line
+          v-if="cropPoints.length >= 1 && cropCursorPos"
+          :x1="cropPoints[cropPoints.length - 1].x"
+          :y1="cropPoints[cropPoints.length - 1].y"
+          :x2="cropCursorPos.x"
+          :y2="cropCursorPos.y"
+          stroke="#e11d48"
+          stroke-width="2"
+          stroke-dasharray="4,4"
+          opacity="0.6"
+        />
+        <!-- Vertex circles -->
+        <circle
+          v-for="(point, idx) in cropPoints"
+          :key="'crop-pt-' + idx"
+          :cx="point.x"
+          :cy="point.y"
+          :r="idx === 0 && cropPoints.length >= 3 ? 12 : 6"
+          :fill="idx === 0 && cropPoints.length >= 3 ? '#e11d48' : '#fff'"
+          :stroke="idx === 0 && cropPoints.length >= 3 ? '#fff' : '#e11d48'"
+          stroke-width="2"
+          class="pointer-events-none"
+        />
+        <!-- Close hint on first point -->
+        <text
+          v-if="cropPoints.length >= 3 && cropCursorNearFirst"
+          :x="cropPoints[0].x"
+          :y="cropPoints[0].y - 18"
+          text-anchor="middle"
+          fill="#e11d48"
+          font-size="14"
+          font-weight="bold"
+          class="pointer-events-none"
+        >Click to close</text>
+        <!-- Click target overlay for crop (transparent rect over entire SVG) -->
+        <rect
+          x="0" y="0"
+          width="100%" height="100%"
+          fill="transparent"
+          class="pointer-events-auto cursor-crosshair"
+          @click="handleCropClick"
+          @dblclick="handleCropDoubleClick"
+          @mousemove="handleCropMouseMove"
         />
       </g>
     </svg>
@@ -77,6 +136,48 @@
 
       <div class="mt-2 text-xs text-gray-600">
         Draw around a hold - shape will close automatically when you release
+      </div>
+    </div>
+
+    <!-- Crop mode controls -->
+    <div
+      v-if="serverStore.isCropMode"
+      class="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-40 pointer-events-auto"
+    >
+      <div class="flex items-center space-x-3">
+        <span class="text-sm font-medium text-rose-700">Crop Holds Mode</span>
+
+        <div class="border-l border-gray-300 pl-3 flex items-center space-x-2">
+          <button
+            v-if="cropPoints.length > 0"
+            @click="cropPoints.pop()"
+            class="px-3 py-1 text-sm bg-rose-100 text-rose-700 rounded hover:bg-rose-200 transition-colors"
+          >
+            Undo Point
+          </button>
+          <button
+            v-if="cropPoints.length > 0"
+            @click="resetCropPolygon"
+            class="px-3 py-1 text-sm bg-rose-100 text-rose-700 rounded hover:bg-rose-200 transition-colors"
+          >
+            Reset
+          </button>
+          <button
+            @click="resetCropPolygon(); serverStore.setCropMode(false)"
+            class="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-2 text-xs text-gray-600">
+        {{ cropPoints.length === 0
+          ? 'Click to place polygon points around the area to keep'
+          : cropPoints.length < 3
+            ? `${cropPoints.length} point${cropPoints.length > 1 ? 's' : ''} placed — need at least 3`
+            : `${cropPoints.length} points — click first point or double-click to close`
+        }}
       </div>
     </div>
 
@@ -270,7 +371,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change', 'delete-hold']);
+const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change', 'delete-hold', 'crop-complete']);
 
 const serverStore = useHoldDetectionServerStore();
 const persistenceStore = useHoldDetectionPersistenceStore();
@@ -431,6 +532,7 @@ const startDrawing = (event) => {
     drawingPath.value = [coords]; // Start new path
     return;
   }
+
 };
 
 const updateDrawing = (event) => {
@@ -463,6 +565,77 @@ const finishDrawing = async (event) => {
 const cancelDrawing = () => {
   isDrawing.value = false;
   drawingPath.value = [];
+};
+
+// ============================================================================
+// Crop polygon builder - click to place points, close by clicking first point or double-click
+// ============================================================================
+const cropPoints = ref([]);
+const cropCursorPos = ref(null);
+const cropCursorNearFirst = ref(false);
+
+const CLOSE_THRESHOLD = 20; // pixels in SVG/image coords to snap to first point
+
+const getSvgCoordinates = (event) => {
+  const svg = svgElement.value;
+  if (!svg) return null;
+  const pt = svg.createSVGPoint();
+  pt.x = event.clientX;
+  pt.y = event.clientY;
+  const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return { x: svgPt.x, y: svgPt.y };
+};
+
+const handleCropClick = (event) => {
+  const coords = getSvgCoordinates(event);
+  if (!coords) return;
+
+  // If we have 3+ points and click near the first point, close the polygon
+  if (cropPoints.value.length >= 3) {
+    const first = cropPoints.value[0];
+    const dist = Math.sqrt((coords.x - first.x) ** 2 + (coords.y - first.y) ** 2);
+    if (dist < CLOSE_THRESHOLD) {
+      finishCropPolygon();
+      return;
+    }
+  }
+
+  cropPoints.value.push(coords);
+};
+
+const handleCropDoubleClick = () => {
+  if (cropPoints.value.length >= 3) {
+    finishCropPolygon();
+  }
+};
+
+const handleCropMouseMove = (event) => {
+  const coords = getSvgCoordinates(event);
+  if (!coords) return;
+  cropCursorPos.value = coords;
+
+  // Check proximity to first point for visual feedback
+  if (cropPoints.value.length >= 3) {
+    const first = cropPoints.value[0];
+    const dist = Math.sqrt((coords.x - first.x) ** 2 + (coords.y - first.y) ** 2);
+    cropCursorNearFirst.value = dist < CLOSE_THRESHOLD;
+  } else {
+    cropCursorNearFirst.value = false;
+  }
+};
+
+const finishCropPolygon = () => {
+  const polygon = [...cropPoints.value];
+  cropPoints.value = [];
+  cropCursorPos.value = null;
+  cropCursorNearFirst.value = false;
+  emit('crop-complete', polygon);
+};
+
+const resetCropPolygon = () => {
+  cropPoints.value = [];
+  cropCursorPos.value = null;
+  cropCursorNearFirst.value = false;
 };
 
 // Create SVG path string for preview
@@ -658,11 +831,11 @@ const getHoldInteraction = (hold) => {
   }
 
   // During drawing mode, make existing holds visible with reduced opacity
-  if (serverStore.isDrawingMode) {
+  if (serverStore.isDrawingMode || serverStore.isCropMode) {
     if (hoveredHoldIndex.value === hold.id) {
       return 'hover';
     } else {
-      return 'drawing-background'; // Show existing holds with low opacity during drawing mode
+      return 'drawing-background'; // Show existing holds with low opacity during drawing/crop mode
     }
   }
 
@@ -1013,6 +1186,13 @@ watch(
     }
   }
 );
+
+// Reset crop polygon when crop mode is turned off
+watch(() => serverStore.isCropMode, (newVal) => {
+  if (!newVal) {
+    resetCropPolygon();
+  }
+});
 </script>
 
 <style scoped>

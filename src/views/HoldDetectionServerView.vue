@@ -145,6 +145,7 @@
                   @hold-hover="handleHoldHover"
                   @tool-selection-change="handleToolSelectionChange"
                   @delete-hold="handleDeleteHold"
+                  @crop-complete="handleCropComplete"
                   ref="interactiveOverlay"
                 />
 
@@ -320,6 +321,29 @@
                     />
                   </svg>
                   <span>{{ serverStore.isVolumeMode ? "Volume Mode ON" : "Mark Volume" }}</span>
+                </button>
+
+                <!-- Crop Holds Button -->
+                <button
+                  v-if="serverStore.hasResults && !boulderProblemsStore.isCreatingProblem && !editingState.isEditing"
+                  @click="toggleCropMode"
+                  :class="[
+                    'px-6 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
+                    serverStore.isCropMode
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                      : 'border border-rose-500 text-rose-700 hover:bg-rose-50',
+                  ]"
+                  title="Crop Holds: Draw area to keep, deletes all holds outside"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                    />
+                  </svg>
+                  <span>{{ serverStore.isCropMode ? "Crop Mode ON" : "Crop Holds" }}</span>
                 </button>
               </div>
 
@@ -910,6 +934,85 @@ const toggleVolumeMode = () => {
     serverStore.setDeleteMode(false);
     serverStore.setDrawingMode(false);
   }
+};
+
+const toggleCropMode = () => {
+  const newCropMode = !serverStore.isCropMode;
+  serverStore.setCropMode(newCropMode);
+
+  if (newCropMode) {
+    if (magicWandActive.value) {
+      toggleMagicWand();
+    }
+    serverStore.setDeleteMode(false);
+    serverStore.setDrawingMode(false);
+    serverStore.setVolumeMode(false);
+  }
+};
+
+// Point-in-polygon using ray casting algorithm
+const isPointInPolygon = (point, polygon) => {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x, yi = polygon[i].y;
+    const xj = polygon[j].x, yj = polygon[j].y;
+    const intersect = ((yi > point.y) !== (yj > point.y))
+      && (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
+
+const handleCropComplete = async (cropPolygon) => {
+  serverStore.setCropMode(false);
+
+  const allHolds = serverStore.results?.holds || [];
+  const manualHolds = serverStore.manualHolds || [];
+
+  // Determine which holds are inside the crop polygon
+  const holdsInside = [];
+  const holdsOutside = [];
+
+  for (const hold of allHolds) {
+    const center = {
+      x: hold.x + hold.width / 2,
+      y: hold.y + hold.height / 2,
+    };
+    if (isPointInPolygon(center, cropPolygon)) {
+      holdsInside.push(hold.id);
+    } else {
+      holdsOutside.push(hold.id);
+    }
+  }
+
+  for (const hold of manualHolds) {
+    const center = {
+      x: hold.x + hold.width / 2,
+      y: hold.y + hold.height / 2,
+    };
+    if (isPointInPolygon(center, cropPolygon)) {
+      holdsInside.push(hold.id);
+    } else {
+      holdsOutside.push(hold.id);
+    }
+  }
+
+  if (holdsOutside.length === 0) {
+    alert('All holds are inside the crop area. Nothing to remove.');
+    return;
+  }
+
+  const confirmed = confirm(
+    `Crop holds?\n\nKeep: ${holdsInside.length} holds inside the selection\nRemove: ${holdsOutside.length} holds outside the selection\n\nThis cannot be undone.`
+  );
+
+  if (!confirmed) return;
+
+  await serverStore.cropHolds(
+    holdsInside,
+    route.params.locationId,
+    route.query.imageId,
+  );
 };
 
 // ============================================================================

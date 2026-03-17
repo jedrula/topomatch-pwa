@@ -30,6 +30,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
   const isDrawingMode = ref(false)
   const isDeleteMode = ref(false)
   const isVolumeMode = ref(false)
+  const isCropMode = ref(false)
   const isAdminHighlightMode = ref(false)
   
   // Compression settings (for UI compatibility)
@@ -276,7 +277,48 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     if (enabled) {
       isDrawingMode.value = false
       isDeleteMode.value = false
+      isCropMode.value = false
       isAdminHighlightMode.value = false
+    }
+  }
+
+  const setCropMode = (enabled) => {
+    isCropMode.value = enabled
+    if (enabled) {
+      isDrawingMode.value = false
+      isDeleteMode.value = false
+      isVolumeMode.value = false
+      isAdminHighlightMode.value = false
+    }
+  }
+
+  const cropHolds = async (holdIdsToKeep, locationId, imageId) => {
+    if (!results.value?.holds && manualHolds.value.length === 0) return
+
+    const keepSet = new Set(holdIdsToKeep)
+
+    // Update local state
+    if (results.value?.holds) {
+      const keptHolds = results.value.holds.filter(h => keepSet.has(h.id))
+      const keptMarkups = []
+      results.value.holds.forEach((h, i) => {
+        if (keepSet.has(h.id)) {
+          keptMarkups.push(results.value.svg_markups?.[i] || '')
+        }
+      })
+      results.value = {
+        ...results.value,
+        holds: keptHolds,
+        svg_markups: keptMarkups
+      }
+    }
+    manualHolds.value = manualHolds.value.filter(h => keepSet.has(h.id))
+
+    // Persist to Firestore
+    try {
+      await holdDetectionService.cropHolds(locationId, imageId, holdIdsToKeep)
+    } catch (error) {
+      console.error('Error cropping holds:', error)
     }
   }
 
@@ -417,6 +459,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     isDrawingMode,
     isDeleteMode,
     isVolumeMode,
+    isCropMode,
     isAdminHighlightMode,
     compressionSettings,
     
@@ -439,7 +482,9 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     setDrawingMode,
     setDeleteMode,
     setVolumeMode,
+    setCropMode,
     toggleHoldVolume,
+    cropHolds,
     setAdminHighlightMode,
     loadManualHolds,
     saveManualHolds,
