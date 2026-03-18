@@ -513,7 +513,7 @@
 
                 <!-- Cluster list -->
                 <div
-                  v-for="cluster in draftState.clusters"
+                  v-for="cluster in sortedDraftClusters"
                   :key="cluster.clusterId"
                   @click="toggleDraftCluster(cluster.clusterId)"
                   class="flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-colors"
@@ -531,7 +531,19 @@
                     <span class="text-sm text-gray-700">
                       {{ cluster.holdIds.length }} holds
                     </span>
+                    <span class="text-xs text-green-600" v-if="cluster.unusedCount > 0">
+                      {{ cluster.unusedCount }} new
+                    </span>
+                    <span class="text-xs text-gray-400" v-if="cluster.usedCount > 0">
+                      {{ cluster.usedCount }} used
+                    </span>
                   </div>
+                  <button
+                    @click.stop="useDraftCluster(cluster)"
+                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                  >
+                    Use
+                  </button>
                 </div>
               </div>
             </div>
@@ -865,8 +877,54 @@ const highlightColor = computed(() =>
   selectedDraftClusterId.value !== null ? clusterColor(selectedDraftClusterId.value) : '#3b82f6'
 );
 
+// Set of holdIds already used in any boulder problem for this image
+const usedHoldIds = computed(() => {
+  const ids = new Set();
+  for (const problem of boulderProblemsStore.sortedProblems) {
+    for (const h of problem.holds || []) {
+      ids.add(h.holdId);
+    }
+  }
+  return ids;
+});
+
+// Clusters enriched with used/unused counts, sorted by most unused
+const sortedDraftClusters = computed(() => {
+  if (!draftState.value.clusters) return [];
+  return draftState.value.clusters
+    .map(cluster => {
+      const used = cluster.holdIds.filter(id => usedHoldIds.value.has(id)).length;
+      return { ...cluster, usedCount: used, unusedCount: cluster.holdIds.length - used };
+    })
+    .sort((a, b) => b.unusedCount - a.unusedCount);
+});
+
 const toggleDraftCluster = (clusterId) => {
   selectedDraftClusterId.value = selectedDraftClusterId.value === clusterId ? null : clusterId;
+};
+
+const useDraftCluster = async (cluster) => {
+  const color = clusterColor(cluster.clusterId);
+  await boulderProblemsStore.createNewProblem(null, `Draft ${cluster.clusterId}`, color);
+
+  const problem = boulderProblemsStore.activeProblem;
+  if (!problem) return;
+
+  const aiHolds = serverStore.results?.holds || [];
+  for (const holdId of cluster.holdIds) {
+    const holdIndex = aiHolds.findIndex(h => h.id === holdId);
+    const hold = aiHolds[holdIndex];
+    if (!hold) continue;
+
+    let enhancedHold = ensureHoldHasSvgMarkup(hold);
+    if (serverStore.results?.svg_markups?.[holdIndex]) {
+      enhancedHold = { ...enhancedHold, svgMarkup: serverStore.results.svg_markups[holdIndex] };
+    }
+    enhancedHold.detectionSource = hold.pathPoints ? 'manual' : 'server';
+    boulderProblemsStore.addHoldToProblem(problem.id, enhancedHold);
+  }
+
+  selectedDraftClusterId.value = null;
 };
 
 const fetchDrafts = async () => {
