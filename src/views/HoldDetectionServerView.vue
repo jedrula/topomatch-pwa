@@ -141,6 +141,8 @@
                   :image-id="currentImage?.id"
                   :image-url="imageUrl"
                   :boulder-hold-selection-tool="boulderHoldSelectionTool"
+                  :highlighted-hold-ids="highlightedHoldIds"
+                  :highlight-color="highlightColor"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   @tool-selection-change="handleToolSelectionChange"
@@ -513,7 +515,11 @@
                 <div
                   v-for="cluster in draftState.clusters"
                   :key="cluster.clusterId"
-                  class="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-100"
+                  @click="toggleDraftCluster(cluster.clusterId)"
+                  class="flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-colors"
+                  :class="selectedDraftClusterId === cluster.clusterId
+                    ? 'bg-indigo-50 border-indigo-300'
+                    : 'bg-gray-50 border-gray-100 hover:bg-gray-100'"
                 >
                   <div class="flex items-center space-x-2">
                     <div
@@ -847,12 +853,29 @@ const CLUSTER_COLORS = [
 
 const clusterColor = (clusterId) => CLUSTER_COLORS[clusterId % CLUSTER_COLORS.length];
 
+const selectedDraftClusterId = ref(null);
+
+const selectedDraftCluster = computed(() => {
+  if (selectedDraftClusterId.value === null || !draftState.value.clusters) return null;
+  return draftState.value.clusters.find(c => c.clusterId === selectedDraftClusterId.value) || null;
+});
+
+const highlightedHoldIds = computed(() => selectedDraftCluster.value?.holdIds || []);
+const highlightColor = computed(() =>
+  selectedDraftClusterId.value !== null ? clusterColor(selectedDraftClusterId.value) : '#3b82f6'
+);
+
+const toggleDraftCluster = (clusterId) => {
+  selectedDraftClusterId.value = selectedDraftClusterId.value === clusterId ? null : clusterId;
+};
+
 const fetchDrafts = async () => {
   const imageId = route.query.imageId;
   if (!imageId) return;
 
   draftState.value.loading = true;
   draftState.value.error = null;
+  selectedDraftClusterId.value = null;
 
   try {
     const baseUrl = await getHoldDetectionServerUrl();

@@ -369,6 +369,15 @@ const props = defineProps({
     type: String,
     default: 'single',
   },
+  // Draft cluster highlighting
+  highlightedHoldIds: {
+    type: Array,
+    default: () => [],
+  },
+  highlightColor: {
+    type: String,
+    default: '#3b82f6',
+  },
 });
 
 const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change', 'delete-hold', 'crop-complete']);
@@ -812,7 +821,12 @@ const getHoldProblemId = (hold) => {
 // Get interaction state for hold based on its current state (from UnifiedHoldOverlay)
 const getHoldInteraction = (hold) => {
   if (!hold) return 'default';
-  
+
+  // Draft cluster highlighting takes priority over everything except delete/volume
+  if (props.highlightedHoldIds.length > 0) {
+    return props.highlightedHoldIds.includes(hold.id) ? 'selected' : 'default';
+  }
+
   // During delete mode, both AI and manual holds can be deleted
   if (serverStore.isDeleteMode) {
     if (hoveredHoldIndex.value === hold.id) {
@@ -975,7 +989,12 @@ const getHoldInteractionAllowed = (hold) => {
 // Get color for hold based on its state (from UnifiedHoldOverlay)
 const getHoldColor = (hold) => {
   if (!hold) return '#6b7280';
-  
+
+  // Draft cluster highlighting color
+  if (props.highlightedHoldIds.length > 0 && props.highlightedHoldIds.includes(hold.id)) {
+    return props.highlightColor;
+  }
+
   // Magic Wand uses purple colors
   if (props.magicWandActive && props.magicWandSelection.selectedHoldIds.length > 0) {
     if (hold.id === props.magicWandSelection.targetHoldIndex) {
