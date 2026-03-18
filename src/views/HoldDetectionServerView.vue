@@ -136,7 +136,7 @@
                   :show-hold-overlay="false"
                   :is-showing-only-one-problem="boulderProblemsStore.isShowingOnlyOneProblem"
                   :isolated-problem="boulderProblemsStore.isolatedProblem"
-                  :filtered-problems="filteredProblems"
+                  :filtered-problems="[]"
                   :location-id="String(route.params.locationId)"
                   :image-id="currentImage?.id"
                   :image-url="imageUrl"
@@ -736,7 +736,7 @@ const sharedProblemColor = ref('#ffffff');
 
 // Hold interaction state
 const hoveredProblemId = ref(null);
-const filteredProblems = ref([]); // TODO: Add proper problem type
+
 
 // Editing state derived from URL query parameters (single source of truth)
 const editingState = computed(() => {
@@ -1460,17 +1460,12 @@ const handleProblemCardHover = (problem, isEntering) => {
   hoveredProblemId.value = isEntering ? problem.id : null;
 };
 
-const handleFilteredProblemsChange = (newFilteredProblems) => {
-  filteredProblems.value = newFilteredProblems;
-};
-
 // Shared events for BoulderProblemsManager (DRY principle) - defined after all functions
 const boulderProblemsManagerEvents = {
   'start-editing': startEditingProblem,
   'stop-editing': stopEditingProblem,
   'tool-selection-change': handleToolSelectionChange,
   'problem-hover': handleProblemCardHover,
-  'filtered-problems-change': handleFilteredProblemsChange,
 };
 
 // Load image based on query parameters

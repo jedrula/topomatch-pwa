@@ -279,61 +279,6 @@
       <div v-if="boulderProblemsStore.sortedProblems.length > 0" class="space-y-3">
         <h4 class="font-medium text-gray-900">Created Problems</h4>
 
-        <!-- Grade Filter Section -->
-        <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <div class="flex items-center justify-between mb-3">
-            <h5 class="text-sm font-medium text-gray-700">Filter by Grade</h5>
-            <button
-              v-if="hasActiveGradeFilter"
-              @click="clearGradeFilter"
-              class="text-xs text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              Clear Filter
-            </button>
-          </div>
-
-          <div class="space-y-3">
-            <!-- Grade Range Display -->
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-600">Range:</span>
-              <span class="font-medium text-gray-900"
-                >{{ selectedMinGrade }} - {{ selectedMaxGrade }}</span
-              >
-            </div>
-
-            <!-- Single Range Slider -->
-            <div>
-              <label class="block text-xs text-gray-600 mb-2">Grade Range</label>
-              <Slider
-                v-model="gradeRange"
-                :min="0"
-                :max="boulderProblemsStore.grades.length - 1"
-                :format="(value) => boulderProblemsStore.grades[value]"
-                :tooltips="false"
-                :lazy="true"
-                :step="1"
-                @update="handleSliderUpdate"
-                @change="handleSliderChange"
-                class="grade-range-slider"
-              />
-            </div>
-
-            <!-- Filtered Results Summary -->
-            <div class="pt-2 border-t border-gray-300">
-              <div class="flex items-center justify-between text-xs text-gray-600">
-                <span>Showing:</span>
-                <span class="font-medium">
-                  {{ filteredProblems.length }} of
-                  {{ boulderProblemsStore.sortedProblems.length }} problems
-                </span>
-              </div>
-              <div v-if="hasActiveGradeFilter" class="mt-1 text-xs text-blue-600">
-                Only holds from filtered problems are visible on the image
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div class="space-y-2 max-h-64 overflow-y-auto">
           <!-- Grade-based expandable sections -->
           <div
@@ -471,23 +416,7 @@
             </div>
           </div>
 
-          <!-- Show message when no problems match filter -->
-          <div v-if="filteredProblems.length === 0" class="text-center py-8 text-gray-500">
-            <svg
-              class="w-12 h-12 mx-auto mb-3 text-gray-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              />
-            </svg>
-            <p class="text-sm">No problems found for the selected grade range</p>
-          </div>
+
         </div>
       </div>
 
@@ -556,14 +485,13 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore';
 import { useDraggable } from '@/composables/useDraggable.js';
 import { getGradeLabel } from '@/utils/gradingUtils.js';
 import { getDominantHoldColor } from '@/utils/colorUtils.js';
-import Slider from '@vueform/slider';
 
 const props = defineProps({
   hasDetectionResults: {
@@ -601,7 +529,6 @@ const emit = defineEmits([
   'start-editing',
   'stop-editing',
   'tool-selection-change',
-  'filtered-problems-change',
   'update:modelValueProblemName',
   'update:modelValueSelectedGrade',
   'update:modelValueProblemColor',
@@ -689,9 +616,6 @@ const initializeDefaultGrade = () => {
   }
 };
 
-// Grade filtering state - single range array [min, max]
-const gradeRange = ref([0, boulderProblemsStore.grades.length - 1]);
-
 // Dragging functionality for fullscreen mode
 const {
   isDragging,
@@ -701,31 +625,11 @@ const {
   startDrag,
 } = useDraggable(20, 20);
 
-// Computed properties for grade filtering
-const selectedMinGrade = computed(() => boulderProblemsStore.grades[gradeRange.value[0]]);
-const selectedMaxGrade = computed(() => boulderProblemsStore.grades[gradeRange.value[1]]);
-
-const hasActiveGradeFilter = computed(() => {
-  return gradeRange.value[0] > 0 || gradeRange.value[1] < boulderProblemsStore.grades.length - 1;
-});
-
-const filteredProblems = computed(() => {
-  if (!hasActiveGradeFilter.value) {
-    return boulderProblemsStore.sortedProblems;
-  }
-
-  return boulderProblemsStore.sortedProblems.filter((problem) => {
-    const gradeLabel = getGradeLabel(problem.grade);
-    const gradeIndex = boulderProblemsStore.grades.indexOf(gradeLabel);
-    return gradeIndex >= gradeRange.value[0] && gradeIndex <= gradeRange.value[1];
-  });
-});
-
 // Group problems by grade for expandable sections
 const problemsByGrade = computed(() => {
   const grouped = {};
 
-  filteredProblems.value.forEach((problem) => {
+  boulderProblemsStore.sortedProblems.forEach((problem) => {
     const gradeLabel = getGradeLabel(problem.grade);
     if (!grouped[gradeLabel]) {
       grouped[gradeLabel] = {
@@ -977,91 +881,12 @@ const saveAllChanges = async () => {
 };
 
 // Grade filtering functions
-let updateTimeout = null;
-let isUpdating = false;
-
-const handleSliderUpdate = () => {
-  // Real-time UI update while dragging - no URL update yet
-  isUpdating = true;
-
-  // Clear any pending timeout
-  if (updateTimeout) {
-    clearTimeout(updateTimeout);
-  }
-};
-
-const handleSliderChange = (value) => {
-  isUpdating = false;
-
-  // Debounce URL updates to avoid excessive navigation
-  if (updateTimeout) {
-    clearTimeout(updateTimeout);
-  }
-
-  updateTimeout = setTimeout(() => {
-    updateGradeFilter();
-  }, 500); // Increased debounce time for better performance
-};
-
-const updateGradeFilter = () => {
-  if (isUpdating) {
-    return;
-  }
-
-
-  // Update URL query parameters
-  const query = { ...route.query };
-
-  if (hasActiveGradeFilter.value) {
-    query.minGrade = selectedMinGrade.value;
-    query.maxGrade = selectedMaxGrade.value;
-  } else {
-    delete query.minGrade;
-    delete query.maxGrade;
-  }
-
-  router.push({ query });
-};
-
-const clearGradeFilter = () => {
-  gradeRange.value = [0, boulderProblemsStore.grades.length - 1];
-  updateGradeFilter();
-};
-
-const initializeGradeFilterFromQuery = () => {
-  const minGrade = route.query.minGrade;
-  const maxGrade = route.query.maxGrade;
-
-  let newRange = [0, boulderProblemsStore.grades.length - 1];
-
-  if (minGrade) {
-    const minIndex = boulderProblemsStore.grades.indexOf(minGrade);
-    if (minIndex !== -1) {
-      newRange[0] = minIndex;
-    }
-  }
-
-  if (maxGrade) {
-    const maxIndex = boulderProblemsStore.grades.indexOf(maxGrade);
-    if (maxIndex !== -1) {
-      newRange[1] = maxIndex;
-    }
-  }
-
-  gradeRange.value = newRange;
-};
-
 // Initialize component state when mounted
 onMounted(() => {
-  // Initialize grade range once grades are available
+  // Initialize grade once grades are available
   if (boulderProblemsStore.grades && boulderProblemsStore.grades.length > 0) {
-    gradeRange.value = [0, boulderProblemsStore.grades.length - 1];
-    initializeGradeFilterFromQuery();
     initializeDefaultGrade();
   }
-  
-  // Emit initial filtered problems
-  emit('filtered-problems-change', filteredProblems.value);
 });
 
 // Cancel edit mode when starting to create a new problem
@@ -1095,14 +920,6 @@ watch(
   { immediate: true }
 );
 
-// Watch filtered problems and emit them to parent for hold highlighting
-watch(
-  filteredProblems,
-  (newFilteredProblems) => {
-    emit('filtered-problems-change', newFilteredProblems);
-  }
-);
-
 // Reset panel position when entering/exiting fullscreen
 watch(
   () => props.isFullscreen,
@@ -1115,24 +932,4 @@ watch(
   }
 );
 
-// Cleanup timeout on unmount
-onUnmounted(() => {
-  if (updateTimeout) {
-    clearTimeout(updateTimeout);
-  }
-});
 </script>
-
-<style>
-@import "@vueform/slider/themes/default.css";
-
-.grade-range-slider {
-  --slider-bg: #e5e7eb;
-  --slider-connect-bg: #3b82f6;
-  --slider-tooltip-bg: #1f2937;
-  --slider-handle-ring-color: #3b82f630;
-  --slider-handle-bg: #ffffff;
-  --slider-handle-border: #3b82f6;
-  margin: 0.5rem 0;
-}
-</style>
