@@ -471,6 +471,66 @@
             v-on="boulderProblemsManagerEvents"
           />
 
+          <!-- Draft Problems -->
+          <div
+            v-if="route.query.imageId && serverStore.hasResults"
+            class="bg-white rounded-lg shadow-sm border border-gray-200"
+          >
+            <div class="p-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-3">Draft Problems</h3>
+
+              <button
+                @click="fetchDrafts"
+                :disabled="draftState.loading"
+                class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+              >
+                <div
+                  v-if="draftState.loading"
+                  class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+                ></div>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span>{{ draftState.loading ? 'Clustering...' : 'Fetch Drafts' }}</span>
+              </button>
+
+              <!-- Error -->
+              <div v-if="draftState.error" class="mt-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                {{ draftState.error }}
+              </div>
+
+              <!-- Results -->
+              <div v-if="draftState.clusters" class="mt-4 space-y-2">
+                <!-- Summary -->
+                <div class="flex items-center justify-between text-sm text-gray-500">
+                  <span>{{ draftState.clusters.length }} clusters (k={{ draftState.k }})</span>
+                  <span title="Silhouette score: higher is better separation">
+                    score: {{ draftState.silhouette?.toFixed(2) }}
+                  </span>
+                </div>
+
+                <!-- Cluster list -->
+                <div
+                  v-for="cluster in draftState.clusters"
+                  :key="cluster.clusterId"
+                  class="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-100"
+                >
+                  <div class="flex items-center space-x-2">
+                    <div
+                      class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                      :style="{ backgroundColor: clusterColor(cluster.clusterId) }"
+                    >
+                      {{ cluster.clusterId }}
+                    </div>
+                    <span class="text-sm text-gray-700">
+                      {{ cluster.holdIds.length }} holds
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Processing Status -->
           <div class="bg-white rounded-lg shadow-sm border border-gray-200">
             <div class="p-6">
@@ -701,6 +761,7 @@ import BoulderProblemsManager from '@/components/BoulderProblemsManager.vue';
 import FloatingBoulderProblemCard from '@/components/FloatingBoulderProblemCard.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
+import { getHoldDetectionServerUrl } from '@/services/appConfigService';
 // Note: Not using getResizedImageUrl - we load original images to match detection coordinates
 
 // TypeScript component - basic type annotations without complex interface definitions
@@ -767,6 +828,56 @@ const floatingCard = ref({
 
 // Detection saving state
 const isSavingDetection = ref(false);
+
+// Draft problems (cluster API) state
+const draftState = ref({
+  loading: false,
+  error: null,
+  clusters: null,
+  k: null,
+  silhouette: null,
+});
+
+const CLUSTER_COLORS = [
+  '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6',
+  '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1',
+  '#84cc16', '#e11d48', '#0ea5e9', '#a855f7', '#10b981',
+  '#d946ef',
+];
+
+const clusterColor = (clusterId) => CLUSTER_COLORS[clusterId % CLUSTER_COLORS.length];
+
+const fetchDrafts = async () => {
+  const imageId = route.query.imageId;
+  if (!imageId) return;
+
+  draftState.value.loading = true;
+  draftState.value.error = null;
+
+  try {
+    const baseUrl = await getHoldDetectionServerUrl();
+    const res = await fetch(`${baseUrl}/cluster`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: JSON.stringify({ imageId }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    draftState.value.clusters = data.clusters;
+    draftState.value.k = data.k;
+    draftState.value.silhouette = data.silhouette;
+  } catch (err) {
+    draftState.value.error = err.message;
+  } finally {
+    draftState.value.loading = false;
+  }
+};
 
 // Success notification state
 const showSuccess = ref(false);
