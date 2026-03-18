@@ -154,7 +154,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     }
   };
 
-  const createNewProblem = async (gradeLabel, name = '', color = '#ffffff') => {
+  const createNewProblem = (gradeLabel, name = '', color = '#ffffff') => {
     if (!currentLocationId.value || !currentImageId.value) {
       throw new Error('Location and image must be set before creating problems');
     }
@@ -166,7 +166,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
 
     const problemName = name || `Problem ${boulderProblems.value.length + 1}`;
 
-    // Create optimistic local problem (no viewBox stored here anymore)
+    // Create local-only problem — not persisted until finishCreatingProblem
     const localProblem = {
       id: getNextLocalId(),
       name: problemName,
@@ -176,65 +176,37 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
       color,
       createdAt: new Date(),
       updatedAt: new Date(),
-      isLocalOnly: true, // Flag for optimistic update
+      isLocalOnly: true,
     };
 
     boulderProblems.value.push(localProblem);
     activeProblem.value = localProblem;
     isCreatingProblem.value = true;
 
-    try {
-      // Create on backend (no viewBox stored in boulder problem anymore)
-      const problemId = await boulderProblemsService.createBoulderProblem(currentLocationId.value, {
-        name: problemName,
-        grade: gradeObject,
-        imageId: currentImageId.value,
-        color,
-        holds: [],
-      });
-
-      // Update the local problem with the real ID
-      const problemIndex = boulderProblems.value.findIndex((p) => p.id === localProblem.id);
-      if (problemIndex !== -1) {
-        boulderProblems.value[problemIndex] = {
-          ...localProblem,
-          id: problemId,
-          isLocalOnly: false,
-        };
-        activeProblem.value = boulderProblems.value[problemIndex];
-      }
-
-      return boulderProblems.value[problemIndex];
-    } catch (err) {
-      // Remove the optimistic problem on error
-      const problemIndex = boulderProblems.value.findIndex((p) => p.id === localProblem.id);
-      if (problemIndex !== -1) {
-        boulderProblems.value.splice(problemIndex, 1);
-      }
-      activeProblem.value = null;
-      isCreatingProblem.value = false;
-      error.value = err.message;
-      console.error('Error creating boulder problem:', err);
-      throw err;
-    }
+    return localProblem;
   };
 
   const finishCreatingProblem = async () => {
     if (!activeProblem.value || !isCreatingProblem.value) return;
 
     try {
-      // If the problem has holds and exists on backend, update it
-      if (!activeProblem.value.isLocalOnly && activeProblem.value.holds.length > 0) {
-        await boulderProblemsService.updateBoulderProblem(
-          currentLocationId.value,
-          activeProblem.value.id,
-          {
-            name: activeProblem.value.name,
-            grade: activeProblem.value.grade,
-            holds: activeProblem.value.holds,
-            color: activeProblem.value.color,
-          }
-        );
+      // Persist to backend now (problem was local-only until this point)
+      const problemId = await boulderProblemsService.createBoulderProblem(currentLocationId.value, {
+        name: activeProblem.value.name,
+        grade: activeProblem.value.grade,
+        imageId: activeProblem.value.imageId,
+        color: activeProblem.value.color,
+        holds: activeProblem.value.holds,
+      });
+
+      // Update local problem with real backend ID
+      const problemIndex = boulderProblems.value.findIndex((p) => p.id === activeProblem.value.id);
+      if (problemIndex !== -1) {
+        boulderProblems.value[problemIndex] = {
+          ...activeProblem.value,
+          id: problemId,
+          isLocalOnly: false,
+        };
       }
 
       isCreatingProblem.value = false;
@@ -245,30 +217,17 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     }
   };
 
-  const cancelCreatingProblem = async () => {
+  const cancelCreatingProblem = () => {
     if (!activeProblem.value || !isCreatingProblem.value) return;
 
-    try {
-      // If it's not local only, delete from backend
-      if (!activeProblem.value.isLocalOnly) {
-        await boulderProblemsService.deleteBoulderProblem(
-          currentLocationId.value,
-          activeProblem.value.id
-        );
-      }
-
-      // Remove from local state
-      const index = boulderProblems.value.findIndex((p) => p.id === activeProblem.value.id);
-      if (index !== -1) {
-        boulderProblems.value.splice(index, 1);
-      }
-
-      isCreatingProblem.value = false;
-      activeProblem.value = null;
-    } catch (err) {
-      error.value = err.message;
-      console.error('Error cancelling boulder problem creation:', err);
+    // Just clean up local state — nothing was persisted yet
+    const index = boulderProblems.value.findIndex((p) => p.id === activeProblem.value.id);
+    if (index !== -1) {
+      boulderProblems.value.splice(index, 1);
     }
+
+    isCreatingProblem.value = false;
+    activeProblem.value = null;
   };
 
   const selectProblem = (problem) => {

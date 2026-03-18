@@ -201,7 +201,7 @@
                   </div>
                 </div>
 
-                <!-- Fullscreen Boulder Problems Manager - inside image container for fullscreen visibility -->
+                <!-- Fullscreen Boulder Problems + Draft Problems -->
                 <BoulderProblemsManager
                   v-if="isFullscreen && route.params.locationId"
                   key="fullscreen-manager"
@@ -211,7 +211,85 @@
                   v-model:model-value-problem-color="sharedProblemColor"
                   :is-fullscreen="true"
                   v-on="boulderProblemsManagerEvents"
-                />
+                >
+                  <!-- Draft Problems (fullscreen, compact) -->
+                  <template v-if="route.query.imageId && serverStore.hasResults">
+                    <hr class="border-gray-200" />
+                    <div class="p-4">
+                      <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-xs font-semibold text-gray-900">Draft Problems</h3>
+                        <button
+                          v-if="draftState.clusters"
+                          @click="fetchDrafts"
+                          :disabled="draftState.loading"
+                          title="Re-fetch drafts"
+                          class="text-gray-400 hover:text-indigo-600 disabled:opacity-40 transition-colors"
+                        >
+                          <svg
+                            class="w-3.5 h-3.5"
+                            :class="draftState.loading ? 'animate-spin' : ''"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                          >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <!-- Initial fetch button -->
+                      <button
+                        v-if="!draftState.clusters"
+                        @click="fetchDrafts"
+                        :disabled="draftState.loading"
+                        class="w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+                      >
+                        <div
+                          v-if="draftState.loading"
+                          class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"
+                        ></div>
+                        <span>{{ draftState.loading ? 'Clustering...' : 'Fetch Drafts' }}</span>
+                      </button>
+
+                      <div v-if="draftState.error" class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+                        {{ draftState.error }}
+                      </div>
+
+                      <div v-if="draftState.clusters" class="space-y-1">
+
+                        <div
+                          v-for="cluster in sortedDraftClusters"
+                          :key="cluster.clusterId"
+                          @click="toggleDraftCluster(cluster.clusterId)"
+                          class="flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition-colors text-xs"
+                          :class="selectedDraftClusterId === cluster.clusterId
+                            ? 'bg-indigo-50 border-indigo-300'
+                            : 'bg-gray-50 border-gray-100 hover:bg-gray-100'"
+                        >
+                          <div class="flex items-center space-x-1.5">
+                            <div
+                              class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                              :style="{ backgroundColor: cluster.dominantColor || clusterColor(cluster.clusterId) }"
+                            >
+                              {{ cluster.clusterId }}
+                            </div>
+                            <span class="text-gray-700">{{ cluster.holdIds.length }}</span>
+                            <span v-if="cluster.colorName" class="font-medium text-gray-500 capitalize">
+                              {{ cluster.colorName }}
+                            </span>
+                            <span class="text-green-600" v-if="cluster.unusedCount > 0">
+                              {{ cluster.unusedCount }} new
+                            </span>
+                          </div>
+                          <button
+                            @click.stop="useDraftCluster(cluster)"
+                            class="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                          >
+                            Use
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </BoulderProblemsManager>
               </div>
 
               <!-- Action Buttons -->
@@ -461,92 +539,106 @@
 
         <!-- Right Column: Results and Statistics -->
         <div class="space-y-6">
-          <!-- Boulder Problems Manager -->
-          <BoulderProblemsManager
-            v-if="!isFullscreen && route.params.locationId"
-            key="normal-manager"
-            v-bind="boulderProblemsManagerProps"
-            v-model:model-value-problem-name="sharedProblemName"
-            v-model:model-value-selected-grade="sharedSelectedGrade"
-            v-model:model-value-problem-color="sharedProblemColor"
-            :is-fullscreen="false"
-            v-on="boulderProblemsManagerEvents"
-          />
-
-          <!-- Draft Problems -->
-          <div
-            v-if="route.query.imageId && serverStore.hasResults"
-            class="bg-white rounded-lg shadow-sm border border-gray-200"
-          >
-            <div class="p-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-3">Draft Problems</h3>
-
-              <button
-                @click="fetchDrafts"
-                :disabled="draftState.loading"
-                class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-              >
-                <div
-                  v-if="draftState.loading"
-                  class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
-                ></div>
-                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                <span>{{ draftState.loading ? 'Clustering...' : 'Fetch Drafts' }}</span>
-              </button>
-
-              <!-- Error -->
-              <div v-if="draftState.error" class="mt-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                {{ draftState.error }}
-              </div>
-
-              <!-- Results -->
-              <div v-if="draftState.clusters" class="mt-4 space-y-2">
-                <!-- Summary -->
-                <div class="flex items-center justify-between text-sm text-gray-500">
-                  <span>{{ draftState.clusters.length }} clusters (k={{ draftState.k }})</span>
-                  <span title="Silhouette score: higher is better separation">
-                    score: {{ draftState.silhouette?.toFixed(2) }}
-                  </span>
-                </div>
-
-                <!-- Cluster list -->
-                <div
-                  v-for="cluster in sortedDraftClusters"
-                  :key="cluster.clusterId"
-                  @click="toggleDraftCluster(cluster.clusterId)"
-                  class="flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-colors"
-                  :class="selectedDraftClusterId === cluster.clusterId
-                    ? 'bg-indigo-50 border-indigo-300'
-                    : 'bg-gray-50 border-gray-100 hover:bg-gray-100'"
-                >
-                  <div class="flex items-center space-x-2">
-                    <div
-                      class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                      :style="{ backgroundColor: clusterColor(cluster.clusterId) }"
+          <!-- Boulder Problems + Draft Problems -->
+          <div v-if="!isFullscreen && route.params.locationId">
+            <BoulderProblemsManager
+              key="normal-manager"
+              v-bind="boulderProblemsManagerProps"
+              v-model:model-value-problem-name="sharedProblemName"
+              v-model:model-value-selected-grade="sharedSelectedGrade"
+              v-model:model-value-problem-color="sharedProblemColor"
+              :is-fullscreen="false"
+              v-on="boulderProblemsManagerEvents"
+            >
+              <!-- Draft Problems (slot content inside BoulderProblemsManager card) -->
+              <template v-if="route.query.imageId && serverStore.hasResults">
+                <hr class="border-gray-200" />
+                <div class="p-6">
+                  <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900">Draft Problems</h3>
+                    <button
+                      v-if="draftState.clusters"
+                      @click="fetchDrafts"
+                      :disabled="draftState.loading"
+                      title="Re-fetch drafts"
+                      class="text-gray-400 hover:text-indigo-600 disabled:opacity-40 transition-colors"
                     >
-                      {{ cluster.clusterId }}
-                    </div>
-                    <span class="text-sm text-gray-700">
-                      {{ cluster.holdIds.length }} holds
-                    </span>
-                    <span class="text-xs text-green-600" v-if="cluster.unusedCount > 0">
-                      {{ cluster.unusedCount }} new
-                    </span>
-                    <span class="text-xs text-gray-400" v-if="cluster.usedCount > 0">
-                      {{ cluster.usedCount }} used
-                    </span>
+                      <svg
+                        class="w-4 h-4"
+                        :class="draftState.loading ? 'animate-spin' : ''"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
                   </div>
+
+                  <!-- Initial fetch button (shown only before first fetch) -->
                   <button
-                    @click.stop="useDraftCluster(cluster)"
-                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                    v-if="!draftState.clusters"
+                    @click="fetchDrafts"
+                    :disabled="draftState.loading"
+                    class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
                   >
-                    Use
+                    <div
+                      v-if="draftState.loading"
+                      class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+                    ></div>
+                    <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    <span>{{ draftState.loading ? 'Clustering...' : 'Fetch Drafts' }}</span>
                   </button>
+
+                  <!-- Error -->
+                  <div v-if="draftState.error" class="mt-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                    {{ draftState.error }}
+                  </div>
+
+                  <!-- Results -->
+                  <div v-if="draftState.clusters" class="space-y-2">
+
+                    <!-- Cluster list -->
+                    <div
+                      v-for="cluster in sortedDraftClusters"
+                      :key="cluster.clusterId"
+                      @click="toggleDraftCluster(cluster.clusterId)"
+                      class="flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-colors"
+                      :class="selectedDraftClusterId === cluster.clusterId
+                        ? 'bg-indigo-50 border-indigo-300'
+                        : 'bg-gray-50 border-gray-100 hover:bg-gray-100'"
+                    >
+                      <div class="flex items-center space-x-2">
+                        <div
+                          class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                          :style="{ backgroundColor: cluster.dominantColor || clusterColor(cluster.clusterId) }"
+                        >
+                          {{ cluster.clusterId }}
+                        </div>
+                        <span class="text-sm text-gray-700">
+                          {{ cluster.holdIds.length }} holds
+                        </span>
+                        <span v-if="cluster.colorName" class="text-xs font-medium text-gray-500 capitalize">
+                          {{ cluster.colorName }}
+                        </span>
+                        <span class="text-xs text-green-600" v-if="cluster.unusedCount > 0">
+                          {{ cluster.unusedCount }} new
+                        </span>
+                        <span class="text-xs text-gray-400" v-if="cluster.usedCount > 0">
+                          {{ cluster.usedCount }} used
+                        </span>
+                      </div>
+                      <button
+                        @click.stop="useDraftCluster(cluster)"
+                        class="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        Use
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </template>
+            </BoulderProblemsManager>
           </div>
 
           <!-- Processing Status -->
@@ -779,6 +871,7 @@ import BoulderProblemsManager from '@/components/BoulderProblemsManager.vue';
 import FloatingBoulderProblemCard from '@/components/FloatingBoulderProblemCard.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
+import { hexToColorName } from '@/utils/colorUtils.js';
 import { getHoldDetectionServerUrl } from '@/services/appConfigService';
 // Note: Not using getResizedImageUrl - we load original images to match detection coordinates
 
@@ -866,16 +959,19 @@ const CLUSTER_COLORS = [
 const clusterColor = (clusterId) => CLUSTER_COLORS[clusterId % CLUSTER_COLORS.length];
 
 const selectedDraftClusterId = ref(null);
+const showUnassigned = ref(false);
 
 const selectedDraftCluster = computed(() => {
   if (selectedDraftClusterId.value === null || !draftState.value.clusters) return null;
   return draftState.value.clusters.find(c => c.clusterId === selectedDraftClusterId.value) || null;
 });
 
-const highlightedHoldIds = computed(() => selectedDraftCluster.value?.holdIds || []);
-const highlightColor = computed(() =>
-  selectedDraftClusterId.value !== null ? clusterColor(selectedDraftClusterId.value) : '#3b82f6'
-);
+// All hold IDs (AI + manual)
+const allHoldIds = computed(() => {
+  const aiHolds = serverStore.results?.holds || [];
+  const manual = serverStore.manualHolds || [];
+  return [...aiHolds.map(h => h.id), ...manual.map(h => h.id)];
+});
 
 // Set of holdIds already used in any boulder problem for this image
 const usedHoldIds = computed(() => {
@@ -888,24 +984,61 @@ const usedHoldIds = computed(() => {
   return ids;
 });
 
-// Clusters enriched with used/unused counts, sorted by most unused
+// Unassigned holds: all holds not used by any problem
+const unassignedHoldIds = computed(() => {
+  return allHoldIds.value.filter(id => !usedHoldIds.value.has(id));
+});
+
+const unassignedCount = computed(() => unassignedHoldIds.value.length);
+
+// Highlight: draft cluster selection takes priority, then unassigned toggle
+const highlightedHoldIds = computed(() => {
+  if (selectedDraftCluster.value) return selectedDraftCluster.value.holdIds;
+  if (showUnassigned.value) return unassignedHoldIds.value;
+  return [];
+});
+const highlightColor = computed(() => {
+  if (selectedDraftClusterId.value !== null) return clusterColor(selectedDraftClusterId.value);
+  if (showUnassigned.value) return '#f59e0b'; // amber for unassigned
+  return '#3b82f6';
+});
+
+const toggleShowUnassigned = () => {
+  showUnassigned.value = !showUnassigned.value;
+  // Clear draft cluster selection when toggling unassigned
+  if (showUnassigned.value) selectedDraftClusterId.value = null;
+};
+
+// Clusters enriched with used/unused counts + color name from API hex, sorted by most unused
 const sortedDraftClusters = computed(() => {
   if (!draftState.value.clusters) return [];
   return draftState.value.clusters
     .map(cluster => {
       const used = cluster.holdIds.filter(id => usedHoldIds.value.has(id)).length;
-      return { ...cluster, usedCount: used, unusedCount: cluster.holdIds.length - used };
+      const colorName = hexToColorName(cluster.dominantColor);
+      return { ...cluster, usedCount: used, unusedCount: cluster.holdIds.length - used, colorName };
     })
     .sort((a, b) => b.unusedCount - a.unusedCount);
 });
 
 const toggleDraftCluster = (clusterId) => {
   selectedDraftClusterId.value = selectedDraftClusterId.value === clusterId ? null : clusterId;
+  if (selectedDraftClusterId.value !== null) showUnassigned.value = false;
 };
 
 const useDraftCluster = async (cluster) => {
-  const color = clusterColor(cluster.clusterId);
-  await boulderProblemsStore.createNewProblem(null, `Draft ${cluster.clusterId}`, color);
+  // Cancel any in-progress creation first
+  if (boulderProblemsStore.isCreatingProblem) {
+    boulderProblemsStore.cancelCreatingProblem();
+  }
+  showUnassigned.value = false;
+
+  const color = cluster.dominantColor || clusterColor(cluster.clusterId);
+  const name = cluster.colorName
+    ? `${cluster.colorName.charAt(0).toUpperCase() + cluster.colorName.slice(1)}`
+    : `Draft ${cluster.clusterId}`;
+  sharedProblemName.value = name;
+  boulderProblemsStore.createNewProblem(null, name, color);
 
   const problem = boulderProblemsStore.activeProblem;
   if (!problem) return;
@@ -1006,6 +1139,8 @@ const boulderProblemsManagerProps = computed(() => ({
   detectionResults: serverStore.results,
   climbingImage: climbingImage.value,
   editingProblemId: String(editingState.value.editingProblemId || ''),
+  unassignedCount: unassignedCount.value,
+  showingUnassigned: showUnassigned.value,
 }));
 
 // Methods
@@ -1615,6 +1750,7 @@ const handleHoldHover = (hold, isEntering, event) => {
 };
 
 const startEditingProblem = (problem) => {
+  showUnassigned.value = false;
   router.push({
     query: {
       ...route.query,
@@ -1658,6 +1794,7 @@ const boulderProblemsManagerEvents = {
   'stop-editing': stopEditingProblem,
   'tool-selection-change': handleToolSelectionChange,
   'problem-hover': handleProblemCardHover,
+  'toggle-show-unassigned': toggleShowUnassigned,
 };
 
 // Load image based on query parameters

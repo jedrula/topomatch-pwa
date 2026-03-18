@@ -95,6 +95,18 @@
               props.hasDetectionResults ? serverStore.holdCount : 0
             }}
             AI + {{ serverStore.manualHolds.length }} manual)
+            <template v-if="props.unassignedCount > 0 && !editingProblem">
+              &middot;
+              <button
+                @click="emit('toggle-show-unassigned')"
+                class="font-medium transition-colors"
+                :class="props.showingUnassigned
+                  ? 'text-amber-600 hover:text-amber-700'
+                  : 'text-indigo-600 hover:text-indigo-700 hover:underline'"
+              >
+                {{ props.unassignedCount }} unassigned
+              </button>
+            </template>
           </span>
           <span v-else> No holds detected. Use AI detection or draw holds manually first. </span>
         </p>
@@ -277,7 +289,7 @@
 
       <!-- Existing Problems List -->
       <div v-if="boulderProblemsStore.sortedProblems.length > 0" class="space-y-3">
-        <h4 class="font-medium text-gray-900">Created Problems</h4>
+        <h4 class="text-sm font-medium text-gray-900">Created Problems</h4>
 
         <div class="space-y-2 max-h-64 overflow-y-auto">
           <!-- Grade-based expandable sections -->
@@ -420,9 +432,10 @@
         </div>
       </div>
 
-      <!-- Clear All Button -->
+      <!-- Clear All Button (hidden in fullscreen) -->
       <div
         v-if="
+          !props.isFullscreen &&
           boulderProblemsStore.sortedProblems.length > 0 &&
           !boulderProblemsStore.isCreatingProblem &&
           !editingProblem
@@ -481,6 +494,7 @@
         </div>
       </div>
     </div>
+    <slot />
   </div>
 </template>
 
@@ -522,6 +536,14 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  unassignedCount: {
+    type: Number,
+    default: 0,
+  },
+  showingUnassigned: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits([
@@ -529,6 +551,7 @@ const emit = defineEmits([
   'start-editing',
   'stop-editing',
   'tool-selection-change',
+  'toggle-show-unassigned',
   'update:modelValueProblemName',
   'update:modelValueSelectedGrade',
   'update:modelValueProblemColor',
@@ -625,11 +648,13 @@ const {
   startDrag,
 } = useDraggable(20, 20);
 
-// Group problems by grade for expandable sections
+// Group problems by grade for expandable sections (exclude local-only / unsaved)
 const problemsByGrade = computed(() => {
   const grouped = {};
 
-  boulderProblemsStore.sortedProblems.forEach((problem) => {
+  boulderProblemsStore.sortedProblems
+    .filter((p) => !p.isLocalOnly)
+    .forEach((problem) => {
     const gradeLabel = getGradeLabel(problem.grade);
     if (!grouped[gradeLabel]) {
       grouped[gradeLabel] = {

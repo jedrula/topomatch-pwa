@@ -128,3 +128,46 @@ function hslToHex(h, s, l) {
   };
   return `#${f(0)}${f(8)}${f(4)}`;
 }
+
+/**
+ * Convert a hex color to a readable color name.
+ * Maps hex → HSL → named color with optional lightness/saturation modifier.
+ * Returns compound names like "vivid purple", "dark teal", "red-orange".
+ */
+export function hexToColorName(hex) {
+  if (!hex || typeof hex !== 'string') return null;
+  const raw = hex.replace('#', '');
+  if (raw.length !== 6) return null;
+
+  const r = parseInt(raw.slice(0, 2), 16) / 255;
+  const g = parseInt(raw.slice(2, 4), 16) / 255;
+  const b = parseInt(raw.slice(4, 6), 16) / 255;
+  const { h, s, l } = rgbToHsl(r, g, b);
+
+  // Achromatic
+  if (s < 0.08) return l < 0.15 ? 'black' : l > 0.85 ? 'white' : 'gray';
+
+  // Hue-based base name (finer buckets + transition zones)
+  const hDeg = h * 360;
+  let base;
+  if (hDeg < 10 || hDeg >= 345) base = 'red';
+  else if (hDeg < 25) base = 'red-orange';
+  else if (hDeg < 45) base = 'orange';
+  else if (hDeg < 55) base = 'gold';
+  else if (hDeg < 70) base = 'yellow';
+  else if (hDeg < 85) base = 'yellow-green';
+  else if (hDeg < 165) base = 'green';
+  else if (hDeg < 195) base = 'teal';
+  else if (hDeg < 235) base = 'blue';
+  else if (hDeg < 260) base = 'indigo';
+  else if (hDeg < 295) base = 'purple';
+  else if (hDeg < 320) base = 'magenta';
+  else base = 'pink';
+
+  // Lightness / saturation modifier
+  if (l < 0.3) return `dark ${base}`;
+  if (l > 0.73) return `light ${base}`;
+  if (s > 0.55) return `vivid ${base}`;
+
+  return base;
+}
