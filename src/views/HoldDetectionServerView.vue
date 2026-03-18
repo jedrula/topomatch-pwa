@@ -57,6 +57,36 @@
               >
                 Error loading image: {{ imageLoadError }}
               </div>
+              <!-- Image Navigation (above image in normal mode) -->
+              <div
+                v-if="!isFullscreen && imageLoaded && totalImageCount > 1"
+                class="flex items-center justify-center space-x-2 mb-3"
+              >
+                <button
+                  @click="navigateToImage(-1)"
+                  :disabled="!canNavigatePrev"
+                  class="p-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:text-gray-300 disabled:border-gray-200 disabled:cursor-not-allowed transition-colors"
+                  title="Previous image"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <span class="text-sm text-gray-600 font-medium select-none">
+                  {{ currentImageIndex + 1 }} / {{ totalImageCount }}
+                </span>
+                <button
+                  @click="navigateToImage(1)"
+                  :disabled="!canNavigateNext"
+                  class="p-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:text-gray-300 disabled:border-gray-200 disabled:cursor-not-allowed transition-colors"
+                  title="Next image"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+
               <!-- Image Container -->
               <div
                 ref="imageContainer"
@@ -96,6 +126,36 @@
                     />
                   </svg>
                 </button>
+
+                <!-- Image Navigation overlay (fullscreen only) -->
+                <div
+                  v-if="isFullscreen && imageLoaded && totalImageCount > 1"
+                  class="absolute top-4 left-4 z-10 flex items-center space-x-1 pointer-events-auto"
+                >
+                  <button
+                    @click="navigateToImage(-1)"
+                    :disabled="!canNavigatePrev"
+                    class="bg-black bg-opacity-50 hover:bg-opacity-70 disabled:bg-opacity-30 disabled:cursor-not-allowed text-white rounded-lg p-2 transition-all duration-200"
+                    title="Previous image"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <span class="bg-black bg-opacity-50 text-white text-xs font-medium px-2 py-1.5 rounded-lg select-none">
+                    {{ currentImageIndex + 1 }}/{{ totalImageCount }}
+                  </span>
+                  <button
+                    @click="navigateToImage(1)"
+                    :disabled="!canNavigateNext"
+                    class="bg-black bg-opacity-50 hover:bg-opacity-70 disabled:bg-opacity-30 disabled:cursor-not-allowed text-white rounded-lg p-2 transition-all duration-200"
+                    title="Next image"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
                 
                 <!-- Zoom Indicator (only in fullscreen) -->
                 <div
@@ -897,6 +957,7 @@ const interactiveOverlay = ref(null); // TODO: Add component type
 const imageLoaded = ref(false);
 const currentImage = ref(null); // TODO: Add proper image type
 const imageLoadError = ref(null);
+const locationImages = ref([]); // All images for this location
 
 // Fullscreen state (pseudo-fullscreen using CSS, not native API)
 const isFullscreen = ref(false)
@@ -1038,7 +1099,9 @@ const useDraftCluster = async (cluster) => {
     ? `${cluster.colorName.charAt(0).toUpperCase() + cluster.colorName.slice(1)}`
     : `Draft ${cluster.clusterId}`;
   sharedProblemName.value = name;
-  boulderProblemsStore.createNewProblem(null, name, color);
+  const defaultGrade = boulderProblemsStore.grades[0] || null;
+  sharedSelectedGrade.value = defaultGrade || '';
+  boulderProblemsStore.createNewProblem(defaultGrade, name, color);
 
   const problem = boulderProblemsStore.activeProblem;
   if (!problem) return;
@@ -1823,10 +1886,15 @@ const loadImageFromQuery = async () => {
         boulderProblemsStore.setLocationGradingSystem(null);
       }
 
-      // Load image data from the location service
-      const imageRecords = await locationService.getLocationImages(locationId);
-      if (Array.isArray(imageRecords)) {
-        const imageRecord = imageRecords.find((record) => record.imageId === imageId);
+      // Load image data from the location service (cache the full list for navigation)
+      if (locationImages.value.length === 0) {
+        const imageRecords = await locationService.getLocationImages(locationId);
+        if (Array.isArray(imageRecords)) {
+          locationImages.value = imageRecords;
+        }
+      }
+      if (locationImages.value.length > 0) {
+        const imageRecord = locationImages.value.find((record) => record.imageId === imageId);
 
         if (imageRecord) {
           currentImage.value = {
@@ -1844,7 +1912,7 @@ const loadImageFromQuery = async () => {
           console.warn('⚠️ Image not found in location images:', imageId);
         }
       } else {
-        console.warn('⚠️ Invalid image records format:', imageRecords);
+        console.warn('⚠️ No location images available');
       }
     } catch (error) {
       console.error('❌ Error loading image for hold detection:', error);
@@ -1859,14 +1927,41 @@ const loadImageFromQuery = async () => {
   }
 }
 
+// Image navigation
+const currentImageIndex = computed(() => {
+  if (!currentImage.value || locationImages.value.length === 0) return -1;
+  return locationImages.value.findIndex(r => r.imageId === currentImage.value.id);
+});
+
+const totalImageCount = computed(() => locationImages.value.length);
+
+const canNavigatePrev = computed(() => currentImageIndex.value > 0);
+const canNavigateNext = computed(() =>
+  currentImageIndex.value >= 0 && currentImageIndex.value < totalImageCount.value - 1
+);
+
+const navigateToImage = (direction) => {
+  const newIndex = currentImageIndex.value + direction;
+  if (newIndex < 0 || newIndex >= locationImages.value.length) return;
+  const newImageId = locationImages.value[newIndex].imageId;
+  router.push({ query: { ...route.query, imageId: newImageId } });
+};
+
 // Watch for route changes to load different images
 watch(
   () => route.query,
   async (newQuery, oldQuery) => {
-    loadImageFromQuery();
-
-    // If imageId changed, reload boulder problems for the new image
     if (newQuery.imageId !== oldQuery?.imageId && route.params.locationId) {
+      // Reset state for new image
+      serverStore.resetState();
+      imageLoaded.value = false;
+      selectedDraftClusterId.value = null;
+      showUnassigned.value = false;
+      draftState.value = { loading: false, error: null, clusters: null, k: null, silhouette: null };
+
+      await loadImageFromQuery();
+      await loadExistingDetectionResults();
+
       try {
         boulderProblemsStore.initializeForLocation(route.params.locationId, newQuery.imageId);
         await boulderProblemsStore.loadBoulderProblems(route.params.locationId, newQuery.imageId);
