@@ -192,7 +192,7 @@
                   :editing-problem="editingState.editingProblem"
                   :hovered-problem-id="hoveredProblemId"
                   :magic-wand-active="isAnyMagicWandActive"
-                  :magic-wand-selection="magicWandSelection.selectedHoldIds"
+                  :magic-wand-selection="magicWandSelection"
                   :show-hold-overlay="false"
                   :is-showing-only-one-problem="boulderProblemsStore.isShowingOnlyOneProblem"
                   :isolated-problem="boulderProblemsStore.isolatedProblem"
@@ -201,6 +201,7 @@
                   :image-id="currentImage?.id"
                   :image-url="imageUrl"
                   :boulder-hold-selection-tool="boulderHoldSelectionTool"
+                  :magic-wand-mode="magicWandMode"
                   :highlighted-hold-ids="highlightedHoldIds"
                   :highlight-color="highlightColor"
                   @hold-click="handleHoldClick"
@@ -208,6 +209,7 @@
                   @tool-selection-change="handleToolSelectionChange"
                   @delete-hold="handleDeleteHold"
                   @crop-complete="handleCropComplete"
+                  @magic-wand-mode-change="(mode) => magicWandMode = mode"
                   ref="interactiveOverlay"
                 />
 
@@ -437,7 +439,7 @@
                       d="M4.929 2.929l1.414 1.414M2.929 7.071l1.414-1.414m0 0L7.071 2.93m-2.728 2.728L6.929 7.243m9.9-2.122l1.414-1.414m-2.122 9.9l1.414 1.414M12 3v3m6 6h3M9 21h6m-9-6h3m6 0h3"
                     />
                   </svg>
-                  <span>{{ magicWandActive ? "Magic Wand ON" : "Magic Wand" }}</span>
+                  <span>{{ magicWandActive ? `Magic Wand ON (${magicWandMode === 'local' ? 'Local' : 'Server'})` : 'Magic Wand' }}</span>
                 </button>
 
                 <!-- Mark Volume Button -->
@@ -764,7 +766,7 @@
 
           <!-- Magic Wand Status - Only show for standalone magic wand -->
           <div
-            v-if="magicWandActive && magicWandSelection.stats"
+            v-if="magicWandActive"
             class="bg-purple-50 border border-purple-200 rounded-lg shadow-sm"
           >
             <div class="p-6">
@@ -779,35 +781,62 @@
                 </svg>
                 Magic Wand Selection
               </h3>
-              <div class="space-y-3">
-                <!-- Target Hold -->
+              <!-- Mode toggle -->
+              <div class="flex items-center rounded-lg border border-purple-200 overflow-hidden text-sm mb-4">
+                <button
+                  @click="magicWandMode = 'local'"
+                  :class="[
+                    'flex-1 px-3 py-2 font-medium transition-colors',
+                    magicWandMode === 'local' ? 'bg-purple-600 text-white' : 'text-purple-700 hover:bg-purple-50',
+                  ]"
+                  title="Local: colour + proximity algorithm runs in the browser, no server needed"
+                >🖥 Local</button>
+                <button
+                  @click="magicWandMode = 'server'"
+                  :class="[
+                    'flex-1 px-3 py-2 font-medium transition-colors',
+                    magicWandMode === 'server' ? 'bg-purple-600 text-white' : 'text-purple-700 hover:bg-purple-50',
+                  ]"
+                  title="Server: calls the AI detection server"
+                >🤖 Server</button>
+              </div>
+
+              <!-- Loading state -->
+              <div v-if="magicWandLoading" class="flex items-center space-x-2 text-purple-600">
+                <svg class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span class="text-sm">Finding similar holds...</span>
+              </div>
+              <!-- Results -->
+              <div v-else-if="magicWandSelection.stats" class="space-y-3">
                 <div class="flex items-center justify-between">
-                  <span class="text-purple-600">Target Hold:</span>
-                  <span class="text-sm font-medium text-purple-900">
-                    #{{ magicWandSelection.targetHoldIndex }}
-                  </span>
-                </div>
-                <!-- Total Selected -->
-                <div class="flex items-center justify-between">
-                  <span class="text-purple-600">Total Selected:</span>
+                  <span class="text-purple-600">Selected:</span>
                   <span class="text-sm font-medium text-purple-900">
                     {{ magicWandSelection.selectedHoldIds.length }} holds
                   </span>
                 </div>
-                <!-- Color Similar -->
-                <div class="flex items-center justify-between">
-                  <span class="text-purple-600">Color Similar:</span>
-                  <span class="text-sm font-medium text-purple-900">
-                    {{ magicWandSelection.stats.colorSimilar }} holds
+                <div v-if="magicWandSelection.dominantColor" class="flex items-center justify-between">
+                  <span class="text-purple-600">Color:</span>
+                  <span class="flex items-center space-x-2">
+                    <span class="w-4 h-4 rounded-full border" :style="{ backgroundColor: magicWandSelection.dominantColor }" />
+                    <span class="text-sm font-medium text-purple-900">{{ hexToColorName(magicWandSelection.dominantColor) }}</span>
                   </span>
                 </div>
-                <!-- Connected -->
                 <div class="flex items-center justify-between">
-                  <span class="text-purple-600">Connected Route:</span>
+                  <span class="text-purple-600">Similarity cutoff:</span>
                   <span class="text-sm font-medium text-purple-900">
-                    {{ magicWandSelection.stats.connected }} holds
+                    {{ magicWandSelection.stats.cutoff?.toFixed(2) }}
                   </span>
                 </div>
+                <!-- Use as Problem button -->
+                <button
+                  @click="useMagicWandSelection"
+                  class="w-full mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Use as Problem ({{ magicWandSelection.selectedHoldIds.length }} holds)
+                </button>
               </div>
             </div>
           </div>
@@ -930,8 +959,8 @@ import InteractiveHoldOverlay from '@/components/InteractiveHoldOverlay.vue';
 import BoulderProblemsManager from '@/components/BoulderProblemsManager.vue';
 import FloatingBoulderProblemCard from '@/components/FloatingBoulderProblemCard.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
+import { hexToColorName, precomputeHoldHues } from '@/utils/colorUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
-import { hexToColorName } from '@/utils/colorUtils.js';
 import { getHoldDetectionServerUrl } from '@/services/appConfigService';
 // Note: Not using getResizedImageUrl - we load original images to match detection coordinates
 
@@ -1022,6 +1051,60 @@ const clusterColor = (clusterId) => CLUSTER_COLORS[clusterId % CLUSTER_COLORS.le
 const selectedDraftClusterId = ref(null);
 const showUnassigned = ref(false);
 
+// Frontend magic wand — runs the local color+proximity algorithm
+const callFeMagicWand = async (hold) => {
+  const aiHolds = serverStore.results?.holds || [];
+  const manualHolds = serverStore.manualHolds || [];
+  const allHolds = [...aiHolds, ...manualHolds];
+  const hueMap = climbingImage.value
+    ? await precomputeHoldHues(climbingImage.value, allHolds)
+    : null;
+  const result = performMagicWandSelection(hold.id, allHolds, 30, 500, hueMap);
+  if (!result.success) throw new Error('FE magic wand failed');
+  return {
+    holdIds: result.selectedHoldIds,
+    dominantColor: null,
+    selectedCount: result.selectedHoldIds.length,
+    cutoffSimilarity: result.stats?.maxColorDistance ?? null,
+  };
+};
+
+// Server magic wand call
+const callServerMagicWand = async (holdId) => {
+  const imageId = route.query.imageId;
+  if (!imageId || !holdId) return null;
+  const baseUrl = await getHoldDetectionServerUrl();
+  const res = await fetch(`${baseUrl}/cluster/magic-wand`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+    body: JSON.stringify({ imageId, holdId }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return await res.json();
+};
+
+// Helper: add holds by IDs to a target problem
+const addHoldsByIds = (holdIds, targetProblem) => {
+  const aiHolds = serverStore.results?.holds || [];
+  for (const holdId of holdIds) {
+    const holdIndex = aiHolds.findIndex(h => h.id === holdId);
+    const hold = aiHolds[holdIndex];
+    if (!hold) continue;
+    let enhancedHold = ensureHoldHasSvgMarkup(hold);
+    if (serverStore.results?.svg_markups?.[holdIndex]) {
+      enhancedHold = { ...enhancedHold, svgMarkup: serverStore.results.svg_markups[holdIndex] };
+    }
+    enhancedHold.detectionSource = hold.pathPoints ? 'manual' : 'server';
+    boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold);
+  }
+};
+
 const selectedDraftCluster = computed(() => {
   if (selectedDraftClusterId.value === null || !draftState.value.clusters) return null;
   return draftState.value.clusters.find(c => c.clusterId === selectedDraftClusterId.value) || null;
@@ -1106,19 +1189,7 @@ const useDraftCluster = async (cluster) => {
   const problem = boulderProblemsStore.activeProblem;
   if (!problem) return;
 
-  const aiHolds = serverStore.results?.holds || [];
-  for (const holdId of cluster.holdIds) {
-    const holdIndex = aiHolds.findIndex(h => h.id === holdId);
-    const hold = aiHolds[holdIndex];
-    if (!hold) continue;
-
-    let enhancedHold = ensureHoldHasSvgMarkup(hold);
-    if (serverStore.results?.svg_markups?.[holdIndex]) {
-      enhancedHold = { ...enhancedHold, svgMarkup: serverStore.results.svg_markups[holdIndex] };
-    }
-    enhancedHold.detectionSource = hold.pathPoints ? 'manual' : 'server';
-    boulderProblemsStore.addHoldToProblem(problem.id, enhancedHold);
-  }
+  addHoldsByIds(cluster.holdIds, problem);
 
   selectedDraftClusterId.value = null;
 };
@@ -1167,13 +1238,17 @@ let tooltipHideTimeout = null;
 const boulderHoldSelectionTool = ref('single');
 
 // Magic Wand state (global magic wand for standalone use)
-// TODO: Refactor magic wand to use hold IDs throughout instead of indices
 const magicWandActive = ref(false);
+const magicWandMode = ref('server'); // 'server' | 'local'
+const magicWandLoading = ref(false);
 const magicWandSelection = ref({
-  selectedHoldIds: [], // Array of hold IDs (not indices) 
-  targetHoldIndex: null, // TODO: Rename to targetHoldId
+  selectedHoldIds: [], // Array of hold IDs (string IDs from server)
+  targetHoldId: null,
+  dominantColor: null,
   stats: null,
 });
+// Track holds added by last magic wand click in boulder mode so we can replace them
+const lastMagicWandBoulderHoldIds = ref([]);
 
 // Dynamic image loading based on query parameters
 const imageUrl = computed(() => {
@@ -1253,24 +1328,48 @@ const clearCurrentImageCache = () => {
 }
 
 // Magic Wand functionality
+const clearMagicWandSelection = () => {
+  magicWandSelection.value = {
+    selectedHoldIds: [],
+    targetHoldId: null,
+    dominantColor: null,
+    stats: null,
+  };
+  lastMagicWandBoulderHoldIds.value = [];
+};
+
 const toggleMagicWand = () => {
   magicWandActive.value = !magicWandActive.value;
+  clearMagicWandSelection();
+};
 
-  if (magicWandActive.value) {
-    // Clear any previous selection when activating
-    magicWandSelection.value = {
-      selectedHoldIds: [],
-      targetHoldIndex: null,
-      stats: null,
-    };
-  } else {
-    // Clear selection when deactivating
-    magicWandSelection.value = {
-      selectedHoldIds: [],
-      targetHoldIndex: null,
-      stats: null,
-    };
+// Use the current magic wand selection as a new boulder problem
+const useMagicWandSelection = async () => {
+  const sel = magicWandSelection.value;
+  if (!sel.selectedHoldIds.length) return;
+
+  // Cancel any in-progress creation first
+  if (boulderProblemsStore.isCreatingProblem) {
+    boulderProblemsStore.cancelCreatingProblem();
   }
+
+  const color = sel.dominantColor || '#a855f7';
+  const name = sel.dominantColor
+    ? hexToColorName(sel.dominantColor).charAt(0).toUpperCase() + hexToColorName(sel.dominantColor).slice(1)
+    : 'Magic Wand';
+  sharedProblemName.value = name;
+  const defaultGrade = boulderProblemsStore.grades[0] || null;
+  sharedSelectedGrade.value = defaultGrade || '';
+  boulderProblemsStore.createNewProblem(defaultGrade, name, color);
+
+  const problem = boulderProblemsStore.activeProblem;
+  if (!problem) return;
+
+  addHoldsByIds(sel.selectedHoldIds, problem);
+
+  // Deactivate magic wand after using
+  magicWandActive.value = false;
+  clearMagicWandSelection();
 };
 
 // Manual Hold Drawing functionality
@@ -1611,17 +1710,6 @@ const handleHoldClick = (hold, holdIndex) => {
 
   // Priority 1: Boulder creation/editing with magic wand tool
   if (isBoulderMode && boulderHoldSelectionTool.value === 'magic-wand') {
-
-    // Get all holds from AI + manual holds
-    const aiHolds = serverStore.results?.holds || []
-    const manualHolds = serverStore.manualHolds || []
-    const allHolds = [...aiHolds, ...manualHolds]
-
-    if (allHolds.length === 0) {
-      console.warn('No holds available for magic wand selection');
-      return;
-    }
-
     // Determine which problem we're working with
     let targetProblem = null;
     if (boulderProblemsStore.isCreatingProblem && boulderProblemsStore.activeProblem) {
@@ -1629,42 +1717,31 @@ const handleHoldClick = (hold, holdIndex) => {
     } else if (editingState.value.isEditing && editingState.value.editingProblem) {
       targetProblem = editingState.value.editingProblem;
     }
+    if (!targetProblem) return;
 
-    if (!targetProblem) {
-      return;
+    // Remove holds from previous magic wand click before adding new ones
+    for (const prevId of lastMagicWandBoulderHoldIds.value) {
+      boulderProblemsStore.removeHoldFromProblem(targetProblem.id, prevId);
     }
+    lastMagicWandBoulderHoldIds.value = [];
 
-    // Perform magic wand selection
-    const result = performMagicWandSelection(holdIndex, allHolds);
+    // Call magic wand (local or server depending on mode)
+    magicWandLoading.value = true;
+    const wandCall = magicWandMode.value === 'local'
+      ? Promise.resolve(callFeMagicWand(hold))
+      : callServerMagicWand(hold.id);
+    wandCall.then((result) => {
+      if (result && result.holdIds) {
+        addHoldsByIds(result.holdIds, targetProblem);
+        lastMagicWandBoulderHoldIds.value = result.holdIds;
+      }
+    }).catch((err) => {
+      console.error('Magic wand failed:', err);
+    }).finally(() => {
+      magicWandLoading.value = false;
+    });
 
-    if (result.success) {
-
-      // Add all selected holds to the target problem
-        result.selectedHoldIds.forEach((selectedHoldIndex) => {
-          const selectedHold = allHolds[selectedHoldIndex];
-          if (selectedHold) {
-            // Ensure hold has svgMarkup (converts from pathPoints if needed for manual holds)
-            let enhancedHold = ensureHoldHasSvgMarkup(selectedHold);
-
-            // Use server SVG markup if available (for AI holds)
-            const aiHoldsCount = serverStore.results?.holds?.length || 0
-            if (selectedHoldIndex < aiHoldsCount && serverStore.results?.svg_markups?.[selectedHoldIndex]) {
-              enhancedHold = {
-                ...enhancedHold,
-                svgMarkup: serverStore.results.svg_markups[selectedHoldIndex],
-              };
-            }
-
-            // Set detection source
-            enhancedHold.detectionSource = selectedHold.pathPoints ? 'manual' : 'server';
-
-            // Add hold to the target problem (uses hold.id internally)
-            boulderProblemsStore.addHoldToProblem(targetProblem.id, enhancedHold);
-          }
-        });
-    }
-
-    return; // Don't proceed with other logic when using boulder magic wand
+    return;
   }
 
   // Priority 2: Volume mode - toggle volume flag on the hold
@@ -1675,29 +1752,29 @@ const handleHoldClick = (hold, holdIndex) => {
 
   // Priority 3: Standalone Magic Wand functionality (when not in boulder mode)
   if (!isBoulderMode && magicWandActive.value) {
+    magicWandLoading.value = true;
+    const wandCall = magicWandMode.value === 'local'
+      ? Promise.resolve(callFeMagicWand(hold))
+      : callServerMagicWand(hold.id);
+    wandCall.then((result) => {
+      if (result && result.holdIds) {
+        magicWandSelection.value = {
+          selectedHoldIds: result.holdIds,
+          targetHoldId: hold.id,
+          dominantColor: result.dominantColor,
+          stats: {
+            selected: result.selectedCount,
+            cutoff: result.cutoffSimilarity,
+          },
+        };
+      }
+    }).catch((err) => {
+      console.error('Magic wand failed:', err);
+    }).finally(() => {
+      magicWandLoading.value = false;
+    });
 
-    // Get all holds from AI + manual holds
-    const aiHolds = serverStore.results?.holds || []
-    const manualHolds = serverStore.manualHolds || []
-    const allHolds = [...aiHolds, ...manualHolds]
-
-    if (allHolds.length === 0) {
-      console.warn('No holds available for magic wand selection');
-      return;
-    }
-
-    // Perform magic wand selection for standalone use
-    const result = performMagicWandSelection(holdIndex, allHolds);
-
-    if (result.success) {
-      magicWandSelection.value = {
-        selectedHoldIds: result.selectedHoldIds,
-        targetHoldIndex: holdIndex,
-        stats: result.stats,
-      };
-    }
-
-    return; // Don't proceed with normal hold selection when standalone magic wand is active
+    return;
   }
 
   // Priority 4: Normal boulder creation/editing (single hold selection)

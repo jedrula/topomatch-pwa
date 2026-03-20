@@ -70,6 +70,67 @@ export async function getDominantHoldColor(imageElement, holds) {
   return hslToHex(Math.round((maxBucket / 24) * 360), 80, 55);
 }
 
+/**
+ * Pre-compute the dominant hue (0–360°) for every hold in `holds` by sampling
+ * actual image pixels — the same algorithm used by getDominantHoldColor.
+ * Useful for feeding real per-hold hue data into the magic wand.
+ *
+ * @param {HTMLImageElement} imageElement
+ * @param {Array} holds - plain hold objects or ProblemHold wrappers
+ * @returns {Promise<Map<number, number|null>>} index → hue in degrees (null = achromatic/no data)
+ */
+export async function precomputeHoldHues(imageElement, holds) {
+  const hueMap = new Map();
+  if (!imageElement?.src || !holds?.length) return hueMap;
+
+  let img;
+  try {
+    img = await loadCorsImage(imageElement.src);
+  } catch {
+    return hueMap;
+  }
+
+  const SCALE = Math.min(1, 400 / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.round(img.naturalWidth * SCALE);
+  const h = Math.round(img.naturalHeight * SCALE);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, w, h);
+
+  holds.forEach((holdEntry, idx) => {
+    const c = extractBbox(holdEntry);
+    if (!c) { hueMap.set(idx, null); return; }
+
+    const sx = Math.max(0, Math.round(c.x * SCALE));
+    const sy = Math.max(0, Math.round(c.y * SCALE));
+    const sw = Math.min(Math.max(1, Math.round(c.width * SCALE)), w - sx);
+    const sh = Math.min(Math.max(1, Math.round(c.height * SCALE)), h - sy);
+    if (sw <= 0 || sh <= 0) { hueMap.set(idx, null); return; }
+
+    try {
+      const { data } = ctx.getImageData(sx, sy, sw, sh);
+      const hueBuckets = new Uint32Array(24);
+      for (let i = 0; i < data.length; i += 16) {
+        const { h: hue, s, l } = rgbToHsl(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255);
+        if (s < 0.15 || l < 0.08 || l > 0.92) continue;
+        hueBuckets[Math.floor(hue * 24)]++;
+      }
+      let maxCount = 0, maxBucket = 0;
+      for (let i = 0; i < 24; i++) {
+        if (hueBuckets[i] > maxCount) { maxCount = hueBuckets[i]; maxBucket = i; }
+      }
+      hueMap.set(idx, maxCount === 0 ? null : Math.round((maxBucket / 24) * 360));
+    } catch {
+      hueMap.set(idx, null);
+    }
+  });
+
+  return hueMap;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

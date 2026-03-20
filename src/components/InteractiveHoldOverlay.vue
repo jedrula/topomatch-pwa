@@ -259,6 +259,27 @@
           >Click a hold to select nearby holds automatically</span
         >
       </div>
+
+      <!-- Magic Wand mode toggle (Local / Server) -->
+      <div v-if="isMagicWandModeEnabled" class="mt-2 flex items-center space-x-1">
+        <span class="text-xs text-gray-500 mr-1">Wand:</span>
+        <button
+          @click="emit('magic-wand-mode-change', 'local')"
+          :class="[
+            'px-2 py-1 text-xs rounded transition-colors',
+            props.magicWandMode === 'local' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+          ]"
+          title="Local: colour+proximity algorithm in the browser"
+        >🖥 Local</button>
+        <button
+          @click="emit('magic-wand-mode-change', 'server')"
+          :class="[
+            'px-2 py-1 text-xs rounded transition-colors',
+            props.magicWandMode === 'server' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+          ]"
+          title="Server: calls the AI detection server"
+        >🤖 Server</button>
+      </div>
     </div>
 
     <!-- Delete controls -->
@@ -333,7 +354,7 @@ const props = defineProps({
   },
   magicWandSelection: {
     type: Object,
-    default: () => ({ selectedHoldIds: [], targetHoldIndex: null, stats: null }),
+    default: () => ({ selectedHoldIds: [], targetHoldId: null, dominantColor: null, stats: null }),
   },
   showHoldOverlay: {
     type: Boolean,
@@ -369,6 +390,11 @@ const props = defineProps({
     type: String,
     default: 'single',
   },
+  // Magic wand mode: 'local' (FE algorithm) or 'server' (BE call)
+  magicWandMode: {
+    type: String,
+    default: 'server',
+  },
   // Draft cluster highlighting
   highlightedHoldIds: {
     type: Array,
@@ -380,7 +406,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change', 'delete-hold', 'crop-complete']);
+const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change', 'delete-hold', 'crop-complete', 'magic-wand-mode-change']);
 
 const serverStore = useHoldDetectionServerStore();
 const persistenceStore = useHoldDetectionPersistenceStore();
@@ -944,9 +970,9 @@ const getHoldInteractionAllowed = (hold) => {
     return 'selectable';
   }
 
-  // Magic Wand mode - only selected holds are clickable
-  if (props.magicWandActive && props.magicWandSelection.selectedHoldIds.length > 0) {
-    return props.magicWandSelection.selectedHoldIds.includes(hold.id) ? 'selectable' : 'none';
+  // Magic Wand mode - all holds are clickable so user can click any hold for a new selection
+  if (props.magicWandActive) {
+    return 'selectable';
   }
 
   const problemId = getHoldProblemId(hold);
@@ -995,12 +1021,12 @@ const getHoldColor = (hold) => {
     return props.highlightColor;
   }
 
-  // Magic Wand uses purple colors
+  // Magic Wand uses purple colors (or dominant color from server)
   if (props.magicWandActive && props.magicWandSelection.selectedHoldIds.length > 0) {
-    if (hold.id === props.magicWandSelection.targetHoldIndex) {
+    if (hold.id === props.magicWandSelection.targetHoldId) {
       return '#9333ea'; // purple-700 for target
     } else if (props.magicWandSelection.selectedHoldIds.includes(hold.id)) {
-      return '#a855f7'; // purple-500 for proximity
+      return props.magicWandSelection.dominantColor || '#a855f7';
     }
   }
 

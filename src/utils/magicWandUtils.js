@@ -68,44 +68,46 @@ export const findClosestHolds = (targetHold, allHolds, count = 10) => {
 
 /**
  * Magic Wand main function - finds connected route of similar-colored holds
- * @param {number} targetHoldIndex - Index of the clicked hold
+ * @param {string} targetHoldId - ID of the clicked hold
  * @param {Array} allHolds - Array of all holds in the image
  * @param {number} maxColorDistance - Maximum LAB color distance for similarity (default: 33)
  * @param {number} maxReachDistance - Maximum pixel distance between reachable holds (default: 500)
  * @returns {Object} Selection result with connected route holds
  */
 export const performMagicWandSelection = (
-  targetHoldIndex,
+  targetHoldId,
   allHolds,
   maxColorDistance = 33,
-  maxReachDistance = 500
+  maxReachDistance = 500,
+  hueMap = null
 ) => {
-  if (
-    !allHolds ||
-    allHolds.length === 0 ||
-    targetHoldIndex < 0 ||
-    targetHoldIndex >= allHolds.length
-  ) {
+  if (!allHolds || allHolds.length === 0 || !targetHoldId) {
     console.warn('Magic Wand: Invalid input parameters');
     return {
       success: false,
       targetHold: null,
       routeHolds: [],
-      selectedHoldIds: [], // Renamed from selectedIndices
+      selectedHoldIds: [],
     };
+  }
+
+  const targetHoldIndex = allHolds.findIndex(h => h.id === targetHoldId);
+  if (targetHoldIndex < 0) {
+    console.warn('Magic Wand: Hold not found with id', targetHoldId);
+    return { success: false, targetHold: null, routeHolds: [], selectedHoldIds: [] };
   }
 
   const targetHold = allHolds[targetHoldIndex];
 
   // Step 1: Find ALL color-similar holds across the entire image
-  const colorSimilarHolds = findAllSimilarColorHolds(targetHold, allHolds, maxColorDistance);
+  const colorSimilarHolds = findAllSimilarColorHolds(targetHold, allHolds, maxColorDistance, hueMap);
 
   if (colorSimilarHolds.length === 0) {
     return {
       success: true,
       targetHold: { hold: targetHold, index: targetHoldIndex },
       routeHolds: [],
-      selectedHoldIds: [targetHoldIndex], // Renamed from selectedIndices
+      selectedHoldIds: [targetHoldId],
       stats: {
         totalHolds: allHolds.length,
         colorSimilar: 0,
@@ -121,13 +123,12 @@ export const performMagicWandSelection = (
   // Step 3: Find connected component containing the target hold
   const connectedIndices = findConnectedComponent(reachabilityGraph, targetHoldIndex);
 
-  // Step 4: Build result with connected route holds
+  // Step 4: Build result — map indices back to hold IDs
   const routeHolds = colorSimilarHolds
     .filter(({ index }) => connectedIndices.has(index) && index !== targetHoldIndex)
     .map(({ hold, index }) => ({ hold, index }));
 
-  // TODO: Refactor to use hold IDs instead of indices
-  const selectedHoldIds = Array.from(connectedIndices);
+  const selectedHoldIds = Array.from(connectedIndices).map(i => allHolds[i].id);
 
   const result = {
     success: true,
@@ -136,7 +137,7 @@ export const performMagicWandSelection = (
       index: targetHoldIndex,
     },
     routeHolds: routeHolds,
-    selectedHoldIds: selectedHoldIds, // Renamed from selectedIndices for clarity
+    selectedHoldIds: selectedHoldIds,
     stats: {
       totalHolds: allHolds.length,
       colorSimilar: colorSimilarHolds.length,
@@ -163,13 +164,21 @@ export const getHoldCenter = (hold) => {
 };
 
 /**
- * Check if a hold index is in the magic wand selection
- * @param {number} holdIndex - Index to check
- * @param {Array} selectedIndices - Array of selected hold indices
+ * Check if a hold is in the magic wand selection
+ * @param {string} holdId - Hold ID to check
+ * @param {Array} selectedHoldIds - Array of selected hold IDs
  * @returns {boolean} True if hold is selected
  */
-export const isHoldInMagicWandSelection = (holdIndex, selectedIndices) => {
-  return selectedIndices && selectedIndices.includes(holdIndex);
+export const isHoldInMagicWandSelection = (holdId, selectedHoldIds) => {
+  return selectedHoldIds && selectedHoldIds.includes(holdId);
+};
+
+/**
+ * Circular hue distance in degrees (result is 0–180).
+ */
+const hueDistance = (h1, h2) => {
+  const diff = Math.abs(h1 - h2) % 360;
+  return diff > 180 ? 360 - diff : diff;
 };
 
 /**
@@ -207,42 +216,57 @@ export const extractHoldColor = (hold) => {
 };
 
 /**
- * Find all holds with similar colors across the entire image
+ * Find all holds with similar colors across the entire image.
+ * Uses LAB color distance when color_analysis is available, otherwise falls back
+ * to matching by color category (hold.type).
  * @param {Object} targetHold - The reference hold
  * @param {Array} allHolds - All holds in the image
- * @param {number} maxColorDistance - Maximum LAB color distance for similarity
+ * @param {number} maxColorDistance - Max LAB distance, or max hue degrees when hueMap is provided
+ * @param {Map<number,number|null>|null} hueMap - Pixel-sampled hue per hold index (from precomputeHoldHues)
  * @returns {Array} All color-similar holds with their indices
  */
-export const findAllSimilarColorHolds = (targetHold, allHolds, maxColorDistance = 33) => {
-  const targetColor = extractHoldColor(targetHold);
-  if (!targetColor) {
-    return [];
+export const findAllSimilarColorHolds = (targetHold, allHolds, maxColorDistance = 33, hueMap = null) => {
+  // Pixel-sampled hue comparison — most accurate, uses actual image data
+  if (hueMap) {
+    const targetIndex = allHolds.indexOf(targetHold);
+    const targetHue = hueMap.get(targetIndex);
+    if (targetHue !== null && targetHue !== undefined) {
+      return allHolds
+        .map((hold, index) => {
+          const hue = hueMap.get(index);
+          if (hue === null || hue === undefined) return null;
+          const dist = hueDistance(targetHue, hue);
+          return dist <= maxColorDistance ? { hold, index, colorDistance: dist } : null;
+        })
+        .filter(Boolean);
+    }
   }
 
+  const targetColor = extractHoldColor(targetHold);
 
-  let holdsWithColor = 0;
-  let holdsWithoutColor = 0;
-  const colorDistances = [];
+  // LAB data available — use perceptual color distance
+  if (targetColor) {
+    const similarHolds = allHolds
+      .map((hold, index) => {
+        const holdColor = extractHoldColor(hold);
+        if (!holdColor) return null;
+        const colorDistance = calculateColorDistance(targetColor, holdColor);
+        return colorDistance <= maxColorDistance ? { hold, index, colorDistance } : null;
+      })
+      .filter(Boolean);
+    return similarHolds;
+  }
 
-  const similarHolds = allHolds
-    .map((hold, index) => {
-      const holdColor = extractHoldColor(hold);
-      if (!holdColor) {
-        holdsWithoutColor++;
-        return null;
-      }
+  // Fallback: match by color category (hold.type)
+  const targetType = targetHold.type;
+  if (!targetType || targetType === 'unknown') {
+    // No color info at all — return all holds so proximity graph still works
+    return allHolds.map((hold, index) => ({ hold, index, colorDistance: 0 }));
+  }
 
-      holdsWithColor++;
-      const colorDistance = calculateColorDistance(targetColor, holdColor);
-      colorDistances.push(colorDistance);
-
-      if (colorDistance <= maxColorDistance) {
-        return { hold, index, colorDistance };
-      }
-      return null;
-    })
-    .filter((item) => item !== null);
-  return similarHolds;
+  return allHolds
+    .map((hold, index) => ({ hold, index, colorDistance: 0 }))
+    .filter(({ hold }) => hold.type === targetType);
 };
 
 /**
