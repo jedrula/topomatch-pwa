@@ -139,48 +139,6 @@
       </div>
     </div>
 
-    <!-- Crop mode controls -->
-    <div
-      v-if="serverStore.isCropMode"
-      class="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-40 pointer-events-auto"
-    >
-      <div class="flex items-center space-x-3">
-        <span class="text-sm font-medium text-rose-700">Crop Holds Mode</span>
-
-        <div class="border-l border-gray-300 pl-3 flex items-center space-x-2">
-          <button
-            v-if="cropPoints.length > 0"
-            @click="cropPoints.pop()"
-            class="px-3 py-1 text-sm bg-rose-100 text-rose-700 rounded hover:bg-rose-200 transition-colors"
-          >
-            Undo Point
-          </button>
-          <button
-            v-if="cropPoints.length > 0"
-            @click="resetCropPolygon"
-            class="px-3 py-1 text-sm bg-rose-100 text-rose-700 rounded hover:bg-rose-200 transition-colors"
-          >
-            Reset
-          </button>
-          <button
-            @click="resetCropPolygon(); serverStore.setCropMode(false)"
-            class="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-
-      <div class="mt-2 text-xs text-gray-600">
-        {{ cropPoints.length === 0
-          ? 'Click to place polygon points around the area to keep'
-          : cropPoints.length < 3
-            ? `${cropPoints.length} point${cropPoints.length > 1 ? 's' : ''} placed — need at least 3`
-            : `${cropPoints.length} points — click first point or double-click to close`
-        }}
-      </div>
-    </div>
-
     <!-- Boulder Problem Tool Selection (only when creating/editing boulder problems) -->
     <div
       v-if="
@@ -259,6 +217,7 @@
           >Click a hold to select nearby holds automatically</span
         >
       </div>
+      <div class="mt-1.5 text-xs text-gray-400">⌥ + click to steal a hold from another problem</div>
 
       <!-- Magic Wand mode toggle (Local / Server) -->
       <div v-if="isMagicWandModeEnabled" class="mt-2 flex items-center space-x-1">
@@ -403,6 +362,11 @@ const props = defineProps({
   highlightColor: {
     type: String,
     default: '#3b82f6',
+  },
+  // Hold IDs that are in the highlighted cluster but already assigned to another problem
+  usedClusterHoldIds: {
+    type: Array,
+    default: () => [],
   },
 });
 
@@ -997,8 +961,9 @@ const getHoldInteractionAllowed = (hold) => {
     }
 
     // Holds belonging to other problems are FORBIDDEN when creating/editing
+    // (unless Alt is held — force-reassign mode)
     if (props.isCreatingProblem || props.isEditingProblem) {
-      return 'forbidden';
+      return isAltKeyHeld.value ? 'selectable' : 'forbidden';
     }
 
     // Other problem holds are selectable for navigation (when not creating/editing)
@@ -1018,7 +983,7 @@ const getHoldColor = (hold) => {
 
   // Draft cluster highlighting color
   if (props.highlightedHoldIds.length > 0 && props.highlightedHoldIds.includes(hold.id)) {
-    return props.highlightColor;
+    return props.usedClusterHoldIds.includes(hold.id) ? '#6b7280' : props.highlightColor;
   }
 
   // Magic Wand uses purple colors (or dominant color from server)
@@ -1075,7 +1040,7 @@ const handleHoldClick = (hold, index) => {
     return;
   }
 
-  emit('hold-click', hold, index);
+  emit('hold-click', hold, index, isAltKeyHeld.value);
 };
 
 const handleHoldHover = (hold, isEntering, event) => {
@@ -1102,7 +1067,7 @@ const handleManualHoldClick = (hold, manualIndex) => {
   // Note: index parameter kept for legacy magic wand functionality
   // TODO: Refactor magic wand to use hold IDs instead of indices
   const combinedIndex = getCombinedHoldIndex(manualIndex);
-  emit('hold-click', hold, combinedIndex);
+  emit('hold-click', hold, combinedIndex, isAltKeyHeld.value);
 };
 
 const handleManualHoldHover = (hold, manualIndex, isEntering, event) => {
@@ -1177,8 +1142,14 @@ function setupCanvas() {
   });
 }
 
+// Alt key for force-reassign mode
+const isAltKeyHeld = ref(false);
+
 // Command key handlers for temporary quick-draw activation
 const handleKeyDown = (event) => {
+  if (event.altKey && isCreatingOrEditing.value) {
+    isAltKeyHeld.value = true;
+  }
   // Only activate when creating/editing a boulder problem and Command/Ctrl is pressed
   if ((event.metaKey || event.ctrlKey) && isCreatingOrEditing.value && !isCommandKeyHeld.value) {
     isCommandKeyHeld.value = true;
@@ -1192,6 +1163,9 @@ const handleKeyDown = (event) => {
 };
 
 const handleKeyUp = (event) => {
+  if (!event.altKey) {
+    isAltKeyHeld.value = false;
+  }
   // Restore previous tool when Command/Ctrl is released
   if ((!event.metaKey && !event.ctrlKey) && isCommandKeyHeld.value) {
     isCommandKeyHeld.value = false;
@@ -1237,6 +1211,10 @@ watch(() => serverStore.isCropMode, (newVal) => {
   if (!newVal) {
     resetCropPolygon();
   }
+});
+
+defineExpose({
+  resetCropPolygon,
 });
 </script>
 

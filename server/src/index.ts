@@ -928,14 +928,49 @@ export const getBoulderProblems = onCall({region: REGION}, async (request) => {
       }
     }
 
-    // Count videos (ready ascents) per problem in a single query
-    // to avoid N+1 calls from the client.
+    // Fetch linked problems (for aggregated video counts + secondary name/grade resolution)
+    const linkedIds = [
+      ...new Set(
+        problems
+          .map((p: any) => p.linkedProblemId)
+          .filter((id: string | null) => !!id)
+      ),
+    ] as string[];
+
+    const linkedProblemsMap = new Map<string, any>();
+    if (linkedIds.length > 0) {
+      const linkedBatches: string[][] = [];
+      for (let i = 0; i < linkedIds.length; i += 30) {
+        linkedBatches.push(linkedIds.slice(i, i + 30));
+      }
+      await Promise.all(
+        linkedBatches.map(async (batch) => {
+          await Promise.all(
+            batch.map(async (lpId) => {
+              const lpSnap = await db
+                .collection("locations")
+                .doc(locationId)
+                .collection("boulderProblems")
+                .doc(lpId)
+                .get();
+              if (lpSnap.exists) {
+                linkedProblemsMap.set(lpId, { id: lpSnap.id, ...lpSnap.data() });
+              }
+            })
+          );
+        })
+      );
+    }
+
+    // Count videos (ready ascents) per problem in a single query.
+    // Include linked problem IDs so we can aggregate counts across pairs.
     const problemIds = problems.map((p: any) => p.id);
-    if (problemIds.length > 0) {
+    const allIdsForVideoCount = [...new Set([...problemIds, ...linkedIds])];
+    if (allIdsForVideoCount.length > 0) {
       // Firestore 'in' supports up to 30 values — batch if needed
       const batches: string[][] = [];
-      for (let i = 0; i < problemIds.length; i += 30) {
-        batches.push(problemIds.slice(i, i + 30));
+      for (let i = 0; i < allIdsForVideoCount.length; i += 30) {
+        batches.push(allIdsForVideoCount.slice(i, i + 30));
       }
 
       const videoCounts = new Map<string, number>();
@@ -954,7 +989,20 @@ export const getBoulderProblems = onCall({region: REGION}, async (request) => {
       );
 
       for (const p of problems) {
-        (p as any).videoCount = videoCounts.get(p.id) || 0;
+        const ownCount = videoCounts.get(p.id) || 0;
+        const linkedCount = p.linkedProblemId
+          ? videoCounts.get(p.linkedProblemId) || 0
+          : 0;
+        (p as any).videoCount = ownCount + linkedCount;
+
+        // Secondary problems defer name/grade to the primary
+        if (p.linkedProblemId && p.isPrimary === false) {
+          const linked = linkedProblemsMap.get(p.linkedProblemId);
+          if (linked && linked.isPrimary === true) {
+            (p as any).name = linked.name;
+            (p as any).grade = linked.grade;
+          }
+        }
       }
     }
 
@@ -1281,5 +1329,107 @@ export const updateProblemHolds = onCall({region: REGION}, async (request) => {
   } catch (error) {
     logger.error("Error updating problem holds:", error);
     throw new Error("Failed to update problem holds");
+  }
+});
+
+export const linkBoulderProblems = onCall({region: REGION}, async (request) => {
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+
+  const { locationId, problemIdA, problemIdB, primaryId } = request.data;
+
+  if (!locationId || !problemIdA || !problemIdB || !primaryId) {
+    throw new Error("Missing required fields: locationId, problemIdA, problemIdB, primaryId");
+  }
+
+  if (primaryId !== problemIdA && primaryId !== problemIdB) {
+    throw new Error("primaryId must be either problemIdA or problemIdB");
+  }
+
+  const secondaryId = primaryId === problemIdA ? problemIdB : problemIdA;
+
+  try {
+    const problemsRef = db.collection("locations").doc(locationId).collection("boulderProblems");
+    const [primarySnap, secondarySnap] = await Promise.all([
+      problemsRef.doc(primaryId).get(),
+      problemsRef.doc(secondaryId).get(),
+    ]);
+
+    if (!primarySnap.exists) {
+      throw new Error(`Boulder problem not found: ${primaryId}`);
+    }
+    if (!secondarySnap.exists) {
+      throw new Error(`Boulder problem not found: ${secondaryId}`);
+    }
+
+    const batch = db.batch();
+    batch.update(problemsRef.doc(primaryId), {
+      linkedProblemId: secondaryId,
+      isPrimary: true,
+      updatedAt: new Date(),
+    });
+    batch.update(problemsRef.doc(secondaryId), {
+      linkedProblemId: primaryId,
+      isPrimary: false,
+      updatedAt: new Date(),
+    });
+    await batch.commit();
+
+    logger.info(`Linked problems ${primaryId} (primary) <-> ${secondaryId} (secondary) in location ${locationId}`);
+    return { message: "Problems linked successfully", primaryId, secondaryId };
+  } catch (error) {
+    logger.error("Error linking boulder problems:", error);
+    throw new Error("Failed to link boulder problems");
+  }
+});
+
+export const unlinkBoulderProblems = onCall({region: REGION}, async (request) => {
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+
+  const { locationId, problemId } = request.data;
+
+  if (!locationId || !problemId) {
+    throw new Error("Missing required fields: locationId, problemId");
+  }
+
+  try {
+    const problemsRef = db.collection("locations").doc(locationId).collection("boulderProblems");
+    const problemSnap = await problemsRef.doc(problemId).get();
+
+    if (!problemSnap.exists) {
+      throw new Error(`Boulder problem not found: ${problemId}`);
+    }
+
+    const problemData = problemSnap.data();
+    const linkedId: string | undefined = problemData?.linkedProblemId;
+
+    const batch = db.batch();
+    batch.update(problemsRef.doc(problemId), {
+      linkedProblemId: FieldValue.delete(),
+      isPrimary: FieldValue.delete(),
+      updatedAt: new Date(),
+    });
+
+    if (linkedId) {
+      const linkedSnap = await problemsRef.doc(linkedId).get();
+      if (linkedSnap.exists) {
+        batch.update(problemsRef.doc(linkedId), {
+          linkedProblemId: FieldValue.delete(),
+          isPrimary: FieldValue.delete(),
+          updatedAt: new Date(),
+        });
+      }
+    }
+
+    await batch.commit();
+
+    logger.info(`Unlinked problems ${problemId}${linkedId ? ` and ${linkedId}` : ""} in location ${locationId}`);
+    return { message: "Problems unlinked successfully" };
+  } catch (error) {
+    logger.error("Error unlinking boulder problems:", error);
+    throw new Error("Failed to unlink boulder problems");
   }
 });

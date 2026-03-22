@@ -70,6 +70,13 @@
                   >
                     {{ problem.name }}
                   </router-link>
+                  <!-- Linked-problem indicator -->
+                  <span
+                    v-if="problem.linkedProblemId"
+                    title="This problem continues on an adjacent image"
+                    class="text-xs text-indigo-500 select-none"
+                    aria-label="Linked across images"
+                  >↔</span>
                 </div>
                 <div class="flex items-center space-x-2 text-sm text-gray-500 flex-shrink-0">
                   <span>{{ problem.holds?.length || 0 }} holds</span>
