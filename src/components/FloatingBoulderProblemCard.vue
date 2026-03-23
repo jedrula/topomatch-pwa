@@ -225,19 +225,15 @@ const handleLinkButtonClick = () => {
   handleLink();
 };
 
-const confirmLink = async () => {
-  if (!confirmPrimaryId.value) return;
+const confirmLink = () => {
+  if (!confirmPrimaryId.value || isConfirming.value) return;
   isConfirming.value = true;
-  try {
-    emit('confirm-link', {
-      problemIdA: props.linkingProblemId,
-      problemIdB: props.problem.id,
-      primaryId: confirmPrimaryId.value,
-    });
-    showLinkConfirm.value = false;
-  } finally {
-    isConfirming.value = false;
-  }
+  emit('confirm-link', {
+    problemIdA: props.linkingProblemId,
+    problemIdB: props.problem.id,
+    primaryId: confirmPrimaryId.value,
+  });
+  showLinkConfirm.value = false;
 };
 
 // Template ref for the card element

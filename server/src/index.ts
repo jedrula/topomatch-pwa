@@ -945,19 +945,15 @@ export const getBoulderProblems = onCall({region: REGION}, async (request) => {
       }
       await Promise.all(
         linkedBatches.map(async (batch) => {
-          await Promise.all(
-            batch.map(async (lpId) => {
-              const lpSnap = await db
-                .collection("locations")
-                .doc(locationId)
-                .collection("boulderProblems")
-                .doc(lpId)
-                .get();
-              if (lpSnap.exists) {
-                linkedProblemsMap.set(lpId, { id: lpSnap.id, ...lpSnap.data() });
-              }
-            })
+          const docRefs = batch.map((lpId) =>
+            db.collection("locations").doc(locationId).collection("boulderProblems").doc(lpId)
           );
+          const snapshots = await db.getAll(...docRefs);
+          snapshots.forEach((lpSnap) => {
+            if (lpSnap.exists) {
+              linkedProblemsMap.set(lpSnap.id, { id: lpSnap.id, ...lpSnap.data() });
+            }
+          });
         })
       );
     }
@@ -1351,36 +1347,47 @@ export const linkBoulderProblems = onCall({region: REGION}, async (request) => {
 
   try {
     const problemsRef = db.collection("locations").doc(locationId).collection("boulderProblems");
-    const [primarySnap, secondarySnap] = await Promise.all([
-      problemsRef.doc(primaryId).get(),
-      problemsRef.doc(secondaryId).get(),
-    ]);
 
-    if (!primarySnap.exists) {
-      throw new Error(`Boulder problem not found: ${primaryId}`);
-    }
-    if (!secondarySnap.exists) {
-      throw new Error(`Boulder problem not found: ${secondaryId}`);
-    }
+    await db.runTransaction(async (transaction) => {
+      const primaryRef = problemsRef.doc(primaryId);
+      const secondaryRef = problemsRef.doc(secondaryId);
 
-    const batch = db.batch();
-    batch.update(problemsRef.doc(primaryId), {
-      linkedProblemId: secondaryId,
-      isPrimary: true,
-      updatedAt: new Date(),
+      const [primarySnap, secondarySnap] = await Promise.all([
+        transaction.get(primaryRef),
+        transaction.get(secondaryRef),
+      ]);
+
+      if (!primarySnap.exists) {
+        throw new Error(`Boulder problem not found: ${primaryId}`);
+      }
+      if (!secondarySnap.exists) {
+        throw new Error(`Boulder problem not found: ${secondaryId}`);
+      }
+
+      const primaryData = primarySnap.data() as { linkedProblemId?: string } | undefined;
+      const secondaryData = secondarySnap.data() as { linkedProblemId?: string } | undefined;
+
+      if (primaryData?.linkedProblemId || secondaryData?.linkedProblemId) {
+        throw new Error("One or both problems are already linked");
+      }
+
+      transaction.update(primaryRef, {
+        linkedProblemId: secondaryId,
+        isPrimary: true,
+        updatedAt: new Date(),
+      });
+      transaction.update(secondaryRef, {
+        linkedProblemId: primaryId,
+        isPrimary: false,
+        updatedAt: new Date(),
+      });
     });
-    batch.update(problemsRef.doc(secondaryId), {
-      linkedProblemId: primaryId,
-      isPrimary: false,
-      updatedAt: new Date(),
-    });
-    await batch.commit();
 
     logger.info(`Linked problems ${primaryId} (primary) <-> ${secondaryId} (secondary) in location ${locationId}`);
     return { message: "Problems linked successfully", primaryId, secondaryId };
   } catch (error) {
     logger.error("Error linking boulder problems:", error);
-    throw new Error("Failed to link boulder problems");
+    throw new Error((error as Error).message || "Failed to link boulder problems");
   }
 });
 
