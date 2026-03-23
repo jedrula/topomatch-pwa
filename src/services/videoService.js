@@ -418,23 +418,24 @@ export const videoService = {
    * @param {string} problemId - The boulder problem ID
    * @returns {Promise<Array>} Array of video objects with metadata
    */
-  async getProblemVideos(locationId, problemId) {
+  async getProblemVideos(locationId, problem) {
     try {
       const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
-      
-      const ascentsRef = collection(db, 'ascents');
-      const q = query(
-        ascentsRef,
-        where('problemId', '==', problemId),
-        orderBy('date', 'desc')
-      );
 
-      const querySnapshot = await getDocs(q);
-      const videos = querySnapshot.docs
-        .map(doc => this.transformAscentToVideo(doc))
-        .filter(v => v !== null);
+      const fetchOne = async (pid) => {
+        const ascentsRef = collection(db, 'ascents');
+        const q = query(ascentsRef, where('problemId', '==', pid), orderBy('date', 'desc'));
+        const snap = await getDocs(q);
+        return snap.docs.map(doc => this.transformAscentToVideo(doc)).filter(v => v !== null);
+      };
 
-      return videos;
+      if (!problem.linkedProblemId) return await fetchOne(problem.id);
+
+      const [main, linked] = await Promise.all([fetchOne(problem.id), fetchOne(problem.linkedProblemId)]);
+      const seen = new Set();
+      return [...main, ...linked]
+        .filter(v => { if (seen.has(v.id)) return false; seen.add(v.id); return true; })
+        .sort((a, b) => (b.uploadedAt?.getTime?.() || 0) - (a.uploadedAt?.getTime?.() || 0));
     } catch (error) {
       console.error('Error fetching problem videos:', error);
       throw error;
@@ -502,12 +503,12 @@ export const videoService = {
    * @param {string} problemId - The boulder problem ID
    * @returns {Promise<number>} Number of videos for the problem
    */
-  async getProblemVideoCount(locationId, problemId) {
+  async getProblemVideoCount(locationId, problem) {
     try {
-      const videos = await this.getProblemVideos(locationId, problemId);
+      const videos = await this.getProblemVideos(locationId, problem);
       return videos.length;
     } catch (error) {
-      console.warn(`Failed to get video count for problem ${problemId}:`, error);
+      console.warn(`Failed to get video count for problem ${problem.id}:`, error);
       return 0;
     }
   },

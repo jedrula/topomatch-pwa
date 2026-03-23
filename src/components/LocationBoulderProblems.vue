@@ -186,12 +186,16 @@ const toggleGradeExpansion = (gradeLabel) => {
   }
 };
 
-const getProblemDetailRoute = (problemId) => {
+const getProblemDetailRoute = (problem) => {
+  // Always navigate to the primary problem so the user sees the canonical page
+  const targetId = (!problem.isPrimary && problem.linkedProblemId)
+    ? problem.linkedProblemId
+    : problem.id;
   return {
     name: 'boulder-problem-detail',
     params: {
       locationId: props.locationId,
-      problemId: problemId,
+      problemId: targetId,
     },
   };
 };

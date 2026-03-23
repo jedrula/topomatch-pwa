@@ -307,7 +307,7 @@ const hideFloatingCard = () => {
   hoveredProblemId.value = null;
 };
 
-// Fetch and cache videos for a problem
+// Fetch and cache videos for a problem (and its linked partner if any)
 const fetchProblemVideos = async (problemId) => {
   // Return cached if available
   if (problemVideosCache.value.has(problemId)) {
@@ -329,7 +329,10 @@ const fetchProblemVideos = async (problemId) => {
   
   try {
     loadingVideos.value.add(problemId);
-    const videos = await videoService.getProblemVideos(props.locationId, problemId);
+
+    const problem = props.boulderProblems.find(p => p.id === problemId) || { id: problemId };
+    const videos = await videoService.getProblemVideos(props.locationId, problem);
+
     problemVideosCache.value.set(problemId, videos);
     return videos;
   } catch (error) {

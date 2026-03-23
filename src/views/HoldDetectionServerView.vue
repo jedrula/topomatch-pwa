@@ -1008,6 +1008,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { orderImagesBySectionOf } from '../utils/imageOrdering';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore.js';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore.js';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore.js';
@@ -1043,7 +1044,8 @@ const interactiveOverlay = ref(null); // TODO: Add component type
 const imageLoaded = ref(false);
 const currentImage = ref(null); // TODO: Add proper image type
 const imageLoadError = ref(null);
-const locationImages = ref([]); // All images for this location
+const locationImages = ref([]); // Images in same routesetting as current image, ordered by section
+const locationData = ref(null); // Full location object (for section-based nav ordering)
 
 // Fullscreen state (pseudo-fullscreen using CSS, not native API)
 const isFullscreen = ref(false)
@@ -2017,17 +2019,14 @@ const loadImageFromQuery = async () => {
 
       // Load image data from the location service (cache the filtered list for navigation)
       if (locationImages.value.length === 0) {
-        const imageRecords = await locationService.getLocationImages(locationId);
+        // Use the location's current routesetting (last entry = newest, same as LocationDetailView)
+        // so the server-side filter matches exactly what the location detail page shows.
+        const activeRoutesetting = locationData.value?.routesettings?.at(-1);
+        const imageRecords = await locationService.getLocationImages(locationId, activeRoutesetting || null);
         if (Array.isArray(imageRecords)) {
-          // Find the current image to determine its routesetting, then filter the list
-          const currentRecord = imageRecords.find(r => r.imageId === imageId);
-          if (currentRecord?.routesettings?.length > 0) {
-            locationImages.value = imageRecords.filter(r =>
-              r.routesettings?.some(rs => currentRecord.routesettings.includes(rs))
-            );
-          } else {
-            locationImages.value = imageRecords;
-          }
+          // Order by section order (same logic as FloorplanSectionDetail / location detail page)
+          const sections = locationData.value?.floorplan?.sections || [];
+          locationImages.value = orderImagesBySectionOf(imageId as string, sections, imageRecords);
         }
       }
       if (locationImages.value.length > 0) {
@@ -2164,17 +2163,18 @@ onMounted(async () => {
     }
   }
 
-  // Load location data to get grading system (once — doesn't change between images)
+  // Load location data (once — used for grading system and section-based nav ordering)
   if (route.params.locationId) {
     try {
       const location = await locationService.getLocation(route.params.locationId);
+      locationData.value = location;
       if (location && typeof location === 'object' && 'gradingSystem' in location && location.gradingSystem) {
         boulderProblemsStore.setLocationGradingSystem(location.gradingSystem);
       } else {
         boulderProblemsStore.setLocationGradingSystem(null);
       }
     } catch (error) {
-      console.warn('⚠️ Error loading location grading system:', error);
+      console.warn('⚠️ Error loading location data:', error);
       boulderProblemsStore.setLocationGradingSystem(null);
     }
   }
