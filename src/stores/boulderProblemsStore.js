@@ -537,6 +537,30 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     }
   };
 
+  const linkBoulderProblems = async (locationId, problemIdA, problemIdB, primaryId) => {
+    try {
+      await boulderProblemsService.linkBoulderProblems(locationId, problemIdA, problemIdB, primaryId);
+      if (currentLocationId.value && currentImageId.value) {
+        await loadBoulderProblems(currentLocationId.value, currentImageId.value);
+      }
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    }
+  };
+
+  const unlinkBoulderProblems = async (locationId, problemId) => {
+    try {
+      await boulderProblemsService.unlinkBoulderProblems(locationId, problemId);
+      if (currentLocationId.value && currentImageId.value) {
+        await loadBoulderProblems(currentLocationId.value, currentImageId.value);
+      }
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    }
+  };
+
   const clearError = () => {
     error.value = null;
   };
@@ -602,6 +626,8 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
     clearAllProblems,
     clearError,
     getProblemStats,
+    linkBoulderProblems,
+    unlinkBoulderProblems,
 
     // Grade conversion helpers
     getGradeObjectFromLabel,

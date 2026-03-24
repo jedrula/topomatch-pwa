@@ -291,6 +291,31 @@
       <div v-if="boulderProblemsStore.sortedProblems.length > 0" class="space-y-3">
         <h4 class="text-sm font-medium text-gray-900">Created Problems</h4>
 
+        <!-- Linking mode banner -->
+        <div
+          v-if="isLinkingMode"
+          class="mb-2 p-3 bg-indigo-50 border border-indigo-300 rounded-lg"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div class="text-xs text-indigo-800">
+              <span class="font-semibold">Linking "{{ linkingProblemName }}"</span>
+              <div class="mt-0.5 text-indigo-600">
+                <span v-if="linkingSourceOnCurrentImage">Navigate to the adjacent image, then click ↔ on the matching problem there.</span>
+                <span v-else>Click ↔ on the matching problem on this image.</span>
+              </div>
+            </div>
+            <button
+              @click="cancelLinking"
+              class="flex-shrink-0 text-indigo-400 hover:text-indigo-700 transition-colors"
+              title="Cancel linking"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
         <div class="space-y-2 max-h-64 overflow-y-auto">
           <!-- Grade-based expandable sections -->
           <div
@@ -408,6 +433,52 @@
                         />
                       </svg>
                     </button>
+
+                    <!-- Unlink button (problem already linked to another image) -->
+                    <button
+                      v-if="problem.linkedProblemId"
+                      @click="unlinkProblemAction(problem)"
+                      title="Unlink from sibling problem"
+                      class="p-1 text-indigo-400 hover:text-red-500 transition-colors"
+                    >
+                      <!-- Broken-link icon -->
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1M3 3l18 18" />
+                      </svg>
+                    </button>
+
+                    <!-- Link button (start linking or complete link) -->
+                    <button
+                      v-else-if="!boulderProblemsStore.isCreatingProblem"
+                      @click="handleLinkClick(problem)"
+                      :disabled="isLinkingMode && problem.id !== linkingProblemId && linkingSourceOnCurrentImage"
+                      :title="
+                        isLinkingMode && problem.id === linkingProblemId
+                          ? 'Cancel linking'
+                          : isLinkingMode && linkingSourceOnCurrentImage
+                          ? 'Navigate to the adjacent image to pick the linked problem'
+                          : isLinkingMode
+                          ? 'Link with this problem'
+                          : 'Link to problem on adjacent image'
+                      "
+                      :class="[
+                        'p-1 transition-colors',
+                        isLinkingMode && problem.id === linkingProblemId
+                          ? 'text-indigo-500 hover:text-gray-500'
+                          : isLinkingMode && !linkingSourceOnCurrentImage
+                          ? 'text-indigo-400 hover:text-indigo-700 animate-pulse'
+                          : isLinkingMode
+                          ? 'text-gray-200 cursor-not-allowed'
+                          : 'text-gray-300 hover:text-indigo-500',
+                      ]"
+                    >
+                      <!-- Chain / link icon -->
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
@@ -423,6 +494,43 @@
                   >
                     Unsaved changes
                   </span>
+                  <span v-if="problem.linkedProblemId" class="text-indigo-500">↔ linked</span>
+                </div>
+
+                <!-- Inline link confirmation -->
+                <div
+                  v-if="confirmLinkTarget?.id === problem.id"
+                  class="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg"
+                >
+                  <p class="text-xs font-medium text-indigo-800 mb-2">Which is the primary problem? (name &amp; grade source)</p>
+                  <div class="space-y-1.5 mb-3">
+                    <label class="flex items-center gap-2 text-xs cursor-pointer">
+                      <input type="radio" :value="linkingProblemId" v-model="confirmPrimaryId" class="accent-indigo-600" />
+                      <span class="font-medium">{{ linkingProblemName }}</span>
+                      <span class="text-gray-400">(other image)</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-xs cursor-pointer">
+                      <input type="radio" :value="problem.id" v-model="confirmPrimaryId" class="accent-indigo-600" />
+                      <span class="font-medium">{{ problem.name }}</span>
+                      <span class="text-gray-400">(this image)</span>
+                    </label>
+                  </div>
+                  <div class="flex gap-2">
+                    <button
+                      @click="confirmLink(problem)"
+                      :disabled="isLinkingOperation"
+                      class="flex-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-medium rounded transition-colors"
+                    >
+                      <span v-if="isLinkingOperation">Linking…</span>
+                      <span v-else>Confirm Link</span>
+                    </button>
+                    <button
+                      @click="cancelLinkConfirm"
+                      class="flex-1 px-3 py-1.5 border border-gray-300 text-xs rounded hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -902,6 +1010,94 @@ const saveAllChanges = async () => {
   } catch (error) {
     console.error('Error saving all changes:', error);
     // Error is already handled in the store and displayed in the UI
+  }
+};
+
+// ── Linking ──────────────────────────────────────────────────────────────
+
+// Linking state lives in the URL so it persists across image navigation.
+// linkingProblemId / linkingProblemName are added to ?query when linking starts.
+const linkingProblemId = computed(() => route.query.linkingProblemId || null);
+const linkingProblemName = computed(() => route.query.linkingProblemName || 'selected problem');
+const isLinkingMode = computed(() => !!linkingProblemId.value);
+
+// True when the source problem is on the current image (user hasn't navigated away yet)
+const linkingSourceOnCurrentImage = computed(() =>
+  isLinkingMode.value &&
+  boulderProblemsStore.sortedProblems.some((p) => p.id === linkingProblemId.value)
+);
+
+// Inline confirm state (second click on a target problem)
+const confirmLinkTarget = ref(null);  // problem object
+const confirmPrimaryId = ref(null);   // which of the two is primary
+const isLinkingOperation = ref(false);
+
+const startLinking = (problem) => {
+  router.replace({
+    query: {
+      ...route.query,
+      linkingProblemId: problem.id,
+      linkingProblemName: problem.name,
+    },
+  });
+};
+
+const cancelLinking = () => {
+  confirmLinkTarget.value = null;
+  confirmPrimaryId.value = null;
+  const { linkingProblemId: _a, linkingProblemName: _b, ...rest } = route.query;
+  router.replace({ query: rest });
+};
+
+const handleLinkClick = (problem) => {
+  if (!isLinkingMode.value) {
+    // Start linking this problem
+    startLinking(problem);
+    return;
+  }
+  if (problem.id === linkingProblemId.value) {
+    // Clicked the source problem again → cancel
+    cancelLinking();
+    return;
+  }
+  // Block same-image linking
+  if (linkingSourceOnCurrentImage.value) return;
+  // Open confirm for this target problem
+  confirmLinkTarget.value = problem;
+  confirmPrimaryId.value = linkingProblemId.value; // default: the first-picked is primary
+};
+
+const cancelLinkConfirm = () => {
+  confirmLinkTarget.value = null;
+  confirmPrimaryId.value = null;
+};
+
+const confirmLink = async (targetProblem) => {
+  if (!confirmPrimaryId.value) return;
+  const locationId = route.params.locationId;
+  isLinkingOperation.value = true;
+  try {
+    await boulderProblemsStore.linkBoulderProblems(
+      locationId,
+      linkingProblemId.value,
+      targetProblem.id,
+      confirmPrimaryId.value,
+    );
+    cancelLinking(); // clears URL params + confirm state
+  } catch (err) {
+    console.error('Error linking problems:', err);
+  } finally {
+    isLinkingOperation.value = false;
+  }
+};
+
+const unlinkProblemAction = async (problem) => {
+  if (!confirm(`Unlink "${problem.name}" from its sibling problem?`)) return;
+  const locationId = route.params.locationId;
+  try {
+    await boulderProblemsStore.unlinkBoulderProblems(locationId, problem.id);
+  } catch (err) {
+    console.error('Error unlinking problem:', err);
   }
 };
 

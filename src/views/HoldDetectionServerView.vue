@@ -127,6 +127,9 @@
                   </svg>
                 </button>
 
+                <!-- Image content: hidden on mobile when viewing info tab -->
+                <div v-show="!isFullscreen || mobilePanelTab === 'image'" style="display: contents">
+
                 <!-- Image Navigation overlay (fullscreen only) -->
                 <div
                   v-if="isFullscreen && imageLoaded && totalImageCount > 1"
@@ -204,6 +207,7 @@
                   :magic-wand-mode="magicWandMode"
                   :highlighted-hold-ids="highlightedHoldIds"
                   :highlight-color="highlightColor"
+                  :used-cluster-hold-ids="usedClusterHoldIds"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   @tool-selection-change="handleToolSelectionChange"
@@ -262,96 +266,144 @@
                     </div>
                   </div>
                 </div>
+                </div><!-- end: image content wrapper -->
 
                 <!-- Fullscreen Boulder Problems + Draft Problems -->
-                <BoulderProblemsManager
+                <div
                   v-if="isFullscreen && route.params.locationId"
-                  key="fullscreen-manager"
-                  v-bind="boulderProblemsManagerProps"
-                  v-model:model-value-problem-name="sharedProblemName"
-                  v-model:model-value-selected-grade="sharedSelectedGrade"
-                  v-model:model-value-problem-color="sharedProblemColor"
-                  :is-fullscreen="true"
-                  v-on="boulderProblemsManagerEvents"
+                  :class="mobilePanelTab === 'info'
+                    ? 'md:hidden absolute inset-0 overflow-y-auto z-10 bg-white'
+                    : 'hidden md:block'"
                 >
-                  <!-- Draft Problems (fullscreen, compact) -->
-                  <template v-if="route.query.imageId && serverStore.hasResults">
-                    <hr class="border-gray-200" />
-                    <div class="p-4">
-                      <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-xs font-semibold text-gray-900">Draft Problems</h3>
-                        <button
-                          v-if="draftState.clusters"
-                          @click="fetchDrafts"
-                          :disabled="draftState.loading"
-                          title="Re-fetch drafts"
-                          class="text-gray-400 hover:text-indigo-600 disabled:opacity-40 transition-colors"
-                        >
-                          <svg
-                            class="w-3.5 h-3.5"
-                            :class="draftState.loading ? 'animate-spin' : ''"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                          >
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      <!-- Initial fetch button -->
-                      <button
-                        v-if="!draftState.clusters"
-                        @click="fetchDrafts"
-                        :disabled="draftState.loading"
-                        class="w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-                      >
-                        <div
-                          v-if="draftState.loading"
-                          class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"
-                        ></div>
-                        <span>{{ draftState.loading ? 'Clustering...' : 'Fetch Drafts' }}</span>
-                      </button>
-
-                      <div v-if="draftState.error" class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
-                        {{ draftState.error }}
-                      </div>
-
-                      <div v-if="draftState.clusters" class="space-y-1">
-
-                        <div
-                          v-for="cluster in sortedDraftClusters"
-                          :key="cluster.clusterId"
-                          @click="toggleDraftCluster(cluster.clusterId)"
-                          class="flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition-colors text-xs"
-                          :class="selectedDraftClusterId === cluster.clusterId
-                            ? 'bg-indigo-50 border-indigo-300'
-                            : 'bg-gray-50 border-gray-100 hover:bg-gray-100'"
-                        >
-                          <div class="flex items-center space-x-1.5">
-                            <div
-                              class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                              :style="{ backgroundColor: cluster.dominantColor || clusterColor(cluster.clusterId) }"
-                            >
-                              {{ cluster.clusterId }}
-                            </div>
-                            <span class="text-gray-700">{{ cluster.holdIds.length }}</span>
-                            <span v-if="cluster.colorName" class="font-medium text-gray-500 capitalize">
-                              {{ cluster.colorName }}
-                            </span>
-                            <span class="text-green-600" v-if="cluster.unusedCount > 0">
-                              {{ cluster.unusedCount }} new
-                            </span>
-                          </div>
+                  <BoulderProblemsManager
+                    key="fullscreen-manager"
+                    v-bind="boulderProblemsManagerProps"
+                    v-model:model-value-problem-name="sharedProblemName"
+                    v-model:model-value-selected-grade="sharedSelectedGrade"
+                    v-model:model-value-problem-color="sharedProblemColor"
+                    :is-fullscreen="mobilePanelTab === 'image'"
+                    v-on="boulderProblemsManagerEvents"
+                  >
+                    <!-- Draft Problems (fullscreen, compact) -->
+                    <template v-if="route.query.imageId && serverStore.hasResults">
+                      <hr class="border-gray-200" />
+                      <div class="p-4">
+                        <div class="flex items-center justify-between mb-2">
+                          <h3 class="text-xs font-semibold text-gray-900">Draft Problems</h3>
                           <button
-                            @click.stop="useDraftCluster(cluster)"
-                            class="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                            v-if="draftState.clusters"
+                            @click="fetchDrafts"
+                            :disabled="draftState.loading"
+                            title="Re-fetch drafts"
+                            class="text-gray-400 hover:text-indigo-600 disabled:opacity-40 transition-colors"
                           >
-                            Use
+                            <svg
+                              class="w-3.5 h-3.5"
+                              :class="draftState.loading ? 'animate-spin' : ''"
+                              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            >
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
                           </button>
                         </div>
+
+                        <!-- Initial fetch button -->
+                        <button
+                          v-if="!draftState.clusters"
+                          @click="fetchDrafts"
+                          :disabled="draftState.loading"
+                          class="w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+                        >
+                          <div
+                            v-if="draftState.loading"
+                            class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"
+                          ></div>
+                          <span>{{ draftState.loading ? 'Clustering...' : 'Fetch Drafts' }}</span>
+                        </button>
+
+                        <div v-if="draftState.error" class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+                          {{ draftState.error }}
+                        </div>
+
+                        <div v-if="draftState.clusters" class="space-y-1">
+
+                          <div
+                            v-for="cluster in sortedDraftClusters"
+                            :key="cluster.clusterId"
+                            @click="toggleDraftCluster(cluster.clusterId)"
+                            class="flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition-colors text-xs"
+                            :class="selectedDraftClusterId === cluster.clusterId
+                              ? 'bg-indigo-50 border-indigo-300'
+                              : 'bg-gray-50 border-gray-100 hover:bg-gray-100'"
+                          >
+                            <div class="flex items-center space-x-1.5">
+                              <div
+                                class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                                :style="{ backgroundColor: cluster.dominantColor || clusterColor(cluster.clusterId) }"
+                              >
+                                {{ cluster.clusterId }}
+                              </div>
+                              <span class="text-gray-700">{{ cluster.holdIds.length }}</span>
+                              <span v-if="cluster.colorName" class="font-medium text-gray-500 capitalize">
+                                {{ cluster.colorName }}
+                              </span>
+                              <span class="text-green-600" v-if="cluster.unusedCount > 0">
+                                {{ cluster.unusedCount }} new
+                              </span>
+                            </div>
+                            <button
+                              @click.stop="useDraftCluster(cluster)"
+                              class="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                            >
+                              Use
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </template>
-                </BoulderProblemsManager>
+                    </template>
+
+                    <!-- Crop Holds (fullscreen) -->
+                    <template v-if="serverStore.hasResults && !boulderProblemsStore.isCreatingProblem && !editingState.isEditing">
+                      <hr class="border-gray-200" />
+                      <div class="p-4 space-y-3">
+                        <button
+                          @click="toggleCropMode"
+                          :class="[
+                            'w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2',
+                            serverStore.isCropMode
+                              ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                              : 'border border-rose-500 text-rose-700 hover:bg-rose-50',
+                          ]"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                          </svg>
+                          <span>{{ serverStore.isCropMode ? 'Crop Mode ON' : 'Crop Holds' }}</span>
+                        </button>
+                      </div>
+                    </template>
+                  </BoulderProblemsManager>
+                  <!-- Spacer so content scrolls above the fixed tab bar -->
+                  <div class="mobile-scroll-spacer" aria-hidden="true"></div>
+                </div>
+
+                <!-- Mobile toggle FAB (fullscreen mode only) -->
+                <button
+                  v-if="isFullscreen"
+                  @click="mobilePanelTab = mobilePanelTab === 'image' ? 'info' : 'image'"
+                  class="mobile-toggle-fab md:hidden"
+                  :title="mobilePanelTab === 'image' ? 'Show problems' : 'Show image'"
+                  :aria-label="mobilePanelTab === 'image' ? 'Show problems' : 'Show image'"
+                >
+                  <!-- Show problems icon when on image tab -->
+                  <svg v-if="mobilePanelTab === 'image'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <!-- Show image icon when on info tab -->
+                  <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </button>
               </div>
 
               <!-- Action Buttons -->
@@ -940,7 +992,13 @@
       :problem="floatingCard.problem"
       :position="floatingCard.position"
       :location-id="locationId"
+      :linking-problem-id="(route.query.linkingProblemId as string) || null"
+      :linking-problem-name="(route.query.linkingProblemName as string) || ''"
+      :linking-source-on-current-image="linkingSourceOnCurrentImage"
       @edit="handleFloatingCardEdit"
+      @link="handleFloatingCardLink"
+      @unlink="handleFloatingCardUnlink"
+      @confirm-link="handleFloatingCardConfirmLink"
       @toggle-visibility="handleFloatingCardToggleVisibility"
       @mouse-enter="handleFloatingCardMouseEnter"
       @mouse-leave="handleFloatingCardMouseLeave"
@@ -951,6 +1009,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { orderImagesBySectionOf } from '../utils/imageOrdering';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore.js';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore.js';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore.js';
@@ -986,10 +1045,12 @@ const interactiveOverlay = ref(null); // TODO: Add component type
 const imageLoaded = ref(false);
 const currentImage = ref(null); // TODO: Add proper image type
 const imageLoadError = ref(null);
-const locationImages = ref([]); // All images for this location
+const locationImages = ref([]); // Images in same routesetting as current image, ordered by section
+const locationData = ref(null); // Full location object (for section-based nav ordering)
 
 // Fullscreen state (pseudo-fullscreen using CSS, not native API)
 const isFullscreen = ref(false)
+const mobilePanelTab = ref('image') // 'image' | 'info' - mobile tab toggle in fullscreen
 
 // Shared state for boulder problem form (persists across fullscreen toggle)
 const sharedProblemName = ref('');
@@ -1141,6 +1202,11 @@ const highlightedHoldIds = computed(() => {
   if (showUnassigned.value) return unassignedHoldIds.value;
   return [];
 });
+// Already-used holds within the selected cluster (shown grey)
+const usedClusterHoldIds = computed(() => {
+  if (!selectedDraftCluster.value) return [];
+  return selectedDraftCluster.value.holdIds.filter(id => usedHoldIds.value.has(id));
+});
 const highlightColor = computed(() => {
   if (selectedDraftClusterId.value !== null) return clusterColor(selectedDraftClusterId.value);
   if (showUnassigned.value) return '#f59e0b'; // amber for unassigned
@@ -1189,7 +1255,8 @@ const useDraftCluster = async (cluster) => {
   const problem = boulderProblemsStore.activeProblem;
   if (!problem) return;
 
-  addHoldsByIds(cluster.holdIds, problem);
+  const newHoldIds = cluster.holdIds.filter(id => !usedHoldIds.value.has(id));
+  addHoldsByIds(newHoldIds, problem);
 
   selectedDraftClusterId.value = null;
 };
@@ -1703,7 +1770,7 @@ const showSuccessNotification = (message) => {
 };
 
 // Hold interaction handlers
-const handleHoldClick = (hold, holdIndex) => {
+const handleHoldClick = (hold, holdIndex, forceReassign = false) => {
 
   // Check if we're in boulder creation/editing mode
   const isBoulderMode = boulderProblemsStore.isCreatingProblem || editingState.value.isEditing;
@@ -1800,10 +1867,14 @@ const handleHoldClick = (hold, holdIndex) => {
       return;
     }
 
-    // If hold belongs to a different problem than the one being worked on, prevent selection
+    // If hold belongs to a different problem than the one being worked on, block or force-reassign
     if (existingProblem && existingProblem.id !== targetProblem.id) {
-      console.warn(`⚠️ Hold ${holdIndex} is already part of problem #${existingProblem.id}`);
-      return;
+      if (forceReassign) {
+        boulderProblemsStore.removeHoldFromProblem(existingProblem.id, hold.id);
+      } else {
+        console.warn(`⚠️ Hold ${holdIndex} is already part of problem #${existingProblem.id}`);
+        return;
+      }
     }
 
     // Ensure hold has svgMarkup (converts from pathPoints if needed for manual holds)
@@ -1947,27 +2018,16 @@ const loadImageFromQuery = async () => {
       // Initialize persistence store for this location
       persistenceStore.initializeForLocation(locationId);
 
-      // Load existing boulder problems for this image
-
-      // Load location data to get grading system
-      try {
-        const location = await locationService.getLocation(locationId)
-        if (location && typeof location === 'object' && 'gradingSystem' in location && location.gradingSystem) {
-          boulderProblemsStore.setLocationGradingSystem(location.gradingSystem);
-        } else {
-          boulderProblemsStore.setLocationGradingSystem(null);
-        }
-      } catch (error) {
-        console.warn('⚠️ Error loading location grading system:', error)
-        // Continue with default system
-        boulderProblemsStore.setLocationGradingSystem(null);
-      }
-
-      // Load image data from the location service (cache the full list for navigation)
+      // Load image data from the location service (cache the filtered list for navigation)
       if (locationImages.value.length === 0) {
-        const imageRecords = await locationService.getLocationImages(locationId);
+        // Use the location's current routesetting (last entry = newest, same as LocationDetailView)
+        // so the server-side filter matches exactly what the location detail page shows.
+        const activeRoutesetting = locationData.value?.routesettings?.at(-1);
+        const imageRecords = await locationService.getLocationImages(locationId, activeRoutesetting || null);
         if (Array.isArray(imageRecords)) {
-          locationImages.value = imageRecords;
+          // Order by section order (same logic as FloorplanSectionDetail / location detail page)
+          const sections = locationData.value?.floorplan?.sections || [];
+          locationImages.value = orderImagesBySectionOf(imageId as string, sections, imageRecords);
         }
       }
       if (locationImages.value.length > 0) {
@@ -2104,6 +2164,22 @@ onMounted(async () => {
     }
   }
 
+  // Load location data (once — used for grading system and section-based nav ordering)
+  if (route.params.locationId) {
+    try {
+      const location = await locationService.getLocation(route.params.locationId);
+      locationData.value = location;
+      if (location && typeof location === 'object' && 'gradingSystem' in location && location.gradingSystem) {
+        boulderProblemsStore.setLocationGradingSystem(location.gradingSystem);
+      } else {
+        boulderProblemsStore.setLocationGradingSystem(null);
+      }
+    } catch (error) {
+      console.warn('⚠️ Error loading location data:', error);
+      boulderProblemsStore.setLocationGradingSystem(null);
+    }
+  }
+
   // Load image based on query parameters
   await loadImageFromQuery();
 
@@ -2121,10 +2197,51 @@ onUnmounted(() => {
   }
 });
 
+// Reset mobile tab when exiting fullscreen
+watch(isFullscreen, (val) => {
+  if (!val) mobilePanelTab.value = 'image';
+});
+
 // Floating card event handlers
 const handleFloatingCardEdit = (problem) => {
   // Use URL-based editing state management
   startEditingProblem(problem);
+};
+
+const handleFloatingCardLink = (problem: any) => {
+  router.replace({
+    query: {
+      ...route.query,
+      linkingProblemId: problem.id,
+      linkingProblemName: problem.name,
+    },
+  });
+};
+
+const handleFloatingCardUnlink = async (problem: any) => {
+  if (!confirm(`Unlink "${problem.name}" from its sibling problem?`)) return;
+  try {
+    await boulderProblemsStore.unlinkBoulderProblems(route.params.locationId as string, problem.id);
+  } catch (err) {
+    alert(`Failed to unlink problem: ${(err as Error).message || err}`);
+  }
+};
+
+// True when the linking-source problem belongs to the current image's problem list
+const linkingSourceOnCurrentImage = computed(() => {
+  const linkingId = route.query.linkingProblemId as string | undefined;
+  if (!linkingId) return false;
+  return boulderProblemsStore.sortedProblems.some((p: any) => p.id === linkingId);
+});
+
+const handleFloatingCardConfirmLink = async ({ problemIdA, problemIdB, primaryId }: { problemIdA: string; problemIdB: string; primaryId: string }) => {
+  try {
+    await boulderProblemsStore.linkBoulderProblems(route.params.locationId as string, problemIdA, problemIdB, primaryId);
+    const { linkingProblemId: _a, linkingProblemName: _b, ...rest } = route.query;
+    router.replace({ query: rest });
+  } catch (err) {
+    alert(`Failed to link problems: ${(err as Error).message || err}`);
+  }
 };
 
 const handleFloatingCardToggleVisibility = (problem) => {
@@ -2184,4 +2301,30 @@ const handleFloatingCardMouseLeave = () => {
 }
 
 /* Remove old native fullscreen styles - no longer needed */
+
+/* Single floating toggle button - fixed bottom-right, well above any browser chrome */
+.mobile-toggle-fab {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  z-index: 10000;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Spacer at the bottom of the info scroll panel - well above any chrome */
+.mobile-scroll-spacer {
+  height: 120px;
+  flex-shrink: 0;
+}
 </style>

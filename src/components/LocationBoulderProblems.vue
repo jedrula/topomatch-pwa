@@ -65,11 +65,18 @@
                     :style="{ backgroundColor: problem.color }"
                   ></div>
                   <router-link
-                    :to="getProblemDetailRoute(problem.id)"
+                    :to="getProblemDetailRoute(problem)"
                     class="font-medium text-gray-900 group-hover:text-blue-700 truncate hover:underline focus:outline-none focus:underline"
                   >
                     {{ problem.name }}
                   </router-link>
+                  <!-- Linked-problem indicator -->
+                  <span
+                    v-if="problem.linkedProblemId"
+                    title="This problem continues on an adjacent image"
+                    class="text-xs text-indigo-500 select-none"
+                    aria-label="Linked across images"
+                  >↔</span>
                 </div>
                 <div class="flex items-center space-x-2 text-sm text-gray-500 flex-shrink-0">
                   <span>{{ problem.holds?.length || 0 }} holds</span>
@@ -96,7 +103,7 @@
                   
                   <!-- Problem detail link arrow -->
                   <router-link
-                    :to="getProblemDetailRoute(problem.id)"
+                    :to="getProblemDetailRoute(problem)"
                     class="p-1 text-gray-400 hover:text-blue-500 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     title="View problem details"
                     :aria-label="`View details for ${problem.name}`"
@@ -179,12 +186,16 @@ const toggleGradeExpansion = (gradeLabel) => {
   }
 };
 
-const getProblemDetailRoute = (problemId) => {
+const getProblemDetailRoute = (problem) => {
+  // Always navigate to the primary problem so the user sees the canonical page
+  const targetId = (!problem.isPrimary && problem.linkedProblemId)
+    ? problem.linkedProblemId
+    : problem.id;
   return {
     name: 'boulder-problem-detail',
     params: {
       locationId: props.locationId,
-      problemId: problemId,
+      problemId: targetId,
     },
   };
 };

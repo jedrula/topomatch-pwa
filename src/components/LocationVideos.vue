@@ -273,6 +273,10 @@ const props = defineProps({
   allRoutesettings: {
     type: Array,
     default: () => []
+  },
+  boulderProblems: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -499,9 +503,14 @@ const getPlayerVideos = async () => {
   let filteredVideos = allVideos.filter(video => video.url || video.downloadUrl);
   
   // If problemId is in query params, filter to only that problem's videos
+  // (including the linked partner so all recordings of the same holds are shown)
   const problemId = route.query.problemId;
   if (problemId) {
-    filteredVideos = filteredVideos.filter(video => video.problemId === problemId);
+    const problem = props.boulderProblems.find(p => p.id === problemId);
+    const linkedId = problem?.linkedProblemId;
+    filteredVideos = filteredVideos.filter(video =>
+      video.problemId === problemId || (linkedId && video.problemId === linkedId)
+    );
   }
   
   return filteredVideos;

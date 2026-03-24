@@ -12,6 +12,8 @@ const deleteAllBoulderProblemsFn = httpsCallable(functions, 'deleteAllBoulderPro
 const addHoldToProblemFn = httpsCallable(functions, 'addHoldToProblem');
 const removeHoldFromProblemFn = httpsCallable(functions, 'removeHoldFromProblem');
 const updateProblemHoldsFn = httpsCallable(functions, 'updateProblemHolds');
+const linkBoulderProblemsFn = httpsCallable(functions, 'linkBoulderProblems');
+const unlinkBoulderProblemsFn = httpsCallable(functions, 'unlinkBoulderProblems');
 
 export const boulderProblemsServiceV2 = {
   /**
@@ -238,6 +240,39 @@ export const boulderProblemsServiceV2 = {
       return metadata;
     } catch (error) {
       console.error('Error fetching hold detection metadata:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Link two boulder problems across adjacent images.
+   * @param {string} locationId
+   * @param {string} problemIdA
+   * @param {string} problemIdB
+   * @param {string} primaryId - Must be either problemIdA or problemIdB
+   */
+  async linkBoulderProblems(locationId, problemIdA, problemIdB, primaryId) {
+    try {
+      const result = await linkBoulderProblemsFn({ locationId, problemIdA, problemIdB, primaryId });
+      return result.data;
+    } catch (error) {
+      console.error('Error linking boulder problems:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Remove the link between two boulder problems.
+   * Pass either problem's ID — the backend clears both sides.
+   * @param {string} locationId
+   * @param {string} problemId
+   */
+  async unlinkBoulderProblems(locationId, problemId) {
+    try {
+      const result = await unlinkBoulderProblemsFn({ locationId, problemId });
+      return result.data;
+    } catch (error) {
+      console.error('Error unlinking boulder problems:', error);
       throw error;
     }
   },

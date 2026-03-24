@@ -225,10 +225,9 @@ export function hexToColorName(hex) {
   else if (hDeg < 320) base = 'magenta';
   else base = 'pink';
 
-  // Lightness / saturation modifier
+  // Lightness modifier only — high saturation is expected for hold colors
   if (l < 0.3) return `dark ${base}`;
   if (l > 0.73) return `light ${base}`;
-  if (s > 0.55) return `vivid ${base}`;
 
   return base;
 }

@@ -83,6 +83,7 @@ import { ref, computed } from 'vue';
 import draggable from 'vuedraggable';
 import { useImageContextMenu } from '../../composables/useImageContextMenu';
 import { getResizedImageUrl } from '../../utils/imageResize';
+import { orderImagesBySection } from '../../utils/imageOrdering';
 
 const props = defineProps({
   section: {
@@ -114,15 +115,7 @@ const { showContextMenu } = useImageContextMenu({
 });
 
 // Get images for this section based on imageIds
-const displayImages = computed(() => {
-  if (!props.section.imageIds || props.section.imageIds.length === 0) {
-    return [];
-  }
-  
-  return props.section.imageIds
-    .map(imageId => props.images.find(img => img.imageId === imageId))
-    .filter(Boolean); // Filter out undefined if image not found
-});
+const displayImages = computed(() => orderImagesBySection(props.section.imageIds, props.images));
 
 // Get thumbnail URLs for faster loading in panorama view
 const displayImagesWithThumbnails = computed(() => {

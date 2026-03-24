@@ -208,11 +208,9 @@ const loadBetaVideos = async () => {
   
   try {
     videosLoading.value = true;
-    // videoService.getProblemVideos already returns videos in the correct format
-    betaVideos.value = await videoService.getProblemVideos(
-      route.params.locationId,
-      route.params.problemId
-    );
+    const locationId = route.params.locationId;
+
+    betaVideos.value = await videoService.getProblemVideos(problem.value);
   } catch (err) {
     console.error('Error loading beta videos:', err);
   } finally {
@@ -329,6 +327,15 @@ const loadProblemData = async () => {
 
     if (!problem.value) {
       error.value = 'Boulder problem not found';
+      return;
+    }
+
+    // Secondary problems redirect to their primary so users always land on the canonical page
+    if (!problem.value.isPrimary && problem.value.linkedProblemId) {
+      router.replace({
+        name: 'boulder-problem-detail',
+        params: { locationId, problemId: problem.value.linkedProblemId },
+      });
       return;
     }
 

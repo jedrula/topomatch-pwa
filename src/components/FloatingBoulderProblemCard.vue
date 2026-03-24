@@ -75,6 +75,68 @@
               />
             </svg>
           </button>
+
+          <!-- Link / unlink button -->
+          <button
+            v-if="canEdit && !assignmentMode"
+            @click.stop="handleLinkButtonClick"
+            :disabled="isLinkingMode && linkingSourceOnCurrentImage && !isLinkTarget"
+            :title="linkButtonTitle"
+            :aria-label="linkButtonTitle"
+            :class="[
+              'w-7 h-7 flex items-center justify-center rounded transition-all flex-shrink-0',
+              problem.linkedProblemId
+                ? 'text-indigo-400 hover:text-red-500 hover:bg-red-50'
+                : isLinkingMode && isLinkTarget
+                ? 'text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 animate-pulse'
+                : isLinkingMode && linkingSourceOnCurrentImage
+                ? 'text-gray-200 cursor-not-allowed'
+                : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50',
+            ]"
+          >
+            <svg v-if="problem.linkedProblemId" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1M3 3l18 18" />
+            </svg>
+            <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Inline link confirm (shown when this card is the link target) -->
+        <div
+          v-if="showLinkConfirm"
+          class="mt-2 pt-2 border-t border-indigo-100"
+          @click.stop
+        >
+          <p class="text-xs font-medium text-indigo-800 mb-2">Which is the primary? (name &amp; grade source)</p>
+          <div class="space-y-1 mb-2">
+            <label class="flex items-center gap-2 text-xs cursor-pointer">
+              <input type="radio" :value="linkingProblemId" v-model="confirmPrimaryId" class="accent-indigo-600" />
+              <span class="font-medium truncate">{{ linkingProblemName }}</span>
+              <span class="text-gray-400 flex-shrink-0">(other image)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs cursor-pointer">
+              <input type="radio" :value="problem.id" v-model="confirmPrimaryId" class="accent-indigo-600" />
+              <span class="font-medium truncate">{{ problem.name }}</span>
+              <span class="text-gray-400 flex-shrink-0">(this image)</span>
+            </label>
+          </div>
+          <div class="flex gap-2">
+            <button
+              @click.stop="confirmLink"
+              :disabled="isConfirming"
+              class="flex-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-medium rounded transition-colors"
+            >
+              {{ isConfirming ? 'Linking…' : 'Confirm Link' }}
+            </button>
+            <button
+              @click.stop="showLinkConfirm = false"
+              class="flex-1 px-2 py-1 border border-gray-300 text-xs rounded hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -111,12 +173,70 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  linkingProblemId: {
+    type: String,
+    default: null,
+  },
+  linkingProblemName: {
+    type: String,
+    default: '',
+  },
+  linkingSourceOnCurrentImage: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['edit', 'toggle-visibility', 'mouse-enter', 'mouse-leave', 'show-videos', 'assign-problem']);
+const emit = defineEmits(['edit', 'link', 'unlink', 'confirm-link', 'toggle-visibility', 'mouse-enter', 'mouse-leave', 'show-videos', 'assign-problem']);
 
 // Check if user can edit (admin only)
 const canEdit = computed(() => userStore.isAdmin);
+
+// Linking helpers
+const isLinkingMode = computed(() => !!props.linkingProblemId);
+const isLinkTarget = computed(() =>
+  isLinkingMode.value &&
+  props.problem?.id !== props.linkingProblemId &&
+  !props.linkingSourceOnCurrentImage
+);
+
+const showLinkConfirm = ref(false);
+const confirmPrimaryId = ref(null);
+const isConfirming = ref(false);
+
+const linkButtonTitle = computed(() => {
+  if (props.problem?.linkedProblemId) return 'Unlink from sibling problem';
+  if (isLinkingMode.value && isLinkTarget.value) return 'Link with this problem';
+  if (isLinkingMode.value && props.linkingSourceOnCurrentImage) return 'Navigate to the adjacent image first';
+  return 'Link to problem on adjacent image';
+});
+
+const handleLinkButtonClick = () => {
+  if (props.problem?.linkedProblemId) {
+    handleUnlink();
+    return;
+  }
+  if (isLinkingMode.value && isLinkTarget.value) {
+    // Open inline confirm
+    confirmPrimaryId.value = props.linkingProblemId;
+    showLinkConfirm.value = true;
+    return;
+  }
+  if (isLinkingMode.value && props.linkingSourceOnCurrentImage) return; // blocked
+  handleLink();
+};
+
+const confirmLink = () => {
+  if (!confirmPrimaryId.value || isConfirming.value) return;
+  isConfirming.value = true;
+  emit('confirm-link', {
+    problemIdA: props.linkingProblemId,
+    problemIdB: props.problem.id,
+    primaryId: confirmPrimaryId.value,
+  });
+  showLinkConfirm.value = false;
+  isConfirming.value = false;
+};
 
 // Template ref for the card element
 const cardElement = ref(null);
@@ -222,6 +342,18 @@ const visibilityState = computed(() => {
 const handleEdit = () => {
   if (props.problem) {
     emit('edit', props.problem);
+  }
+};
+
+const handleLink = () => {
+  if (props.problem) {
+    emit('link', props.problem);
+  }
+};
+
+const handleUnlink = () => {
+  if (props.problem) {
+    emit('unlink', props.problem);
   }
 };
 
