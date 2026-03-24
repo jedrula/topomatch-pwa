@@ -414,11 +414,10 @@ export const videoService = {
 
   /**
    * Get all videos for a specific boulder problem, including linked problem videos.
-   * @param {string} locationId - The location ID
    * @param {{ id: string, linkedProblemId?: string }} problem - The boulder problem object
    * @returns {Promise<Array>} Array of video objects with metadata, deduplicated and sorted newest first
    */
-  async getProblemVideos(locationId, problem) {
+  async getProblemVideos(problem) {
     try {
       const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
 
@@ -498,14 +497,13 @@ export const videoService = {
   },
 
   /**
-   * Get video count for a specific problem
-   * @param {string} locationId - The location ID
-   * @param {string} problemId - The boulder problem ID
+   * Get video count for a specific boulder problem, including linked problem videos.
+   * @param {{ id: string, linkedProblemId?: string }} problem - The boulder problem object
    * @returns {Promise<number>} Number of videos for the problem
    */
-  async getProblemVideoCount(locationId, problem) {
+  async getProblemVideoCount(problem) {
     try {
-      const videos = await this.getProblemVideos(locationId, problem);
+      const videos = await this.getProblemVideos(problem);
       return videos.length;
     } catch (error) {
       console.warn(`Failed to get video count for problem ${problem.id}:`, error);

@@ -1346,6 +1346,10 @@ export const linkBoulderProblems = onCall({region: REGION}, async (request) => {
     throw new Error("primaryId must be either problemIdA or problemIdB");
   }
 
+  if (problemIdA === problemIdB) {
+    throw new Error("Cannot link a problem to itself");
+  }
+
   const secondaryId = primaryId === problemIdA ? problemIdB : problemIdA;
 
   try {
@@ -1443,6 +1447,6 @@ export const unlinkBoulderProblems = onCall({region: REGION}, async (request) =>
     return { message: "Problems unlinked successfully" };
   } catch (error) {
     logger.error("Error unlinking boulder problems:", error);
-    throw new Error("Failed to unlink boulder problems");
+    throw new Error((error as Error).message || "Failed to unlink boulder problems");
   }
 });

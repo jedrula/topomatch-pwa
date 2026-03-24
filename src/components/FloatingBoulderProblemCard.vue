@@ -82,6 +82,7 @@
             @click.stop="handleLinkButtonClick"
             :disabled="isLinkingMode && linkingSourceOnCurrentImage && !isLinkTarget"
             :title="linkButtonTitle"
+            :aria-label="linkButtonTitle"
             :class="[
               'w-7 h-7 flex items-center justify-center rounded transition-all flex-shrink-0',
               problem.linkedProblemId

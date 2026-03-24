@@ -393,6 +393,7 @@
                   @click="mobilePanelTab = mobilePanelTab === 'image' ? 'info' : 'image'"
                   class="mobile-toggle-fab md:hidden"
                   :title="mobilePanelTab === 'image' ? 'Show problems' : 'Show image'"
+                  :aria-label="mobilePanelTab === 'image' ? 'Show problems' : 'Show image'"
                 >
                   <!-- Show problems icon when on image tab -->
                   <svg v-if="mobilePanelTab === 'image'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

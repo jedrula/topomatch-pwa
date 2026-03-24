@@ -210,7 +210,7 @@ const loadBetaVideos = async () => {
     videosLoading.value = true;
     const locationId = route.params.locationId;
 
-    betaVideos.value = await videoService.getProblemVideos(locationId, problem.value);
+    betaVideos.value = await videoService.getProblemVideos(problem.value);
   } catch (err) {
     console.error('Error loading beta videos:', err);
   } finally {

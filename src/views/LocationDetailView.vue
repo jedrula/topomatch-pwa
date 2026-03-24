@@ -864,7 +864,7 @@ const loadProblemVideoCounts = async () => {
     // Get video counts for each boulder problem
     for (const problem of boulderProblemsStore.boulderProblems) {
       try {
-        const count = await videoService.getProblemVideoCount(locationId.value, problem);
+        const count = await videoService.getProblemVideoCount(problem);
         counts[problem.id] = count;
       } catch (err) {
         console.warn(`Failed to load video count for problem ${problem.id}:`, err);
@@ -1005,7 +1005,7 @@ const getProblemVideoCount = (problemId) => {
 const openProblemVideos = async (problem) => {
   try {
     // Get videos for this specific problem
-    const problemVideos = await videoService.getProblemVideos(locationId.value, problem);
+    const problemVideos = await videoService.getProblemVideos(problem);
 
     if (problemVideos.length === 0) {
       // No videos for this problem

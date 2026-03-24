@@ -331,7 +331,7 @@ const fetchProblemVideos = async (problemId) => {
     loadingVideos.value.add(problemId);
 
     const problem = props.boulderProblems.find(p => p.id === problemId) || { id: problemId };
-    const videos = await videoService.getProblemVideos(props.locationId, problem);
+    const videos = await videoService.getProblemVideos(problem);
 
     problemVideosCache.value.set(problemId, videos);
     return videos;
