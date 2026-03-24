@@ -1332,6 +1332,9 @@ export const linkBoulderProblems = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
   }
+  if (!request.auth.token?.admin) {
+    throw new Error("Admin privileges required");
+  }
 
   const { locationId, problemIdA, problemIdB, primaryId } = request.data;
 
@@ -1394,6 +1397,9 @@ export const linkBoulderProblems = onCall({region: REGION}, async (request) => {
 export const unlinkBoulderProblems = onCall({region: REGION}, async (request) => {
   if (!request.auth) {
     throw new Error("Authentication required");
+  }
+  if (!request.auth.token?.admin) {
+    throw new Error("Admin privileges required");
   }
 
   const { locationId, problemId } = request.data;

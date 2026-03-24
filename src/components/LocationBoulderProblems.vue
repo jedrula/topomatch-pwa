@@ -65,7 +65,7 @@
                     :style="{ backgroundColor: problem.color }"
                   ></div>
                   <router-link
-                    :to="getProblemDetailRoute(problem.id)"
+                    :to="getProblemDetailRoute(problem)"
                     class="font-medium text-gray-900 group-hover:text-blue-700 truncate hover:underline focus:outline-none focus:underline"
                   >
                     {{ problem.name }}
@@ -103,7 +103,7 @@
                   
                   <!-- Problem detail link arrow -->
                   <router-link
-                    :to="getProblemDetailRoute(problem.id)"
+                    :to="getProblemDetailRoute(problem)"
                     class="p-1 text-gray-400 hover:text-blue-500 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     title="View problem details"
                     :aria-label="`View details for ${problem.name}`"

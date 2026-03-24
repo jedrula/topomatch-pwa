@@ -2219,7 +2219,11 @@ const handleFloatingCardLink = (problem: any) => {
 
 const handleFloatingCardUnlink = async (problem: any) => {
   if (!confirm(`Unlink "${problem.name}" from its sibling problem?`)) return;
-  await boulderProblemsStore.unlinkBoulderProblems(route.params.locationId as string, problem.id);
+  try {
+    await boulderProblemsStore.unlinkBoulderProblems(route.params.locationId as string, problem.id);
+  } catch (err) {
+    alert(`Failed to unlink problem: ${(err as Error).message || err}`);
+  }
 };
 
 // True when the linking-source problem belongs to the current image's problem list
@@ -2230,10 +2234,13 @@ const linkingSourceOnCurrentImage = computed(() => {
 });
 
 const handleFloatingCardConfirmLink = async ({ problemIdA, problemIdB, primaryId }: { problemIdA: string; problemIdB: string; primaryId: string }) => {
-  await boulderProblemsStore.linkBoulderProblems(route.params.locationId as string, problemIdA, problemIdB, primaryId);
-  // Clear linking URL params
-  const { linkingProblemId: _a, linkingProblemName: _b, ...rest } = route.query;
-  router.replace({ query: rest });
+  try {
+    await boulderProblemsStore.linkBoulderProblems(route.params.locationId as string, problemIdA, problemIdB, primaryId);
+    const { linkingProblemId: _a, linkingProblemName: _b, ...rest } = route.query;
+    router.replace({ query: rest });
+  } catch (err) {
+    alert(`Failed to link problems: ${(err as Error).message || err}`);
+  }
 };
 
 const handleFloatingCardToggleVisibility = (problem) => {

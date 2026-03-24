@@ -413,10 +413,10 @@ export const videoService = {
   },
 
   /**
-   * Get all videos for a specific boulder problem
+   * Get all videos for a specific boulder problem, including linked problem videos.
    * @param {string} locationId - The location ID
-   * @param {string} problemId - The boulder problem ID
-   * @returns {Promise<Array>} Array of video objects with metadata
+   * @param {{ id: string, linkedProblemId?: string }} problem - The boulder problem object
+   * @returns {Promise<Array>} Array of video objects with metadata, deduplicated and sorted newest first
    */
   async getProblemVideos(locationId, problem) {
     try {

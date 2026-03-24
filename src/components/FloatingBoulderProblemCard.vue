@@ -234,6 +234,7 @@ const confirmLink = () => {
     primaryId: confirmPrimaryId.value,
   });
   showLinkConfirm.value = false;
+  isConfirming.value = false;
 };
 
 // Template ref for the card element
