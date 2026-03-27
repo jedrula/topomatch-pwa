@@ -183,6 +183,12 @@
                   @load="onImageLoad"
                   crossorigin="anonymous"
                 />
+                <!-- Focus dim overlay: shown when creating/editing a problem -->
+                <div
+                  v-if="(boulderProblemsStore.isCreatingProblem || editingState.isEditing) && focusOpacity > 0"
+                  class="absolute inset-0 pointer-events-none"
+                  :style="{ backgroundColor: `rgba(255,255,255,${focusOpacity})` }"
+                />
                 <!-- Interactive Hold Overlay with Manual Drawing Support -->
                 <InteractiveHoldOverlay
                   v-if="imageLoaded"
@@ -408,21 +414,54 @@
 
               <!-- Action Buttons -->
               <div class="mt-6 flex flex-col sm:flex-row gap-3">
-                <!-- Info: Detection is automatic -->
-                <div
-                  v-if="!serverStore.hasResults"
-                  class="flex-1 px-6 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg flex items-center justify-center space-x-2"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span class="text-sm">Detection happens automatically when image is uploaded. Refresh page if holds don't appear.</span>
-                </div>
+                <!-- Detection status when no AI results are loaded -->
+                <template v-if="!serverStore.hasResults">
+
+                  <!-- Detection failed: show error + retry button -->
+                  <template v-if="serverStore.firestoreStatus === 'failed'">
+                    <div class="flex-1 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center space-x-2">
+                      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span class="text-sm">Automatic detection failed. Re-run it manually if the detection server is running.</span>
+                    </div>
+                    <button
+                      @click="processImage"
+                      :disabled="serverStore.isProcessing || !serverStore.apiHealthy"
+                      :title="!serverStore.apiHealthy ? 'Detection server not reachable' : 'Re-run hold detection'"
+                      :aria-label="!serverStore.apiHealthy ? 'Detection server not reachable' : 'Re-run hold detection'"
+                      class="px-4 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center space-x-2 whitespace-nowrap"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>Re-run Detection</span>
+                    </button>
+                  </template>
+
+                  <!-- Detection still processing (Cloud Function in progress) -->
+                  <div
+                    v-else-if="serverStore.firestoreStatus === 'processing'"
+                    class="flex-1 px-6 py-3 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg flex items-center justify-center space-x-2"
+                  >
+                    <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span class="text-sm">Detection is in progress. Refresh in a moment.</span>
+                  </div>
+
+                  <!-- No detection doc yet (image just uploaded or never queued) -->
+                  <div
+                    v-else
+                    class="flex-1 px-6 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg flex items-center justify-center space-x-2"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="text-sm">Detection happens automatically when image is uploaded. Refresh page if holds don't appear.</span>
+                  </div>
+
+                </template>
 
                 <!-- Manual Hold Drawing Toggle -->
                 <button
@@ -1337,6 +1376,8 @@ const isAnyMagicWandActive = computed(() => {
   );
 });
 
+const focusOpacity = ref(0.75);
+
 // Shared props for BoulderProblemsManager (DRY principle)
 const boulderProblemsManagerProps = computed(() => ({
   locationId: String(route.params.locationId || ''),
@@ -1346,6 +1387,7 @@ const boulderProblemsManagerProps = computed(() => ({
   editingProblemId: String(editingState.value.editingProblemId || ''),
   unassignedCount: unassignedCount.value,
   showingUnassigned: showUnassigned.value,
+  focusOpacity: focusOpacity.value,
 }));
 
 // Methods
@@ -1576,7 +1618,6 @@ const handleCropComplete = async (cropPolygon) => {
 // Detection now happens automatically via Cloud Function when image is uploaded
 // ============================================================================
 
-// eslint-disable-next-line no-unused-vars
 const processImage = async () => {
   if (!imageUrl.value) {
     console.error('❌ No image URL available');
@@ -2006,6 +2047,7 @@ const boulderProblemsManagerEvents = {
   'tool-selection-change': handleToolSelectionChange,
   'problem-hover': handleProblemCardHover,
   'toggle-show-unassigned': toggleShowUnassigned,
+  'update:focusOpacity': (v) => { focusOpacity.value = v; },
 };
 
 // Load image based on query parameters
@@ -2186,8 +2228,10 @@ onMounted(async () => {
   // Load existing detection results from Firestore if available
   await loadExistingDetectionResults();
 
-  // Note: No API health check needed - detection is automatic via Cloud Function
-  // API health check only used for manual testing (available in "How It Works" section)
+  // Check API health in background only when a previous attempt failed
+  if (serverStore.firestoreStatus === 'failed') {
+    serverStore.testApiHealth().catch(() => {/* server unreachable - button stays disabled */});
+  }
 });
 
 onUnmounted(() => {

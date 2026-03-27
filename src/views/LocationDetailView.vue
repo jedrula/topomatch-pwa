@@ -405,6 +405,8 @@ import { useVideoAnalysisQueueStore, getCurrentStep } from '../stores/videoAnaly
 import { useVideoUploadQueueStore } from '../stores/videoUploadQueueStore.js';
 import { videoService } from '../services/videoService.js';
 import { fixLocalhostUrl } from '../services/storageUtils.js';
+import { db } from '../services/firebase.js';
+import { doc, getDoc } from 'firebase/firestore';
 import { getResizedImageUrl } from '../utils/imageResize.js';
 import { Capacitor } from '@capacitor/core';
 
@@ -978,20 +980,40 @@ const handleReprocessVideo = async (video) => {
 };
 
 // Handle opening manual assignment mode
-const handleOpenManualAssign = (videoId) => {
-  // Get the first image to open the gallery
-  const firstImage = images.value[0];
-  if (!firstImage) {
+const handleOpenManualAssign = async (video) => {
+  const videoId = video.id;
+  const locationId = route.params.locationId;
+
+  if (!images.value.length) {
     alert('No images available. Please upload images first.');
     return;
   }
-  
-  // Navigate to image gallery with assignVideoId and first image
+
+  // Try to start on the image where the currently-assigned problem lives
+  let startImageId = images.value[0].imageId;
+  if (video.problemId) {
+    const storeProblem = boulderProblemsStore.boulderProblems.find(p => p.id === video.problemId);
+    const storeImageId = storeProblem?.imageId;
+    if (storeImageId && images.value.some(img => img.imageId === storeImageId)) {
+      startImageId = storeImageId;
+    } else {
+      try {
+        const problemSnap = await getDoc(doc(db, 'locations', locationId, 'boulderProblems', video.problemId));
+        const problemImageId = problemSnap.data()?.imageId;
+        if (problemImageId && images.value.some(img => img.imageId === problemImageId)) {
+          startImageId = problemImageId;
+        }
+      } catch {
+        // fall back to first image
+      }
+    }
+  }
+
   router.push({
     query: {
       ...route.query,
       assignVideoId: videoId,
-      imageId: firstImage.imageId,
+      imageId: startImageId,
     },
   });
 };
