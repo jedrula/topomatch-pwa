@@ -583,6 +583,7 @@ export const videoService = {
         problemSnapshot: {
           name: problem.name,
           grade: problem.grade,
+          color: problem.color,
         },
       });
       

@@ -39,6 +39,9 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     maxSizeMB: 2.0,
     maxWidthOrHeight: 2048
   })
+
+  // Firestore detection status for the current image ('processing' | 'completed' | 'failed' | null)
+  const firestoreStatus = ref(null)
   
   // Computed
   const hasResults = computed(() => results.value !== null)
@@ -394,6 +397,8 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
       
       // Load stored detection
       const existingDetection = await persistenceStore.loadStoredDetection(imageId)
+
+      firestoreStatus.value = existingDetection?.status || null
       
       if (existingDetection?.detectionResults) {
         const aiHolds = existingDetection.detectionResults.aiHolds || []
@@ -450,6 +455,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     statusMessage,
     error,
     results,
+    firestoreStatus,
     currentStep,
     totalSteps,
     progressPercent,

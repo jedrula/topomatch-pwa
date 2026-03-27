@@ -371,10 +371,8 @@ const handleReprocessClick = (video) => {
 };
 
 const handleManualAssignClick = (video) => {
-  // Navigate to image gallery with assignVideoId query param
-  // This will enable "assignment mode" where user can pick a problem
-  // Emit event to parent to get first image ID
-  emit('open-manual-assign', video.id);
+  // Emit the full video so the parent can start on the image where the problem lives
+  emit('open-manual-assign', video);
 };
 
 const handleChangeRoutesettingClick = (video) => {

@@ -159,6 +159,28 @@
           </div>
         </div>
 
+        <!-- Focus Dimming Slider -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between text-sm mb-1">
+            <span class="text-gray-600 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2a1 1 0 011 1v1a1 1 0 01-2 0V3a1 1 0 011-1zm6.364 2.636a1 1 0 010 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 0zM21 11h1a1 1 0 010 2h-1a1 1 0 010-2zm-2.636 7.364a1 1 0 01-1.414 0l-.707-.707a1 1 0 011.414-1.414l.707.707a1 1 0 010 1.414zM12 20a1 1 0 011 1v1a1 1 0 01-2 0v-1a1 1 0 011-1zm-6.364-2.636a1 1 0 010-1.414l.707-.707A1 1 0 017.757 16.657l-.707.707a1 1 0 01-1.414 0zM3 13H2a1 1 0 010-2h1a1 1 0 010 2zm2.636-7.364a1 1 0 011.414 0l.707.707A1 1 0 016.343 7.757l-.707-.707a1 1 0 010-1.414zM12 7a5 5 0 100 10A5 5 0 0012 7z"/>
+              </svg>
+              Focus dim
+            </span>
+            <span class="text-xs text-gray-400">{{ Math.round(focusOpacity * 100) }}%</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            :value="focusOpacity"
+            @input="emit('update:focusOpacity', Number($event.target.value))"
+            class="w-full h-1.5 rounded-full accent-gray-500 cursor-pointer"
+          />
+        </div>
+
         <!-- Problem Name Input -->
         <div class="mb-4">
           <label for="problem-name" class="block text-sm font-medium text-gray-700 mb-1">
@@ -652,6 +674,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  focusOpacity: {
+    type: Number,
+    default: 0.75,
+  },
 });
 
 const emit = defineEmits([
@@ -663,6 +689,7 @@ const emit = defineEmits([
   'update:modelValueProblemName',
   'update:modelValueSelectedGrade',
   'update:modelValueProblemColor',
+  'update:focusOpacity',
 ]);
 
 const route = useRoute();

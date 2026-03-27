@@ -814,7 +814,10 @@ const getHoldInteraction = (hold) => {
 
   // Draft cluster highlighting takes priority over everything except delete/volume
   if (props.highlightedHoldIds.length > 0) {
-    return props.highlightedHoldIds.includes(hold.id) ? 'selected' : 'default';
+    if (!props.highlightedHoldIds.includes(hold.id)) return 'default';
+    // Don't highlight holds already taken by another problem
+    if (props.usedClusterHoldIds.includes(hold.id)) return 'default';
+    return 'selected';
   }
 
   // During delete mode, both AI and manual holds can be deleted
@@ -981,9 +984,9 @@ const getHoldInteractionAllowed = (hold) => {
 const getHoldColor = (hold) => {
   if (!hold) return '#6b7280';
 
-  // Draft cluster highlighting color
-  if (props.highlightedHoldIds.length > 0 && props.highlightedHoldIds.includes(hold.id)) {
-    return props.usedClusterHoldIds.includes(hold.id) ? '#6b7280' : props.highlightColor;
+  // Draft cluster highlighting color (used holds are not highlighted)
+  if (props.highlightedHoldIds.length > 0 && props.highlightedHoldIds.includes(hold.id) && !props.usedClusterHoldIds.includes(hold.id)) {
+    return props.highlightColor;
   }
 
   // Magic Wand uses purple colors (or dominant color from server)
