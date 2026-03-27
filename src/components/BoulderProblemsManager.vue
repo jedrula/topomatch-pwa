@@ -178,6 +178,7 @@
             :value="focusOpacity"
             @input="emit('update:focusOpacity', Number($event.target.value))"
             class="w-full h-1.5 rounded-full accent-gray-500 cursor-pointer"
+            aria-label="Focus dimming"
           />
         </div>
 

@@ -2228,8 +2228,10 @@ onMounted(async () => {
   // Load existing detection results from Firestore if available
   await loadExistingDetectionResults();
 
-  // Check API health in background so the Re-run button is enabled if detection failed
-  serverStore.testApiHealth().catch(() => {/* server unreachable - button stays disabled */});
+  // Check API health in background only when a previous attempt failed
+  if (serverStore.firestoreStatus === 'failed') {
+    serverStore.testApiHealth().catch(() => {/* server unreachable - button stays disabled */});
+  }
 });
 
 onUnmounted(() => {

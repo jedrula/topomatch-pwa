@@ -193,6 +193,7 @@ export const useHoldDetectionServerStore = defineStore('holdDetectionServer', ()
     statusMessage.value = 'Ready'
     progressPercent.value = 0
     currentStep.value = 1
+    firestoreStatus.value = null
   }
   
   const resetState = () => {

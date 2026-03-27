@@ -992,14 +992,20 @@ const handleOpenManualAssign = async (video) => {
   // Try to start on the image where the currently-assigned problem lives
   let startImageId = images.value[0].imageId;
   if (video.problemId) {
-    try {
-      const problemSnap = await getDoc(doc(db, 'locations', locationId, 'boulderProblems', video.problemId));
-      const problemImageId = problemSnap.data()?.imageId;
-      if (problemImageId && images.value.some(img => img.imageId === problemImageId)) {
-        startImageId = problemImageId;
+    const storeProblem = boulderProblemsStore.boulderProblems.find(p => p.id === video.problemId);
+    const storeImageId = storeProblem?.imageId;
+    if (storeImageId && images.value.some(img => img.imageId === storeImageId)) {
+      startImageId = storeImageId;
+    } else {
+      try {
+        const problemSnap = await getDoc(doc(db, 'locations', locationId, 'boulderProblems', video.problemId));
+        const problemImageId = problemSnap.data()?.imageId;
+        if (problemImageId && images.value.some(img => img.imageId === problemImageId)) {
+          startImageId = problemImageId;
+        }
+      } catch {
+        // fall back to first image
       }
-    } catch {
-      // fall back to first image
     }
   }
 
