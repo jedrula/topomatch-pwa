@@ -29,8 +29,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { getHoldDetectionServerUrl } from '@/services/appConfigService'
+
+const DEFAULT_IMAGE1 = '/test-data/wibrem/general-matching/prev-1.webp'
+const DEFAULT_IMAGE2 = '/test-data/wibrem/general-matching/after-1.jpeg'
 
 const image1 = ref(null)
 const image2 = ref(null)
@@ -46,6 +49,28 @@ function readFile(file) {
     reader.readAsDataURL(file)
   })
 }
+
+async function loadDefaultImage(url) {
+  const res = await fetch(url)
+  const blob = await res.blob()
+  const filename = url.split('/').pop()
+  return new File([blob], filename, { type: blob.type })
+}
+
+onMounted(async () => {
+  try {
+    const [f1, f2] = await Promise.all([
+      loadDefaultImage(DEFAULT_IMAGE1),
+      loadDefaultImage(DEFAULT_IMAGE2),
+    ])
+    image1.value = f1
+    image1Preview.value = await readFile(f1)
+    image2.value = f2
+    image2Preview.value = await readFile(f2)
+  } catch (e) {
+    console.warn('[GeneralMatching] Could not load default images:', e)
+  }
+})
 
 async function onImage1Change(e) {
   const file = e.target.files[0]
@@ -76,6 +101,9 @@ async function runMatching() {
     const body = {
       image1: toBase64(data1),
       image2: toBase64(data2),
+      confidence_threshold: 0.6,
+      max_matches: 10000,
+      max_size: 840,
     }
 
     const response = await fetch(`${serverUrl}/api/v1/general-matching`, {
