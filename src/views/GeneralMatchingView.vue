@@ -1,29 +1,44 @@
 <template>
-  <div class="p-6 max-w-2xl mx-auto">
+  <div class="p-6 max-w-7xl mx-auto">
     <h1 class="text-2xl font-bold mb-6">General Image Matching</h1>
 
     <div class="flex flex-col gap-6">
-      <div>
-        <label class="block font-medium mb-1">Image 1</label>
-        <input type="file" accept="image/*" @change="onImage1Change" />
-        <img v-if="image1Preview" :src="image1Preview" class="mt-2 max-h-48 rounded" />
+      <div class="flex gap-6">
+        <div class="flex-1">
+          <label class="block font-medium mb-1">Image 1</label>
+          <input type="file" accept="image/*" @change="onImage1Change" />
+          <img v-if="image1Preview" :src="image1Preview" class="mt-2 max-h-32 rounded" />
+        </div>
+        <div class="flex-1">
+          <label class="block font-medium mb-1">Image 2</label>
+          <input type="file" accept="image/*" @change="onImage2Change" />
+          <img v-if="image2Preview" :src="image2Preview" class="mt-2 max-h-32 rounded" />
+        </div>
       </div>
 
-      <div>
-        <label class="block font-medium mb-1">Image 2</label>
-        <input type="file" accept="image/*" @change="onImage2Change" />
-        <img v-if="image2Preview" :src="image2Preview" class="mt-2 max-h-48 rounded" />
+      <div class="flex items-center gap-4">
+        <button
+          :disabled="!image1 || !image2 || loading"
+          @click="runMatching"
+          class="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-40"
+        >
+          {{ loading ? 'Matching…' : 'Run Matching' }}
+        </button>
+        <span v-if="matchResult" class="text-sm text-gray-500">
+          {{ matchResult.confident_matches }} / {{ matchResult.total_matches }} confident matches
+          (threshold {{ matchResult.confidence_threshold }})
+        </span>
       </div>
-
-      <button
-        :disabled="!image1 || !image2 || loading"
-        @click="runMatching"
-        class="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-40"
-      >
-        {{ loading ? 'Matching…' : 'Run Matching' }}
-      </button>
 
       <p v-if="error" class="text-red-500">{{ error }}</p>
+
+      <MatchVisualizer
+        v-if="matchResult"
+        :image1-data-url="image1Preview"
+        :image2-data-url="image2Preview"
+        :matches="matchResult.matches"
+        :max-lines="600"
+      />
     </div>
   </div>
 </template>
@@ -31,6 +46,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getHoldDetectionServerUrl } from '@/services/appConfigService'
+import MatchVisualizer from '@/components/MatchVisualizer.vue'
 
 const DEFAULT_IMAGE1 = '/test-data/wibrem/general-matching/prev-1.webp'
 const DEFAULT_IMAGE2 = '/test-data/wibrem/general-matching/after-1.jpeg'
@@ -41,6 +57,7 @@ const image1Preview = ref(null)
 const image2Preview = ref(null)
 const loading = ref(false)
 const error = ref(null)
+const matchResult = ref(null)
 
 function readFile(file) {
   return new Promise((resolve) => {
@@ -121,6 +138,7 @@ async function runMatching() {
 
     const result = await response.json()
     console.log('[GeneralMatching] response:', result)
+    matchResult.value = result
   } catch (err) {
     error.value = err.message
     console.error('[GeneralMatching] error:', err)
