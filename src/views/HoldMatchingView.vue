@@ -83,11 +83,97 @@
       :scale1="coordDiag?.scale1 ?? { x: 1, y: 1 }"
       :scale2="coordDiag?.scale2 ?? { x: 1, y: 1 }"
     />
+
+    <!-- Unmatched holds in uploaded image -->
+    <div v-if="holdMapping && imgData2" class="mt-6">
+      <h2 class="text-base font-semibold mb-2">
+        Unmatched holds in uploaded image
+        <span class="ml-2 text-sm font-normal text-gray-500">
+          {{ unmatchedHolds2.length }} / {{ imgData2.holds.length }} holds have no match
+        </span>
+      </h2>
+      <p v-if="unmatchedHolds2.length === 0" class="text-sm text-green-600">All holds matched ✓</p>
+      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+        <div
+          v-for="hold in unmatchedHolds2"
+          :key="hold.id"
+          class="p-2 rounded border border-orange-300 bg-orange-50 text-xs"
+        >
+          <p class="font-mono text-gray-600 truncate" :title="hold.id">{{ hold.id }}</p>
+          <p class="text-gray-500 mt-0.5">
+            center {{ Math.round(hold.centerX) }}, {{ Math.round(hold.centerY) }}
+          </p>
+          <p class="text-gray-400">conf {{ hold.confidence?.toFixed(2) ?? '–' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boulder problem removal analysis -->
+    <div v-if="problemsAnalysis.length" class="mt-8">
+      <h2 class="text-base font-semibold mb-2">
+        Boulder problems — removal analysis
+        <span class="ml-2 text-sm font-normal text-gray-500">
+          {{ problemsAnalysis.filter(p => p.ratio < 0.3).length }} / {{ problemsAnalysis.length }} likely removed
+        </span>
+      </h2>
+      <table class="w-full text-sm border-collapse">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 border-b">
+            <th class="py-1.5 pr-3">Problem</th>
+            <th class="py-1.5 pr-3">Grade</th>
+            <th class="py-1.5 pr-3">Holds</th>
+            <th class="py-1.5 pr-3">Matched</th>
+            <th class="py-1.5 pr-3">Coverage</th>
+            <th class="py-1.5">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="{ problem, total, matched, ratio } in problemsAnalysis"
+            :key="problem.id"
+            class="border-b border-gray-100"
+          >
+            <td class="py-1.5 pr-3">
+              <span class="inline-flex items-center gap-2">
+                <span
+                  class="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                  :style="{ backgroundColor: problem.color || '#ccc' }"
+                />
+                {{ problem.name || '—' }}
+              </span>
+            </td>
+            <td class="py-1.5 pr-3 text-gray-600">{{ problem.grade || '—' }}</td>
+            <td class="py-1.5 pr-3 text-gray-600">{{ total }}</td>
+            <td class="py-1.5 pr-3 text-gray-600">{{ matched }}</td>
+            <td class="py-1.5 pr-3">
+              <div class="flex items-center gap-2">
+                <div class="w-16 h-1.5 rounded bg-gray-200 overflow-hidden">
+                  <div
+                    class="h-full rounded transition-all"
+                    :class="ratio >= 0.3 ? 'bg-green-500' : ratio > 0 ? 'bg-orange-400' : 'bg-red-500'"
+                    :style="{ width: `${Math.round(ratio * 100)}%` }"
+                  />
+                </div>
+                <span class="text-xs text-gray-500">{{ Math.round(ratio * 100) }}%</span>
+              </div>
+            </td>
+            <td class="py-1.5">
+              <span
+                class="px-2 py-0.5 rounded-full text-xs font-medium"
+                :class="ratio >= 0.3 ? 'bg-green-100 text-green-700' : ratio > 0 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'"
+              >
+                {{ ratio >= 0.3 ? 'present' : ratio > 0 ? 'partially removed' : 'likely removed' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import { holdDetectionService } from '@/services/holdDetectionService'
@@ -99,6 +185,7 @@ import {
 } from '@/utils/holdMatcher'
 import HoldMatchVisualizer from '@/components/HoldMatchVisualizer.vue'
 import { uploadImageForProcessing, pollForJobResults } from '@/services/holdDetectionApiService'
+import { boulderProblemsServiceV2 } from '@/services/boulderProblemsServiceV2'
 
 const imageId1 = ref('b4070f89-1ca2-49b9-ab72-4a40488e76ee')
 const file2 = ref(null)          // File selected by user
@@ -107,6 +194,29 @@ const imgData2 = ref(null)       // { dataUrl, holds, detectionDims }
 const matchResult = ref(null)
 const holdMapping = ref(null)
 const coordDiag = ref(null)
+const boulderProblems1 = ref([])
+
+const unmatchedHolds2 = computed(() => {
+  if (!holdMapping.value || !imgData2.value) return []
+  const matchedIds = new Set(
+    [...holdMapping.value.values()].map(v => v.hold2?.id).filter(Boolean)
+  )
+  return imgData2.value.holds.filter(h => !matchedIds.has(h.id))
+})
+
+const problemsAnalysis = computed(() => {
+  if (!holdMapping.value || !boulderProblems1.value.length) return []
+  return boulderProblems1.value
+    .map(problem => {
+      const total = problem.holds?.length ?? 0
+      // problem.holds[].holdId is the original hold.id from aiHolds/manualHolds in holdDetections
+      const matched = total === 0 ? 0 :
+        problem.holds.filter(h => holdMapping.value.has(h.holdId)).length
+      const ratio = total === 0 ? 0 : matched / total
+      return { problem, total, matched, ratio }
+    })
+    .sort((a, b) => a.ratio - b.ratio)
+})
 const loading = ref(false)
 const loadingStep = ref('')
 const error = ref(null)
@@ -189,6 +299,7 @@ async function run() {
   matchResult.value = null
   holdMapping.value = null
   coordDiag.value = null
+  boulderProblems1.value = []
   loading.value = true
 
   try {
@@ -201,6 +312,10 @@ async function run() {
     ])
     imgData1.value = d1
     imgData2.value = d2
+
+    loadingStep.value = 'Loading boulder problems…'
+    const problemsResult = await boulderProblemsServiceV2.getBoulderProblemsByImage(d1.locationId, imageId1.value.trim())
+    boulderProblems1.value = problemsResult.problems ?? problemsResult
 
     loadingStep.value = 'Matching…'
     const matchRes = await fetch(`${serverUrl}/api/v1/general-matching`, {
