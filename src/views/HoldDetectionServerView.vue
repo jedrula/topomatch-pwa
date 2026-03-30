@@ -57,6 +57,59 @@
               >
                 Error loading image: {{ imageLoadError }}
               </div>
+
+              <!-- Wall Comparison: previous image vs current image -->
+              <div v-if="showWallComparison && replacedImageUrl && currentImage" class="mb-4">
+
+                <!-- HoldMatchVisualizer once matching is done -->
+                <HoldMatchVisualizer
+                  v-if="comparisonHoldMapping && comparisonImgData1 && comparisonImgData2"
+                  :image1-data-url="comparisonImgData1.dataUrl"
+                  :image2-data-url="comparisonImgData2.dataUrl"
+                  :holds1="comparisonImgData1.holds"
+                  :holds2="comparisonImgData2.holds"
+                  :clusters2="[]"
+                  :hold-mapping="comparisonHoldMapping"
+                  :matches="comparisonMatchResult?.matches ?? []"
+                  :scale1="comparisonScale1"
+                  :scale2="comparisonScale2"
+                />
+
+                <!-- Plain two-image view before matching runs -->
+                <div
+                  v-else
+                  class="flex rounded-lg overflow-hidden bg-gray-900"
+                  style="max-height: 70vh"
+                >
+                  <div class="relative flex-1 min-w-0 flex items-center justify-center">
+                    <span class="absolute top-2 left-2 z-10 text-[11px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">Previous</span>
+                    <img :src="replacedImageUrl" alt="Previous wall" class="w-full h-full object-contain block" style="max-height: 70vh" />
+                  </div>
+                  <div class="w-[3px] bg-amber-400 flex-shrink-0" />
+                  <div class="relative flex-1 min-w-0 flex items-center justify-center">
+                    <span class="absolute top-2 left-2 z-10 text-[11px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">Current</span>
+                    <img :src="(currentImage as any).url" alt="Current wall" class="w-full h-full object-contain block" style="max-height: 70vh" />
+                  </div>
+                </div>
+
+                <!-- Match Holds button / status row -->
+                <div class="mt-2 flex items-center gap-3">
+                  <button
+                    v-if="!comparisonHoldMapping"
+                    :disabled="comparisonLoading"
+                    class="text-[13px] px-3 py-1.5 rounded-md bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-60 transition-colors"
+                    @click="runWallComparison"
+                  >
+                    {{ comparisonLoading ? comparisonLoadingStep : 'Match Holds' }}
+                  </button>
+                  <span v-if="comparisonHoldMapping" class="text-[12px] text-gray-500">
+                    {{ comparisonMatchResult?.confident_matches }} confident matches &nbsp;&middot;&nbsp;
+                    {{ comparisonHoldMapping.size }} hold pairs mapped
+                  </span>
+                  <span v-if="comparisonError" class="text-[12px] text-red-600">{{ comparisonError }}</span>
+                </div>
+              </div>
+
               <!-- Image Navigation (above image in normal mode) -->
               <div
                 v-if="!isFullscreen && imageLoaded && totalImageCount > 1"
@@ -697,22 +750,29 @@
             v-if="!isFullscreen && currentImage?.replacesImageId && replacedImageProblems.length > 0"
             class="bg-white rounded-lg shadow-sm border border-amber-200"
           >
-            <button
-              class="w-full flex items-center justify-between p-4 text-left"
-              @click="showReplacedImagePanel = !showReplacedImagePanel"
-            >
-              <div class="flex items-center gap-2">
+            <div class="flex items-center justify-between p-4">
+              <button class="flex items-center gap-2 text-left" @click="showReplacedImagePanel = !showReplacedImagePanel">
                 <span class="text-[13px] font-semibold text-amber-800">↩ Previously on this wall</span>
                 <span class="text-[12px] text-amber-600">({{ replacedImageProblems.length }})</span>
-              </div>
-              <svg
-                class="w-4 h-4 text-amber-500 transition-transform"
-                :class="{ 'rotate-180': showReplacedImagePanel }"
-                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                <svg
+                  class="w-4 h-4 text-amber-500 transition-transform ml-1"
+                  :class="{ 'rotate-180': showReplacedImagePanel }"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <button
+                v-if="replacedImageUrl"
+                class="text-[12px] px-2.5 py-1 rounded-md border transition-colors"
+                :class="showWallComparison
+                  ? 'bg-amber-500 border-amber-500 text-white'
+                  : 'border-amber-400 text-amber-700 hover:bg-amber-50'"
+                @click="showWallComparison = !showWallComparison"
               >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+                {{ showWallComparison ? 'Hide' : 'Visualize' }}
+              </button>
+            </div>
             <div v-if="showReplacedImagePanel" class="px-4 pb-4 space-y-2">
               <p class="text-[12px] text-amber-700 mb-3">
                 {{ route.query.predecessorForProblemId
@@ -1117,13 +1177,16 @@ import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore.j
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore.js';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore.js';
 import { locationService } from '@/services/locationService';
+import { holdDetectionService } from '@/services/holdDetectionService';
 import InteractiveHoldOverlay from '@/components/InteractiveHoldOverlay.vue';
 import BoulderProblemsManager from '@/components/BoulderProblemsManager.vue';
 import FloatingBoulderProblemCard from '@/components/FloatingBoulderProblemCard.vue';
+import HoldMatchVisualizer from '@/components/HoldMatchVisualizer.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { hexToColorName, precomputeHoldHues } from '@/utils/colorUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
 import { getHoldDetectionServerUrl } from '@/services/appConfigService';
+import { mapMatchesToHolds, computeHoldToHoldMapping, computeMatchToDetectionScale } from '@/utils/holdMatcher';
 // Note: Not using getResizedImageUrl - we load original images to match detection coordinates
 
 // TypeScript component - basic type annotations without complex interface definitions
@@ -1154,6 +1217,19 @@ const locationData = ref(null); // Full location object (for section-based nav o
 // Problems from the image that the current image replaces (for predecessor linking reference)
 const replacedImageProblems = ref([]);
 const showReplacedImagePanel = ref(true);
+const replacedImageUrl = ref<string | null>(null);
+const showWallComparison = ref(false);
+
+// Wall comparison / hold matching state
+const comparisonLoading = ref(false);
+const comparisonLoadingStep = ref('');
+const comparisonError = ref(null);
+const comparisonImgData1 = ref(null);
+const comparisonImgData2 = ref(null);
+const comparisonMatchResult = ref(null);
+const comparisonHoldMapping = ref(null);
+const comparisonScale1 = ref({ x: 1, y: 1 });
+const comparisonScale2 = ref({ x: 1, y: 1 });
 
 // Fullscreen state (pseudo-fullscreen using CSS, not native API)
 const isFullscreen = ref(false)
@@ -2405,10 +2481,108 @@ const handleClearPredecessor = async (problem: any) => {
   }
 };
 
-const loadReplacedImageProblems = async (locationId: string, replacesImageId: string) => {
+// Convert a URL to a base64 data URL (needed for canvas / CORS-free operations)
+async function urlToDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target!.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
+const runWallComparison = async () => {
+  if (!currentImage.value || !replacedImageUrl.value) return;
+  comparisonLoading.value = true;
+  comparisonError.value = null;
+  comparisonMatchResult.value = null;
+  comparisonHoldMapping.value = null;
   try {
-    const { collection, query, where, getDocs } = await import('firebase/firestore');
+    const locId = route.params.locationId as string;
+    const replacesImageId = (currentImage.value as any).replacesImageId as string;
+
+    comparisonLoadingStep.value = 'Loading images & holds…';
+    const [dataUrl1, dataUrl2, holdsRaw1, detectionDoc1] = await Promise.all([
+      urlToDataUrl(replacedImageUrl.value),
+      urlToDataUrl((currentImage.value as any).url),
+      holdDetectionService.getAllHolds(locId, replacesImageId),
+      holdDetectionService.getHoldDetection(locId, replacesImageId),
+    ]);
+
+    comparisonImgData1.value = {
+      dataUrl: dataUrl1,
+      holds: holdsRaw1,
+      detectionDims: (detectionDoc1 as any)?.detectionResults?.metadata?.imageDimensions ?? null,
+    };
+
+    const currentHolds = [
+      ...(serverStore.results?.holds ?? []),
+      ...serverStore.manualHolds,
+    ];
+    comparisonImgData2.value = {
+      dataUrl: dataUrl2,
+      holds: currentHolds,
+      detectionDims: (serverStore.results as any)?.metadata?.imageDimensions ?? null,
+    };
+
+    comparisonLoadingStep.value = 'Matching…';
+    const serverUrl = await getHoldDetectionServerUrl();
+    const matchRes = await fetch(`${serverUrl}/api/v1/general-matching`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+      body: JSON.stringify({
+        image1: dataUrl1.split(',')[1],
+        image2: dataUrl2.split(',')[1],
+        confidence_threshold: 0.6,
+        max_matches: 10000,
+        max_size: 840,
+      }),
+    });
+    if (!matchRes.ok) throw new Error(`/general-matching HTTP ${matchRes.status}`);
+    const match = await matchRes.json();
+    comparisonMatchResult.value = match;
+
+    const scale1 = computeMatchToDetectionScale(
+      match.image_dimensions?.image1 ?? null,
+      comparisonImgData1.value.detectionDims
+    );
+    const scale2 = computeMatchToDetectionScale(
+      match.image_dimensions?.image2 ?? null,
+      comparisonImgData2.value.detectionDims
+    );
+    comparisonScale1.value = scale1;
+    comparisonScale2.value = scale2;
+
+    comparisonLoadingStep.value = 'Computing hold mapping…';
+    const holdMatchMap = mapMatchesToHolds(match.matches, holdsRaw1, scale1.x, scale1.y);
+    comparisonHoldMapping.value = computeHoldToHoldMapping(holdMatchMap, currentHolds, scale2.x, scale2.y);
+  } catch (err: any) {
+    comparisonError.value = err.message;
+    console.error('[WallComparison] error:', err);
+  } finally {
+    comparisonLoading.value = false;
+  }
+};
+
+const loadReplacedImageProblems = async (locationId: string, replacesImageId: string) => {
+  replacedImageUrl.value = null;
+  showWallComparison.value = false;
+  comparisonMatchResult.value = null;
+  comparisonHoldMapping.value = null;
+  comparisonImgData1.value = null;
+  comparisonImgData2.value = null;
+  try {
+    const { collection, query, where, getDocs, doc, getDoc } = await import('firebase/firestore');
     const { db } = await import('@/services/firebase.js');
+
+    // Fetch the replaced image document to get its downloadUrl
+    const imageDocSnap = await getDoc(doc(db, 'locationImages', replacesImageId));
+    replacedImageUrl.value = imageDocSnap.exists()
+      ? (imageDocSnap.data() as any).downloadUrl ?? null
+      : null;
+
+    // Fetch boulder problems on the replaced image
     const q = query(
       collection(db, 'locations', locationId, 'boulderProblems'),
       where('imageId', '==', replacesImageId)
@@ -2418,6 +2592,7 @@ const loadReplacedImageProblems = async (locationId: string, replacesImageId: st
   } catch (err) {
     console.error('Failed to load replaced image problems:', err);
     replacedImageProblems.value = [];
+    replacedImageUrl.value = null;
   }
 };
 
