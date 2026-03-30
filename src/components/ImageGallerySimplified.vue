@@ -40,7 +40,7 @@
           <!-- Edit icon for admin users -->
           <RouterLink
             v-if="userStore.isAdmin"
-            :to="`/location/${locationId}/holds-server?imageId=${currentImage.imageId}&imageName=${encodeURIComponent(currentImage.name)}`"
+            :to="`/location/${locationId}/holds-server?imageId=${currentImage.imageId}&imageName=${encodeURIComponent(currentImage.name)}${props.routesetting ? '&routesetting=' + encodeURIComponent(props.routesetting) : ''}`"
             class="text-white hover:text-blue-300 transition-colors"
             title="Edit holds and problems"
           >
@@ -235,6 +235,10 @@ const props = defineProps({
   },
   floorplan: {
     type: Object,
+    default: null,
+  },
+  routesetting: {
+    type: String,
     default: null,
   },
 });

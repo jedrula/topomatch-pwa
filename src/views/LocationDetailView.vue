@@ -362,6 +362,7 @@
       :initial-index="initialImageIndex"
       :is-open="isGalleryOpen"
       :location-id="locationId"
+      :routesetting="currentRoutesetting"
       :boulder-problems="boulderProblemsStore.boulderProblems || []"
       :floorplan="location?.floorplan"
       @close="closeGallery"
@@ -1210,6 +1211,7 @@ const openHoldDetection = (image) => {
     query: {
       imageId: image.imageId,
       imageName: image.name,
+      routesetting: currentRoutesetting.value || undefined,
     },
   });
 };

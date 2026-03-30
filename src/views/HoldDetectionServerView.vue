@@ -768,7 +768,7 @@
                 :class="showWallComparison
                   ? 'bg-amber-500 border-amber-500 text-white'
                   : 'border-amber-400 text-amber-700 hover:bg-amber-50'"
-                @click="showWallComparison = !showWallComparison"
+                @click="toggleWallComparison"
               >
                 {{ showWallComparison ? 'Hide' : 'Visualize' }}
               </button>
@@ -1218,7 +1218,26 @@ const locationData = ref(null); // Full location object (for section-based nav o
 const replacedImageProblems = ref([]);
 const showReplacedImagePanel = ref(true);
 const replacedImageUrl = ref<string | null>(null);
+
 const showWallComparison = ref(false);
+
+const toggleWallComparison = () => {
+  if (showWallComparison.value) {
+    // Hiding: reset comparison state
+    showWallComparison.value = false;
+    comparisonMatchResult.value = null;
+    comparisonHoldMapping.value = null;
+    comparisonImgData1.value = null;
+    comparisonImgData2.value = null;
+    comparisonError.value = null;
+  } else {
+    // Showing: auto-run matching unless already done
+    showWallComparison.value = true;
+    if (!comparisonHoldMapping.value && !comparisonLoading.value) {
+      runWallComparison();
+    }
+  }
+};
 
 // Wall comparison / hold matching state
 const comparisonLoading = ref(false);
@@ -2206,9 +2225,8 @@ const loadImageFromQuery = async () => {
 
       // Load image data from the location service (cache the filtered list for navigation)
       if (locationImages.value.length === 0) {
-        // Use the location's current routesetting (last entry = newest, same as LocationDetailView)
-        // so the server-side filter matches exactly what the location detail page shows.
-        const activeRoutesetting = locationData.value?.routesettings?.at(-1);
+        // Use routesetting from URL if present, otherwise fall back to the latest
+        const activeRoutesetting = (route.query.routesetting as string) || locationData.value?.routesettings?.at(-1);
         const imageRecords = await locationService.getLocationImages(locationId, activeRoutesetting || null);
         if (Array.isArray(imageRecords)) {
           // Order by section order (same logic as FloorplanSectionDetail / location detail page)
@@ -2240,10 +2258,54 @@ const loadImageFromQuery = async () => {
             replacedImageProblems.value = [];
           }
         } else {
-          console.warn('⚠️ Image not found in location images:', imageId);
+          // Image not in current routesetting — fetch it directly by imageId (e.g. old routesetting)
+          console.warn('⚠️ Image not in current routesetting list, fetching directly:', imageId);
+          const { doc, getDoc } = await import('firebase/firestore');
+          const { db } = await import('@/services/firebase.js');
+          const imgSnap = await getDoc(doc(db, 'locationImages', imageId as string));
+          if (imgSnap.exists()) {
+            const imgData = imgSnap.data() as any;
+            currentImage.value = {
+              id: imageId as string,
+              url: imgData.downloadUrl,
+              name: imgData.fileName,
+              replacesImageId: imgData.replacesImageId || null,
+            };
+            await serverStore.loadManualHolds(locationId, imageId);
+            if (imgData.replacesImageId) {
+              loadReplacedImageProblems(locationId as string, imgData.replacesImageId);
+            } else {
+              replacedImageProblems.value = [];
+            }
+          } else {
+            console.warn('⚠️ Image not found in locationImages collection:', imageId);
+            imageLoadError.value = `Image not found: ${imageId}`;
+          }
         }
       } else {
-        console.warn('⚠️ No location images available');
+        // No images for current routesetting at all — try fetching directly
+        console.warn('⚠️ No location images for current routesetting, fetching directly:', imageId);
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('@/services/firebase.js');
+        const imgSnap = await getDoc(doc(db, 'locationImages', imageId as string));
+        if (imgSnap.exists()) {
+          const imgData = imgSnap.data() as any;
+          currentImage.value = {
+            id: imageId as string,
+            url: imgData.downloadUrl,
+            name: imgData.fileName,
+            replacesImageId: imgData.replacesImageId || null,
+          };
+          await serverStore.loadManualHolds(locationId, imageId);
+          if (imgData.replacesImageId) {
+            loadReplacedImageProblems(locationId as string, imgData.replacesImageId);
+          } else {
+            replacedImageProblems.value = [];
+          }
+        } else {
+          console.warn('⚠️ Image not found in locationImages collection:', imageId);
+          imageLoadError.value = `Image not found: ${imageId}`;
+        }
       }
     } catch (error) {
       console.error('❌ Error loading image for hold detection:', error);
@@ -2510,9 +2572,17 @@ const runWallComparison = async () => {
       holdDetectionService.getHoldDetection(locId, replacesImageId),
     ]);
 
+    // Only include holds that belong to at least one of the "previously on this wall" problems
+    const prevProblemHoldIds = new Set(
+      replacedImageProblems.value.flatMap((p: any) => (p.holds ?? []).map((h: any) => h.holdId))
+    );
+    const filteredHolds1 = prevProblemHoldIds.size > 0
+      ? holdsRaw1.filter((h: any) => prevProblemHoldIds.has(h.id))
+      : holdsRaw1;
+
     comparisonImgData1.value = {
       dataUrl: dataUrl1,
-      holds: holdsRaw1,
+      holds: filteredHolds1,
       detectionDims: (detectionDoc1 as any)?.detectionResults?.metadata?.imageDimensions ?? null,
     };
 
@@ -2534,7 +2604,7 @@ const runWallComparison = async () => {
       body: JSON.stringify({
         image1: dataUrl1.split(',')[1],
         image2: dataUrl2.split(',')[1],
-        confidence_threshold: 0.6,
+        confidence_threshold: 0.5,
         max_matches: 10000,
         max_size: 840,
       }),
@@ -2555,7 +2625,7 @@ const runWallComparison = async () => {
     comparisonScale2.value = scale2;
 
     comparisonLoadingStep.value = 'Computing hold mapping…';
-    const holdMatchMap = mapMatchesToHolds(match.matches, holdsRaw1, scale1.x, scale1.y);
+    const holdMatchMap = mapMatchesToHolds(match.matches, filteredHolds1, scale1.x, scale1.y);
     comparisonHoldMapping.value = computeHoldToHoldMapping(holdMatchMap, currentHolds, scale2.x, scale2.y);
   } catch (err: any) {
     comparisonError.value = err.message;
