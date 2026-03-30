@@ -22,7 +22,7 @@
       </span>
       <span class="flex items-center gap-1">
         <span class="w-7 inline-block border-t-2 border-cyan-400" />
-        mapped hold pair
+        mapped hold pair (problem colour)
       </span>
       <span class="flex items-center gap-1">
         <span class="w-3 h-3 rounded-full inline-block bg-orange-400" />
@@ -57,6 +57,8 @@ const props = defineProps({
   /** matchToDetectionScale for drawing match points on image — {x,y} */
   scale1: { type: Object, default: () => ({ x: 1, y: 1 }) },
   scale2: { type: Object, default: () => ({ x: 1, y: 1 }) },
+  /** Map<holdId, color> — colors lines by boulder problem (optional) */
+  hold1ColorMap: { type: Object, default: null },
 })
 
 const canvasRef = ref(null)
@@ -237,16 +239,20 @@ async function draw() {
   let mapped = 0
   let unmapped = 0
   if (props.holdMapping) {
-    for (const [, { hold1, hold2 }] of props.holdMapping) {
+    for (const [hold1Id, { hold1, hold2 }] of props.holdMapping) {
       if (!hold2) { unmapped++; continue }
       mapped++
       const { cx: cx1, cy: cy1 } = holdCenter(hold1, ds1, ds1, 0)
       const { cx: cx2, cy: cy2 } = holdCenter(hold2, ds2, ds2, w1)
 
-      ctx.strokeStyle = 'rgba(34,211,238,0.9)'; ctx.lineWidth = 2
+      const problemColor = props.hold1ColorMap?.get(hold1Id)
+      const lineColor = problemColor ?? 'rgba(34,211,238,0.9)'
+      const dotColor  = problemColor ?? 'rgba(34,211,238,1)'
+
+      ctx.strokeStyle = lineColor; ctx.lineWidth = 2
       ctx.beginPath(); ctx.moveTo(cx1, cy1); ctx.lineTo(cx2, cy2); ctx.stroke()
 
-      ctx.fillStyle = 'rgba(34,211,238,1)'
+      ctx.fillStyle = dotColor
       ctx.beginPath(); ctx.arc(cx1, cy1, 4, 0, 2 * Math.PI); ctx.fill()
       ctx.beginPath(); ctx.arc(cx2, cy2, 4, 0, 2 * Math.PI); ctx.fill()
     }
@@ -259,7 +265,7 @@ watch(
   () => [
     props.matches, props.image1DataUrl, props.image2DataUrl,
     props.holds1, props.holds2, props.holdMapping,
-    props.clusters2, showRawMatches.value,
+    props.clusters2, props.hold1ColorMap, showRawMatches.value,
   ],
   draw,
   { deep: true }

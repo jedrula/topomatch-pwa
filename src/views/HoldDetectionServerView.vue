@@ -73,6 +73,7 @@
                   :matches="comparisonMatchResult?.matches ?? []"
                   :scale1="comparisonScale1"
                   :scale2="comparisonScale2"
+                  :hold1-color-map="comparisonImgData1.holdColorMap"
                 />
 
                 <!-- Plain two-image view before matching runs -->
@@ -779,7 +780,7 @@
                   : 'Use "↩ Link predecessor" on a new problem, then confirm here.' }}
               </p>
               <div
-                v-for="oldProblem in replacedImageProblems"
+                v-for="oldProblem in sortedReplacedImageProblems"
                 :key="oldProblem.id"
                 class="flex items-center justify-between rounded-md border px-3 py-2 text-[13px]"
                 :class="linkedOldProblemIds.has(oldProblem.id)
@@ -792,7 +793,9 @@
                     :style="{ background: oldProblem.color || '#888' }"
                   />
                   <span class="truncate font-medium">{{ oldProblem.name }}</span>
-                  <span class="text-[11px] flex-shrink-0 opacity-60">{{ oldProblem.grade }}</span>
+                  <span v-if="comparisonHoldMapping" class="text-[11px] flex-shrink-0 opacity-70 font-mono">
+                    ({{ problemMatchCounts.get(oldProblem.id) ?? 0 }})
+                  </span>
                 </div>
                 <div class="flex-shrink-0 ml-2">
                   <span v-if="linkedOldProblemIds.has(oldProblem.id)" class="text-[11px] text-green-600 font-medium">linked ✓</span>
@@ -802,6 +805,14 @@
                     @click="handleConfirmPredecessor(oldProblem)"
                   >
                     Set as predecessor
+                  </button>
+                  <button
+                    v-else
+                    :disabled="!comparisonHoldMapping"
+                    class="text-[12px] px-2 py-0.5 rounded bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    @click="handleCreateFromOldProblem(oldProblem)"
+                  >
+                    Create
                   </button>
                 </div>
               </div>
@@ -2507,6 +2518,27 @@ const linkedOldProblemIds = computed(() => {
   return ids;
 });
 
+// Count matched holds per old problem (requires comparisonHoldMapping to be computed)
+const problemMatchCounts = computed(() => {
+  const counts = new Map<string, number>();
+  if (!comparisonHoldMapping.value) return counts;
+  for (const p of replacedImageProblems.value as any[]) {
+    const holdIds = new Set((p.holds ?? []).map((h: any) => h.holdId));
+    let count = 0;
+    for (const [hold1Id, { hold2 }] of comparisonHoldMapping.value as Map<string, any>) {
+      if (hold2 && holdIds.has(hold1Id)) count++;
+    }
+    counts.set(p.id, count);
+  }
+  return counts;
+});
+
+const sortedReplacedImageProblems = computed(() => {
+  return [...(replacedImageProblems.value as any[])].sort(
+    (a, b) => (problemMatchCounts.value.get(b.id) ?? 0) - (problemMatchCounts.value.get(a.id) ?? 0)
+  );
+});
+
 const handleStartPredecessorLink = (problem: any) => {
   router.replace({
     query: {
@@ -2531,6 +2563,53 @@ const handleConfirmPredecessor = async (oldProblem: any) => {
   } catch (err) {
     alert(`Failed to set predecessor: ${(err as Error).message || err}`);
   }
+};
+
+// One-click: create a matched new problem, auto-add mapped holds, link as predecessor, enter edit mode
+const handleCreateFromOldProblem = async (oldProblem: any) => {
+  if (boulderProblemsStore.isCreatingProblem) {
+    boulderProblemsStore.cancelCreatingProblem();
+  }
+
+  // Pre-fill shared form refs so UI reflects the new problem
+  sharedProblemName.value = oldProblem.name;
+  sharedProblemColor.value = oldProblem.color || '#ffffff';
+  const defaultGrade = boulderProblemsStore.grades[0] || null;
+  sharedSelectedGrade.value = defaultGrade || '';
+
+  boulderProblemsStore.createNewProblem(defaultGrade, oldProblem.name, oldProblem.color || '#ffffff');
+  const newProblem = boulderProblemsStore.activeProblem;
+  if (!newProblem) return;
+
+  // Add holds on the current image that were matched to this old problem's holds
+  if (comparisonHoldMapping.value) {
+    const oldHoldIds = new Set((oldProblem.holds ?? []).map((h: any) => h.holdId));
+    const matchedNewHoldIds: string[] = [];
+    for (const [hold1Id, { hold2 }] of comparisonHoldMapping.value as Map<string, any>) {
+      if (hold2 && oldHoldIds.has(hold1Id)) {
+        matchedNewHoldIds.push(hold2.id);
+      }
+    }
+    addHoldsByIds(matchedNewHoldIds, newProblem);
+  }
+
+  // Persist to backend
+  const localId = newProblem.id;
+  const problemIndex = boulderProblemsStore.boulderProblems.findIndex((p: any) => p.id === localId);
+  await boulderProblemsStore.finishCreatingProblem();
+
+  const savedProblem = boulderProblemsStore.boulderProblems[problemIndex];
+  if (!savedProblem) return;
+
+  // Link as predecessor
+  try {
+    await boulderProblemsStore.setPredecessorProblem(route.params.locationId as string, savedProblem.id, oldProblem.id);
+  } catch (err) {
+    console.warn('[CreateFromOld] predecessor link failed:', err);
+  }
+
+  // Enter edit mode so the user can add remaining holds and save
+  startEditingProblem(savedProblem);
 };
 
 const handleClearPredecessor = async (problem: any) => {
@@ -2579,10 +2658,21 @@ const runWallComparison = async () => {
       ? holdsRaw1.filter((h: any) => prevProblemHoldIds.has(h.id))
       : holdsRaw1;
 
+    // Build holdId → problem color map for connection line colouring
+    const holdColorMap = new Map<string, string>();
+    for (const p of replacedImageProblems.value as any[]) {
+      if (p.color) {
+        for (const h of p.holds ?? []) {
+          holdColorMap.set(h.holdId, p.color);
+        }
+      }
+    }
+
     comparisonImgData1.value = {
       dataUrl: dataUrl1,
       holds: filteredHolds1,
       detectionDims: (detectionDoc1 as any)?.detectionResults?.metadata?.imageDimensions ?? null,
+      holdColorMap,
     };
 
     const currentHolds = [
