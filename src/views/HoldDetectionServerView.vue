@@ -69,7 +69,7 @@
                   :holds1="comparisonImgData1.holds"
                   :holds2="comparisonImgData2.holds"
                   :clusters2="[]"
-                  :hold-mapping="comparisonHoldMapping"
+                  :hold-mapping="focusedHoldMapping"
                   :matches="comparisonMatchResult?.matches ?? []"
                   :scale1="comparisonScale1"
                   :scale2="comparisonScale2"
@@ -782,10 +782,13 @@
               <div
                 v-for="oldProblem in sortedReplacedImageProblems"
                 :key="oldProblem.id"
-                class="flex items-center justify-between rounded-md border px-3 py-2 text-[13px]"
+                class="flex items-center justify-between rounded-md border px-3 py-2 text-[13px] cursor-pointer transition-colors"
                 :class="linkedOldProblemIds.has(oldProblem.id)
                   ? 'border-gray-200 bg-gray-50 text-gray-400'
-                  : 'border-amber-200 bg-amber-50 text-gray-700'"
+                  : focusedOldProblemId === oldProblem.id
+                    ? 'border-amber-300 bg-amber-50 text-gray-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'"
+                @click="focusedOldProblemId = focusedOldProblemId === oldProblem.id ? null : oldProblem.id"
               >
                 <div class="flex items-center gap-2 min-w-0">
                   <div
@@ -1180,7 +1183,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { orderImagesBySectionOf } from '../utils/imageOrdering';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore.js';
@@ -2539,6 +2542,22 @@ const sortedReplacedImageProblems = computed(() => {
   );
 });
 
+const focusedOldProblemId = ref<string | null>(null);
+
+// Hold mapping filtered to only the focused problem's hold pairs
+const focusedHoldMapping = computed(() => {
+  if (!comparisonHoldMapping.value) return null;
+  if (!focusedOldProblemId.value) return comparisonHoldMapping.value;
+  const focused = replacedImageProblems.value.find((p: any) => p.id === focusedOldProblemId.value) as any;
+  if (!focused) return comparisonHoldMapping.value;
+  const holdIds = new Set((focused.holds ?? []).map((h: any) => h.holdId));
+  const filtered = new Map();
+  for (const [hold1Id, entry] of comparisonHoldMapping.value as Map<string, any>) {
+    if (holdIds.has(hold1Id)) filtered.set(hold1Id, entry);
+  }
+  return filtered;
+});
+
 const handleStartPredecessorLink = (problem: any) => {
   router.replace({
     query: {
@@ -2719,6 +2738,10 @@ const runWallComparison = async () => {
     comparisonLoadingStep.value = 'Computing hold mapping…';
     const holdMatchMap = mapMatchesToHolds(match.matches, filteredHolds1, scale1.x, scale1.y);
     comparisonHoldMapping.value = computeHoldToHoldMapping(holdMatchMap, currentHolds, scale2.x, scale2.y);
+    // Auto-focus the problem with most matches
+    await nextTick();
+    const first = sortedReplacedImageProblems.value[0];
+    if (first) focusedOldProblemId.value = first.id;
   } catch (err: any) {
     comparisonError.value = err.message;
     console.error('[WallComparison] error:', err);
