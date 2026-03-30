@@ -24,9 +24,36 @@
       </div>
 
       <div class="px-6 flex-1 overflow-y-auto">
+        <!-- Optional: pick which old image this new upload replaces -->
+        <div v-if="replaceableImages.length > 0" class="mb-4">
+          <p class="text-[13px] font-medium text-gray-700 mb-2">
+            Replaces wall image <span class="text-gray-400 font-normal">(optional)</span>
+          </p>
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              v-for="img in replaceableImages"
+              :key="img.imageId"
+              type="button"
+              @click="toggleReplaces(img.imageId)"
+              :class="[
+                'rounded-md border-2 overflow-hidden transition-all',
+                selectedReplacesImageId === img.imageId
+                  ? 'border-amber-500 ring-2 ring-amber-300'
+                  : 'border-gray-200 hover:border-gray-400',
+              ]"
+            >
+              <img :src="img.url" :alt="img.name" class="w-full aspect-square object-cover" />
+            </button>
+          </div>
+          <p v-if="selectedReplacesImageId" class="text-[12px] text-amber-700 mt-1.5">
+            ↩ Links problems on the selected image as predecessors
+          </p>
+        </div>
+
         <ImageUpload
           :location-id="locationId"
           :routesetting="routesetting"
+          :replaces-image-id="selectedReplacesImageId"
           @uploaded="$emit('uploaded', $event)"
           @error="$emit('error', $event)"
           @uploads-started="$emit('uploads-started', $event)"
@@ -54,7 +81,7 @@
 
 <script setup>
 import ImageUpload from './ImageUpload.vue';
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 
 const props = defineProps({
   isOpen: {
@@ -76,6 +103,10 @@ const props = defineProps({
   totalUploadsExpected: {
     type: Number,
     default: 0
+  },
+  replaceableImages: {
+    type: Array, // [{ imageId, url, name }]
+    default: () => []
   }
 });
 
@@ -86,6 +117,12 @@ defineEmits([
   'uploads-started',
   'all-complete'
 ]);
+
+const selectedReplacesImageId = ref(null);
+
+function toggleReplaces(imageId) {
+  selectedReplacesImageId.value = selectedReplacesImageId.value === imageId ? null : imageId;
+}
 
 // Computed property to check if uploads are in progress
 const uploadsInProgress = computed(() => {

@@ -193,12 +193,14 @@ interface LocationImage {
   downloadUrl: string;
   uploadedAt?: Date;
   routesettings: string[]; // Array of ISO timestamps (YYYY-MM-DDTHH:mm:ss) - which routesettings use this image
+  replacesImageId?: string; // Set at upload time when this image replaces a wall photo from a previous routesetting
 }
 
 // Input type for addLocationImage (omit uploadedAt which is added server-side)
 // When creating, client provides single routesetting, server converts to array
 type AddLocationImageRequest = Omit<LocationImage, 'uploadedAt' | 'routesettings'> & {
   routesetting: string; // Single routesetting when creating (converted to array server-side)
+  replacesImageId?: string;
 };
 
 // Toggle location like (add/remove)
@@ -658,7 +660,7 @@ export const deleteLocation = onCall({region: REGION}, async (request) => {
 export const addLocationImage = onCall({region: REGION}, async (request) => {
   try {
     // Input: imageId is the client-generated ID that becomes the Firestore doc ID
-    const { imageId, locationId, fileName, downloadUrl, routesetting } = request.data as AddLocationImageRequest;
+    const { imageId, locationId, fileName, downloadUrl, routesetting, replacesImageId } = request.data as AddLocationImageRequest;
 
     if (!imageId || !locationId || !fileName || !downloadUrl || !routesetting) {
       throw new Error("imageId, locationId, fileName, downloadUrl, and routesetting are required");
@@ -671,6 +673,7 @@ export const addLocationImage = onCall({region: REGION}, async (request) => {
       fileName,
       downloadUrl,
       routesettings: [routesetting], // Image belongs to this routesetting
+      ...(replacesImageId ? { replacesImageId } : {}),
     };
 
     // Use setDoc with client-provided imageId (matches Storage folder name)

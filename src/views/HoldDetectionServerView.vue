@@ -692,6 +692,63 @@
 
         <!-- Right Column: Results and Statistics -->
         <div class="space-y-6">
+          <!-- Reference panel: problems from the image this one replaces -->
+          <div
+            v-if="!isFullscreen && currentImage?.replacesImageId && replacedImageProblems.length > 0"
+            class="bg-white rounded-lg shadow-sm border border-amber-200"
+          >
+            <button
+              class="w-full flex items-center justify-between p-4 text-left"
+              @click="showReplacedImagePanel = !showReplacedImagePanel"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-[13px] font-semibold text-amber-800">↩ Previously on this wall</span>
+                <span class="text-[12px] text-amber-600">({{ replacedImageProblems.length }})</span>
+              </div>
+              <svg
+                class="w-4 h-4 text-amber-500 transition-transform"
+                :class="{ 'rotate-180': showReplacedImagePanel }"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div v-if="showReplacedImagePanel" class="px-4 pb-4 space-y-2">
+              <p class="text-[12px] text-amber-700 mb-3">
+                {{ route.query.predecessorForProblemId
+                  ? `Click "Set as predecessor" to link the old problem to "${route.query.predecessorForProblemName}"`
+                  : 'Use "↩ Link predecessor" on a new problem, then confirm here.' }}
+              </p>
+              <div
+                v-for="oldProblem in replacedImageProblems"
+                :key="oldProblem.id"
+                class="flex items-center justify-between rounded-md border px-3 py-2 text-[13px]"
+                :class="linkedOldProblemIds.has(oldProblem.id)
+                  ? 'border-gray-200 bg-gray-50 text-gray-400'
+                  : 'border-amber-200 bg-amber-50 text-gray-700'"
+              >
+                <div class="flex items-center gap-2 min-w-0">
+                  <div
+                    class="w-3 h-3 rounded-full flex-shrink-0 border border-white/50"
+                    :style="{ background: oldProblem.color || '#888' }"
+                  />
+                  <span class="truncate font-medium">{{ oldProblem.name }}</span>
+                  <span class="text-[11px] flex-shrink-0 opacity-60">{{ oldProblem.grade }}</span>
+                </div>
+                <div class="flex-shrink-0 ml-2">
+                  <span v-if="linkedOldProblemIds.has(oldProblem.id)" class="text-[11px] text-green-600 font-medium">linked ✓</span>
+                  <button
+                    v-else-if="route.query.predecessorForProblemId"
+                    class="text-[12px] px-2 py-0.5 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                    @click="handleConfirmPredecessor(oldProblem)"
+                  >
+                    Set as predecessor
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Boulder Problems + Draft Problems -->
           <div v-if="!isFullscreen && route.params.locationId">
             <BoulderProblemsManager
@@ -1034,6 +1091,9 @@
       :linking-problem-id="(route.query.linkingProblemId as string) || null"
       :linking-problem-name="(route.query.linkingProblemName as string) || ''"
       :linking-source-on-current-image="linkingSourceOnCurrentImage"
+      :predecessor-for-problem-id="(route.query.predecessorForProblemId as string) || null"
+      :predecessor-for-problem-name="(route.query.predecessorForProblemName as string) || ''"
+      :predecessor-source-on-current-image="predecessorSourceOnCurrentImage"
       @edit="handleFloatingCardEdit"
       @link="handleFloatingCardLink"
       @unlink="handleFloatingCardUnlink"
@@ -1041,6 +1101,10 @@
       @toggle-visibility="handleFloatingCardToggleVisibility"
       @mouse-enter="handleFloatingCardMouseEnter"
       @mouse-leave="handleFloatingCardMouseLeave"
+      @start-predecessor-link="handleStartPredecessorLink"
+      @confirm-predecessor="handleConfirmPredecessor"
+      @clear-predecessor="handleClearPredecessor"
+      @cancel-predecessor="cancelPredecessorLinking"
     />
   </div>
 </template>
@@ -1086,6 +1150,10 @@ const currentImage = ref(null); // TODO: Add proper image type
 const imageLoadError = ref(null);
 const locationImages = ref([]); // Images in same routesetting as current image, ordered by section
 const locationData = ref(null); // Full location object (for section-based nav ordering)
+
+// Problems from the image that the current image replaces (for predecessor linking reference)
+const replacedImageProblems = ref([]);
+const showReplacedImagePanel = ref(true);
 
 // Fullscreen state (pseudo-fullscreen using CSS, not native API)
 const isFullscreen = ref(false)
@@ -2080,6 +2148,7 @@ const loadImageFromQuery = async () => {
             id: imageRecord.imageId,
             url: imageRecord.downloadUrl, // Use ORIGINAL image (same as detection server analyzed)
             name: imageRecord.fileName,
+            replacesImageId: imageRecord.replacesImageId || null,
           }
 
           // Note: Detection results are loaded in onMounted via serverStore.loadDetectionResults()
@@ -2087,6 +2156,13 @@ const loadImageFromQuery = async () => {
 
           // Load existing manual holds for this image
           await serverStore.loadManualHolds(locationId, imageId);
+
+          // If this image replaces an older one, load the old image's boulder problems for reference
+          if (imageRecord.replacesImageId) {
+            loadReplacedImageProblems(locationId as string, imageRecord.replacesImageId);
+          } else {
+            replacedImageProblems.value = [];
+          }
         } else {
           console.warn('⚠️ Image not found in location images:', imageId);
         }
@@ -2277,6 +2353,73 @@ const linkingSourceOnCurrentImage = computed(() => {
   if (!linkingId) return false;
   return boulderProblemsStore.sortedProblems.some((p: any) => p.id === linkingId);
 });
+
+// True when the predecessor-source (new) problem is on the current image
+const predecessorSourceOnCurrentImage = computed(() => {
+  const predecessorId = route.query.predecessorForProblemId as string | undefined;
+  if (!predecessorId) return false;
+  return boulderProblemsStore.sortedProblems.some((p: any) => p.id === predecessorId);
+});
+
+// Set of old-problem IDs that already have a successor on the current image
+const linkedOldProblemIds = computed(() => {
+  const ids = new Set<string>();
+  for (const p of boulderProblemsStore.sortedProblems as any[]) {
+    if (p.predecessorProblemId) ids.add(p.predecessorProblemId);
+  }
+  return ids;
+});
+
+const handleStartPredecessorLink = (problem: any) => {
+  router.replace({
+    query: {
+      ...route.query,
+      predecessorForProblemId: problem.id,
+      predecessorForProblemName: problem.name,
+    },
+  });
+};
+
+const cancelPredecessorLinking = () => {
+  const { predecessorForProblemId: _a, predecessorForProblemName: _b, ...rest } = route.query;
+  router.replace({ query: rest });
+};
+
+const handleConfirmPredecessor = async (oldProblem: any) => {
+  const newProblemId = route.query.predecessorForProblemId as string;
+  if (!newProblemId) return;
+  try {
+    await boulderProblemsStore.setPredecessorProblem(route.params.locationId as string, newProblemId, oldProblem.id);
+    cancelPredecessorLinking();
+  } catch (err) {
+    alert(`Failed to set predecessor: ${(err as Error).message || err}`);
+  }
+};
+
+const handleClearPredecessor = async (problem: any) => {
+  if (!confirm(`Clear predecessor link for "${problem.name}"?`)) return;
+  try {
+    await boulderProblemsStore.clearPredecessorProblem(route.params.locationId as string, problem.id);
+  } catch (err) {
+    alert(`Failed to clear predecessor: ${(err as Error).message || err}`);
+  }
+};
+
+const loadReplacedImageProblems = async (locationId: string, replacesImageId: string) => {
+  try {
+    const { collection, query, where, getDocs } = await import('firebase/firestore');
+    const { db } = await import('@/services/firebase.js');
+    const q = query(
+      collection(db, 'locations', locationId, 'boulderProblems'),
+      where('imageId', '==', replacesImageId)
+    );
+    const snap = await getDocs(q);
+    replacedImageProblems.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.error('Failed to load replaced image problems:', err);
+    replacedImageProblems.value = [];
+  }
+};
 
 const handleFloatingCardConfirmLink = async ({ problemIdA, problemIdB, primaryId }: { problemIdA: string; problemIdB: string; primaryId: string }) => {
   try {

@@ -201,6 +201,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  replacesImageId: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['uploaded', 'error', 'all-complete', 'uploads-started']);
@@ -420,6 +424,7 @@ const startUploads = async () => {
           downloadUrl: item.downloadUrl,
           locationId: props.locationId,
           routesetting: props.routesetting, // Routesetting timestamp for version control
+          replacesImageId: props.replacesImageId,
         });
 
         results.push({ success: true, item });
@@ -442,6 +447,7 @@ const startUploads = async () => {
           downloadUrl: item.downloadUrl,
           locationId: props.locationId,
           routesetting: props.routesetting,
+          replacesImageId: props.replacesImageId,
         });
 
         return { success: true, item };

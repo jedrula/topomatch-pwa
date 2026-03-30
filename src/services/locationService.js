@@ -66,19 +66,21 @@ class LocationService {
   }
 
   // Add image metadata to a location
-  async addLocationImage(imageId, locationId, fileName, downloadUrl, routesetting) {
+  async addLocationImage(imageId, locationId, fileName, downloadUrl, routesetting, replacesImageId = null) {
     if (!routesetting) {
       throw new Error('routesetting is required. Create a routesetting for this location first.');
     }
     
     try {
-      const result = await callFunction('addLocationImage', {
+      const params = {
         imageId,
         locationId,
         fileName,
         downloadUrl,
         routesetting,
-      });
+      };
+      if (replacesImageId) params.replacesImageId = replacesImageId;
+      const result = await callFunction('addLocationImage', params);
       return result;
     } catch (error) {
       console.error('Error adding location image:', error);

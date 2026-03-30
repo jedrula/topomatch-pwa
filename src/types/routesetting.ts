@@ -1,6 +1,30 @@
 import { Timestamp } from 'firebase/firestore';
 
 /**
+ * Boulder problem stored at /locations/{locationId}/boulderProblems/{problemId}
+ */
+export interface BoulderProblem {
+  id: string;
+  name: string;
+  grade: string;
+  color: string;
+  imageId: string;
+  holds: unknown[];
+  createdAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
+  createdBy: string;
+
+  /** Sibling problem on an adjacent image (same route, different camera angle) */
+  linkedProblemId?: string | null;
+  isPrimary?: boolean;
+
+  /** The problem this one replaced on the previous image of the same wall section.
+   *  Set when a wall is re-photographed and problems are redrawn.
+   *  Used to aggregate betas/videos across routesetting history. */
+  predecessorProblemId?: string | null;
+}
+
+/**
  * Location document now stores routesettings as an array of ISO timestamps
  * No separate subcollection - just timestamps in location.routesettings[]
  */
@@ -37,6 +61,10 @@ export interface LocationImageWithSetting {
   
   /** When this image was uploaded */
   uploadedAt: Timestamp;
+
+  /** If set, this image was uploaded to replace an older image on the same wall section.
+   *  Permanent — set at upload time, never changes. */
+  replacesImageId?: string;
 }
 
 /**
