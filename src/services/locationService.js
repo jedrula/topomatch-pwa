@@ -138,6 +138,16 @@ class LocationService {
       throw error;
     }
   }
+
+  async addImagesToRoutesetting(locationId, routesetting, imageIds) {
+    try {
+      const result = await callFunction('addImagesToRoutesetting', { locationId, routesetting, imageIds });
+      return result;
+    } catch (error) {
+      console.error('Error adding images to routesetting:', error);
+      throw error;
+    }
+  }
 }
 
 export const locationService = new LocationService();

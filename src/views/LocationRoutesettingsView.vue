@@ -424,6 +424,7 @@ async function saveEditedRoutesetting() {
   isEditing.value = true;
   try {
     await routesettingService.addImagesToRoutesetting(
+      locationId.value,
       editingRoutesetting.value,
       selectedImageIdsForEdit.value
     );

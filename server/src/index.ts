@@ -1453,3 +1453,142 @@ export const unlinkBoulderProblems = onCall({region: REGION}, async (request) =>
     throw new Error((error as Error).message || "Failed to unlink boulder problems");
   }
 });
+
+export const setPredecessorProblem = onCall({region: REGION}, async (request) => {
+  if (!request.auth) throw new Error("Authentication required");
+  if (!request.auth.token?.admin) throw new Error("Admin privileges required");
+
+  const { locationId, newProblemId, predecessorProblemId } = request.data;
+
+  if (!locationId || !newProblemId || !predecessorProblemId) {
+    throw new Error("Missing required fields: locationId, newProblemId, predecessorProblemId");
+  }
+
+  try {
+    const newProblemRef = db
+      .collection("locations").doc(locationId)
+      .collection("boulderProblems").doc(newProblemId);
+    const newProblemSnap = await newProblemRef.get();
+    if (!newProblemSnap.exists) throw new Error(`Problem not found: ${newProblemId}`);
+
+    const imageId: string | undefined = newProblemSnap.data()?.imageId;
+    if (!imageId) throw new Error(`Problem ${newProblemId} has no imageId`);
+
+    const imageSnap = await db.collection("locationImages").doc(imageId).get();
+    if (!imageSnap.exists) throw new Error(`Location image not found: ${imageId}`);
+
+    const imageRoutesettings: string[] = imageSnap.data()?.routesettings || [];
+    const newRS = imageRoutesettings[imageRoutesettings.length - 1];
+    if (!newRS) throw new Error(`Image ${imageId} has no routesettings`);
+
+    const ascentsSnap = await db.collection("ascents")
+      .where("problemId", "==", predecessorProblemId)
+      .get();
+
+    const MAX_BATCH_SIZE = 500;
+    let batch = db.batch();
+    let batchCount = 0;
+
+    const commitBatch = async () => {
+      if (batchCount === 0) return;
+      await batch.commit();
+      batch = db.batch();
+      batchCount = 0;
+    };
+
+    for (const ascentDoc of ascentsSnap.docs) {
+      batch.update(ascentDoc.ref, {
+        routesettings: FieldValue.arrayUnion(newRS),
+      });
+      batchCount++;
+      if (batchCount >= MAX_BATCH_SIZE) await commitBatch();
+    }
+
+    batch.update(newProblemRef, {
+      predecessorProblemId,
+      updatedAt: new Date(),
+    });
+    batchCount++;
+
+    await commitBatch();
+
+    logger.info(`setPredecessorProblem: ${predecessorProblemId} → ${newProblemId}, backfilled ${ascentsSnap.size} ascents with RS ${newRS}`);
+    return { message: "Predecessor set successfully", backfilledCount: ascentsSnap.size };
+  } catch (error) {
+    logger.error("Error setting predecessor problem:", error);
+    throw new Error((error as Error).message || "Failed to set predecessor problem");
+  }
+});
+
+/**
+ * Add existing images to a routesetting (carry-over workflow) and backfill
+ * all ascents for problems on those images so they appear in the new routesetting.
+ */
+export const addImagesToRoutesetting = onCall({region: REGION}, async (request) => {
+  if (!request.auth) throw new Error("Authentication required");
+  if (!request.auth.token?.admin) throw new Error("Admin privileges required");
+
+  const { locationId, routesetting, imageIds } = request.data as {
+    locationId: string;
+    routesetting: string;
+    imageIds: string[];
+  };
+
+  if (!locationId || !routesetting || !imageIds?.length) {
+    throw new Error("Missing required fields: locationId, routesetting, imageIds");
+  }
+
+  const MAX_BATCH_SIZE = 500;
+  let batch = db.batch();
+  let batchCount = 0;
+  let totalAscents = 0;
+
+  const commitBatch = async () => {
+    if (batchCount === 0) return;
+    await batch.commit();
+    batch = db.batch();
+    batchCount = 0;
+  };
+
+  try {
+    for (const imageId of imageIds) {
+      // 1. Add routesetting to image doc
+      batch.update(db.collection("locationImages").doc(imageId), {
+        routesettings: FieldValue.arrayUnion(routesetting),
+      });
+      batchCount++;
+      if (batchCount >= MAX_BATCH_SIZE) await commitBatch();
+
+      // 2. Find all problems for this image
+      const problemsSnap = await db
+        .collection("locations").doc(locationId)
+        .collection("boulderProblems")
+        .where("imageId", "==", imageId)
+        .get();
+
+      // 3. Backfill ascents for each problem
+      for (const problemDoc of problemsSnap.docs) {
+        const ascentsSnap = await db.collection("ascents")
+          .where("problemId", "==", problemDoc.id)
+          .get();
+
+        for (const ascentDoc of ascentsSnap.docs) {
+          batch.update(ascentDoc.ref, {
+            routesettings: FieldValue.arrayUnion(routesetting),
+          });
+          batchCount++;
+          totalAscents++;
+          if (batchCount >= MAX_BATCH_SIZE) await commitBatch();
+        }
+      }
+    }
+
+    await commitBatch();
+
+    logger.info(`addImagesToRoutesetting: added ${imageIds.length} images to RS ${routesetting}, backfilled ${totalAscents} ascents`);
+    return { message: "Images added to routesetting", imageCount: imageIds.length, backfilledAscents: totalAscents };
+  } catch (error) {
+    logger.error("Error adding images to routesetting:", error);
+    throw new Error((error as Error).message || "Failed to add images to routesetting");
+  }
+});

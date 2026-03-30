@@ -563,7 +563,7 @@ export const useBoulderProblemsStore = defineStore('boulderProblems', () => {
 
   const setPredecessorProblem = async (locationId, newProblemId, predecessorId) => {
     try {
-      await boulderProblemsService.updateBoulderProblem(locationId, newProblemId, { predecessorProblemId: predecessorId });
+      await boulderProblemsService.setPredecessorProblem(locationId, newProblemId, predecessorId);
       if (currentLocationId.value && currentImageId.value) {
         await loadBoulderProblems(currentLocationId.value, currentImageId.value);
       }

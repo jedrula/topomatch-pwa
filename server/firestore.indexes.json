@@ -65,15 +65,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "routesettings",
+          "arrayConfig": "CONTAINS"
+        },
+        {
           "fieldPath": "locationId",
           "order": "ASCENDING"
         },
         {
           "fieldPath": "video.status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "routesetting",
           "order": "ASCENDING"
         },
         {
