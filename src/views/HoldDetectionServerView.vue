@@ -93,20 +93,51 @@
                 </div>
 
                 <!-- Match Holds button / status row -->
-                <div class="mt-2 flex items-center gap-3">
-                  <button
-                    v-if="!comparisonHoldMapping"
-                    :disabled="comparisonLoading"
-                    class="text-[13px] px-3 py-1.5 rounded-md bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-60 transition-colors"
-                    @click="runWallComparison"
-                  >
-                    {{ comparisonLoading ? comparisonLoadingStep : 'Match Holds' }}
-                  </button>
-                  <span v-if="comparisonHoldMapping" class="text-[12px] text-gray-500">
-                    {{ comparisonMatchResult?.confident_matches }} confident matches &nbsp;&middot;&nbsp;
-                    {{ comparisonHoldMapping.size }} hold pairs mapped
-                  </span>
-                  <span v-if="comparisonError" class="text-[12px] text-red-600">{{ comparisonError }}</span>
+                <div class="mt-2 space-y-2">
+                  <!-- Tuning params -->
+                  <details class="text-[12px] text-gray-500">
+                    <summary class="cursor-pointer select-none hover:text-gray-700">Matching params</summary>
+                    <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
+                      <label class="flex flex-col gap-0.5">
+                        <span class="text-gray-500">Confidence threshold <span class="font-mono text-gray-700">{{ matchingParams.confidence_threshold }}</span></span>
+                        <input type="range" min="0.1" max="1" step="0.05" v-model.number="matchingParams.confidence_threshold" class="w-full" />
+                      </label>
+                      <label class="flex flex-col gap-0.5">
+                        <span class="text-gray-500">Max size <span class="font-mono text-gray-700">{{ matchingParams.max_size }}</span></span>
+                        <input type="range" min="400" max="1600" step="40" v-model.number="matchingParams.max_size" class="w-full" />
+                      </label>
+                      <label class="flex flex-col gap-0.5">
+                        <span class="text-gray-500">RANSAC reproj threshold <span class="font-mono text-gray-700">{{ matchingParams.ransac_reproj_threshold }}</span></span>
+                        <input type="range" min="0.1" max="10" step="0.1" v-model.number="matchingParams.ransac_reproj_threshold" class="w-full" />
+                      </label>
+                      <label class="flex flex-col gap-0.5">
+                        <span class="text-gray-500">RANSAC confidence <span class="font-mono text-gray-700">{{ matchingParams.ransac_confidence }}</span></span>
+                        <input type="range" min="0.9" max="0.999999" step="0.000001" v-model.number="matchingParams.ransac_confidence" class="w-full" />
+                      </label>
+                      <label class="flex flex-col gap-0.5">
+                        <span class="text-gray-500">RANSAC max iters <span class="font-mono text-gray-700">{{ matchingParams.ransac_max_iters }}</span></span>
+                        <input type="range" min="100" max="50000" step="100" v-model.number="matchingParams.ransac_max_iters" class="w-full" />
+                      </label>
+                      <label class="flex flex-col gap-0.5">
+                        <span class="text-gray-500">Max matches <span class="font-mono text-gray-700">{{ matchingParams.max_matches }}</span></span>
+                        <input type="range" min="100" max="50000" step="100" v-model.number="matchingParams.max_matches" class="w-full" />
+                      </label>
+                    </div>
+                  </details>
+                  <div class="flex items-center gap-3">
+                    <button
+                      :disabled="comparisonLoading"
+                      class="text-[13px] px-3 py-1.5 rounded-md bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-60 transition-colors"
+                      @click="runWallComparison"
+                    >
+                      {{ comparisonLoading ? comparisonLoadingStep : (comparisonHoldMapping ? 'Re-match' : 'Match Holds') }}
+                    </button>
+                    <span v-if="comparisonHoldMapping" class="text-[12px] text-gray-500">
+                      {{ comparisonMatchResult?.confident_matches }} confident matches &nbsp;&middot;&nbsp;
+                      {{ comparisonHoldMapping.size }} hold pairs mapped
+                    </span>
+                    <span v-if="comparisonError" class="text-[12px] text-red-600">{{ comparisonError }}</span>
+                  </div>
                 </div>
               </div>
 
@@ -1249,6 +1280,16 @@ const comparisonMatchResult = ref(null);
 const comparisonHoldMapping = ref(null);
 const comparisonScale1 = ref({ x: 1, y: 1 });
 const comparisonScale2 = ref({ x: 1, y: 1 });
+
+// RANSAC / matching tuning params
+const matchingParams = ref({
+  confidence_threshold: 0.5,
+  max_matches: 10000,
+  max_size: 840,
+  ransac_reproj_threshold: 0.5,
+  ransac_confidence: 0.999999,
+  ransac_max_iters: 10000,
+});
 
 // Fullscreen state (pseudo-fullscreen using CSS, not native API)
 const isFullscreen = ref(false)
@@ -2604,9 +2645,7 @@ const runWallComparison = async () => {
       body: JSON.stringify({
         image1: dataUrl1.split(',')[1],
         image2: dataUrl2.split(',')[1],
-        confidence_threshold: 0.5,
-        max_matches: 10000,
-        max_size: 840,
+        ...matchingParams.value,
       }),
     });
     if (!matchRes.ok) throw new Error(`/general-matching HTTP ${matchRes.status}`);
