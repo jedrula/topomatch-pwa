@@ -76,7 +76,7 @@ export const useAscentStore = defineStore('ascent', () => {
 
     try {
       // Load all ascents for the problem
-      const allAscents = await ascentService.getBoulderAscents(locationId, problemId);
+      const allAscents = await ascentService.getBoulderAscents(problemId);
       ascents.value = allAscents;
 
       // Filter current user's ascents from all ascents
@@ -88,7 +88,7 @@ export const useAscentStore = defineStore('ascent', () => {
       }
 
       // Load statistics
-      const stats = await ascentService.getBoulderAscentStats(locationId, problemId);
+      const stats = await ascentService.getBoulderAscentStats(problemId);
       ascentStats.value = stats;
     } catch (err) {
       console.error('Error loading ascents:', err);

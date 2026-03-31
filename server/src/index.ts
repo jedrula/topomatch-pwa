@@ -940,6 +940,14 @@ export const getBoulderProblems = onCall({region: REGION}, async (request) => {
       ),
     ] as string[];
 
+    const predecessorIds = [
+      ...new Set(
+        problems
+          .map((p: any) => p.predecessorProblemId)
+          .filter((id: string | null) => !!id)
+      ),
+    ] as string[];
+
     const linkedProblemsMap = new Map<string, any>();
     if (linkedIds.length > 0) {
       const linkedBatches: string[][] = [];
@@ -962,9 +970,9 @@ export const getBoulderProblems = onCall({region: REGION}, async (request) => {
     }
 
     // Count videos (ready ascents) per problem in a single query.
-    // Include linked problem IDs so we can aggregate counts across pairs.
+    // Include linked problem IDs and predecessor problem IDs so we can aggregate counts across all related problems.
     const problemIds = problems.map((p: any) => p.id);
-    const allIdsForVideoCount = [...new Set([...problemIds, ...linkedIds])];
+    const allIdsForVideoCount = [...new Set([...problemIds, ...linkedIds, ...predecessorIds])];
     if (allIdsForVideoCount.length > 0) {
       // Firestore 'in' supports up to 30 values — batch if needed
       const batches: string[][] = [];
@@ -992,7 +1000,10 @@ export const getBoulderProblems = onCall({region: REGION}, async (request) => {
         const linkedCount = p.linkedProblemId
           ? videoCounts.get(p.linkedProblemId) || 0
           : 0;
-        (p as any).videoCount = ownCount + linkedCount;
+        const predecessorCount = p.predecessorProblemId
+          ? videoCounts.get(p.predecessorProblemId) || 0
+          : 0;
+        (p as any).videoCount = ownCount + linkedCount + predecessorCount;
 
         // Secondary problems defer name/grade to the primary
         if (p.linkedProblemId && p.isPrimary === false) {
@@ -1551,28 +1562,42 @@ export const addImagesToRoutesetting = onCall({region: REGION}, async (request) 
   };
 
   try {
+    // 1. Update all image docs
     for (const imageId of imageIds) {
-      // 1. Add routesetting to image doc
       batch.update(db.collection("locationImages").doc(imageId), {
         routesettings: FieldValue.arrayUnion(routesetting),
       });
       batchCount++;
       if (batchCount >= MAX_BATCH_SIZE) await commitBatch();
+    }
 
-      // 2. Find all problems for this image
-      const problemsSnap = await db
-        .collection("locations").doc(locationId)
-        .collection("boulderProblems")
-        .where("imageId", "==", imageId)
-        .get();
+    // 2. Fetch all problems for all images in parallel (instead of sequentially per image)
+    const problemSnaps = await Promise.all(
+      imageIds.map((imageId) =>
+        db.collection("locations").doc(locationId)
+          .collection("boulderProblems")
+          .where("imageId", "==", imageId)
+          .get()
+      )
+    );
+    const allProblemIds = problemSnaps.flatMap((snap) => snap.docs.map((d) => d.id));
 
-      // 3. Backfill ascents for each problem
-      for (const problemDoc of problemsSnap.docs) {
-        const ascentsSnap = await db.collection("ascents")
-          .where("problemId", "==", problemDoc.id)
-          .get();
+    if (allProblemIds.length > 0) {
+      // 3. Fetch all ascents using batched 'in' queries (max 30 per query, all in parallel)
+      //    This replaces one query per problem with ceil(N/30) parallel queries.
+      const problemIdChunks: string[][] = [];
+      for (let i = 0; i < allProblemIds.length; i += 30) {
+        problemIdChunks.push(allProblemIds.slice(i, i + 30));
+      }
+      const ascentSnaps = await Promise.all(
+        problemIdChunks.map((chunk) =>
+          db.collection("ascents").where("problemId", "in", chunk).get()
+        )
+      );
 
-        for (const ascentDoc of ascentsSnap.docs) {
+      // 4. Batch update all matching ascents
+      for (const snap of ascentSnaps) {
+        for (const ascentDoc of snap.docs) {
           batch.update(ascentDoc.ref, {
             routesettings: FieldValue.arrayUnion(routesetting),
           });

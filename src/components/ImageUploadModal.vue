@@ -11,7 +11,7 @@
             {{ pendingMetadataSaves === 0 ? 'Uploads complete!' : `Processing ${pendingMetadataSaves} of ${totalUploadsExpected} uploads...` }}
           </p>
         </div>
-        <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600">
+        <button @click="handleClose" class="text-gray-400 hover:text-gray-600">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -63,7 +63,7 @@
 
       <div class="flex gap-2 p-6 pt-4 flex-shrink-0 border-t">
         <button
-          @click="$emit('close')"
+          @click="handleClose"
           :disabled="uploadsInProgress"
           :class="[
             'flex-1 px-4 py-2 rounded-md transition-colors',
@@ -110,7 +110,7 @@ const props = defineProps({
   }
 });
 
-defineEmits([
+const emit = defineEmits([
   'close',
   'uploaded',
   'error',
@@ -122,6 +122,11 @@ const selectedReplacesImageId = ref(null);
 
 function toggleReplaces(imageId) {
   selectedReplacesImageId.value = selectedReplacesImageId.value === imageId ? null : imageId;
+}
+
+function handleClose() {
+  selectedReplacesImageId.value = null;
+  emit('close');
 }
 
 // Computed property to check if uploads are in progress

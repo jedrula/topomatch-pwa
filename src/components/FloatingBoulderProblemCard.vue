@@ -297,7 +297,6 @@ const confirmPredecessor = () => {
   if (isConfirmingPredecessor.value) return;
   isConfirmingPredecessor.value = true;
   emit('confirm-predecessor', props.problem);
-  isConfirmingPredecessor.value = false;
 };
 
 const showLinkConfirm = ref(false);
