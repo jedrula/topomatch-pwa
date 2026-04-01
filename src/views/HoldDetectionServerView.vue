@@ -236,12 +236,6 @@
                   @load="onImageLoad"
                   crossorigin="anonymous"
                 />
-                <!-- Focus dim overlay: shown when creating/editing a problem -->
-                <div
-                  v-if="(boulderProblemsStore.isCreatingProblem || editingState.isEditing) && focusOpacity > 0"
-                  class="absolute inset-0 pointer-events-none"
-                  :style="{ backgroundColor: `rgba(255,255,255,${focusOpacity})` }"
-                />
                 <!-- Interactive Hold Overlay with Manual Drawing Support -->
                 <InteractiveHoldOverlay
                   v-if="imageLoaded"
@@ -267,6 +261,7 @@
                   :highlighted-hold-ids="highlightedHoldIds"
                   :highlight-color="highlightColor"
                   :used-cluster-hold-ids="usedClusterHoldIds"
+                  :focus-opacity="focusOpacity"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   @tool-selection-change="handleToolSelectionChange"
