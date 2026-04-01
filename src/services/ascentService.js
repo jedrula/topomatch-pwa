@@ -108,7 +108,7 @@ export const ascentService = {
    * @param {string} problemId - The boulder problem ID
    * @returns {Promise<Array>} Array of ascent records
    */
-  async getBoulderAscents(locationId, problemId) {
+  async getBoulderAscents(problemId) {
     try {
       const ascentsRef = collection(db, 'ascents');
       const q = query(
@@ -374,9 +374,9 @@ export const ascentService = {
    * @param {string} problemId - The boulder problem ID
    * @returns {Promise<Object>} Statistics object
    */
-  async getBoulderAscentStats(locationId, problemId) {
+  async getBoulderAscentStats(problemId) {
     try {
-      const ascents = await this.getBoulderAscents(locationId, problemId);
+      const ascents = await this.getBoulderAscents(problemId);
 
       const stats = {
         totalAscents: ascents.length,

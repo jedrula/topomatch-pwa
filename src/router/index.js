@@ -56,6 +56,18 @@ const router = createRouter({
       meta: { requiresAdmin: true },
     },
     {
+      path: '/general-matching',
+      name: 'general-matching',
+      component: () => import('../views/GeneralMatchingView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
+      path: '/hold-matching',
+      name: 'hold-matching',
+      component: () => import('../views/HoldMatchingView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
       path: '/browse-locations',
       redirect: '/', // Redirect old browse-locations route to root
     },

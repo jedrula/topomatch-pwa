@@ -413,26 +413,44 @@ export const videoService = {
   },
 
   /**
-   * Get all videos for a specific boulder problem, including linked problem videos.
-   * @param {{ id: string, linkedProblemId?: string }} problem - The boulder problem object
-   * @returns {Promise<Array>} Array of video objects with metadata, deduplicated and sorted newest first
+   * Get all videos for a specific boulder problem, including:
+   * - sibling (linkedProblemId) on same routesetting
+   * - predecessor chain (predecessorProblemId) across routesettings + their siblings
+   * @param {{ id: string, linkedProblemId?: string, predecessorProblemId?: string }} problem
+   * @param {string|null} locationId - Required to walk the predecessor chain
+   * @returns {Promise<Array>} Deduplicated videos sorted newest first
    */
-  async getProblemVideos(problem) {
+  async getProblemVideos(problem, locationId = null) {
     try {
-      const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
+      const { collection, query, where, getDocs, orderBy, doc, getDoc } = await import('firebase/firestore');
 
       const fetchOne = async (pid) => {
         const ascentsRef = collection(db, 'ascents');
         const q = query(ascentsRef, where('problemId', '==', pid), orderBy('date', 'desc'));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => this.transformAscentToVideo(doc)).filter(v => v !== null);
+        return snap.docs.map(d => this.transformAscentToVideo(d)).filter(v => v !== null);
       };
 
-      if (!problem.linkedProblemId) return await fetchOne(problem.id);
+      // Collect all problem IDs: walk predecessor chain (up to 10 deep) + each sibling
+      const problemIds = new Set();
+      let current = problem;
+      let depth = 0;
+      while (current && depth < 10) {
+        problemIds.add(current.id);
+        if (current.linkedProblemId) problemIds.add(current.linkedProblemId);
+        if (!current.predecessorProblemId || !locationId) break;
+        try {
+          const snap = await getDoc(doc(db, 'locations', locationId, 'boulderProblems', current.predecessorProblemId));
+          current = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+        } catch {
+          break;
+        }
+        depth++;
+      }
 
-      const [main, linked] = await Promise.all([fetchOne(problem.id), fetchOne(problem.linkedProblemId)]);
+      const results = await Promise.all([...problemIds].map(fetchOne));
       const seen = new Set();
-      return [...main, ...linked]
+      return results.flat()
         .filter(v => { if (seen.has(v.id)) return false; seen.add(v.id); return true; })
         .sort((a, b) => (b.uploadedAt?.getTime?.() || 0) - (a.uploadedAt?.getTime?.() || 0));
     } catch (error) {
@@ -499,11 +517,12 @@ export const videoService = {
   /**
    * Get video count for a specific boulder problem, including linked problem videos.
    * @param {{ id: string, linkedProblemId?: string }} problem - The boulder problem object
+   * @param {string|null} locationId - Required to walk the predecessor chain
    * @returns {Promise<number>} Number of videos for the problem
    */
-  async getProblemVideoCount(problem) {
+  async getProblemVideoCount(problem, locationId = null) {
     try {
-      const videos = await this.getProblemVideos(problem);
+      const videos = await this.getProblemVideos(problem, locationId);
       return videos.length;
     } catch (error) {
       console.warn(`Failed to get video count for problem ${problem.id}:`, error);

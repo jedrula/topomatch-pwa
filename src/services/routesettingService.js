@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { getCurrentUser } from './authService.js';
+import { locationService } from './locationService.js';
 
 /**
  * Service for managing location routesettings (version control for boulder gym resets)
@@ -44,12 +45,9 @@ class RoutesettingService {
         updatedAt: Timestamp.now()
       });
 
-      // Add routesetting to each carried-forward image's array
-      for (const imageId of imageIds) {
-        const imageRef = doc(db, 'locationImages', imageId);
-        await updateDoc(imageRef, {
-          routesettings: arrayUnion(routesetting)
-        });
+      // Backfill ascents for carried-forward images (server-side for atomicity)
+      if (imageIds.length > 0) {
+        await locationService.addImagesToRoutesetting(locationId, routesetting, imageIds);
       }
 
       console.log(`✅ Created routesetting ${routesetting} for location ${locationId} with ${imageIds.length} images`);
@@ -114,20 +112,14 @@ class RoutesettingService {
    * @param {string} routesetting - The routesetting to add images to
    * @param {string[]} imageIds - Image IDs to add
    */
-  async addImagesToRoutesetting(routesetting, imageIds) {
+  async addImagesToRoutesetting(locationId, routesetting, imageIds) {
     try {
       const user = getCurrentUser();
       if (!user) {
         throw new Error('Must be authenticated to edit routesetting');
       }
 
-      // Add routesetting to each image's array
-      for (const imageId of imageIds) {
-        const imageRef = doc(db, 'locationImages', imageId);
-        await updateDoc(imageRef, {
-          routesettings: arrayUnion(routesetting)
-        });
-      }
+      await locationService.addImagesToRoutesetting(locationId, routesetting, imageIds);
 
       console.log(`✅ Added ${imageIds.length} images to routesetting ${routesetting}`);
     } catch (error) {

@@ -57,6 +57,59 @@
               >
                 Error loading image: {{ imageLoadError }}
               </div>
+
+              <!-- Wall Comparison: previous image vs current image -->
+              <div v-if="showWallComparison && replacedImageUrl && currentImage" class="mb-4">
+
+                <!-- HoldMatchVisualizer once matching is done -->
+                <HoldMatchVisualizer
+                  v-if="comparisonHoldMapping && comparisonImgData1 && comparisonImgData2"
+                  :image1-data-url="comparisonImgData1.dataUrl"
+                  :image2-data-url="comparisonImgData2.dataUrl"
+                  :holds1="comparisonImgData1.holds"
+                  :holds2="comparisonImgData2.holds"
+                  :clusters2="[]"
+                  :hold-mapping="focusedHoldMapping"
+                  :matches="comparisonMatchResult?.matches ?? []"
+                  :scale1="comparisonScale1"
+                  :scale2="comparisonScale2"
+                  :hold1-color-map="comparisonImgData1.holdColorMap"
+                />
+
+                <!-- Plain two-image view before matching runs -->
+                <div
+                  v-else
+                  class="flex rounded-lg overflow-hidden bg-gray-900"
+                  style="max-height: 70vh"
+                >
+                  <div class="relative flex-1 min-w-0 flex items-center justify-center">
+                    <span class="absolute top-2 left-2 z-10 text-[11px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">Previous</span>
+                    <img :src="replacedImageUrl" alt="Previous wall" class="w-full h-full object-contain block" style="max-height: 70vh" />
+                  </div>
+                  <div class="w-[3px] bg-amber-400 flex-shrink-0" />
+                  <div class="relative flex-1 min-w-0 flex items-center justify-center">
+                    <span class="absolute top-2 left-2 z-10 text-[11px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">Current</span>
+                    <img :src="(currentImage as any).url" alt="Current wall" class="w-full h-full object-contain block" style="max-height: 70vh" />
+                  </div>
+                </div>
+
+                <!-- Match Holds button / status row -->
+                <div class="mt-2 flex items-center gap-3">
+                  <button
+                    :disabled="comparisonLoading"
+                    class="text-[13px] px-3 py-1.5 rounded-md bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-60 transition-colors"
+                    @click="runWallComparison"
+                  >
+                    {{ comparisonLoading ? comparisonLoadingStep : (comparisonHoldMapping ? 'Re-match' : 'Match Holds') }}
+                  </button>
+                  <span v-if="comparisonHoldMapping" class="text-[12px] text-gray-500">
+                    {{ comparisonMatchResult?.confident_matches }} confident matches &nbsp;&middot;&nbsp;
+                    {{ comparisonHoldMapping.size }} hold pairs mapped
+                  </span>
+                  <span v-if="comparisonError" class="text-[12px] text-red-600">{{ comparisonError }}</span>
+                </div>
+              </div>
+
               <!-- Image Navigation (above image in normal mode) -->
               <div
                 v-if="!isFullscreen && imageLoaded && totalImageCount > 1"
@@ -183,12 +236,6 @@
                   @load="onImageLoad"
                   crossorigin="anonymous"
                 />
-                <!-- Focus dim overlay: shown when creating/editing a problem -->
-                <div
-                  v-if="(boulderProblemsStore.isCreatingProblem || editingState.isEditing) && focusOpacity > 0"
-                  class="absolute inset-0 pointer-events-none"
-                  :style="{ backgroundColor: `rgba(255,255,255,${focusOpacity})` }"
-                />
                 <!-- Interactive Hold Overlay with Manual Drawing Support -->
                 <InteractiveHoldOverlay
                   v-if="imageLoaded"
@@ -214,6 +261,7 @@
                   :highlighted-hold-ids="highlightedHoldIds"
                   :highlight-color="highlightColor"
                   :used-cluster-hold-ids="usedClusterHoldIds"
+                  :focus-opacity="focusOpacity"
                   @hold-click="handleHoldClick"
                   @hold-hover="handleHoldHover"
                   @tool-selection-change="handleToolSelectionChange"
@@ -692,6 +740,83 @@
 
         <!-- Right Column: Results and Statistics -->
         <div class="space-y-6">
+          <!-- Reference panel: problems from the image this one replaces -->
+          <div
+            v-if="!isFullscreen && currentImage?.replacesImageId && replacedImageProblems.length > 0"
+            class="bg-white rounded-lg shadow-sm border border-amber-200"
+          >
+            <div class="flex items-center justify-between p-4">
+              <button class="flex items-center gap-2 text-left" @click="showReplacedImagePanel = !showReplacedImagePanel">
+                <span class="text-[13px] font-semibold text-amber-800">↩ Previously on this wall</span>
+                <span class="text-[12px] text-amber-600">({{ replacedImageProblems.length }})</span>
+                <svg
+                  class="w-4 h-4 text-amber-500 transition-transform ml-1"
+                  :class="{ 'rotate-180': showReplacedImagePanel }"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <button
+                v-if="replacedImageUrl"
+                class="text-[12px] px-2.5 py-1 rounded-md border transition-colors"
+                :class="showWallComparison
+                  ? 'bg-amber-500 border-amber-500 text-white'
+                  : 'border-amber-400 text-amber-700 hover:bg-amber-50'"
+                @click="toggleWallComparison"
+              >
+                {{ showWallComparison ? 'Hide' : 'Visualize' }}
+              </button>
+            </div>
+            <div v-if="showReplacedImagePanel" class="px-4 pb-4 space-y-2">
+              <p class="text-[12px] text-amber-700 mb-3">
+                {{ route.query.predecessorForProblemId
+                  ? `Click "Set as predecessor" to link the old problem to "${route.query.predecessorForProblemName}"`
+                  : 'Use "↩ Link predecessor" on a new problem, then confirm here.' }}
+              </p>
+              <div
+                v-for="oldProblem in sortedReplacedImageProblems"
+                :key="oldProblem.id"
+                class="flex items-center justify-between rounded-md border px-3 py-2 text-[13px] cursor-pointer transition-colors"
+                :class="linkedOldProblemIds.has(oldProblem.id)
+                  ? 'border-gray-200 bg-gray-50 text-gray-400'
+                  : focusedOldProblemId === oldProblem.id
+                    ? 'border-amber-300 bg-amber-50 text-gray-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'"
+                @click="focusedOldProblemId = focusedOldProblemId === oldProblem.id ? null : oldProblem.id"
+              >
+                <div class="flex items-center gap-2 min-w-0">
+                  <div
+                    class="w-3 h-3 rounded-full flex-shrink-0 border border-white/50"
+                    :style="{ background: oldProblem.color || '#888' }"
+                  />
+                  <span class="truncate font-medium">{{ oldProblem.name }}</span>
+                  <span v-if="comparisonHoldMapping" class="text-[11px] flex-shrink-0 opacity-70 font-mono">
+                    ({{ problemMatchCounts.get(oldProblem.id) ?? 0 }})
+                  </span>
+                </div>
+                <div class="flex-shrink-0 ml-2">
+                  <span v-if="linkedOldProblemIds.has(oldProblem.id)" class="text-[11px] text-green-600 font-medium">linked ✓</span>
+                  <button
+                    v-else-if="route.query.predecessorForProblemId"
+                    class="text-[12px] px-2 py-0.5 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                    @click="handleConfirmPredecessor(oldProblem)"
+                  >
+                    Set as predecessor
+                  </button>
+                  <button
+                    v-else
+                    :disabled="!comparisonHoldMapping"
+                    class="text-[12px] px-2 py-0.5 rounded bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    @click="handleCreateFromOldProblem(oldProblem)"
+                  >
+                    Create
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Boulder Problems + Draft Problems -->
           <div v-if="!isFullscreen && route.params.locationId">
             <BoulderProblemsManager
@@ -1034,6 +1159,9 @@
       :linking-problem-id="(route.query.linkingProblemId as string) || null"
       :linking-problem-name="(route.query.linkingProblemName as string) || ''"
       :linking-source-on-current-image="linkingSourceOnCurrentImage"
+      :predecessor-for-problem-id="(route.query.predecessorForProblemId as string) || null"
+      :predecessor-for-problem-name="(route.query.predecessorForProblemName as string) || ''"
+      :predecessor-source-on-current-image="predecessorSourceOnCurrentImage"
       @edit="handleFloatingCardEdit"
       @link="handleFloatingCardLink"
       @unlink="handleFloatingCardUnlink"
@@ -1041,25 +1169,32 @@
       @toggle-visibility="handleFloatingCardToggleVisibility"
       @mouse-enter="handleFloatingCardMouseEnter"
       @mouse-leave="handleFloatingCardMouseLeave"
+      @start-predecessor-link="handleStartPredecessorLink"
+      @confirm-predecessor="handleConfirmPredecessor"
+      @clear-predecessor="handleClearPredecessor"
+      @cancel-predecessor="cancelPredecessorLinking"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { orderImagesBySectionOf } from '../utils/imageOrdering';
 import { useHoldDetectionServerStore } from '@/stores/holdDetectionServerStore.js';
 import { useHoldDetectionPersistenceStore } from '@/stores/holdDetectionPersistenceStore.js';
 import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore.js';
 import { locationService } from '@/services/locationService';
+import { holdDetectionService } from '@/services/holdDetectionService';
 import InteractiveHoldOverlay from '@/components/InteractiveHoldOverlay.vue';
 import BoulderProblemsManager from '@/components/BoulderProblemsManager.vue';
 import FloatingBoulderProblemCard from '@/components/FloatingBoulderProblemCard.vue';
+import HoldMatchVisualizer from '@/components/HoldMatchVisualizer.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { hexToColorName, precomputeHoldHues } from '@/utils/colorUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
 import { getHoldDetectionServerUrl } from '@/services/appConfigService';
+import { mapMatchesToHolds, computeHoldToHoldMapping, computeMatchToDetectionScale } from '@/utils/holdMatcher';
 // Note: Not using getResizedImageUrl - we load original images to match detection coordinates
 
 // TypeScript component - basic type annotations without complex interface definitions
@@ -1086,6 +1221,42 @@ const currentImage = ref(null); // TODO: Add proper image type
 const imageLoadError = ref(null);
 const locationImages = ref([]); // Images in same routesetting as current image, ordered by section
 const locationData = ref(null); // Full location object (for section-based nav ordering)
+
+// Problems from the image that the current image replaces (for predecessor linking reference)
+const replacedImageProblems = ref([]);
+const showReplacedImagePanel = ref(true);
+const replacedImageUrl = ref<string | null>(null);
+
+const showWallComparison = ref(false);
+
+const toggleWallComparison = () => {
+  if (showWallComparison.value) {
+    // Hiding: reset comparison state
+    showWallComparison.value = false;
+    comparisonMatchResult.value = null;
+    comparisonHoldMapping.value = null;
+    comparisonImgData1.value = null;
+    comparisonImgData2.value = null;
+    comparisonError.value = null;
+  } else {
+    // Showing: auto-run matching unless already done
+    showWallComparison.value = true;
+    if (!comparisonHoldMapping.value && !comparisonLoading.value) {
+      runWallComparison();
+    }
+  }
+};
+
+// Wall comparison / hold matching state
+const comparisonLoading = ref(false);
+const comparisonLoadingStep = ref('');
+const comparisonError = ref(null);
+const comparisonImgData1 = ref(null);
+const comparisonImgData2 = ref(null);
+const comparisonMatchResult = ref(null);
+const comparisonHoldMapping = ref(null);
+const comparisonScale1 = ref({ x: 1, y: 1 });
+const comparisonScale2 = ref({ x: 1, y: 1 });
 
 // Fullscreen state (pseudo-fullscreen using CSS, not native API)
 const isFullscreen = ref(false)
@@ -2062,9 +2233,8 @@ const loadImageFromQuery = async () => {
 
       // Load image data from the location service (cache the filtered list for navigation)
       if (locationImages.value.length === 0) {
-        // Use the location's current routesetting (last entry = newest, same as LocationDetailView)
-        // so the server-side filter matches exactly what the location detail page shows.
-        const activeRoutesetting = locationData.value?.routesettings?.at(-1);
+        // Use routesetting from URL if present, otherwise fall back to the latest
+        const activeRoutesetting = (route.query.routesetting as string) || locationData.value?.routesettings?.at(-1);
         const imageRecords = await locationService.getLocationImages(locationId, activeRoutesetting || null);
         if (Array.isArray(imageRecords)) {
           // Order by section order (same logic as FloorplanSectionDetail / location detail page)
@@ -2080,6 +2250,7 @@ const loadImageFromQuery = async () => {
             id: imageRecord.imageId,
             url: imageRecord.downloadUrl, // Use ORIGINAL image (same as detection server analyzed)
             name: imageRecord.fileName,
+            replacesImageId: imageRecord.replacesImageId || null,
           }
 
           // Note: Detection results are loaded in onMounted via serverStore.loadDetectionResults()
@@ -2087,11 +2258,62 @@ const loadImageFromQuery = async () => {
 
           // Load existing manual holds for this image
           await serverStore.loadManualHolds(locationId, imageId);
+
+          // If this image replaces an older one, load the old image's boulder problems for reference
+          if (imageRecord.replacesImageId) {
+            loadReplacedImageProblems(locationId as string, imageRecord.replacesImageId);
+          } else {
+            replacedImageProblems.value = [];
+          }
         } else {
-          console.warn('⚠️ Image not found in location images:', imageId);
+          // Image not in current routesetting — fetch it directly by imageId (e.g. old routesetting)
+          console.warn('⚠️ Image not in current routesetting list, fetching directly:', imageId);
+          const { doc, getDoc } = await import('firebase/firestore');
+          const { db } = await import('@/services/firebase.js');
+          const imgSnap = await getDoc(doc(db, 'locationImages', imageId as string));
+          if (imgSnap.exists()) {
+            const imgData = imgSnap.data() as any;
+            currentImage.value = {
+              id: imageId as string,
+              url: imgData.downloadUrl,
+              name: imgData.fileName,
+              replacesImageId: imgData.replacesImageId || null,
+            };
+            await serverStore.loadManualHolds(locationId, imageId);
+            if (imgData.replacesImageId) {
+              loadReplacedImageProblems(locationId as string, imgData.replacesImageId);
+            } else {
+              replacedImageProblems.value = [];
+            }
+          } else {
+            console.warn('⚠️ Image not found in locationImages collection:', imageId);
+            imageLoadError.value = `Image not found: ${imageId}`;
+          }
         }
       } else {
-        console.warn('⚠️ No location images available');
+        // No images for current routesetting at all — try fetching directly
+        console.warn('⚠️ No location images for current routesetting, fetching directly:', imageId);
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('@/services/firebase.js');
+        const imgSnap = await getDoc(doc(db, 'locationImages', imageId as string));
+        if (imgSnap.exists()) {
+          const imgData = imgSnap.data() as any;
+          currentImage.value = {
+            id: imageId as string,
+            url: imgData.downloadUrl,
+            name: imgData.fileName,
+            replacesImageId: imgData.replacesImageId || null,
+          };
+          await serverStore.loadManualHolds(locationId, imageId);
+          if (imgData.replacesImageId) {
+            loadReplacedImageProblems(locationId as string, imgData.replacesImageId);
+          } else {
+            replacedImageProblems.value = [];
+          }
+        } else {
+          console.warn('⚠️ Image not found in locationImages collection:', imageId);
+          imageLoadError.value = `Image not found: ${imageId}`;
+        }
       }
     } catch (error) {
       console.error('❌ Error loading image for hold detection:', error);
@@ -2277,6 +2499,282 @@ const linkingSourceOnCurrentImage = computed(() => {
   if (!linkingId) return false;
   return boulderProblemsStore.sortedProblems.some((p: any) => p.id === linkingId);
 });
+
+// True when the predecessor-source (new) problem is on the current image
+const predecessorSourceOnCurrentImage = computed(() => {
+  const predecessorId = route.query.predecessorForProblemId as string | undefined;
+  if (!predecessorId) return false;
+  return boulderProblemsStore.sortedProblems.some((p: any) => p.id === predecessorId);
+});
+
+// Set of old-problem IDs that already have a successor on the current image
+const linkedOldProblemIds = computed(() => {
+  const ids = new Set<string>();
+  for (const p of boulderProblemsStore.sortedProblems as any[]) {
+    if (p.predecessorProblemId) ids.add(p.predecessorProblemId);
+  }
+  return ids;
+});
+
+// Count matched holds per old problem (requires comparisonHoldMapping to be computed)
+const problemMatchCounts = computed(() => {
+  const counts = new Map<string, number>();
+  if (!comparisonHoldMapping.value) return counts;
+  for (const p of replacedImageProblems.value as any[]) {
+    const holdIds = new Set((p.holds ?? []).map((h: any) => h.holdId));
+    let count = 0;
+    for (const [hold1Id, { hold2 }] of comparisonHoldMapping.value as Map<string, any>) {
+      if (hold2 && holdIds.has(hold1Id)) count++;
+    }
+    counts.set(p.id, count);
+  }
+  return counts;
+});
+
+const sortedReplacedImageProblems = computed(() => {
+  return [...(replacedImageProblems.value as any[])].sort(
+    (a, b) => (problemMatchCounts.value.get(b.id) ?? 0) - (problemMatchCounts.value.get(a.id) ?? 0)
+  );
+});
+
+const focusedOldProblemId = ref<string | null>(null);
+
+// Hold mapping filtered to only the focused problem's hold pairs
+const focusedHoldMapping = computed(() => {
+  if (!comparisonHoldMapping.value) return null;
+  if (!focusedOldProblemId.value) return comparisonHoldMapping.value;
+  const focused = replacedImageProblems.value.find((p: any) => p.id === focusedOldProblemId.value) as any;
+  if (!focused) return comparisonHoldMapping.value;
+  const holdIds = new Set((focused.holds ?? []).map((h: any) => h.holdId));
+  const filtered = new Map();
+  for (const [hold1Id, entry] of comparisonHoldMapping.value as Map<string, any>) {
+    if (holdIds.has(hold1Id)) filtered.set(hold1Id, entry);
+  }
+  return filtered;
+});
+
+const handleStartPredecessorLink = (problem: any) => {
+  router.replace({
+    query: {
+      ...route.query,
+      predecessorForProblemId: problem.id,
+      predecessorForProblemName: problem.name,
+    },
+  });
+};
+
+const cancelPredecessorLinking = () => {
+  const { predecessorForProblemId: _a, predecessorForProblemName: _b, ...rest } = route.query;
+  router.replace({ query: rest });
+};
+
+const handleConfirmPredecessor = async (oldProblem: any) => {
+  const newProblemId = route.query.predecessorForProblemId as string;
+  if (!newProblemId) return;
+  try {
+    await boulderProblemsStore.setPredecessorProblem(route.params.locationId as string, newProblemId, oldProblem.id);
+    cancelPredecessorLinking();
+  } catch (err) {
+    alert(`Failed to set predecessor: ${(err as Error).message || err}`);
+  }
+};
+
+// One-click: create a matched new problem, auto-add mapped holds, link as predecessor, enter edit mode
+const handleCreateFromOldProblem = async (oldProblem: any) => {
+  if (boulderProblemsStore.isCreatingProblem) {
+    boulderProblemsStore.cancelCreatingProblem();
+  }
+
+  // Pre-fill shared form refs so UI reflects the new problem
+  sharedProblemName.value = oldProblem.name;
+  sharedProblemColor.value = oldProblem.color || '#ffffff';
+  const defaultGrade = boulderProblemsStore.grades[0] || null;
+  sharedSelectedGrade.value = defaultGrade || '';
+
+  boulderProblemsStore.createNewProblem(defaultGrade, oldProblem.name, oldProblem.color || '#ffffff');
+  const newProblem = boulderProblemsStore.activeProblem;
+  if (!newProblem) return;
+
+  // Add holds on the current image that were matched to this old problem's holds
+  if (comparisonHoldMapping.value) {
+    const oldHoldIds = new Set((oldProblem.holds ?? []).map((h: any) => h.holdId));
+    const matchedNewHoldIds: string[] = [];
+    for (const [hold1Id, { hold2 }] of comparisonHoldMapping.value as Map<string, any>) {
+      if (hold2 && oldHoldIds.has(hold1Id)) {
+        matchedNewHoldIds.push(hold2.id);
+      }
+    }
+    addHoldsByIds(matchedNewHoldIds, newProblem);
+  }
+
+  // Persist to backend
+  const localId = newProblem.id;
+  const problemIndex = boulderProblemsStore.boulderProblems.findIndex((p: any) => p.id === localId);
+  await boulderProblemsStore.finishCreatingProblem();
+
+  const savedProblem = boulderProblemsStore.boulderProblems[problemIndex];
+  if (!savedProblem) return;
+
+  // Link as predecessor
+  try {
+    await boulderProblemsStore.setPredecessorProblem(route.params.locationId as string, savedProblem.id, oldProblem.id);
+  } catch (err) {
+    console.warn('[CreateFromOld] predecessor link failed:', err);
+  }
+
+  // Enter edit mode so the user can add remaining holds and save
+  startEditingProblem(savedProblem);
+};
+
+const handleClearPredecessor = async (problem: any) => {
+  if (!confirm(`Clear predecessor link for "${problem.name}"?`)) return;
+  try {
+    await boulderProblemsStore.clearPredecessorProblem(route.params.locationId as string, problem.id);
+  } catch (err) {
+    alert(`Failed to clear predecessor: ${(err as Error).message || err}`);
+  }
+};
+
+// Convert a URL to a base64 data URL (needed for canvas / CORS-free operations)
+async function urlToDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target!.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
+const runWallComparison = async () => {
+  if (!currentImage.value || !replacedImageUrl.value) return;
+  comparisonLoading.value = true;
+  comparisonError.value = null;
+  comparisonMatchResult.value = null;
+  comparisonHoldMapping.value = null;
+  try {
+    const locId = route.params.locationId as string;
+    const replacesImageId = (currentImage.value as any).replacesImageId as string;
+
+    comparisonLoadingStep.value = 'Loading images & holds…';
+    const [dataUrl1, dataUrl2, holdsRaw1, detectionDoc1] = await Promise.all([
+      urlToDataUrl(replacedImageUrl.value),
+      urlToDataUrl((currentImage.value as any).url),
+      holdDetectionService.getAllHolds(locId, replacesImageId),
+      holdDetectionService.getHoldDetection(locId, replacesImageId),
+    ]);
+
+    // Only include holds that belong to at least one of the "previously on this wall" problems
+    const prevProblemHoldIds = new Set(
+      replacedImageProblems.value.flatMap((p: any) => (p.holds ?? []).map((h: any) => h.holdId))
+    );
+    const filteredHolds1 = prevProblemHoldIds.size > 0
+      ? holdsRaw1.filter((h: any) => prevProblemHoldIds.has(h.id))
+      : holdsRaw1;
+
+    // Build holdId → problem color map for connection line colouring
+    const holdColorMap = new Map<string, string>();
+    for (const p of replacedImageProblems.value as any[]) {
+      if (p.color) {
+        for (const h of p.holds ?? []) {
+          holdColorMap.set(h.holdId, p.color);
+        }
+      }
+    }
+
+    comparisonImgData1.value = {
+      dataUrl: dataUrl1,
+      holds: filteredHolds1,
+      detectionDims: (detectionDoc1 as any)?.detectionResults?.metadata?.imageDimensions ?? null,
+      holdColorMap,
+    };
+
+    const currentHolds = [
+      ...(serverStore.results?.holds ?? []),
+      ...serverStore.manualHolds,
+    ];
+    comparisonImgData2.value = {
+      dataUrl: dataUrl2,
+      holds: currentHolds,
+      detectionDims: (serverStore.results as any)?.metadata?.imageDimensions ?? null,
+    };
+
+    comparisonLoadingStep.value = 'Matching…';
+    const serverUrl = await getHoldDetectionServerUrl();
+    const matchRes = await fetch(`${serverUrl}/api/v1/general-matching`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+      body: JSON.stringify({
+        image1: dataUrl1.split(',')[1],
+        image2: dataUrl2.split(',')[1],
+        confidence_threshold: 0.5,
+        max_matches: 10000,
+        max_size: 840,
+        ransac_reproj_threshold: 0.5,
+        ransac_confidence: 0.999999,
+        ransac_max_iters: 10000,
+      }),
+    });
+    if (!matchRes.ok) throw new Error(`/general-matching HTTP ${matchRes.status}`);
+    const match = await matchRes.json();
+    comparisonMatchResult.value = match;
+
+    const scale1 = computeMatchToDetectionScale(
+      match.image_dimensions?.image1 ?? null,
+      comparisonImgData1.value.detectionDims
+    );
+    const scale2 = computeMatchToDetectionScale(
+      match.image_dimensions?.image2 ?? null,
+      comparisonImgData2.value.detectionDims
+    );
+    comparisonScale1.value = scale1;
+    comparisonScale2.value = scale2;
+
+    comparisonLoadingStep.value = 'Computing hold mapping…';
+    const holdMatchMap = mapMatchesToHolds(match.matches, filteredHolds1, scale1.x, scale1.y);
+    comparisonHoldMapping.value = computeHoldToHoldMapping(holdMatchMap, currentHolds, scale2.x, scale2.y);
+    // Auto-focus the problem with most matches
+    await nextTick();
+    const first = sortedReplacedImageProblems.value[0];
+    if (first) focusedOldProblemId.value = first.id;
+  } catch (err: any) {
+    comparisonError.value = err.message;
+    console.error('[WallComparison] error:', err);
+  } finally {
+    comparisonLoading.value = false;
+  }
+};
+
+const loadReplacedImageProblems = async (locationId: string, replacesImageId: string) => {
+  replacedImageUrl.value = null;
+  showWallComparison.value = false;
+  comparisonMatchResult.value = null;
+  comparisonHoldMapping.value = null;
+  comparisonImgData1.value = null;
+  comparisonImgData2.value = null;
+  try {
+    const { collection, query, where, getDocs, doc, getDoc } = await import('firebase/firestore');
+    const { db } = await import('@/services/firebase.js');
+
+    // Fetch the replaced image document to get its downloadUrl
+    const imageDocSnap = await getDoc(doc(db, 'locationImages', replacesImageId));
+    replacedImageUrl.value = imageDocSnap.exists()
+      ? (imageDocSnap.data() as any).downloadUrl ?? null
+      : null;
+
+    // Fetch boulder problems on the replaced image
+    const q = query(
+      collection(db, 'locations', locationId, 'boulderProblems'),
+      where('imageId', '==', replacesImageId)
+    );
+    const snap = await getDocs(q);
+    replacedImageProblems.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.error('Failed to load replaced image problems:', err);
+    replacedImageProblems.value = [];
+    replacedImageUrl.value = null;
+  }
+};
 
 const handleFloatingCardConfirmLink = async ({ problemIdA, problemIdB, primaryId }: { problemIdA: string; problemIdB: string; primaryId: string }) => {
   try {

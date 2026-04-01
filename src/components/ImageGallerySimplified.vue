@@ -40,7 +40,7 @@
           <!-- Edit icon for admin users -->
           <RouterLink
             v-if="userStore.isAdmin"
-            :to="`/location/${locationId}/holds-server?imageId=${currentImage.imageId}&imageName=${encodeURIComponent(currentImage.name)}`"
+            :to="`/location/${locationId}/holds-server?imageId=${currentImage.imageId}&imageName=${encodeURIComponent(currentImage.name)}${props.routesetting ? '&routesetting=' + encodeURIComponent(props.routesetting) : ''}`"
             class="text-white hover:text-blue-300 transition-colors"
             title="Edit holds and problems"
           >
@@ -237,6 +237,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  routesetting: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['close', 'navigate', 'navigate-next', 'navigate-previous']);
@@ -331,7 +335,7 @@ const fetchProblemVideos = async (problemId) => {
     loadingVideos.value.add(problemId);
 
     const problem = props.boulderProblems.find(p => p.id === problemId) || { id: problemId };
-    const videos = await videoService.getProblemVideos(problem);
+    const videos = await videoService.getProblemVideos(problem, props.locationId);
 
     problemVideosCache.value.set(problemId, videos);
     return videos;

@@ -14,6 +14,7 @@ const removeHoldFromProblemFn = httpsCallable(functions, 'removeHoldFromProblem'
 const updateProblemHoldsFn = httpsCallable(functions, 'updateProblemHolds');
 const linkBoulderProblemsFn = httpsCallable(functions, 'linkBoulderProblems');
 const unlinkBoulderProblemsFn = httpsCallable(functions, 'unlinkBoulderProblems');
+const setPredecessorProblemFn = httpsCallable(functions, 'setPredecessorProblem');
 
 export const boulderProblemsServiceV2 = {
   /**
@@ -44,6 +45,16 @@ export const boulderProblemsServiceV2 = {
       await updateBoulderProblemFn({ locationId, problemId, updates });
     } catch (error) {
       console.error('Error updating boulder problem:', error);
+      throw error;
+    }
+  },
+
+  async setPredecessorProblem(locationId, newProblemId, predecessorProblemId) {
+    try {
+      const result = await setPredecessorProblemFn({ locationId, newProblemId, predecessorProblemId });
+      return result.data;
+    } catch (error) {
+      console.error('Error setting predecessor problem:', error);
       throw error;
     }
   },

@@ -138,6 +138,74 @@
             </button>
           </div>
         </div>
+
+        <!-- Predecessor confirm (shown when this card is a predecessor target) -->
+        <div
+          v-if="isPredecessorTarget"
+          class="mt-2 pt-2 border-t border-amber-100"
+          @click.stop
+        >
+          <p class="text-xs font-medium text-amber-800 mb-2">Set as predecessor of <span class="font-semibold">{{ predecessorForProblemName }}</span>?</p>
+          <p class="text-xs text-gray-500 mb-2">Betas recorded on this problem will be shown on the new problem too.</p>
+          <div class="flex gap-2">
+            <button
+              @click.stop="confirmPredecessor"
+              :disabled="isConfirmingPredecessor"
+              class="flex-1 px-2 py-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium rounded transition-colors"
+            >
+              {{ isConfirmingPredecessor ? 'Linking…' : 'Confirm' }}
+            </button>
+            <button
+              @click.stop="$emit('cancel-predecessor')"
+              class="flex-1 px-2 py-1 border border-gray-300 text-xs rounded hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <!-- Predecessor status (shown when problem already has a predecessor linked) -->
+        <div
+          v-if="canEdit && !isPredecessorLinkingMode && problem?.predecessorProblemId"
+          class="mt-2 pt-2 border-t border-gray-100 flex items-center gap-2"
+          @click.stop
+        >
+          <span class="text-xs text-gray-500 flex-1">↩ Has predecessor linked</span>
+          <button
+            @click.stop="$emit('clear-predecessor', problem)"
+            class="text-xs text-red-400 hover:text-red-600 transition-colors"
+            title="Clear predecessor link"
+          >✕ Clear</button>
+        </div>
+
+        <!-- Start predecessor linking (shown when admin, no predecessor yet, not in linking mode) -->
+        <div
+          v-if="canEdit && !isPredecessorLinkingMode && !showLinkConfirm && !problem?.predecessorProblemId"
+          class="mt-2 pt-2 border-t border-gray-100"
+          @click.stop
+        >
+          <button
+            @click.stop="$emit('start-predecessor-link', problem)"
+            class="text-xs text-gray-400 hover:text-amber-600 transition-colors flex items-center gap-1"
+            title="Link to predecessor problem from previous routesetting"
+          >
+            <span>↩</span>
+            <span>Link predecessor</span>
+          </button>
+        </div>
+
+        <!-- Predecessor linking in progress (shown on the source/new problem while linking mode is active) -->
+        <div
+          v-if="isPredecessorSource"
+          class="mt-2 pt-2 border-t border-amber-100 flex items-center gap-2"
+          @click.stop
+        >
+          <span class="text-xs text-amber-700 flex-1 animate-pulse">↩ Navigate to old image, click old problem</span>
+          <button
+            @click.stop="$emit('cancel-predecessor')"
+            class="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >✕</button>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -185,9 +253,21 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  predecessorForProblemId: {
+    type: String,
+    default: null,
+  },
+  predecessorForProblemName: {
+    type: String,
+    default: '',
+  },
+  predecessorSourceOnCurrentImage: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['edit', 'link', 'unlink', 'confirm-link', 'toggle-visibility', 'mouse-enter', 'mouse-leave', 'show-videos', 'assign-problem']);
+const emit = defineEmits(['edit', 'link', 'unlink', 'confirm-link', 'toggle-visibility', 'mouse-enter', 'mouse-leave', 'show-videos', 'assign-problem', 'start-predecessor-link', 'confirm-predecessor', 'clear-predecessor', 'cancel-predecessor']);
 
 // Check if user can edit (admin only)
 const canEdit = computed(() => userStore.isAdmin);
@@ -199,6 +279,25 @@ const isLinkTarget = computed(() =>
   props.problem?.id !== props.linkingProblemId &&
   !props.linkingSourceOnCurrentImage
 );
+
+// Predecessor linking helpers
+const isPredecessorLinkingMode = computed(() => !!props.predecessorForProblemId);
+const isPredecessorTarget = computed(() =>
+  isPredecessorLinkingMode.value &&
+  props.problem?.id !== props.predecessorForProblemId &&
+  !props.predecessorSourceOnCurrentImage
+);
+const isPredecessorSource = computed(() =>
+  isPredecessorLinkingMode.value &&
+  props.problem?.id === props.predecessorForProblemId
+);
+
+const isConfirmingPredecessor = ref(false);
+const confirmPredecessor = () => {
+  if (isConfirmingPredecessor.value) return;
+  isConfirmingPredecessor.value = true;
+  emit('confirm-predecessor', props.problem);
+};
 
 const showLinkConfirm = ref(false);
 const confirmPrimaryId = ref(null);

@@ -2,12 +2,38 @@
   <div class="absolute inset-0 w-full h-full pointer-events-none">
     <!-- Main SVG overlay with both AI and manual holds -->
     <svg
-      v-if="aiSvgMarkups.length > 0 || serverStore.manualHolds.length > 0 || serverStore.isDrawingMode || serverStore.isDeleteMode || serverStore.isVolumeMode || serverStore.isCropMode"
+      v-if="aiSvgMarkups.length > 0 || serverStore.manualHolds.length > 0 || serverStore.isDrawingMode || serverStore.isDeleteMode || serverStore.isVolumeMode || serverStore.isCropMode || focusDimActive"
       class="absolute inset-0 w-full h-full pointer-events-none z-10"
       :viewBox="svgViewBox"
       preserveAspectRatio="xMidYMid meet"
       ref="svgElement"
     >
+      <!-- Focus dim: white overlay with hold-shaped cutouts -->
+      <defs v-if="focusDimActive && focusedHoldMarkups.length > 0">
+        <mask id="hold-focus-mask">
+          <rect :width="vbDims.w" :height="vbDims.h" fill="white" />
+          <g
+            v-for="(markup, i) in focusedHoldMarkups"
+            :key="'mask-hold-' + i"
+            fill="black"
+            stroke="black"
+            stroke-width="40"
+            v-html="toMaskMarkup(markup)"
+          />
+        </mask>
+      </defs>
+      <rect
+        v-if="focusDimActive"
+        x="0"
+        y="0"
+        :width="vbDims.w"
+        :height="vbDims.h"
+        fill="white"
+        :fill-opacity="focusOpacity"
+        :mask="focusedHoldMarkups.length > 0 ? 'url(#hold-focus-mask)' : undefined"
+        style="pointer-events:none"
+      />
+
       <!-- AI-detected holds -->
       <HoldSvg
         v-for="(svgMarkup, index) in aiSvgMarkups"
@@ -368,6 +394,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  focusOpacity: {
+    type: Number,
+    default: 0.75,
+  },
 });
 
 const emit = defineEmits(['hold-click', 'hold-hover', 'tool-selection-change', 'delete-hold', 'crop-complete', 'magic-wand-mode-change']);
@@ -429,6 +459,51 @@ const hitAreaSize = computed(() => {
 // Computed properties
 const aiHolds = computed(() => props.detectionResults?.holds || []);
 const aiSvgMarkups = computed(() => props.detectionResults?.svg_markups || []);
+
+// Focus dim helpers
+const toMaskMarkup = (markup) => {
+  const sw = Math.round(vbDims.value.w * 0.03);
+  return markup
+    .replace(/fill="[^"]*"/g, 'fill="black"')
+    .replace(/fill-opacity="[^"]*"/g, 'fill-opacity="1"')
+    .replace(/stroke="[^"]*"/g, 'stroke="black"')
+    .replace(/stroke-opacity="[^"]*"/g, '')
+    .replace(/stroke-width="[^"]*"/g, `stroke-width="${sw}"`)
+    .replace(/\bopacity="[^"]*"/g, '');
+};
+
+const focusDimActive = computed(
+  () => (props.isCreatingProblem || props.isEditingProblem) && props.focusOpacity > 0,
+);
+
+const vbDims = computed(() => {
+  const parts = svgViewBox.value.split(' ').map(Number);
+  return { w: parts[2] || 1000, h: parts[3] || 1000 };
+});
+
+const focusedHoldMarkups = computed(() => {
+  const focusedProblem = props.isCreatingProblem
+    ? props.activeProblem
+    : props.isEditingProblem
+      ? props.editingProblem
+      : null;
+  if (!focusedProblem?.holds?.length) return [];
+
+  const holdIds = new Set(focusedProblem.holds.map((h) => h.holdId));
+  const markups = [];
+
+  for (let i = 0; i < aiHolds.value.length; i++) {
+    if (holdIds.has(aiHolds.value[i]?.id) && aiSvgMarkups.value[i]) {
+      markups.push(aiSvgMarkups.value[i]);
+    }
+  }
+  for (const hold of serverStore.manualHolds) {
+    if (holdIds.has(hold.id) && hold.svgMarkup) {
+      markups.push(hold.svgMarkup);
+    }
+  }
+  return markups;
+});
 
 const svgViewBox = computed(() => {
   if (!props.imageElement) return '0 0 100 100';

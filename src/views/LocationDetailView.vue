@@ -323,6 +323,7 @@
       :routesetting="currentRoutesetting"
       :pending-metadata-saves="pendingMetadataSaves"
       :total-uploads-expected="totalUploadsExpected"
+      :replaceable-images="replaceableImages"
       @close="handleUploadModalClose"
       @uploaded="handleImageUploadComplete"
       @error="handleImageUploadError"
@@ -361,6 +362,7 @@
       :initial-index="initialImageIndex"
       :is-open="isGalleryOpen"
       :location-id="locationId"
+      :routesetting="currentRoutesetting"
       :boulder-problems="boulderProblemsStore.boulderProblems || []"
       :floorplan="location?.floorplan"
       @close="closeGallery"
@@ -464,6 +466,7 @@ const showMoreMenu = ref(false); // Track more menu visibility
 // Upload tracking state
 const pendingMetadataSaves = ref(0);
 const totalUploadsExpected = ref(0);
+const replaceableImages = ref([]); // Images from previous routesetting not in current one
 
 const locationId = computed(() => route.params.locationId);
 
@@ -1027,7 +1030,7 @@ const getProblemVideoCount = (problemId) => {
 const openProblemVideos = async (problem) => {
   try {
     // Get videos for this specific problem
-    const problemVideos = await videoService.getProblemVideos(problem);
+    const problemVideos = await videoService.getProblemVideos(problem, locationId.value);
 
     if (problemVideos.length === 0) {
       // No videos for this problem
@@ -1208,6 +1211,7 @@ const openHoldDetection = (image) => {
     query: {
       imageId: image.imageId,
       imageName: image.name,
+      routesetting: currentRoutesetting.value || undefined,
     },
   });
 };
@@ -1328,11 +1332,27 @@ const navigateToImage = (direction) => {
 const navigateNext = () => navigateToImage('next');
 const navigatePrevious = () => navigateToImage('previous');
 
-const handleUploadClick = () => {
+const handleUploadClick = async () => {
   if (!currentRoutesetting.value) {
     alert('⚠️ No active routesetting found.\n\nPlease create a routesetting for this location before uploading images.\n\nRoutesettings organize images by reset date (e.g., when new boulder problems are set).');
     return;
   }
+
+  // Load images from the previous routesetting as replacement candidates
+  replaceableImages.value = [];
+  const prevRoutesetting = allRoutesettings.value[1]; // allRoutesettings sorted newest-first
+  if (prevRoutesetting) {
+    try {
+      const prevImages = await locationService.getLocationImages(locationId.value, prevRoutesetting);
+      const currentImageIds = new Set(images.value.map(img => img.imageId));
+      replaceableImages.value = prevImages
+        .filter(img => !currentImageIds.has(img.imageId))
+        .map(img => ({ imageId: img.imageId, url: img.downloadUrl, name: img.fileName }));
+    } catch (e) {
+      console.error('Error loading replaceable images:', e);
+    }
+  }
+
   showUploadModal.value = true;
 };
 
@@ -1356,7 +1376,8 @@ const handleImageUploadComplete = async (uploadResult) => {
       uploadResult.locationId,
       uploadResult.fileName,
       uploadResult.downloadUrl,
-      uploadResult.routesetting
+      uploadResult.routesetting,
+      uploadResult.replacesImageId || null
     );
 
     // Add the new image to the images array for immediate display
