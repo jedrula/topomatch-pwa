@@ -461,14 +461,16 @@ const aiHolds = computed(() => props.detectionResults?.holds || []);
 const aiSvgMarkups = computed(() => props.detectionResults?.svg_markups || []);
 
 // Focus dim helpers
-const toMaskMarkup = (markup) =>
-  markup
+const toMaskMarkup = (markup) => {
+  const sw = Math.round(vbDims.value.w * 0.03);
+  return markup
     .replace(/fill="[^"]*"/g, 'fill="black"')
     .replace(/fill-opacity="[^"]*"/g, 'fill-opacity="1"')
     .replace(/stroke="[^"]*"/g, 'stroke="black"')
     .replace(/stroke-opacity="[^"]*"/g, '')
-    .replace(/stroke-width="[^"]*"/g, 'stroke-width="40"')
-    .replace(/ opacity="[^"]*"/g, '');
+    .replace(/stroke-width="[^"]*"/g, `stroke-width="${sw}"`)
+    .replace(/\bopacity="[^"]*"/g, '');
+};
 
 const focusDimActive = computed(
   () => (props.isCreatingProblem || props.isEditingProblem) && props.focusOpacity > 0,
