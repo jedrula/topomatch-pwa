@@ -14,10 +14,16 @@ const USER_ID  = userArg  ? userArg.split('=')[1] : null;
 
 async function fetchRecentReadyAscents() {
   const db = admin.firestore();
-  let query = db.collection('ascents').where('video.status', '==', 'ready');
-  if (USER_ID) query = query.where('userId', '==', USER_ID);
-  // over-fetch client-side since we can't orderBy without a composite index
-  const snap = await query.limit(LIMIT * 10).get();
+  let query = db.collection('ascents')
+    .where('video.status', '==', 'ready')
+    .orderBy('video.transcodedAt', 'desc')
+    .limit(LIMIT);
+  if (USER_ID) query = db.collection('ascents')
+    .where('userId', '==', USER_ID)
+    .where('video.status', '==', 'ready')
+    .orderBy('video.transcodedAt', 'desc')
+    .limit(LIMIT);
+  const snap = await query.get();
   return snap.docs
     .map(d => {
       const data = d.data();
@@ -31,11 +37,10 @@ async function fetchRecentReadyAscents() {
         transcodedAt: v.transcodedAt ? v.transcodedAt.toDate() : null,
         transcodedPath: v.transcodedPath,
         transcodedFileSize: v.transcodedFileSize,
+        uploadedOn: v.uploadedOn || null,
       };
     })
-    .filter(a => a.transcodedPath && a.transcodedFileSize)
-    .sort((a, b) => (b.transcodedAt || 0) - (a.transcodedAt || 0))
-    .slice(0, LIMIT);
+    .filter(a => a.transcodedPath && a.transcodedFileSize);
 }
 
 function makeDownloadUrl(path, token) {
@@ -90,7 +95,10 @@ async function ensureToken(filePath) {
     const rawToken = await ensureToken(rawPath);
     const tToken = await ensureToken(a.transcodedPath);
     const reduction = ((1 - a.transcodedFileSize / rawSize) * 100).toFixed(1);
-    const platform = ext === 'MOV' ? 'iOS' : 'Android/Web';
+    const PLATFORM_LABELS = { ios: 'iOS', android: 'Android', web: 'Web' };
+    const platform = a.uploadedOn
+      ? (PLATFORM_LABELS[a.uploadedOn] ?? a.uploadedOn)
+      : ext === 'MOV' ? 'iOS' : 'Android/Web';
 
     const fmt = d => d ? d.toISOString().replace('T', ' ').substring(0, 19) : 'unknown';
     console.log(`\n=== ${a.id.substring(0, 8)} | ${platform} | user: ${a.userName} | location: ${a.locationName || 'unknown'} ===`);

@@ -72,6 +72,14 @@ service firebase.storage {
         request.resource.contentType.matches('video/.*');
       allow delete: if isOwner(userId) || isAdmin();
     }
+
+    // Client-generated video thumbnails - users can upload their own JPEG
+    match /videos/thumbnails/{userId}/{filename} {
+      allow write: if isOwner(userId) &&
+        request.resource.size < 5 * 1024 * 1024 && // 5MB max for a thumbnail
+        request.resource.contentType.matches('image/.*');
+      allow delete: if isOwner(userId) || isAdmin();
+    }
     
     // Transcoded videos - read-only for users, only Cloud Functions can write
     match /videos/transcoded/{userId}/{videoId}/{filename} {
