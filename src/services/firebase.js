@@ -84,7 +84,7 @@ if (useEmulators) {
   }
 
   try {
-    connectFirestoreEmulator(db, emulatorHost, 8080);
+    connectFirestoreEmulator(db, emulatorHost, 8090);
   } catch (error) {
     // Emulator might already be connected
     if (error.code !== 'firestore/emulator-config-failed') {
