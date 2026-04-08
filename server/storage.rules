@@ -73,11 +73,15 @@ service firebase.storage {
       allow delete: if isOwner(userId) || isAdmin();
     }
 
-    // Client-generated video thumbnails - users can upload their own JPEG
+    // Client-generated video thumbnails - users can upload safe raster image formats
     match /videos/thumbnails/{userId}/{filename} {
       allow write: if isOwner(userId) &&
         request.resource.size < 5 * 1024 * 1024 && // 5MB max for a thumbnail
-        request.resource.contentType.matches('image/.*');
+        (
+          request.resource.contentType == 'image/jpeg' ||
+          request.resource.contentType == 'image/png' ||
+          request.resource.contentType == 'image/webp'
+        );
       allow delete: if isOwner(userId) || isAdmin();
     }
     
