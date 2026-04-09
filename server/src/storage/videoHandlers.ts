@@ -43,40 +43,29 @@ export async function handleRawVideoUpload(filePath: string, event: any): Promis
     const fileSize = event.data.size ? Number(event.data.size) : 0;
     const mimeType = event.data.contentType || "video/mp4";
 
-    const bucketName = event.bucket;
+    const bucketName = event.data.bucket;
 
-    // Read client flag before touching status — mobile skips transcoding entirely
+    // Read client flag — mobile clients mark the ascent ready themselves after upload.
     const ascentDoc = await ascentRef.get();
     const needsTranscoding = ascentDoc.data()?.video?.needsTranscoding;
 
-    // Update ascent with initial video data.
-    // Status stays 'uploading' for the skip path (goes straight to 'ready' below).
-    // Only set 'transcoding' when we're actually going to transcode.
+    // SKIP: mobile client writes all video fields and marks status=ready directly.
+    // No Firestore writes needed here.
+    if (needsTranscoding === false) {
+      logger.info(`📱 Skipping: client already marked ascent ${ascentId} ready`);
+      return { success: true, skipped: true };
+    }
+
+    // Web upload: update ascent and kick off transcoding.
     await ascentRef.update({
       "video.videoId": ascentId,
-      ...(needsTranscoding !== false && { "video.status": "transcoding" }),
+      "video.status": "transcoding",
       "video.originalPath": filePath,
       "video.mimeType": mimeType,
       "video.originalFileSize": fileSize,
       "video.uploadedAt": new Date(),
       updatedAt: new Date(),
     });
-
-    // SKIP TRANSCODING: mark ready immediately so the video is playable, then generate thumbnail
-    if (needsTranscoding === false) {
-      logger.info(`📱 Skipping transcoding for ${ascentId}: marking ready, generating thumbnail async`);
-
-      // Set ready now — video is already playable at its raw path
-      await ascentRef.update({
-        "video.status": "ready",
-        "video.transcodedPath": filePath, // raw file serves as the playback source
-        "video.transcodedFileSize": fileSize,
-        "video.transcodedAt": new Date(),
-        updatedAt: new Date(),
-      });
-
-      return { success: true, skipped: true };
-    }
 
     const outputPath = `videos/transcoded/${userId}/${ascentId}/`;
     const inputUri = `gs://${bucketName}/${filePath}`;
