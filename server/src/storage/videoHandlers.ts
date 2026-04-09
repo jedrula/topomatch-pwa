@@ -2,7 +2,6 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { TranscoderServiceClient } from "@google-cloud/video-transcoder";
 import * as logger from "firebase-functions/logger";
-import { generateVideoThumbnail } from "./thumbnailGenerator";
 
 const PROJECT_ID = "topomatch-pwa";
 const LOCATION = "europe-west1";
@@ -44,7 +43,20 @@ export async function handleRawVideoUpload(filePath: string, event: any): Promis
     const fileSize = event.data.size ? Number(event.data.size) : 0;
     const mimeType = event.data.contentType || "video/mp4";
 
-    // Update ascent with initial video data
+    const bucketName = event.data.bucket;
+
+    // Read client flag — mobile clients mark the ascent ready themselves after upload.
+    const ascentDoc = await ascentRef.get();
+    const needsTranscoding = ascentDoc.data()?.video?.needsTranscoding;
+
+    // SKIP: mobile client writes all video fields and marks status=ready directly.
+    // No Firestore writes needed here.
+    if (needsTranscoding === false) {
+      logger.info(`📱 Skipping: client already marked ascent ${ascentId} ready`);
+      return { success: true, skipped: true };
+    }
+
+    // Web upload: update ascent and kick off transcoding.
     await ascentRef.update({
       "video.videoId": ascentId,
       "video.status": "transcoding",
@@ -55,7 +67,6 @@ export async function handleRawVideoUpload(filePath: string, event: any): Promis
       updatedAt: new Date(),
     });
 
-    const bucketName = event.bucket;
     const outputPath = `videos/transcoded/${userId}/${ascentId}/`;
     const inputUri = `gs://${bucketName}/${filePath}`;
     const outputUri = `gs://${bucketName}/${outputPath}`;
@@ -157,33 +168,29 @@ export async function handleTranscodedVideo(filePath: string, event: any): Promi
     const fileSize = event.data.size ? Number(event.data.size) : 0;
     const bucketName = event.data.bucket;
 
-    // Generate thumbnail path
-    const thumbnailPath = filePath.replace("video.mp4", "thumbnail.jpg");
-
-    logger.info(`🖼️ Generating thumbnail: ${thumbnailPath}`);
-
-    // Generate thumbnail (runs FFmpeg)
-    let thumbnailUrl: string | null = null;
-    try {
-      thumbnailUrl = await generateVideoThumbnail(filePath, thumbnailPath, bucketName);
-    } catch (thumbError) {
-      logger.warn(`⚠️ Thumbnail generation failed (non-critical):`, thumbError);
-      // Continue without thumbnail
-    }
-
-    // Update ascent with transcoded video and thumbnail
+    // Update ascent with transcoded video
     await ascentRef.update({
       "video.status": "ready",
       "video.transcodedPath": filePath,
       "video.transcodedFileSize": fileSize,
       "video.transcodedAt": new Date(),
-      ...(thumbnailUrl && { "video.thumbnailUrl": thumbnailUrl }),
       updatedAt: new Date(),
     });
 
-    logger.info(`💾 Updated ascent ${ascentId} (thumbnail: ${thumbnailUrl ? "✅" : "❌"})`);
+    logger.info(`💾 Updated ascent ${ascentId} status=ready`);
 
-    return { success: true, ascentId, thumbnailUrl };
+    // Delete the raw original — no longer needed once transcoded
+    const originalPath = ascentDoc.data()?.video?.originalPath as string | undefined;
+    if (originalPath) {
+      try {
+        await getStorage().bucket(bucketName).file(originalPath).delete();
+        logger.info(`🗑️ Deleted raw video: ${originalPath}`);
+      } catch (deleteError) {
+        logger.warn(`⚠️ Could not delete raw video (non-critical): ${originalPath}`, deleteError);
+      }
+    }
+
+    return { success: true, ascentId };
   } catch (error) {
     logger.error(`❌ Error updating ascent:`, error);
 

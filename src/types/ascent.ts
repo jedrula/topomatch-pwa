@@ -27,6 +27,9 @@ export interface AscentVideo {
   
   /** When the video was uploaded */
   uploadedAt: Timestamp;
+
+  /** Platform the video was uploaded from */
+  uploadedOn?: 'ios' | 'android' | 'web';
   
   /** When transcoding completed */
   transcodedAt?: Timestamp;

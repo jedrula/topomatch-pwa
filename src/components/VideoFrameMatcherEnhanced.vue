@@ -247,6 +247,7 @@ import { useBoulderProblemsStore } from '@/stores/boulderProblemsStore';
 import { ascentService, generateAscentId } from '@/services/ascentService';
 import { getCurrentUser } from '@/services/authService';
 import { useVideoUploadQueueStore } from '@/stores/videoUploadQueueStore';
+import { Capacitor } from '@capacitor/core';
 import { useVideoAnalysisQueueStore } from '@/stores/videoAnalysisQueueStore';
 
 // Props
@@ -428,7 +429,7 @@ const createAscentAndStartUpload = async (videoFile) => {
       video: {
         status: 'uploading',
         uploadedAt: new Date().toISOString(),
-        // thumbnailUrl will be generated server-side after upload
+        uploadedOn: Capacitor.getPlatform(),
       },
     };
 
