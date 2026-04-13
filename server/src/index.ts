@@ -43,7 +43,7 @@ const auth = getAuth();
 // Configure Firestore to use emulator if in development
 if (process.env.FUNCTIONS_EMULATOR === "true") {
   db.settings({
-    host: "127.0.0.1:8080",
+    host: "127.0.0.1:8090",
     ssl: false,
   });
 }
@@ -168,7 +168,9 @@ interface Location {
   gradingSystem?: GradingSystem;
   routesettings?: string[]; // Array of ISO timestamps, last one is current
   likesCount?: number; // Total number of likes
-  floorplan?: {
+  floorplans?: Array<{
+    id: string;
+    name: string;
     outline: Array<{ x: number; y: number }>;
     sections: Array<{
       id: string;
@@ -177,7 +179,7 @@ interface Location {
       imageIds: string[]; // References to LocationImage.imageId
       points: Array<{ x: number; y: number }>;
     }>;
-  };
+  }>;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -322,10 +324,14 @@ export const createLocation = onCall({region: REGION}, async (request) => {
       address: address || "",
       description: description || "",
       likesCount: 0,
-      floorplan: {
-        outline: [],
-        sections: []
-      },
+      floorplans: [
+        {
+          id: crypto.randomUUID(),
+          name: 'Main Floor',
+          outline: [],
+          sections: []
+        }
+      ],
       createdAt: new Date(),
       updatedAt: new Date(),
     };

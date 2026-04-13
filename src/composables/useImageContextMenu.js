@@ -6,10 +6,11 @@ import ContextMenu from '@imengyu/vue3-context-menu';
  * @param {Function} options.onAnalyze - Callback when "Analyze holds" is clicked
  * @param {Function} options.onDelete - Callback when "Delete image" is clicked
  * @param {Function} options.onMove - Callback when "Move to section" is clicked
- * @param {Ref|Array} options.sections - Available sections for "Move to..." submenu
+ * @param {Ref|Array} options.sections - Available sections for "Move to..." submenu (flat, single-area fallback)
+ * @param {Ref} options.floorplans - Optional: all floorplans for grouped multi-area menu
  * @param {String} options.currentSectionId - Optional: ID of current section to exclude from "Move to..." menu
  */
-export function useImageContextMenu({ onAnalyze, onDelete, onMove, sections, currentSectionId = null }) {
+export function useImageContextMenu({ onAnalyze, onDelete, onMove, sections, floorplans, currentSectionId = null }) {
   const showContextMenu = (event, image) => {
     event.preventDefault();
     
@@ -19,20 +20,30 @@ export function useImageContextMenu({ onAnalyze, onDelete, onMove, sections, cur
         onClick: () => onAnalyze(image)
       }
     ];
+
+    // Build Move to... children — grouped by area when multiple floorplans exist
+    const plans = floorplans?.value;
+    let moveToChildren = [];
+
+    if (plans && plans.length > 1) {
+      for (const fp of plans) {
+        const available = fp.sections.filter(s => s.id !== currentSectionId);
+        if (!available.length) continue;
+        if (moveToChildren.length > 0) moveToChildren.push({ divided: true });
+        moveToChildren.push({ label: fp.name, disabled: true });
+        available.forEach(s => moveToChildren.push({ label: s.name, onClick: () => onMove(image, s.id) }));
+      }
+    } else {
+      const available = currentSectionId
+        ? (sections?.value ?? []).filter(s => s.id !== currentSectionId)
+        : (sections?.value ?? []);
+      moveToChildren = available.map(s => ({ label: s.name, onClick: () => onMove(image, s.id) }));
+    }
     
-    // Filter sections if currentSectionId is provided
-    const availableSections = currentSectionId 
-      ? sections.value?.filter(s => s.id !== currentSectionId) || []
-      : sections.value || [];
-    
-    // Add "Move to..." submenu if sections exist
-    if (availableSections.length > 0) {
+    if (moveToChildren.length > 0) {
       menuItems.push({
         label: 'Move to...',
-        children: availableSections.map(section => ({
-          label: section.name,
-          onClick: () => onMove(image, section.id)
-        }))
+        children: moveToChildren
       });
     }
     

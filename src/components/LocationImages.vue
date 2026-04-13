@@ -164,6 +164,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  floorplans: {
+    type: Array,
+    default: () => []
+  },
   getResizedImageUrl: {
     type: Function,
     required: true
@@ -181,7 +185,8 @@ const { showContextMenu } = useImageContextMenu({
   onAnalyze: (image) => emit('analyze-holds', image),
   onDelete: (image) => emit('delete-image', image),
   onMove: (image, sectionId) => emit('move-to-section', image, sectionId),
-  sections: computed(() => props.sections)
+  sections: computed(() => props.sections),
+  floorplans: computed(() => props.floorplans)
 });
 
 // Simple check: is this image uploaded in the last 5 seconds?

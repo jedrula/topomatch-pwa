@@ -2238,7 +2238,7 @@ const loadImageFromQuery = async () => {
         const imageRecords = await locationService.getLocationImages(locationId, activeRoutesetting || null);
         if (Array.isArray(imageRecords)) {
           // Order by section order (same logic as FloorplanSectionDetail / location detail page)
-          const sections = locationData.value?.floorplan?.sections || [];
+          const sections = (locationData.value?.floorplans ?? []).flatMap(fp => fp.sections);
           locationImages.value = orderImagesBySectionOf(imageId as string, sections, imageRecords);
         }
       }
