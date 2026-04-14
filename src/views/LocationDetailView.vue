@@ -802,7 +802,7 @@ const totalProblems = computed(() => {
 });
 
 // Sort images by section order
-const sortedImages = useSortedImages(images, computed(() => activeFloorplan.value));
+const sortedImages = useSortedImages(images, activeFloorplan);
 
 // Gallery state
 const isGalleryOpen = computed(() => {

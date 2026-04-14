@@ -1,3 +1,4 @@
+import { unref } from 'vue';
 import ContextMenu from '@imengyu/vue3-context-menu';
 
 /**
@@ -22,21 +23,23 @@ export function useImageContextMenu({ onAnalyze, onDelete, onMove, sections, flo
     ];
 
     // Build Move to... children — grouped by area when multiple floorplans exist
-    const plans = floorplans?.value;
+    const plans = unref(floorplans);
+    const sectionId = unref(currentSectionId);
     let moveToChildren = [];
 
     if (plans && plans.length > 1) {
       for (const fp of plans) {
-        const available = fp.sections.filter(s => s.id !== currentSectionId);
+        const available = fp.sections.filter(s => s.id !== sectionId);
         if (!available.length) continue;
         if (moveToChildren.length > 0) moveToChildren.push({ divided: true });
         moveToChildren.push({ label: fp.name, disabled: true });
         available.forEach(s => moveToChildren.push({ label: s.name, onClick: () => onMove(image, s.id) }));
       }
     } else {
-      const available = currentSectionId
-        ? (sections?.value ?? []).filter(s => s.id !== currentSectionId)
-        : (sections?.value ?? []);
+      const allSections = unref(sections) ?? [];
+      const available = sectionId
+        ? allSections.filter(s => s.id !== sectionId)
+        : allSections;
       moveToChildren = available.map(s => ({ label: s.name, onClick: () => onMove(image, s.id) }));
     }
     

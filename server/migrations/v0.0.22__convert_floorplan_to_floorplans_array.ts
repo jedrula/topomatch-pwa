@@ -16,7 +16,9 @@ export async function migrate(firestore: any): Promise<void> {
       });
       count++;
     } else if (data.floorplans === undefined) {
-      batch.update(doc.ref, { floorplans: [] });
+      batch.update(doc.ref, {
+        floorplans: [{ id: randomUUID(), name: 'Main Floor', outline: [], sections: [] }],
+      });
       count++;
     }
   });
