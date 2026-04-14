@@ -160,18 +160,18 @@
                 <span class="text-gray-500">Area:</span>
                 <span class="ml-1 font-medium">{{ report._floorplanName }}</span>
               </div>
-              <template v-if="report.steps?.find(s => s.step === 'input_prep')?.metrics">
+              <template v-for="inputPrep in [report.steps?.find(s => s.step === 'input_prep')?.metrics].filter(Boolean)" :key="'input_prep'">
                 <div>
                   <span class="text-gray-500">Frames:</span>
-                  <span class="ml-1 font-medium">{{ report.steps.find(s => s.step === 'input_prep').metrics.frameCount }}</span>
+                  <span class="ml-1 font-medium">{{ inputPrep.frameCount }}</span>
                 </div>
                 <div>
                   <span class="text-gray-500">Images:</span>
-                  <span class="ml-1 font-medium">{{ report.steps.find(s => s.step === 'input_prep').metrics.comparisonImageCount }}</span>
+                  <span class="ml-1 font-medium">{{ inputPrep.comparisonImageCount }}</span>
                 </div>
                 <div>
                   <span class="text-gray-500">Problems:</span>
-                  <span class="ml-1 font-medium">{{ report.steps.find(s => s.step === 'input_prep').metrics.problemCount }}</span>
+                  <span class="ml-1 font-medium">{{ inputPrep.problemCount }}</span>
                 </div>
               </template>
             </div>
