@@ -102,6 +102,13 @@ const router = createRouter({
       props: true,
     },
     {
+      path: '/location/:locationId/panorama',
+      name: 'location-panorama',
+      component: () => import('../views/PanoramaView.vue'),
+      props: true,
+      meta: { requiresAdmin: true },
+    },
+    {
       path: '/location/:locationId/jobs',
       name: 'location-jobs',
       component: () => import('../views/LocationJobsView.vue'),
