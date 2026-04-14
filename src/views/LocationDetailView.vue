@@ -220,6 +220,34 @@
 
         <!-- Gym Floorplan -->
         <div>
+          <!-- Area tabs (only shown when multiple floorplans exist, or add button for admins) -->
+          <div v-if="userStore.canEditLocations || (location?.floorplans?.length ?? 0) > 1" class="flex gap-2 mb-3 overflow-x-auto items-center">
+            <template v-if="(location?.floorplans?.length ?? 0) > 1">
+              <button
+                v-for="fp in location.floorplans"
+                :key="fp.id"
+                @click="selectedFloorplanId = fp.id"
+                :class="[
+                  'px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
+                  (selectedFloorplanId === fp.id || (!selectedFloorplanId && fp === location.floorplans[0]))
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ]"
+              >
+                {{ fp.name }}
+              </button>
+            </template>
+            <button
+              v-if="userStore.canEditLocations"
+              @click="addFloorplan"
+              class="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 whitespace-nowrap transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Add area
+            </button>
+          </div>
           <div class="flex items-center justify-between mb-4">
             <h2 class="section-header">Floorplan — tap a section</h2>
             <button
@@ -249,7 +277,7 @@
             :loading="imagesLoading"
             :has-any-photos="images.length > 0"
             :can-upload="userStore.canUploadImages"
-            :floorplan="location?.floorplan"
+            :floorplan="activeFloorplan"
             @update:isEditMode="isFloorplanEditMode = $event"
             @section-select="handleSectionSelect"
             @sections-change="handleSectionsChange"
@@ -270,7 +298,8 @@
           :location-name="location?.name"
           :can-upload="userStore.canUploadImages"
           :can-edit-holds="userStore.canEditLocations"
-          :sections="location?.floorplan?.sections || []"
+          :sections="(location?.floorplans ?? []).flatMap(fp => fp.sections)"
+          :floorplans="location?.floorplans ?? []"
           :get-resized-image-url="getResizedImageUrl"
           @upload="handleUploadClick"
           @image-click="openImageModal"
@@ -364,7 +393,7 @@
       :location-id="locationId"
       :routesetting="currentRoutesetting"
       :boulder-problems="boulderProblemsStore.boulderProblems || []"
-      :floorplan="location?.floorplan"
+      :floorplan="activeFloorplan"
       @close="closeGallery"
       @navigate-next="navigateNext"
       @navigate-previous="navigatePrevious"
@@ -426,6 +455,13 @@ const floorplanRef = ref(null);
 
 // Floorplan state
 const isFloorplanEditMode = ref(false);
+const selectedFloorplanId = ref(null);
+
+const activeFloorplan = computed(() => {
+  const plans = location.value?.floorplans;
+  if (!plans?.length) return null;
+  return plans.find(fp => fp.id === selectedFloorplanId.value) ?? plans[0];
+});
 
 const toggleFloorplanEditMode = () => {
   isFloorplanEditMode.value = !isFloorplanEditMode.value;
@@ -503,13 +539,14 @@ const filteredComparisonImages = computed(() => {
 
 // Filter images to only show those NOT assigned to any floorplan section
 const unassignedImages = computed(() => {
-  if (!location.value?.floorplan?.sections) {
+  const allSections = (location.value?.floorplans ?? []).flatMap(fp => fp.sections);
+  if (!allSections.length) {
     return filteredComparisonImages.value;
   }
   
   // Collect all imageIds that are assigned to sections
   const assignedImageIds = new Set();
-  location.value.floorplan.sections.forEach(section => {
+  allSections.forEach(section => {
     if (section.imageIds && Array.isArray(section.imageIds)) {
       section.imageIds.forEach(id => assignedImageIds.add(id));
     }
@@ -765,7 +802,7 @@ const totalProblems = computed(() => {
 });
 
 // Sort images by section order
-const sortedImages = useSortedImages(images, computed(() => location.value?.floorplan));
+const sortedImages = useSortedImages(images, activeFloorplan);
 
 // Gallery state
 const isGalleryOpen = computed(() => {
@@ -889,20 +926,23 @@ const handleSectionSelect = (sectionId) => {
   // Could scroll to section's photos or show section details in future
 };
 
+const saveActiveFloorplan = async () => {
+  const plan = activeFloorplan.value;
+  if (!plan || !location.value) return;
+  const updatedPlans = location.value.floorplans.map(fp =>
+    fp.id === plan.id ? plan : fp
+  );
+  location.value.floorplans = updatedPlans;
+  await locationService.updateLocation(locationId.value, {
+    floorplans: updatedPlans
+  });
+};
+
 const handleSectionsChange = async (newSections) => {
   try {
-    // Optimistically update local state
-    if (location.value) {
-      if (!location.value.floorplan) {
-        location.value.floorplan = {};
-      }
-      location.value.floorplan.sections = newSections;
-    }
-    
-    // Persist to Firestore
-    await locationService.updateLocation(locationId.value, {
-      'floorplan.sections': newSections
-    });
+    const plan = activeFloorplan.value;
+    if (plan) plan.sections = newSections;
+    await saveActiveFloorplan();
   } catch (err) {
     console.error('Error saving floorplan sections:', err);
     toast.error('Failed to save floorplan changes');
@@ -911,21 +951,28 @@ const handleSectionsChange = async (newSections) => {
 
 const handleOutlineChange = async (newOutline) => {
   try {
-    // Optimistically update local state
-    if (location.value) {
-      if (!location.value.floorplan) {
-        location.value.floorplan = {};
-      }
-      location.value.floorplan.outline = newOutline;
-    }
-    
-    // Persist to Firestore
-    await locationService.updateLocation(locationId.value, {
-      'floorplan.outline': newOutline
-    });
+    const plan = activeFloorplan.value;
+    if (plan) plan.outline = newOutline;
+    await saveActiveFloorplan();
   } catch (err) {
     console.error('Error saving floorplan outline:', err);
     toast.error('Failed to save floorplan changes');
+  }
+};
+
+const addFloorplan = async () => {
+  if (!location.value) return;
+  const name = prompt('Area name (e.g. "Upstairs", "Cave"):');
+  if (!name?.trim()) return;
+  const newPlan = { id: crypto.randomUUID(), name: name.trim(), outline: [], sections: [] };
+  const updatedPlans = [...(location.value.floorplans ?? []), newPlan];
+  try {
+    await locationService.updateLocation(locationId.value, { floorplans: updatedPlans });
+    location.value.floorplans = updatedPlans;
+    selectedFloorplanId.value = newPlan.id;
+  } catch (err) {
+    console.error('Error adding area:', err);
+    toast.error('Failed to add area');
   }
 };
 
@@ -1230,28 +1277,25 @@ const handleDeleteImage = async (image) => {
     images.value = images.value.filter(img => img.imageId !== image.imageId);
     
     // Remove imageId from all floorplan sections
-    if (location.value?.floorplan?.sections) {
-      const updatedSections = location.value.floorplan.sections.map(section => {
-        if (section.imageIds && section.imageIds.includes(image.imageId)) {
-          return {
-            ...section,
-            imageIds: section.imageIds.filter(id => id !== image.imageId)
-          };
-        }
-        return section;
-      });
-      
-      // Update floorplan in Firestore if any section was modified
-      const sectionsChanged = updatedSections.some((section, idx) => 
-        section.imageIds?.length !== location.value.floorplan.sections[idx].imageIds?.length
+    const allSections = (location.value?.floorplans ?? []).flatMap(fp => fp.sections);
+    if (allSections.length) {
+      const updatedPlans = (location.value.floorplans ?? []).map(fp => ({
+        ...fp,
+        sections: fp.sections.map(section => {
+          if (section.imageIds && section.imageIds.includes(image.imageId)) {
+            return { ...section, imageIds: section.imageIds.filter(id => id !== image.imageId) };
+          }
+          return section;
+        })
+      }));
+
+      const sectionsChanged = allSections.some(section =>
+        section.imageIds?.includes(image.imageId)
       );
-      
+
       if (sectionsChanged) {
-        await locationService.updateLocation(locationId.value, {
-          'floorplan.sections': updatedSections
-        });
-        // Update local state
-        location.value.floorplan.sections = updatedSections;
+        await locationService.updateLocation(locationId.value, { floorplans: updatedPlans });
+        location.value.floorplans = updatedPlans;
       }
     }
     
@@ -1265,39 +1309,36 @@ const handleDeleteImage = async (image) => {
 
 const handleMoveImageToSection = async (image, sectionId) => {
   try {
-    const section = location.value?.floorplan?.sections?.find(s => s.id === sectionId);
+    const allSections = (location.value?.floorplans ?? []).flatMap(fp => fp.sections);
+    const section = allSections.find(s => s.id === sectionId);
     if (!section) {
       console.error('Section not found:', sectionId);
       return;
     }
 
-    // Update sections: remove image from all sections, then add to target section
-    const updatedSections = location.value.floorplan.sections.map(s => {
-      const imageIds = s.imageIds || [];
-      
-      if (s.id === sectionId) {
-        // Add to target section if not already present
-        if (!imageIds.includes(image.imageId)) {
-          return { ...s, imageIds: [...imageIds, image.imageId] };
+    // Update all floorplans: remove image from all sections, add to target
+    const updatedPlans = (location.value.floorplans ?? []).map(fp => ({
+      ...fp,
+      sections: fp.sections.map(s => {
+        const imageIds = s.imageIds || [];
+        if (s.id === sectionId) {
+          if (!imageIds.includes(image.imageId)) {
+            return { ...s, imageIds: [...imageIds, image.imageId] };
+          }
+          return s;
+        } else {
+          const filteredIds = imageIds.filter(id => id !== image.imageId);
+          if (filteredIds.length !== imageIds.length) {
+            return { ...s, imageIds: filteredIds };
+          }
+          return s;
         }
-        return s;
-      } else {
-        // Remove from other sections
-        const filteredIds = imageIds.filter(id => id !== image.imageId);
-        if (filteredIds.length !== imageIds.length) {
-          return { ...s, imageIds: filteredIds };
-        }
-        return s;
-      }
-    });
+      })
+    }));
 
     // Save to Firestore
-    await locationService.updateLocation(locationId.value, {
-      'floorplan.sections': updatedSections
-    });
-
-    // Update local state
-    location.value.floorplan.sections = updatedSections;
+    await locationService.updateLocation(locationId.value, { floorplans: updatedPlans });
+    location.value.floorplans = updatedPlans;
 
     toast.success(`Image moved to ${section.name}`);
   } catch (error) {

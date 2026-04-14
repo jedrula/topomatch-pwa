@@ -24,6 +24,21 @@ export interface BoulderProblem {
   predecessorProblemId?: string | null;
 }
 
+export interface FloorplanSection {
+  id: string;
+  name: string;
+  type: 'slab' | 'vertical' | 'overhang' | 'cave';
+  imageIds: string[];
+  points: Array<{ x: number; y: number }>;
+}
+
+export interface Floorplan {
+  id: string;
+  name: string;
+  outline: Array<{ x: number; y: number }>;
+  sections: FloorplanSection[];
+}
+
 /**
  * Location document now stores routesettings as an array of ISO timestamps
  * No separate subcollection - just timestamps in location.routesettings[]
@@ -31,7 +46,10 @@ export interface BoulderProblem {
 export interface Location {
   /** Array of routesetting timestamps (ISO format: YYYY-MM-DDTHH:mm:ss) */
   routesettings: string[];
-  
+
+  /** Climbing areas / floors within the location */
+  floorplans: Floorplan[];
+
   /** Other location fields... */
   name: string;
   createdAt: Timestamp;

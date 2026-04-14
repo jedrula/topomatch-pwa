@@ -289,10 +289,10 @@ const availableImagesForEditRaw = ref([]);
 const selectedImageIdsForEdit = ref([]);
 const currentRoutesettingImageIds = ref([]);
 
-// Sort edit images by section order
+// Sort edit images by section order (use first floorplan for ordering)
 const availableImagesForEdit = useSortedImages(
   availableImagesForEditRaw,
-  computed(() => location.value?.floorplan)
+  computed(() => location.value?.floorplans?.[0])
 );
 
 const otherRoutesettings = computed(() => {
