@@ -151,7 +151,32 @@
           <div class="font-medium text-gray-900">
             Analysis: {{ report.ascentId }}
           </div>
-          
+
+          <!-- Input Preparation -->
+          <div v-if="report.steps || report.floorplanId != null" class="bg-gray-50 p-3 rounded text-sm">
+            <div class="font-medium text-gray-700 mb-2">Input Preparation</div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <span class="text-gray-500">Area:</span>
+                <span class="ml-1 font-medium">{{ report._floorplanName }}</span>
+              </div>
+              <template v-for="inputPrep in [report.steps?.find(s => s.step === 'input_prep')?.metrics].filter(Boolean)" :key="'input_prep'">
+                <div>
+                  <span class="text-gray-500">Frames:</span>
+                  <span class="ml-1 font-medium">{{ inputPrep.frameCount }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500">Images:</span>
+                  <span class="ml-1 font-medium">{{ inputPrep.comparisonImageCount }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500">Problems:</span>
+                  <span class="ml-1 font-medium">{{ inputPrep.problemCount }}</span>
+                </div>
+              </template>
+            </div>
+          </div>
+
           <!-- Match Info -->
           <div v-if="report.match" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div>
@@ -444,7 +469,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { collection, doc, getDoc, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { analysisDiagnosticsService } from '@/services/analysisDiagnosticsService';
 
@@ -518,6 +543,29 @@ const loadReports = async () => {
       loadAnalysisReports()
     ]);
     
+    // Resolve floorplan names: fetch each unique location once
+    const locationIds = [...new Set(analysisReports.map(r => r.locationId).filter(Boolean))];
+    const locationDocs = Object.fromEntries(
+      await Promise.all(
+        locationIds.map(async (lid) => {
+          try {
+            const snap = await getDoc(doc(db, 'locations', lid));
+            return [lid, snap.exists() ? snap.data() : {}];
+          } catch {
+            return [lid, {}];
+          }
+        })
+      )
+    );
+    for (const r of analysisReports) {
+      if (r.floorplanId && r.locationId) {
+        const fp = (locationDocs[r.locationId]?.floorplans ?? []).find(f => f.id === r.floorplanId);
+        r._floorplanName = fp?.name ?? r.floorplanId;
+      } else {
+        r._floorplanName = 'all areas';
+      }
+    }
+
     // Combine and sort by timestamp
     reports.value = [...errorReports, ...analysisReports].sort((a, b) => {
       const timeA = new Date(a.timestamp).getTime();

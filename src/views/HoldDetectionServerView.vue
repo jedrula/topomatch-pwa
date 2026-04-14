@@ -112,14 +112,14 @@
 
               <!-- Image Navigation (above image in normal mode) -->
               <div
-                v-if="!isFullscreen && imageLoaded && totalImageCount > 1"
+                v-if="!isFullscreen && imageLoaded && (canNavigatePrev || canNavigateNext)"
                 class="flex items-center justify-center space-x-2 mb-3"
               >
                 <button
                   @click="navigateToImage(-1)"
                   :disabled="!canNavigatePrev"
                   class="p-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:text-gray-300 disabled:border-gray-200 disabled:cursor-not-allowed transition-colors"
-                  title="Previous image"
+                  :title="currentImageIndex === 0 && prevSection ? `← ${prevSection.name}` : 'Previous image'"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -132,7 +132,7 @@
                   @click="navigateToImage(1)"
                   :disabled="!canNavigateNext"
                   class="p-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:text-gray-300 disabled:border-gray-200 disabled:cursor-not-allowed transition-colors"
-                  title="Next image"
+                  :title="currentImageIndex === totalImageCount - 1 && nextSection ? `${nextSection.name} →` : 'Next image'"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -185,14 +185,14 @@
 
                 <!-- Image Navigation overlay (fullscreen only) -->
                 <div
-                  v-if="isFullscreen && imageLoaded && totalImageCount > 1"
+                  v-if="isFullscreen && imageLoaded && (canNavigatePrev || canNavigateNext)"
                   class="absolute top-4 left-4 z-10 flex items-center space-x-1 pointer-events-auto"
                 >
                   <button
                     @click="navigateToImage(-1)"
                     :disabled="!canNavigatePrev"
                     class="bg-black bg-opacity-50 hover:bg-opacity-70 disabled:bg-opacity-30 disabled:cursor-not-allowed text-white rounded-lg p-2 transition-all duration-200"
-                    title="Previous image"
+                    :title="currentImageIndex === 0 && prevSection ? `← ${prevSection.name}` : 'Previous image'"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -205,7 +205,7 @@
                     @click="navigateToImage(1)"
                     :disabled="!canNavigateNext"
                     class="bg-black bg-opacity-50 hover:bg-opacity-70 disabled:bg-opacity-30 disabled:cursor-not-allowed text-white rounded-lg p-2 transition-all duration-200"
-                    title="Next image"
+                    :title="currentImageIndex === totalImageCount - 1 && nextSection ? `${nextSection.name} →` : 'Next image'"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -2336,16 +2336,52 @@ const currentImageIndex = computed(() => {
 
 const totalImageCount = computed(() => locationImages.value.length);
 
-const canNavigatePrev = computed(() => currentImageIndex.value > 0);
+// Cross-section navigation
+const allSections = computed(() =>
+  (locationData.value?.floorplans ?? []).flatMap(fp => fp.sections)
+);
+const currentSection = computed(() =>
+  allSections.value.find(s => s.imageIds?.includes(currentImage.value?.id))
+);
+const currentSectionIdx = computed(() =>
+  allSections.value.findIndex(s => s.id === currentSection.value?.id)
+);
+const prevSection = computed(() => {
+  if (allSections.value.length <= 1 || currentSectionIdx.value < 0) return null;
+  const idx = (currentSectionIdx.value - 1 + allSections.value.length) % allSections.value.length;
+  return allSections.value[idx];
+});
+const nextSection = computed(() => {
+  if (allSections.value.length <= 1 || currentSectionIdx.value < 0) return null;
+  const idx = (currentSectionIdx.value + 1) % allSections.value.length;
+  return allSections.value[idx];
+});
+
+const canNavigatePrev = computed(() =>
+  currentImageIndex.value > 0 ||
+  (currentImageIndex.value === 0 && !!prevSection.value?.imageIds?.length)
+);
 const canNavigateNext = computed(() =>
-  currentImageIndex.value >= 0 && currentImageIndex.value < totalImageCount.value - 1
+  (currentImageIndex.value >= 0 && currentImageIndex.value < totalImageCount.value - 1) ||
+  (currentImageIndex.value === totalImageCount.value - 1 && !!nextSection.value?.imageIds?.length)
 );
 
 const navigateToImage = (direction) => {
   const newIndex = currentImageIndex.value + direction;
-  if (newIndex < 0 || newIndex >= locationImages.value.length) return;
-  const newImageId = locationImages.value[newIndex].imageId;
-  router.push({ query: { ...route.query, imageId: newImageId } });
+  if (newIndex >= 0 && newIndex < locationImages.value.length) {
+    // Normal within-section navigation
+    router.push({ query: { ...route.query, imageId: locationImages.value[newIndex].imageId } });
+  } else if (direction === -1 && prevSection.value?.imageIds?.length) {
+    // Cross to previous section — land on its last image
+    const newImageId = prevSection.value.imageIds[prevSection.value.imageIds.length - 1];
+    locationImages.value = []; // reset so loadImageFromQuery reloads for new section
+    router.push({ query: { ...route.query, imageId: newImageId } });
+  } else if (direction === 1 && nextSection.value?.imageIds?.length) {
+    // Cross to next section — land on its first image
+    const newImageId = nextSection.value.imageIds[0];
+    locationImages.value = []; // reset so loadImageFromQuery reloads for new section
+    router.push({ query: { ...route.query, imageId: newImageId } });
+  }
 };
 
 // Watch for route changes to load different images

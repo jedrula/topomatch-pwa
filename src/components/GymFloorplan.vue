@@ -108,6 +108,31 @@
       @update-field="updateSectionField"
     />
 
+    <!-- Walk-through order (edit mode, 2+ sections) -->
+    <div v-if="props.isEditMode && sections.length > 1" class="space-y-1">
+      <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Walk-through order</p>
+      <draggable
+        :list="localSections"
+        item-key="id"
+        handle=".drag-handle"
+        @end="handleSectionReorder"
+        class="space-y-1"
+      >
+        <template #item="{ element, index }">
+          <div
+            class="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-gray-200 cursor-pointer select-none"
+            :class="{ 'ring-1 ring-blue-500 bg-blue-50 border-blue-300': selectedSectionId === element.id }"
+            @click="handleSectionSelect(element.id)"
+          >
+            <span class="drag-handle cursor-grab text-gray-400 text-base leading-none">⠿</span>
+            <span class="text-xs text-gray-400 w-4 shrink-0">{{ index + 1 }}</span>
+            <span class="text-sm text-gray-800 truncate flex-1">{{ element.name }}</span>
+            <span class="text-xs text-gray-400 capitalize">{{ element.type }}</span>
+          </div>
+        </template>
+      </draggable>
+    </div>
+
     <!-- Hint when editing and no outline -->
     <p v-if="props.isEditMode && outline.length === 0 && drawMode === 'none'" class="text-xs text-gray-500">
       💡 Start by clicking points on the canvas to draw the gym outline. Double-click to finish (min 3 points). Or click "Add Section" to draw sections directly.
@@ -126,6 +151,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import draggable from 'vuedraggable';
 import FloorplanViewer from './floorplan/FloorplanViewer.vue';
 import FloorplanEditor from './floorplan/FloorplanEditor.vue';
 import FloorplanToolbar from './floorplan/FloorplanToolbar.vue';
@@ -171,6 +197,10 @@ const selectedSectionId = ref(null);
 // Use computed properties directly from props - no watchers needed
 const outline = computed(() => props.floorplan?.outline || []);
 const sections = computed(() => props.floorplan?.sections || []);
+
+// Local copy for drag-to-reorder (vuedraggable mutates in place)
+const localSections = ref([...sections.value]);
+watch(sections, (val) => { localSections.value = [...val]; });
 
 // Computed
 const selectedSection = computed(() => {
@@ -354,6 +384,10 @@ function handleImageReorder(sectionId, newIds) {
     s.id === sectionId ? { ...s, imageIds: newIds } : s
   );
   emit('sections-change', updatedSections);
+}
+
+function handleSectionReorder() {
+  emit('sections-change', [...localSections.value]);
 }
 </script>
 

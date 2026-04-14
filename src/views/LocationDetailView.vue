@@ -223,19 +223,34 @@
           <!-- Area tabs (only shown when multiple floorplans exist, or add button for admins) -->
           <div v-if="userStore.canEditLocations || (location?.floorplans?.length ?? 0) > 1" class="flex gap-2 mb-3 overflow-x-auto items-center">
             <template v-if="(location?.floorplans?.length ?? 0) > 1">
-              <button
-                v-for="fp in location.floorplans"
-                :key="fp.id"
-                @click="selectedFloorplanId = fp.id"
-                :class="[
-                  'px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
-                  (selectedFloorplanId === fp.id || (!selectedFloorplanId && fp === location.floorplans[0]))
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                ]"
-              >
-                {{ fp.name }}
-              </button>
+              <template v-for="fp in location.floorplans" :key="fp.id">
+                <!-- Active tab in rename mode -->
+                <input
+                  v-if="renamingFloorplanId === fp.id"
+                  :value="renameValue"
+                  @input="renameValue = $event.target.value"
+                  @keydown.enter="commitRename"
+                  @keydown.escape="renamingFloorplanId = null"
+                  @blur="commitRename"
+                  ref="renameInputRef"
+                  class="px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap bg-blue-600 text-white border-2 border-blue-300 outline-none w-32"
+                />
+                <!-- Normal tab -->
+                <button
+                  v-else
+                  @click="selectedFloorplanId = fp.id"
+                  @dblclick="userStore.canEditLocations && startRename(fp)"
+                  :title="userStore.canEditLocations ? 'Double-click to rename' : undefined"
+                  :class="[
+                    'px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
+                    (selectedFloorplanId === fp.id || (!selectedFloorplanId && fp === location.floorplans[0]))
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ]"
+                >
+                  {{ fp.name }}
+                </button>
+              </template>
             </template>
             <button
               v-if="userStore.canEditLocations"
@@ -957,6 +972,36 @@ const handleOutlineChange = async (newOutline) => {
   } catch (err) {
     console.error('Error saving floorplan outline:', err);
     toast.error('Failed to save floorplan changes');
+  }
+};
+
+const renamingFloorplanId = ref(null);
+const renameValue = ref('');
+const renameInputRef = ref(null);
+
+const startRename = (fp) => {
+  renamingFloorplanId.value = fp.id;
+  renameValue.value = fp.name;
+  nextTick(() => {
+    const el = Array.isArray(renameInputRef.value) ? renameInputRef.value[0] : renameInputRef.value;
+    el?.select();
+  });
+};
+
+const commitRename = async () => {
+  const id = renamingFloorplanId.value;
+  const name = renameValue.value.trim();
+  renamingFloorplanId.value = null;
+  if (!id || !name || !location.value) return;
+  const fp = location.value.floorplans.find(p => p.id === id);
+  if (!fp || fp.name === name) return;
+  const updatedPlans = location.value.floorplans.map(p => p.id === id ? { ...p, name } : p);
+  try {
+    await locationService.updateLocation(locationId.value, { floorplans: updatedPlans });
+    location.value.floorplans = updatedPlans;
+  } catch (err) {
+    console.error('Error renaming area:', err);
+    toast.error('Failed to rename area');
   }
 };
 
