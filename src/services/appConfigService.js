@@ -4,8 +4,12 @@ import { doc, getDoc, getDocFromServer, setDoc, serverTimestamp } from 'firebase
 const CONFIG_DOC = doc(db, 'app-config', 'backend')
 
 let cachedHoldDetectionServerUrl = null
-let cachedAtMs = 0
-let inFlightPromise = null
+let cachedHoldDetectionAtMs = 0
+let inFlightHoldDetectionPromise = null
+
+let cachedClusterServerUrl = null
+let cachedClusterAtMs = 0
+let inFlightClusterPromise = null
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 
@@ -17,15 +21,15 @@ export async function getBackendAppConfig({ forceRefresh = false } = {}) {
 export async function getHoldDetectionServerUrl({ forceRefresh = false } = {}) {
   const now = Date.now()
 
-  if (!forceRefresh && cachedHoldDetectionServerUrl && now - cachedAtMs < CACHE_TTL_MS) {
+  if (!forceRefresh && cachedHoldDetectionServerUrl && now - cachedHoldDetectionAtMs < CACHE_TTL_MS) {
     return cachedHoldDetectionServerUrl
   }
 
-  if (!forceRefresh && inFlightPromise) {
-    return inFlightPromise
+  if (!forceRefresh && inFlightHoldDetectionPromise) {
+    return inFlightHoldDetectionPromise
   }
 
-  inFlightPromise = (async () => {
+  inFlightHoldDetectionPromise = (async () => {
     const data = await getBackendAppConfig({ forceRefresh: true })
     const url = data?.holdDetection?.serverUrl
 
@@ -36,14 +40,14 @@ export async function getHoldDetectionServerUrl({ forceRefresh = false } = {}) {
     }
 
     cachedHoldDetectionServerUrl = url
-    cachedAtMs = Date.now()
+    cachedHoldDetectionAtMs = Date.now()
     return url
   })()
 
   try {
-    return await inFlightPromise
+    return await inFlightHoldDetectionPromise
   } finally {
-    inFlightPromise = null
+    inFlightHoldDetectionPromise = null
   }
 }
 
@@ -66,12 +70,73 @@ export async function setHoldDetectionServerUrl(serverUrl) {
     { merge: true }
   )
 
-  // Ensure the write reached the server (avoids "saved but not committed yet" confusion)
   await getDocFromServer(CONFIG_DOC)
 
   cachedHoldDetectionServerUrl = normalizedUrl
-  cachedAtMs = Date.now()
-  inFlightPromise = null
+  cachedHoldDetectionAtMs = Date.now()
+  inFlightHoldDetectionPromise = null
+
+  return normalizedUrl
+}
+
+/**
+ * Get the cluster server URL.
+ * Falls back to the hold detection server URL if cluster.serverUrl is not set.
+ */
+export async function getClusterServerUrl({ forceRefresh = false } = {}) {
+  const now = Date.now()
+
+  if (!forceRefresh && cachedClusterServerUrl && now - cachedClusterAtMs < CACHE_TTL_MS) {
+    return cachedClusterServerUrl
+  }
+
+  if (!forceRefresh && inFlightClusterPromise) {
+    return inFlightClusterPromise
+  }
+
+  inFlightClusterPromise = (async () => {
+    const data = await getBackendAppConfig({ forceRefresh: true })
+    // Fall back to holdDetection.serverUrl if cluster.serverUrl is not configured
+    const url = data?.cluster?.serverUrl || data?.holdDetection?.serverUrl
+
+    if (!url || typeof url !== 'string') {
+      throw new Error(
+        "Cluster server URL not configured. Set 'app-config/backend.cluster.serverUrl' (use /admin/healthcheck)."
+      )
+    }
+
+    cachedClusterServerUrl = url
+    cachedClusterAtMs = Date.now()
+    return url
+  })()
+
+  try {
+    return await inFlightClusterPromise
+  } finally {
+    inFlightClusterPromise = null
+  }
+}
+
+export async function setClusterServerUrl(serverUrl) {
+  const normalizedUrl = typeof serverUrl === 'string' ? serverUrl.trim().replace(/\/+$/, '') : ''
+
+  await setDoc(
+    CONFIG_DOC,
+    {
+      cluster: {
+        serverUrl: normalizedUrl || null,
+        updatedAt: serverTimestamp(),
+      },
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  )
+
+  await getDocFromServer(CONFIG_DOC)
+
+  cachedClusterServerUrl = normalizedUrl
+  cachedClusterAtMs = Date.now()
+  inFlightClusterPromise = null
 
   return normalizedUrl
 }
