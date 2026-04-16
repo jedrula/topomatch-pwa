@@ -1463,7 +1463,9 @@ const handleImageUploadComplete = async (uploadResult) => {
       uploadResult.fileName,
       uploadResult.downloadUrl,
       uploadResult.routesetting,
-      uploadResult.replacesImageId || null
+      uploadResult.replacesImageId || null,
+      uploadResult.pickOrder,
+      uploadResult.batchUploadedAt,
     );
 
     // Add the new image to the images array for immediate display
@@ -1473,6 +1475,8 @@ const handleImageUploadComplete = async (uploadResult) => {
       url: uploadResult.downloadUrl,
       name: uploadResult.fileName,
       uploadedAt: Date.now(), // Use current timestamp - we just uploaded it!
+      pickOrder: uploadResult.pickOrder,
+      batchUploadedAt: uploadResult.batchUploadedAt,
     });
   } catch (error) {
     console.error('Error saving image metadata:', error);

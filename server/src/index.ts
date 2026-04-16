@@ -196,13 +196,22 @@ interface LocationImage {
   uploadedAt?: Date;
   routesettings: string[]; // Array of ISO timestamps (YYYY-MM-DDTHH:mm:ss) - which routesettings use this image
   replacesImageId?: string; // Set at upload time when this image replaces a wall photo from a previous routesetting
+  pickOrder: number; // 0-based index of this file within its upload batch (preserves file picker order)
+  batchUploadedAt: number; // epoch ms, set once client-side per batch so all files in batch share same value
 }
+
+const byBatchOrder = (a: LocationImage, b: LocationImage) =>
+  b.batchUploadedAt !== a.batchUploadedAt
+    ? b.batchUploadedAt - a.batchUploadedAt
+    : a.pickOrder - b.pickOrder;
 
 // Input type for addLocationImage (omit uploadedAt which is added server-side)
 // When creating, client provides single routesetting, server converts to array
 type AddLocationImageRequest = Omit<LocationImage, 'uploadedAt' | 'routesettings'> & {
   routesetting: string; // Single routesetting when creating (converted to array server-side)
   replacesImageId?: string;
+  pickOrder: number;
+  batchUploadedAt: number;
 };
 
 // Toggle location like (add/remove)
@@ -666,10 +675,13 @@ export const deleteLocation = onCall({region: REGION}, async (request) => {
 export const addLocationImage = onCall({region: REGION}, async (request) => {
   try {
     // Input: imageId is the client-generated ID that becomes the Firestore doc ID
-    const { imageId, locationId, fileName, downloadUrl, routesetting, replacesImageId } = request.data as AddLocationImageRequest;
+    const { imageId, locationId, fileName, downloadUrl, routesetting, replacesImageId, pickOrder, batchUploadedAt } = request.data as AddLocationImageRequest;
 
     if (!imageId || !locationId || !fileName || !downloadUrl || !routesetting) {
       throw new Error("imageId, locationId, fileName, downloadUrl, and routesetting are required");
+    }
+    if (pickOrder === undefined || batchUploadedAt === undefined) {
+      throw new Error("pickOrder and batchUploadedAt are required");
     }
 
     // Data to store
@@ -679,6 +691,8 @@ export const addLocationImage = onCall({region: REGION}, async (request) => {
       fileName,
       downloadUrl,
       routesettings: [routesetting], // Image belongs to this routesetting
+      pickOrder,
+      batchUploadedAt,
       ...(replacesImageId ? { replacesImageId } : {}),
     };
 
@@ -743,12 +757,7 @@ export const getLocationImages = onCall({region: REGION}, async (request) => {
         }
       });
       
-      // Sort by uploadedAt descending
-      images.sort((a, b) => {
-        const aTime = a.uploadedAt instanceof Date ? a.uploadedAt.getTime() : 0;
-        const bTime = b.uploadedAt instanceof Date ? b.uploadedAt.getTime() : 0;
-        return bTime - aTime;
-      });
+      images.sort(byBatchOrder);
 
       logger.info(`Returning ${images.length} filtered images`);
       return images;
@@ -759,7 +768,6 @@ export const getLocationImages = onCall({region: REGION}, async (request) => {
     const snapshot = await db
       .collection("locationImages")
       .where("locationId", "==", locationId)
-      .orderBy("uploadedAt", "desc")
       .get();
 
     const images: LocationImage[] = [];
@@ -769,6 +777,8 @@ export const getLocationImages = onCall({region: REGION}, async (request) => {
         ...doc.data(),
       } as LocationImage);
     });
+
+    images.sort(byBatchOrder);
 
     return images;
   } catch (error) {

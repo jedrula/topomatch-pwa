@@ -271,10 +271,11 @@ const createUploadItem = (file) => {
 };
 
 const addFilesToQueue = (files) => {
+  const batchUploadedAt = Date.now();
   const validFiles = [];
   let hasError = false;
 
-  Array.from(files).forEach((file) => {
+  Array.from(files).forEach((file, fileIndex) => {
     const error = validateFile(file);
     console.log('after validateFile', error);
     if (error) {
@@ -289,7 +290,10 @@ const addFilesToQueue = (files) => {
     );
 
     if (!exists) {
-      validFiles.push(createUploadItem(file));
+      const item = createUploadItem(file);
+      item.pickOrder = fileIndex;
+      item.batchUploadedAt = batchUploadedAt;
+      validFiles.push(item);
     }
   });
 
@@ -425,6 +429,8 @@ const startUploads = async () => {
           locationId: props.locationId,
           routesetting: props.routesetting, // Routesetting timestamp for version control
           replacesImageId: props.replacesImageId,
+          pickOrder: item.pickOrder,
+          batchUploadedAt: item.batchUploadedAt,
         });
 
         results.push({ success: true, item });
@@ -448,6 +454,8 @@ const startUploads = async () => {
           locationId: props.locationId,
           routesetting: props.routesetting,
           replacesImageId: props.replacesImageId,
+          pickOrder: item.pickOrder,
+          batchUploadedAt: item.batchUploadedAt,
         });
 
         return { success: true, item };
