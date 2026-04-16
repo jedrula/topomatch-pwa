@@ -1193,7 +1193,7 @@ import HoldMatchVisualizer from '@/components/HoldMatchVisualizer.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { hexToColorName, precomputeHoldHues } from '@/utils/colorUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
-import { getHoldDetectionServerUrl } from '@/services/appConfigService';
+import { getHoldDetectionServerUrl, getClusterServerUrl } from '@/services/appConfigService';
 import { mapMatchesToHolds, computeHoldToHoldMapping, computeMatchToDetectionScale } from '@/utils/holdMatcher';
 // Note: Not using getResizedImageUrl - we load original images to match detection coordinates
 
@@ -1344,7 +1344,7 @@ const callFeMagicWand = async (hold) => {
 const callServerMagicWand = async (holdId) => {
   const imageId = route.query.imageId;
   if (!imageId || !holdId) return null;
-  const baseUrl = await getHoldDetectionServerUrl();
+  const baseUrl = await getClusterServerUrl();
   const res = await fetch(`${baseUrl}/cluster/magic-wand`, {
     method: 'POST',
     headers: {
@@ -1480,7 +1480,7 @@ const fetchDrafts = async () => {
   selectedDraftClusterId.value = null;
 
   try {
-    const baseUrl = await getHoldDetectionServerUrl();
+    const baseUrl = await getClusterServerUrl();
     const res = await fetch(`${baseUrl}/cluster`, {
       method: 'POST',
       headers: {

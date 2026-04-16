@@ -103,9 +103,9 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // App configuration - authenticated users can read, only admins can write
+    // App configuration - public read (contains non-sensitive server config), only admins can write
     match /app-config/{document} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
