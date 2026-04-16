@@ -66,7 +66,7 @@ class LocationService {
   }
 
   // Add image metadata to a location
-  async addLocationImage(imageId, locationId, fileName, downloadUrl, routesetting, replacesImageId = null, pickOrder, batchUploadedAt) {
+  async addLocationImage({ imageId, locationId, fileName, downloadUrl, routesetting, replacesImageId = null, pickOrder, batchUploadedAt }) {
     if (!routesetting) {
       throw new Error('routesetting is required. Create a routesetting for this location first.');
     }
