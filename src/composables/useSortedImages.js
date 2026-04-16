@@ -1,20 +1,14 @@
 import { computed } from 'vue';
 
-/**
- * Composable to sort images by floorplan sections
- * 
- * Images are ordered by:
- * 1. First, images assigned to sections (in section order)
- * 2. Then, unassigned images
- * 
- * @param {Ref<Array>} images - Array of image objects with imageId
- * @param {Ref<Object>} floorplan - Floorplan object with sections array
- * @returns {ComputedRef<Array>} Sorted images
- */
+const byBatchOrder = (a, b) =>
+  b.batchUploadedAt !== a.batchUploadedAt
+    ? b.batchUploadedAt - a.batchUploadedAt
+    : a.pickOrder - b.pickOrder;
+
 export function useSortedImages(images, floorplan) {
   return computed(() => {
     if (!floorplan.value?.sections || floorplan.value.sections.length === 0) {
-      return images.value; // No sections, return original order
+      return [...images.value].sort(byBatchOrder);
     }
     
     const result = [];
@@ -34,12 +28,9 @@ export function useSortedImages(images, floorplan) {
       }
     });
     
-    // Append unassigned images at the end
-    images.value.forEach(image => {
-      if (!assignedImageIds.has(image.imageId)) {
-        result.push(image);
-      }
-    });
+    // Append unassigned images at the end, sorted by batchUploadedAt desc → pickOrder asc
+    const unassigned = images.value.filter(image => !assignedImageIds.has(image.imageId));
+    result.push(...unassigned.sort(byBatchOrder));
     
     return result;
   });
