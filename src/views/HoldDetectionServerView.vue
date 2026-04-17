@@ -1483,6 +1483,7 @@ const toggleShowUnassigned = () => {
 const sortedDraftClusters = computed(() => {
   if (!draftState.value.clusters) return [];
   const aiHolds = serverStore.results?.holds || [];
+  const holdById = new Map(aiHolds.map(h => [h.id, h]));
   return draftState.value.clusters
     .map(cluster => {
       const used = cluster.holdIds.filter(id => usedHoldIds.value.has(id)).length;
@@ -1490,7 +1491,7 @@ const sortedDraftClusters = computed(() => {
 
       // Compute spatial sub-groups on the unused holds of this cluster
       const unusedIds = cluster.holdIds.filter(id => !usedHoldIds.value.has(id));
-      const resolvedHolds = unusedIds.map(id => aiHolds.find(h => h.id === id)).filter(Boolean);
+      const resolvedHolds = unusedIds.map(id => holdById.get(id)).filter(Boolean);
       const { needsSplit, groups } = analyzeDraftCluster(resolvedHolds);
       const subGroups = needsSplit
         ? groups.map((g, i) => ({
@@ -1512,7 +1513,7 @@ const toggleDraftCluster = (clusterId) => {
 
 /**
  * @param {object} cluster - entry from sortedDraftClusters
- * @param {string[]|null} overrideHoldIds - when set, create exactly one problem with these holds
+ * @param {string[]|null} overrideHoldIds - when set, create exactly one problem with these hold IDs
  */
 const useDraftCluster = async (cluster, overrideHoldIds = null) => {
   if (boulderProblemsStore.isCreatingProblem) {
@@ -1526,28 +1527,24 @@ const useDraftCluster = async (cluster, overrideHoldIds = null) => {
     : `Draft ${cluster.clusterId}`;
   const defaultGrade = boulderProblemsStore.grades[0] || null;
 
-  if (overrideHoldIds) {
-    // Single sub-group "Use" — create exactly one problem
-    sharedProblemName.value = baseName;
-    sharedSelectedGrade.value = defaultGrade || '';
-    boulderProblemsStore.createNewProblem(defaultGrade, baseName, color);
-    const problem = boulderProblemsStore.activeProblem;
-    if (problem) addHoldsByIds(overrideHoldIds, problem);
-  } else {
-    // Parent "Use" — create one problem per pre-computed sub-group (or one if no split)
-    const groups = cluster.subGroups?.length > 0
-      ? cluster.subGroups.map(sg => sg.holdIds)
-      : [cluster.holdIds.filter(id => !usedHoldIds.value.has(id))];
+  // Determine which hold IDs to load into the new problem.
+  // When split sub-groups exist and no override is given, load the first sub-group
+  // so the user edits one problem at a time. The other sub-groups remain as draft
+  // rows and can be used individually.
+  const holdIds = overrideHoldIds
+    ?? (cluster.subGroups?.length > 1
+      ? cluster.subGroups[0].holdIds
+      : cluster.holdIds.filter(id => !usedHoldIds.value.has(id)));
 
-    for (let i = 0; i < groups.length; i++) {
-      const name = groups.length > 1 ? `${baseName} ${i + 1}` : baseName;
-      sharedProblemName.value = name;
-      sharedSelectedGrade.value = defaultGrade || '';
-      boulderProblemsStore.createNewProblem(defaultGrade, name, color);
-      const problem = boulderProblemsStore.activeProblem;
-      if (problem) addHoldsByIds(groups[i], problem);
-    }
-  }
+  const name = (!overrideHoldIds && cluster.subGroups?.length > 1)
+    ? `${baseName} 1`
+    : baseName;
+
+  sharedProblemName.value = name;
+  sharedSelectedGrade.value = defaultGrade || '';
+  boulderProblemsStore.createNewProblem(defaultGrade, name, color);
+  const problem = boulderProblemsStore.activeProblem;
+  if (problem) addHoldsByIds(holdIds, problem);
 
   selectedDraftClusterId.value = null;
 };

@@ -148,8 +148,9 @@ function componentsFromEdges(holds, edges) {
     const group = [];
     const queue = [start];
     visited[start] = true;
-    while (queue.length > 0) {
-      const cur = queue.shift();
+    let qi = 0;
+    while (qi < queue.length) {
+      const cur = queue[qi++];
       group.push(holds[cur]);
       for (const nb of adj[cur]) {
         if (!visited[nb]) {
