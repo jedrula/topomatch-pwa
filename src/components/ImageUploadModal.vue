@@ -42,7 +42,7 @@
                   : 'border-gray-200 hover:border-gray-400',
               ]"
             >
-              <img :src="img.url" :alt="img.name" class="w-full aspect-square object-cover" />
+              <img :src="img.url" :alt="img.name" class="w-full aspect-square object-cover" crossorigin="anonymous" />
             </button>
           </div>
           <p v-if="selectedReplacesImageId" class="text-[12px] text-amber-700 mt-1.5">

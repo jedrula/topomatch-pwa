@@ -84,12 +84,12 @@
                 >
                   <div class="relative flex-1 min-w-0 flex items-center justify-center">
                     <span class="absolute top-2 left-2 z-10 text-[11px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">Previous</span>
-                    <img :src="replacedImageUrl" alt="Previous wall" class="w-full h-full object-contain block" style="max-height: 70vh" />
+                    <img :src="replacedImageUrl" alt="Previous wall" class="w-full h-full object-contain block" style="max-height: 70vh" crossorigin="anonymous" />
                   </div>
                   <div class="w-[3px] bg-amber-400 flex-shrink-0" />
                   <div class="relative flex-1 min-w-0 flex items-center justify-center">
                     <span class="absolute top-2 left-2 z-10 text-[11px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">Current</span>
-                    <img :src="(currentImage as any).url" alt="Current wall" class="w-full h-full object-contain block" style="max-height: 70vh" />
+                    <img :src="(currentImage as any).url" alt="Current wall" class="w-full h-full object-contain block" style="max-height: 70vh" crossorigin="anonymous" />
                   </div>
                 </div>
 
@@ -384,33 +384,57 @@
                           <div
                             v-for="cluster in sortedDraftClusters"
                             :key="cluster.clusterId"
-                            @click="toggleDraftCluster(cluster.clusterId)"
-                            class="flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition-colors text-xs"
+                            class="rounded-lg border text-xs"
                             :class="selectedDraftClusterId === cluster.clusterId
                               ? 'bg-indigo-50 border-indigo-300'
-                              : 'bg-gray-50 border-gray-100 hover:bg-gray-100'"
+                              : 'bg-gray-50 border-gray-100'"
                           >
-                            <div class="flex items-center space-x-1.5">
-                              <div
-                                class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                                :style="{ backgroundColor: cluster.dominantColor || clusterColor(cluster.clusterId) }"
-                              >
-                                {{ cluster.clusterId }}
-                              </div>
-                              <span class="text-gray-700">{{ cluster.holdIds.length }}</span>
-                              <span v-if="cluster.colorName" class="font-medium text-gray-500 capitalize">
-                                {{ cluster.colorName }}
-                              </span>
-                              <span class="text-green-600" v-if="cluster.unusedCount > 0">
-                                {{ cluster.unusedCount }} new
-                              </span>
-                            </div>
-                            <button
-                              @click.stop="useDraftCluster(cluster)"
-                              class="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                            <!-- Parent row -->
+                            <div
+                              @click="toggleDraftCluster(cluster.clusterId)"
+                              class="flex items-center justify-between p-1.5 cursor-pointer transition-colors hover:bg-gray-100 rounded-lg"
                             >
-                              Use
-                            </button>
+                              <div class="flex items-center space-x-1.5">
+                                <div
+                                  class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                                  :style="{ backgroundColor: cluster.dominantColor || clusterColor(cluster.clusterId) }"
+                                >
+                                  {{ cluster.clusterId }}
+                                </div>
+                                <span class="text-gray-700">{{ cluster.holdIds.length }}</span>
+                                <span v-if="cluster.colorName" class="font-medium text-gray-500 capitalize">
+                                  {{ cluster.colorName }}
+                                </span>
+                                <span class="text-green-600" v-if="cluster.unusedCount > 0">
+                                  {{ cluster.unusedCount }} new
+                                </span>
+                              </div>
+                              <button
+                                @click.stop="useDraftCluster(cluster)"
+                                class="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                              >
+                                Use
+                              </button>
+                            </div>
+                            <!-- Sub-groups (indented, only when split detected) -->
+                            <div v-if="cluster.subGroups.length > 1" class="pl-5 pb-1 space-y-0.5">
+                              <div
+                                v-for="sg in cluster.subGroups"
+                                :key="sg.label"
+                                class="flex items-center justify-between p-1 rounded border border-gray-200 bg-white"
+                              >
+                                <div class="flex items-center space-x-1.5">
+                                  <span class="font-mono text-gray-500">({{ sg.label }})</span>
+                                  <span class="text-gray-700">{{ sg.unusedCount }} holds</span>
+                                </div>
+                                <button
+                                  @click.stop="useDraftCluster(cluster, sg.holdIds)"
+                                  class="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                                >
+                                  Use
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -880,38 +904,62 @@
                     <div
                       v-for="cluster in sortedDraftClusters"
                       :key="cluster.clusterId"
-                      @click="toggleDraftCluster(cluster.clusterId)"
-                      class="flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-colors"
+                      class="rounded-lg border"
                       :class="selectedDraftClusterId === cluster.clusterId
                         ? 'bg-indigo-50 border-indigo-300'
-                        : 'bg-gray-50 border-gray-100 hover:bg-gray-100'"
+                        : 'bg-gray-50 border-gray-100'"
                     >
-                      <div class="flex items-center space-x-2">
-                        <div
-                          class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                          :style="{ backgroundColor: cluster.dominantColor || clusterColor(cluster.clusterId) }"
-                        >
-                          {{ cluster.clusterId }}
-                        </div>
-                        <span class="text-sm text-gray-700">
-                          {{ cluster.holdIds.length }} holds
-                        </span>
-                        <span v-if="cluster.colorName" class="text-xs font-medium text-gray-500 capitalize">
-                          {{ cluster.colorName }}
-                        </span>
-                        <span class="text-xs text-green-600" v-if="cluster.unusedCount > 0">
-                          {{ cluster.unusedCount }} new
-                        </span>
-                        <span class="text-xs text-gray-400" v-if="cluster.usedCount > 0">
-                          {{ cluster.usedCount }} used
-                        </span>
-                      </div>
-                      <button
-                        @click.stop="useDraftCluster(cluster)"
-                        class="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                      <!-- Parent row -->
+                      <div
+                        @click="toggleDraftCluster(cluster.clusterId)"
+                        class="flex items-center justify-between p-2 cursor-pointer transition-colors hover:bg-gray-100 rounded-lg"
                       >
-                        Use
-                      </button>
+                        <div class="flex items-center space-x-2">
+                          <div
+                            class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                            :style="{ backgroundColor: cluster.dominantColor || clusterColor(cluster.clusterId) }"
+                          >
+                            {{ cluster.clusterId }}
+                          </div>
+                          <span class="text-sm text-gray-700">
+                            {{ cluster.holdIds.length }} holds
+                          </span>
+                          <span v-if="cluster.colorName" class="text-xs font-medium text-gray-500 capitalize">
+                            {{ cluster.colorName }}
+                          </span>
+                          <span class="text-xs text-green-600" v-if="cluster.unusedCount > 0">
+                            {{ cluster.unusedCount }} new
+                          </span>
+                          <span class="text-xs text-gray-400" v-if="cluster.usedCount > 0">
+                            {{ cluster.usedCount }} used
+                          </span>
+                        </div>
+                        <button
+                          @click.stop="useDraftCluster(cluster)"
+                          class="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                        >
+                          Use
+                        </button>
+                      </div>
+                      <!-- Sub-groups (indented, only when split detected) -->
+                      <div v-if="cluster.subGroups.length > 1" class="pl-6 pb-2 space-y-1">
+                        <div
+                          v-for="sg in cluster.subGroups"
+                          :key="sg.label"
+                          class="flex items-center justify-between p-1.5 rounded border border-gray-200 bg-white"
+                        >
+                          <div class="flex items-center space-x-2">
+                            <span class="text-xs font-mono text-gray-500">({{ sg.label }})</span>
+                            <span class="text-sm text-gray-700">{{ sg.unusedCount }} holds</span>
+                          </div>
+                          <button
+                            @click.stop="useDraftCluster(cluster, sg.holdIds)"
+                            class="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                          >
+                            Use
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1193,6 +1241,7 @@ import HoldMatchVisualizer from '@/components/HoldMatchVisualizer.vue';
 import { ensureHoldHasSvgMarkup } from '@/utils/svgUtils.js';
 import { hexToColorName, precomputeHoldHues } from '@/utils/colorUtils.js';
 import { performMagicWandSelection } from '@/utils/magicWandUtils.js';
+import { analyzeDraftCluster } from '@/utils/problemSplitter.js';
 import { getHoldDetectionServerUrl, getClusterServerUrl } from '@/services/appConfigService';
 import { mapMatchesToHolds, computeHoldToHoldMapping, computeMatchToDetectionScale } from '@/utils/holdMatcher';
 // Note: Not using getResizedImageUrl - we load original images to match detection coordinates
@@ -1392,6 +1441,7 @@ const allHoldIds = computed(() => {
 const usedHoldIds = computed(() => {
   const ids = new Set();
   for (const problem of boulderProblemsStore.sortedProblems) {
+    if (problem.isLocalOnly) continue; // exclude in-progress, only count persisted
     for (const h of problem.holds || []) {
       ids.add(h.holdId);
     }
@@ -1432,11 +1482,26 @@ const toggleShowUnassigned = () => {
 // Clusters enriched with used/unused counts + color name from API hex, sorted by most unused
 const sortedDraftClusters = computed(() => {
   if (!draftState.value.clusters) return [];
+  const aiHolds = serverStore.results?.holds || [];
+  const holdById = new Map(aiHolds.map(h => [h.id, h]));
   return draftState.value.clusters
     .map(cluster => {
       const used = cluster.holdIds.filter(id => usedHoldIds.value.has(id)).length;
       const colorName = hexToColorName(cluster.dominantColor);
-      return { ...cluster, usedCount: used, unusedCount: cluster.holdIds.length - used, colorName };
+
+      // Compute spatial sub-groups on the unused holds of this cluster
+      const unusedIds = cluster.holdIds.filter(id => !usedHoldIds.value.has(id));
+      const resolvedHolds = unusedIds.map(id => holdById.get(id)).filter(Boolean);
+      const { needsSplit, groups } = analyzeDraftCluster(resolvedHolds);
+      const subGroups = needsSplit
+        ? groups.map((g, i) => ({
+            holdIds: g.map(h => h.id),
+            label: `${cluster.clusterId}${"'".repeat(i + 1)}`,
+            unusedCount: g.length,
+          }))
+        : [];
+
+      return { ...cluster, usedCount: used, unusedCount: cluster.holdIds.length - used, colorName, subGroups };
     })
     .sort((a, b) => b.unusedCount - a.unusedCount);
 });
@@ -1446,27 +1511,40 @@ const toggleDraftCluster = (clusterId) => {
   if (selectedDraftClusterId.value !== null) showUnassigned.value = false;
 };
 
-const useDraftCluster = async (cluster) => {
-  // Cancel any in-progress creation first
+/**
+ * @param {object} cluster - entry from sortedDraftClusters
+ * @param {string[]|null} overrideHoldIds - when set, create exactly one problem with these hold IDs
+ */
+const useDraftCluster = async (cluster, overrideHoldIds = null) => {
   if (boulderProblemsStore.isCreatingProblem) {
     boulderProblemsStore.cancelCreatingProblem();
   }
   showUnassigned.value = false;
 
   const color = cluster.dominantColor || clusterColor(cluster.clusterId);
-  const name = cluster.colorName
-    ? `${cluster.colorName.charAt(0).toUpperCase() + cluster.colorName.slice(1)}`
+  const baseName = cluster.colorName
+    ? cluster.colorName.charAt(0).toUpperCase() + cluster.colorName.slice(1)
     : `Draft ${cluster.clusterId}`;
-  sharedProblemName.value = name;
   const defaultGrade = boulderProblemsStore.grades[0] || null;
+
+  // Determine which hold IDs to load into the new problem.
+  // When split sub-groups exist and no override is given, load the first sub-group
+  // so the user edits one problem at a time. The other sub-groups remain as draft
+  // rows and can be used individually.
+  const holdIds = overrideHoldIds
+    ?? (cluster.subGroups?.length > 1
+      ? cluster.subGroups[0].holdIds
+      : cluster.holdIds.filter(id => !usedHoldIds.value.has(id)));
+
+  const name = (!overrideHoldIds && cluster.subGroups?.length > 1)
+    ? `${baseName} 1`
+    : baseName;
+
+  sharedProblemName.value = name;
   sharedSelectedGrade.value = defaultGrade || '';
   boulderProblemsStore.createNewProblem(defaultGrade, name, color);
-
   const problem = boulderProblemsStore.activeProblem;
-  if (!problem) return;
-
-  const newHoldIds = cluster.holdIds.filter(id => !usedHoldIds.value.has(id));
-  addHoldsByIds(newHoldIds, problem);
+  if (problem) addHoldsByIds(holdIds, problem);
 
   selectedDraftClusterId.value = null;
 };
