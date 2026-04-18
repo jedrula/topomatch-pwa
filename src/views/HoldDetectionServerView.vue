@@ -84,12 +84,12 @@
                 >
                   <div class="relative flex-1 min-w-0 flex items-center justify-center">
                     <span class="absolute top-2 left-2 z-10 text-[11px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">Previous</span>
-                    <img :src="replacedImageUrl" alt="Previous wall" class="w-full h-full object-contain block" style="max-height: 70vh" />
+                    <img :src="replacedImageUrl" alt="Previous wall" class="w-full h-full object-contain block" style="max-height: 70vh" crossorigin="anonymous" />
                   </div>
                   <div class="w-[3px] bg-amber-400 flex-shrink-0" />
                   <div class="relative flex-1 min-w-0 flex items-center justify-center">
                     <span class="absolute top-2 left-2 z-10 text-[11px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">Current</span>
-                    <img :src="(currentImage as any).url" alt="Current wall" class="w-full h-full object-contain block" style="max-height: 70vh" />
+                    <img :src="(currentImage as any).url" alt="Current wall" class="w-full h-full object-contain block" style="max-height: 70vh" crossorigin="anonymous" />
                   </div>
                 </div>
 
