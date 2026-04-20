@@ -147,6 +147,55 @@
           </div>
         </div>
 
+        <!-- Cluster Service -->
+        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-900">Cluster Service</h2>
+            <p class="text-xs text-gray-500 mt-1">Used for draft problem clustering and magic wand. Falls back to Hold Detection URL if not set.</p>
+          </div>
+          <div class="px-6 py-4 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Server URL</label>
+              <div class="flex items-center gap-2">
+                <div class="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm font-mono text-gray-900">
+                  {{ firestoreConfig?.cluster?.serverUrl || '(not set — falls back to Hold Detection URL)' }}
+                </div>
+                <a
+                  v-if="firestoreConfig?.cluster?.serverUrl"
+                  :href="firestoreConfig.cluster.serverUrl"
+                  target="_blank"
+                  class="h-9 px-4 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors flex items-center gap-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Open
+                </a>
+              </div>
+
+              <div class="flex items-center gap-2 mt-3">
+                <input
+                  v-model="clusterUrlDraft"
+                  placeholder="https://… (leave empty to use Hold Detection URL)"
+                  class="flex-1 h-9 px-3 border border-gray-300 rounded-md text-sm font-mono text-gray-900"
+                />
+                <button
+                  @click="saveClusterUrl"
+                  :disabled="savingClusterUrl"
+                  class="h-9 px-4 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="!savingClusterUrl">Save</span>
+                  <span v-else>Saving...</span>
+                </button>
+              </div>
+
+              <div v-if="clusterUrlSaveResult" class="mt-2 px-3 py-2 rounded-md text-sm font-medium" :class="clusterUrlSaveResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                {{ clusterUrlSaveResult.message }}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- System Info -->
         <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -174,7 +223,7 @@
 import { ref, onMounted } from 'vue';
 import { functions } from '@/services/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { getBackendAppConfig, setHoldDetectionServerUrl } from '@/services/appConfigService'
+import { getBackendAppConfig, setHoldDetectionServerUrl, setClusterServerUrl } from '@/services/appConfigService'
 
 const loading = ref(true);
 const error = ref(null);
@@ -188,6 +237,10 @@ const matchTestResult = ref(null);
 const serverUrlDraft = ref('')
 const savingServerUrl = ref(false)
 const serverUrlSaveResult = ref(null)
+
+const clusterUrlDraft = ref('')
+const savingClusterUrl = ref(false)
+const clusterUrlSaveResult = ref(null)
 
 // 100x100 test images with actual features (checkerboard pattern)
 // These have corners and edges that feature detectors can find
@@ -207,6 +260,7 @@ const loadConfig = async ({ silent = false } = {}) => {
     config.value = backendConfig
     firestoreConfig.value = appConfig
     serverUrlDraft.value = firestoreConfig.value?.holdDetection?.serverUrl || ''
+    clusterUrlDraft.value = firestoreConfig.value?.cluster?.serverUrl || ''
   } catch (err) {
     console.error('Error loading backend config:', err);
     error.value = err.message || 'Failed to load configuration';
@@ -248,6 +302,40 @@ const saveServerUrl = async () => {
     }
   } finally {
     savingServerUrl.value = false
+  }
+}
+
+const saveClusterUrl = async () => {
+  savingClusterUrl.value = true
+  clusterUrlSaveResult.value = null
+
+  try {
+    const nextUrl = clusterUrlDraft.value?.trim()
+    // Allow empty string to clear the cluster URL (will fall back to hold detection URL)
+    if (nextUrl && !/^https?:\/\//i.test(nextUrl)) {
+      throw new Error('URL must start with http:// or https://')
+    }
+
+    const saved = await setClusterServerUrl(nextUrl || '')
+    clusterUrlDraft.value = saved
+    clusterUrlSaveResult.value = { success: true, message: '✅ Saved' }
+
+    firestoreConfig.value = {
+      ...(firestoreConfig.value || {}),
+      cluster: {
+        ...(firestoreConfig.value?.cluster || {}),
+        serverUrl: saved,
+      }
+    }
+
+    await loadConfig({ silent: true })
+  } catch (err) {
+    clusterUrlSaveResult.value = {
+      success: false,
+      message: `❌ Save failed: ${err.message || err}`
+    }
+  } finally {
+    savingClusterUrl.value = false
   }
 }
 

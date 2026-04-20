@@ -236,20 +236,37 @@
                   class="px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap bg-blue-600 text-white border-2 border-blue-300 outline-none w-32"
                 />
                 <!-- Normal tab -->
-                <button
-                  v-else
-                  @click="selectedFloorplanId = fp.id"
-                  @dblclick="userStore.canEditLocations && startRename(fp)"
-                  :title="userStore.canEditLocations ? 'Double-click to rename' : undefined"
-                  :class="[
-                    'px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
-                    (selectedFloorplanId === fp.id || (!selectedFloorplanId && fp === location.floorplans[0]))
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  ]"
-                >
-                  {{ fp.name }}
-                </button>
+                <div v-else class="flex items-center">
+                  <button
+                    @click="selectedFloorplanId = fp.id"
+                    @dblclick="userStore.canEditLocations && startRename(fp)"
+                    :title="userStore.canEditLocations ? 'Double-click to rename' : undefined"
+                    :class="[
+                      'px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
+                      isFloorplanEditMode && userStore.canEditLocations ? 'rounded-l-md' : 'rounded-md',
+                      (selectedFloorplanId === fp.id || (!selectedFloorplanId && fp === location.floorplans[0]))
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ]"
+                  >
+                    {{ fp.name }}
+                  </button>
+                  <!-- Delete area button (edit mode only) -->
+                  <button
+                    v-if="isFloorplanEditMode && userStore.canEditLocations"
+                    @click="deleteFloorplan(fp)"
+                    :disabled="location.floorplans.length <= 1"
+                    :title="location.floorplans.length <= 1 ? 'Cannot delete the last area' : `Delete area &quot;${fp.name}&quot;`"
+                    :class="[
+                      'flex items-center justify-center w-6 h-full px-1 rounded-r-md text-xs font-bold transition-colors border-l',
+                      (selectedFloorplanId === fp.id || (!selectedFloorplanId && fp === location.floorplans[0]))
+                        ? 'bg-blue-700 border-blue-500 text-white hover:bg-red-600 disabled:opacity-40'
+                        : 'bg-gray-200 border-gray-300 text-gray-500 hover:bg-red-100 hover:text-red-600 disabled:opacity-40'
+                    ]"
+                  >
+                    ✕
+                  </button>
+                </div>
               </template>
             </template>
             <button
@@ -1021,6 +1038,22 @@ const addFloorplan = async () => {
   }
 };
 
+const deleteFloorplan = async (fp) => {
+  if (!location.value || location.value.floorplans.length <= 1) return;
+  if (!confirm(`Delete area "${fp.name}"? This cannot be undone.`)) return;
+  const updatedPlans = location.value.floorplans.filter(p => p.id !== fp.id);
+  try {
+    await locationService.updateLocation(locationId.value, { floorplans: updatedPlans });
+    location.value.floorplans = updatedPlans;
+    if (selectedFloorplanId.value === fp.id) {
+      selectedFloorplanId.value = updatedPlans[0].id;
+    }
+  } catch (err) {
+    console.error('Error deleting area:', err);
+    toast.error('Failed to delete area');
+  }
+};
+
 // Handle video deletion
 const handleVideoDeleted = async (videoId) => {
   // Find the video to get its problemId before removing it
@@ -1457,14 +1490,16 @@ const handleImageUploadComplete = async (uploadResult) => {
     // Save image metadata to Firestore via backend function
     // Use client-generated imageId (same as Storage folder name)
     // Pass routesetting timestamp for version control
-    await locationService.addLocationImage(
-      uploadResult.imageId,
-      uploadResult.locationId,
-      uploadResult.fileName,
-      uploadResult.downloadUrl,
-      uploadResult.routesetting,
-      uploadResult.replacesImageId || null
-    );
+    await locationService.addLocationImage({
+      imageId: uploadResult.imageId,
+      locationId: uploadResult.locationId,
+      fileName: uploadResult.fileName,
+      downloadUrl: uploadResult.downloadUrl,
+      routesetting: uploadResult.routesetting,
+      replacesImageId: uploadResult.replacesImageId,
+      pickOrder: uploadResult.pickOrder,
+      batchUploadedAt: uploadResult.batchUploadedAt,
+    });
 
     // Add the new image to the images array for immediate display
     // Use Date.now() since we know it was just uploaded (Cloud Function timestamps get serialized)
@@ -1473,6 +1508,8 @@ const handleImageUploadComplete = async (uploadResult) => {
       url: uploadResult.downloadUrl,
       name: uploadResult.fileName,
       uploadedAt: Date.now(), // Use current timestamp - we just uploaded it!
+      pickOrder: uploadResult.pickOrder,
+      batchUploadedAt: uploadResult.batchUploadedAt,
     });
   } catch (error) {
     console.error('Error saving image metadata:', error);
