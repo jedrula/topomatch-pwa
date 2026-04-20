@@ -240,6 +240,44 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
 }
 
 /**
+ * Stitch exactly two panorama images server-side.
+ *
+ * @param {string[]} imageUrls - Exactly two downloadable image URLs.
+ * @param {string} outputFormat - Output format, currently jpeg only.
+ * @returns {Promise<{result_image: string, width: number, height: number, inlier_ratio: number, inlier_matches: number, match_quality: string}>}
+ */
+export async function stitchPanoramaOnServer(imageUrls, outputFormat = 'jpeg') {
+  if (!Array.isArray(imageUrls) || imageUrls.length !== 2) {
+    throw new Error('stitchPanoramaOnServer requires exactly 2 image URLs.');
+  }
+
+  const apiBaseUrl = await getHoldDetectionServerUrl();
+  const response = await fetch(`${apiBaseUrl}/api/v1/stitch-panorama`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+    body: JSON.stringify({
+      image_urls: imageUrls,
+      output_format: outputFormat,
+    }),
+  });
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error(`HTTP ${response.status}: response body is not valid JSON`);
+  }
+  if (!response.ok) {
+    throw new Error(payload?.detail || `HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  return payload;
+}
+
+/**
  * Fire-and-forget version - starts the request but doesn't wait for result
  * Phase 1: Just test that server receives and processes requests
  * 
@@ -298,5 +336,6 @@ export function getProcessingRecommendation(result) {
 export default {
   matchImagesOnServer,
   matchImagesOnServerAsync,
+  stitchPanoramaOnServer,
   getProcessingRecommendation
 };
