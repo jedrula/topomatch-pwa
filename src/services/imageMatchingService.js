@@ -264,10 +264,14 @@ export async function stitchPanoramaOnServer(imageUrls, outputFormat = 'jpeg') {
     }),
   });
 
-  const payload = await response.json().catch(() => null);
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error(`HTTP ${response.status}: response body is not valid JSON`);
+  }
   if (!response.ok) {
-    const detail = payload?.detail || `HTTP ${response.status}: ${response.statusText}`;
-    throw new Error(detail);
+    throw new Error(payload?.detail || `HTTP ${response.status}: ${response.statusText}`);
   }
 
   return payload;

@@ -125,16 +125,14 @@ const sections = computed(() =>
   (locationData.value?.floorplans ?? []).flatMap(fp => fp.sections),
 );
 
-const sectionsWithImages = computed(() => {
-  const imagesById = Object.fromEntries(allImages.value.map(img => [img.imageId, img]));
-  return sections.value
+const sectionsWithImages = computed(() =>
+  sections.value
     .map(section => ({
       section,
-      images: orderImagesBySection(section.imageIds ?? [], allImages.value)
-        .filter(img => img && imagesById[img.imageId]),
+      images: orderImagesBySection(section.imageIds ?? [], allImages.value).filter(Boolean),
     }))
-    .filter(({ images }) => images.length > 0);
-});
+    .filter(({ images }) => images.length > 0),
+);
 
 const canStitch = computed(() => (
   !!selectedA.value &&
