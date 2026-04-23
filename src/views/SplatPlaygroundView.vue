@@ -1,9 +1,10 @@
 <template>
   <div class="splat-playground">
-
-    <!-- ── Picker state ── -->
-    <div v-if="!loaded" class="picker">
-      <h2>Splat Viewer</h2>
+    <div class="picker">
+      <div class="picker-header">
+        <h2>Splat Viewer</h2>
+        <RouterLink :to="{ name: 'splat-history' }" class="history-link">History</RouterLink>
+      </div>
 
       <!-- Load existing .splat file -->
       <section class="section">
@@ -21,12 +22,14 @@
         <h3>Create from video</h3>
 
         <label class="pick-btn secondary">
-          Choose video
-          <input type="file" accept=".mp4,.mov,.MOV,.MP4" @change="onVideoFile" hidden />
+          Choose video(s)
+          <input type="file" accept=".mp4,.mov,.MOV,.MP4" multiple @change="onVideoFile" hidden />
         </label>
-        <p v-if="videoFile" class="filename">{{ videoFile.name }}</p>
+        <ul v-if="videoFiles.length" class="filenames">
+          <li v-for="f in videoFiles" :key="f.name">{{ f.name }}</li>
+        </ul>
 
-        <div v-if="videoFile" class="params">
+        <div v-if="videoFiles.length" class="params">
           <div class="param-row">
             <label>Mode</label>
             <div class="toggle-group">
@@ -67,8 +70,16 @@
             <input type="text" v-model="sceneName" placeholder="auto from filename" />
           </div>
 
+          <div class="param-row">
+            <label>early stop</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="earlyStop" />
+              <span class="toggle-label">{{ earlyStop ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+
           <button class="process-btn" :disabled="processing" @click="startJob">
-            {{ processing ? 'Processing…' : 'Process Video' }}
+            {{ processing ? `Processing… ${processingElapsed}s` : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
           </button>
         </div>
 
@@ -79,33 +90,32 @@
     </div>
 
     <div v-if="error" class="error">{{ error }}</div>
-
-    <div ref="container" class="canvas-container" />
-
-    <button v-if="loaded" class="reset-btn" @click="reset">← pick another</button>
   </div>
 </template>
 
 <script setup>
 import { ref, nextTick, onBeforeUnmount } from 'vue';
-
+import { useRouter } from 'vue-router';
+import { useSplatStore } from '../stores/splatStore.js';
 const GATEWAY = 'http://localhost:8000';
 
-const container = ref(null);
-const loaded = ref(false);
-const error = ref('');
-let viewer = null;
+const router = useRouter();
+const splatStore = useSplatStore();
 
-// .splat file picker
+const error = ref('');
+
+// .splat file picker — store blob locally and navigate to viewer
 async function onSplatFile(e) {
   const file = e.target.files[0];
   if (!file) return;
   error.value = '';
-  await loadSplatBlob(URL.createObjectURL(file));
+  const splatId = crypto.randomUUID();
+  splatStore.storeBlob(splatId, URL.createObjectURL(file));
+  router.push({ name: 'splat-viewer', params: { splatId } });
 }
 
-// Video → splat
-const videoFile = ref(null);
+// Video → splat pipeline
+const videoFiles = ref([]);
 const paramMode = ref('nframes');
 const nFrames = ref(3);
 const duration = ref(6);
@@ -113,24 +123,39 @@ const fps = ref(0.5);
 const fpsDuration = ref(null);
 const iters = ref(1000);
 const sceneName = ref('');
+const earlyStop = ref(true);
 const processing = ref(false);
+const processingElapsed = ref(0);
+let _elapsedTimer = null;
+
+function startElapsedTimer() {
+  processingElapsed.value = 0;
+  _elapsedTimer = setInterval(() => { processingElapsed.value++; }, 1000);
+}
+function stopElapsedTimer() {
+  clearInterval(_elapsedTimer);
+  _elapsedTimer = null;
+}
+onBeforeUnmount(stopElapsedTimer);
 const logs = ref([]);
 const logPre = ref(null);
 
 function onVideoFile(e) {
-  videoFile.value = e.target.files[0] || null;
+  videoFiles.value = Array.from(e.target.files);
   logs.value = [];
 }
 
 async function startJob() {
-  if (!videoFile.value) return;
+  if (!videoFiles.value.length) return;
   error.value = '';
   logs.value = [];
   processing.value = true;
+  startElapsedTimer();
 
   const form = new FormData();
-  form.append('video', videoFile.value);
+  for (const f of videoFiles.value) form.append('video', f);
   form.append('iters', iters.value);
+  form.append('early_stop', earlyStop.value);
   if (sceneName.value) form.append('scene', sceneName.value);
 
   if (paramMode.value === 'nframes') {
@@ -138,7 +163,9 @@ async function startJob() {
     form.append('duration', duration.value);
   } else {
     form.append('fps', fps.value);
-    if (fpsDuration.value) form.append('duration', fpsDuration.value);
+    // Only send duration if it's a positive number — null/0/'' means full video
+    const dur = Number(fpsDuration.value);
+    if (dur > 0) form.append('duration', dur);
   }
 
   let jobId;
@@ -171,11 +198,13 @@ async function startJob() {
       if (logPre.value) logPre.value.scrollTop = logPre.value.scrollHeight;
     } else if (msg.type === 'done') {
       es.close();
+      stopElapsedTimer();
       processing.value = false;
-      logs.value.push('✓ Done — loading splat…');
-      await loadSplatFromJob(jobId);
+      logs.value.push('✓ Done — navigating to splat…');
+      router.push({ name: 'splat-viewer', params: { splatId: jobId } });
     } else if (msg.type === 'error') {
       es.close();
+      stopElapsedTimer();
       processing.value = false;
       error.value = 'Pipeline error: ' + msg.data;
     }
@@ -183,56 +212,11 @@ async function startJob() {
 
   es.onerror = () => {
     es.close();
+    stopElapsedTimer();
     processing.value = false;
-    if (!loaded.value) error.value = 'Lost connection to log stream.';
+    error.value = 'Lost connection to log stream.';
   };
 }
-
-async function loadSplatFromJob(jobId) {
-  try {
-    const res = await fetch(`${GATEWAY}/topowall/api/v1/video-to-splat/${jobId}/splat`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    await loadSplatBlob(URL.createObjectURL(blob));
-  } catch (err) {
-    error.value = 'Failed to load splat: ' + err.message;
-  }
-}
-
-async function loadSplatBlob(objectUrl) {
-  try {
-    const { Viewer } = await import('@mkkellogg/gaussian-splats-3d');
-    viewer = new Viewer({
-      rootElement: container.value,
-      cameraUp: [0, -1, 0],
-      initialCameraPosition: [0, 0, -3],
-      initialCameraLookAt: [0, 0, 0],
-    });
-    await viewer.addSplatScene(objectUrl, {
-      splatAlphaRemovalThreshold: 5,
-      format: 0,
-    });
-    loaded.value = true;
-    viewer.start();
-  } catch (err) {
-    error.value = 'Failed to load splat: ' + err.message;
-  }
-}
-
-function reset() {
-  if (viewer) {
-    viewer.stop?.();
-    viewer.dispose?.();
-    viewer = null;
-  }
-  loaded.value = false;
-  error.value = '';
-  videoFile.value = null;
-  logs.value = [];
-  processing.value = false;
-}
-
-onBeforeUnmount(reset);
 </script>
 
 <style scoped>
@@ -260,6 +244,26 @@ onBeforeUnmount(reset);
 
 .picker h2 { font-size: 1.4rem; color: #fff; margin-bottom: 8px; }
 
+.picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 480px;
+}
+
+.history-link {
+  padding: 6px 14px;
+  background: rgba(255,255,255,0.07);
+  color: #9ca3af;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  transition: background 0.15s;
+}
+.history-link:hover { background: rgba(255,255,255,0.13); color: #fff; }
+
 .section {
   width: 100%;
   max-width: 480px;
@@ -286,7 +290,8 @@ onBeforeUnmount(reset);
 .pick-btn.secondary { background: #374151; }
 .pick-btn.secondary:hover { background: #4b5563; }
 
-.filename { font-size: 0.8rem; color: #9ca3af; }
+.filenames { margin: 4px 0 0; padding: 0; list-style: none; font-size: 0.8rem; color: #9ca3af; }
+.filenames li::before { content: '▸ '; }
 
 .params { width: 100%; display: flex; flex-direction: column; gap: 8px; }
 
@@ -323,6 +328,10 @@ onBeforeUnmount(reset);
 }
 .toggle-group button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
 
+.toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.toggle input[type="checkbox"] { accent-color: #2563eb; width: 16px; height: 16px; cursor: pointer; }
+.toggle-label { font-size: 0.85rem; color: #9ca3af; }
+
 .process-btn {
   margin-top: 8px;
   padding: 12px;
@@ -356,8 +365,6 @@ onBeforeUnmount(reset);
   font-family: monospace;
 }
 
-.canvas-container { width: 100%; height: 100vh; }
-
 .error {
   position: absolute;
   top: 20px;
@@ -372,19 +379,4 @@ onBeforeUnmount(reset);
   max-width: 80%;
   text-align: center;
 }
-
-.reset-btn {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 20;
-  padding: 8px 14px;
-  background: rgba(0,0,0,0.6);
-  color: #fff;
-  border: 1px solid #444;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.reset-btn:hover { background: rgba(0,0,0,0.8); }
 </style>

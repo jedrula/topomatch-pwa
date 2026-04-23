@@ -137,6 +137,16 @@ const router = createRouter({
       name: 'splat-playground',
       component: () => import('../views/SplatPlaygroundView.vue'),
     },
+    {
+      path: '/playground/splat/history',
+      name: 'splat-history',
+      component: () => import('../views/SplatHistoryView.vue'),
+    },
+    {
+      path: '/splat/:splatId',
+      name: 'splat-viewer',
+      component: () => import('../views/SplatView.vue'),
+    },
   ],
 });
 
