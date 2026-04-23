@@ -97,7 +97,7 @@
 import { ref, nextTick, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
-const GATEWAY = 'http://localhost:8000';
+import { getGateway } from '../config/gateway.js';
 
 const router = useRouter();
 const splatStore = useSplatStore();
@@ -152,6 +152,16 @@ async function startJob() {
   processing.value = true;
   startElapsedTimer();
 
+  let gateway;
+  try {
+    gateway = await getGateway();
+  } catch (err) {
+    error.value = 'Gateway not configured: ' + err.message;
+    processing.value = false;
+    stopElapsedTimer();
+    return;
+  }
+
   const form = new FormData();
   for (const f of videoFiles.value) form.append('video', f);
   form.append('iters', iters.value);
@@ -170,7 +180,7 @@ async function startJob() {
 
   let jobId;
   try {
-    const res = await fetch(`${GATEWAY}/topowall/api/v1/video-to-splat`, {
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat`, {
       method: 'POST',
       body: form,
     });
@@ -186,7 +196,7 @@ async function startJob() {
   }
 
   // Stream logs via SSE
-  const es = new EventSource(`${GATEWAY}/topowall/api/v1/video-to-splat/${jobId}/logs`);
+  const es = new EventSource(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/logs`);
 
   es.onmessage = async (evt) => {
     let msg;

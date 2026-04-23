@@ -110,8 +110,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-
-const GATEWAY = 'http://localhost:8000';
+import { getGateway } from '../config/gateway.js';
 
 const router = useRouter();
 const jobs = ref([]);
@@ -129,7 +128,8 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const res = await fetch(`${GATEWAY}/topowall/api/v1/video-to-splat/jobs`);
+    const gateway = await getGateway();
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/jobs`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     jobs.value = data.jobs.map(job => {

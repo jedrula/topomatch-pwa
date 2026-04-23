@@ -16,8 +16,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
-
-const GATEWAY = 'http://localhost:8000';
+import { getGateway } from '../config/gateway.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -36,7 +35,8 @@ onMounted(async () => {
 
   if (!objectUrl) {
     try {
-      const res = await fetch(`${GATEWAY}/topowall/api/v1/video-to-splat/${splatId}/splat`);
+      const gateway = await getGateway();
+      const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/splat`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       objectUrl = URL.createObjectURL(blob);
