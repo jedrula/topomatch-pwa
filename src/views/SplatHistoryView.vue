@@ -103,9 +103,9 @@
           <button v-if="job.image_count > 0" class="view-btn img-btn" @click="toggleImages(job.job_id)">
             {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
           </button>
-          <button v-if="job.stored_videos?.length" class="view-btn vid-btn" @click="toggleVideos(job.job_id)">
-            {{ expandedVideos.has(job.job_id) ? 'Hide Videos ✕' : 'Videos 🎬' }}
-          </button>
+          <template v-for="v in job.stored_videos" :key="v.stored">
+            <a :href="videoUrl(job.job_id, v.stored)" class="view-btn vid-btn" download>⬇ {{ v.filename }}</a>
+          </template>
           <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
         </div>
 
@@ -137,14 +137,7 @@
           <p v-else class="log-empty-history">No images available.</p>
         </div>
 
-        <!-- Videos -->
-        <div v-if="expandedVideos.has(job.job_id)" class="videos-expand">
-          <div v-for="v in job.stored_videos" :key="v.stored" class="video-dl-row">
-            <span class="video-fname">{{ v.filename }}</span>
-            <a :href="videoUrl(job.job_id, v.stored)" target="_blank" class="view-btn vid-dl-btn" download>Download ↓</a>
-            <video :src="videoUrl(job.job_id, v.stored)" controls class="inline-video" preload="metadata" />
-          </div>
-        </div>
+
 
         <div v-if="job.thumbnail && expandedCapture.has(job.job_id)" class="capture-preview">
           <img :src="job.thumbnail" alt="splat capture" class="capture-img" />
@@ -166,7 +159,6 @@ const error = ref('');
 const expandedCapture = ref(new Set());
 const expandedLogs = ref(new Set());
 const expandedImages = ref(new Set());
-const expandedVideos = ref(new Set());
 const jobLogs = ref(new Map());
 const jobImages = ref(new Map());
 let gatewayCache = null;
@@ -206,12 +198,6 @@ function imageUrl(jobId, filename) {
 
 function videoUrl(jobId, storedFilename) {
   return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/video/${storedFilename}`;
-}
-
-function toggleVideos(jobId) {
-  const s = new Set(expandedVideos.value);
-  s.has(jobId) ? s.delete(jobId) : s.add(jobId);
-  expandedVideos.value = s;
 }
 
 async function deleteJob(job) {
@@ -626,15 +612,18 @@ onMounted(load);
 .img-btn { background: #065f46; }
 .img-btn:hover { background: #047857; }
 
-.vid-btn { background: #7c2d12; }
+.vid-btn {
+  background: #7c2d12;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
 .vid-btn:hover { background: #9a3412; }
 
 .del-btn { background: #7f1d1d; margin-left: auto; }
 .del-btn:hover { background: #991b1b; }
 
-.images-expand {
-  margin-top: 8px;
-}
+.images-expand { margin-top: 8px; }
 .images-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -647,32 +636,5 @@ onMounted(load);
   border-radius: 4px;
   border: 1px solid #2a2a2a;
   background: #0d0d0d;
-}
-
-.videos-expand {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.video-dl-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.vid-dl-btn {
-  align-self: flex-start;
-  background: #1f2937;
-  font-size: 0.78rem;
-  padding: 5px 12px;
-  text-decoration: none;
-}
-.vid-dl-btn:hover { background: #374151; }
-.inline-video {
-  width: 100%;
-  max-height: 280px;
-  border-radius: 6px;
-  border: 1px solid #333;
-  background: #000;
 }
 </style>
