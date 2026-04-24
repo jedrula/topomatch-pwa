@@ -136,11 +136,19 @@ const router = createRouter({
       path: '/playground/splat',
       name: 'splat-playground',
       component: () => import('../views/SplatPlaygroundView.vue'),
-    },
-    {
-      path: '/playground/splat/history',
-      name: 'splat-history',
-      component: () => import('../views/SplatHistoryView.vue'),
+      redirect: { name: 'splat-upload' },
+      children: [
+        {
+          path: 'upload',
+          name: 'splat-upload',
+          component: () => import('../views/SplatUploadView.vue'),
+        },
+        {
+          path: 'history',
+          name: 'splat-history',
+          component: () => import('../views/SplatHistoryView.vue'),
+        },
+      ],
     },
     {
       path: '/splat/:splatId',

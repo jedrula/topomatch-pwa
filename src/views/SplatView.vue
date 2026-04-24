@@ -1,6 +1,8 @@
 <template>
   <div class="splat-view">
     <div class="splat-header">
+      <RouterLink :to="{ name: 'splat-upload' }" class="splat-tab">Upload</RouterLink>
+      <RouterLink :to="{ name: 'splat-history' }" class="splat-tab">History</RouterLink>
       <span class="splat-header-id">{{ route.params.splatId }}</span>
     </div>
     <!-- Splat loading spinner -->
@@ -375,10 +377,25 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
   position: relative;
 }
 
+.splat-tab {
+  padding: 0 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+.splat-tab:hover { color: #fff; }
+
 .splat-header-id {
   font-family: monospace;
   font-size: 0.85rem;
   color: #6b7280;
   letter-spacing: 0.03em;
+  margin-left: auto;
 }
 </style>

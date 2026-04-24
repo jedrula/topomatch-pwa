@@ -90,6 +90,7 @@
           >
             View Splat →
           </RouterLink>
+          <button class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
           <button
             v-if="job.thumbnail"
             class="view-btn capture-btn"
@@ -103,6 +104,7 @@
           <button v-if="job.image_count > 0" class="view-btn img-btn" @click="toggleImages(job.job_id)">
             {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
           </button>
+          <span v-else class="no-images">no images</span>
           <template v-for="v in job.stored_videos" :key="v.stored">
             <a :href="videoUrl(job.job_id, v.stored)" class="view-btn vid-btn" download>⬇ {{ v.filename }}</a>
           </template>
@@ -149,8 +151,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { getGateway } from '../config/gateway.js';
 
+const router = useRouter();
 const jobs = ref([]);
 const loading = ref(true);
 const error = ref('');
@@ -232,6 +236,16 @@ async function toggleLogs(jobId) {
       }
     } catch { /* silent */ }
   }
+}
+
+function rerunJob(job) {
+  sessionStorage.setItem('splat-rerun', JSON.stringify({
+    jobId: job.job_id,
+    scene: job.scene,
+    params: job.params,
+    storedVideos: job.stored_videos,
+  }));
+  router.push({ name: 'splat-upload' });
 }
 
 async function load() {
@@ -609,6 +623,15 @@ onMounted(load);
 
 .img-btn { background: #065f46; }
 .img-btn:hover { background: #047857; }
+
+.rerun-btn { background: #7c3aed; }
+.rerun-btn:hover { background: #6d28d9; }
+
+.no-images {
+  font-size: 0.78rem;
+  color: #4b5563;
+  align-self: center;
+}
 
 .vid-btn {
   background: #7c2d12;
