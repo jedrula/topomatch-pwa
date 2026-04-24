@@ -113,6 +113,7 @@
 
         <!-- Logs for non-done jobs too -->
         <div v-if="job.status !== 'done'" class="action-row">
+          <button v-if="job.status === 'error'" class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
           </button>
