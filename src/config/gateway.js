@@ -41,7 +41,7 @@ export async function getGateway({ forceRefresh = false } = {}) {
     const localUrl = data?.holdDetection?.localUrl
     const serverUrl = data?.holdDetection?.serverUrl
 
-    if (localUrl && await _reachable(localUrl)) {
+    if (localUrl && window.location.protocol === 'http:' && await _reachable(localUrl)) {
       _cached = localUrl
       return localUrl
     }
