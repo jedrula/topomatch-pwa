@@ -121,7 +121,6 @@ const iters = ref(1000);
 const sceneName = ref('');
 const earlyStop = ref(true);
 const processing = ref(false);
-const error = ref('');
 
 function onVideoFile(e) {
   videoFiles.value = Array.from(e.target.files);

@@ -49,6 +49,7 @@ const refreshing = ref(false);
 const jobStatus = ref('');
 const logLines = ref([]);
 let viewer = null;
+let currentObjectUrl = null;
 
 async function checkStatus() {
   const splatId = route.params.splatId;
@@ -90,10 +91,15 @@ async function loadSplat(splatId, gateway) {
     const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/splat`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
-    await renderSplat(URL.createObjectURL(blob), splatId);
+    currentObjectUrl = URL.createObjectURL(blob);
+    await renderSplat(currentObjectUrl, splatId);
   } catch (err) {
     error.value = 'Failed to load splat: ' + err.message;
     loading.value = false;
+    if (currentObjectUrl) {
+      URL.revokeObjectURL(currentObjectUrl);
+      currentObjectUrl = null;
+    }
   }
 }
 
@@ -103,6 +109,7 @@ onMounted(async () => {
   // Local file pick (in-memory blob) — skip status check, render directly
   const objectUrl = splatStore.getBlob(splatId);
   if (objectUrl) {
+    currentObjectUrl = objectUrl;
     await renderSplat(objectUrl, splatId);
     return;
   }
@@ -153,6 +160,10 @@ onBeforeUnmount(() => {
   viewer?.stop?.();
   viewer?.dispose?.();
   viewer = null;
+  if (currentObjectUrl) {
+    URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = null;
+  }
 });
 
 function captureThumbnail(splatId) {
