@@ -2,37 +2,30 @@
  * Returns the base gateway URL (port 8000 / ngrok root).
  * ngrok tunnels port 8000 and writes the URL to Firestore at
  * app-config/backend.holdDetection.serverUrl via write_ngrok_url.py.
- * It also writes the LAN IP as holdDetection.localUrl so clients on
- * the same network skip ngrok entirely and use the direct LAN address.
+ * It also writes holdDetection.localUrl (LAN IP, e.g. http://192.168.x.x:8000).
  *
- * Resolution order:
- *  1. VITE_GATEWAY_URL env var (local dev override)
- *  2. holdDetection.localUrl  — probed with a 1.5 s timeout; used if reachable
- *  3. holdDetection.serverUrl — ngrok fallback (for remote / off-LAN access)
- *  4. http://localhost:8000   — last resort if Firestore is unreachable
+ * Strategy:
+ *   1. If VITE_GATEWAY_URL is set → use that (local dev override)
+ *   2. Try localUrl (LAN) with a short timeout → use if reachable (no ngrok credits)
+ *   3. Fall back to serverUrl (ngrok)
+ *   4. Fall back to localhost:8000
+ *
+ * The gateway routes /topowall/* → topowall-splat (:8002).
  */
 import { getBackendAppConfig } from '@/services/appConfigService'
 
-const LAN_PROBE_TIMEOUT_MS = 1500
+const LAN_TIMEOUT_MS = 1500
+let _cached = null
 
-let cachedGateway = null
-let cachedGatewayAt = 0
-const CACHE_TTL_MS = 5 * 60 * 1000
-
-async function probeUrl(url) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), LAN_PROBE_TIMEOUT_MS)
+async function _reachable(url) {
   try {
-    const res = await fetch(`${url}/health`, {
-      method: 'GET',
-      signal: controller.signal,
-      headers: { 'ngrok-skip-browser-warning': 'true' },
-    })
+    const ctrl = new AbortController()
+    const tid = setTimeout(() => ctrl.abort(), LAN_TIMEOUT_MS)
+    const res = await fetch(`${url}/health`, { signal: ctrl.signal, mode: 'cors' })
+    clearTimeout(tid)
     return res.ok
   } catch {
     return false
-  } finally {
-    clearTimeout(timer)
   }
 }
 
@@ -41,33 +34,23 @@ export async function getGateway({ forceRefresh = false } = {}) {
     return import.meta.env.VITE_GATEWAY_URL
   }
 
-  const now = Date.now()
-  if (!forceRefresh && cachedGateway && now - cachedGatewayAt < CACHE_TTL_MS) {
-    return cachedGateway
-  }
+  if (!forceRefresh && _cached) return _cached
 
   try {
     const data = await getBackendAppConfig({ forceRefresh: true })
-    const localUrl  = data?.holdDetection?.localUrl?.replace(/\/+$/, '')
-    const ngrokUrl  = data?.holdDetection?.serverUrl?.replace(/\/+$/, '')
+    const localUrl = data?.holdDetection?.localUrl
+    const serverUrl = data?.holdDetection?.serverUrl
 
-    // Try LAN first — no ngrok credits, much faster
-    if (localUrl && await probeUrl(localUrl)) {
-      cachedGateway = localUrl
-      cachedGatewayAt = now
-      console.log(`[gateway] using LAN: ${localUrl}`)
+    if (localUrl && await _reachable(localUrl)) {
+      _cached = localUrl
       return localUrl
     }
 
-    if (ngrokUrl) {
-      cachedGateway = ngrokUrl
-      cachedGatewayAt = now
-      console.log(`[gateway] using ngrok: ${ngrokUrl}`)
-      return ngrokUrl
+    if (serverUrl) {
+      _cached = serverUrl
+      return serverUrl
     }
-  } catch {
-    // fall through to localhost
-  }
+  } catch { /* fall through */ }
 
   return 'http://localhost:8000'
 }
