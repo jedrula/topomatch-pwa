@@ -227,7 +227,7 @@ async function deleteJob(job) {
   jobs.value = jobs.value.filter(j => j.job_id !== job.job_id);
 }
 
-
+async function toggleLogs(jobId) {
   const s = new Set(expandedLogs.value);
   if (s.has(jobId)) {
     s.delete(jobId);
