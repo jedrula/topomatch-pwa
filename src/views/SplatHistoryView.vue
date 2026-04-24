@@ -84,12 +84,12 @@
         <div v-if="job.error" class="job-error">{{ job.error }}</div>
 
         <div v-if="job.status === 'done'" class="action-row">
-          <button
+          <RouterLink
             class="view-btn"
-            @click="router.push({ name: 'splat-viewer', params: { splatId: job.job_id } })"
+            :to="{ name: 'splat-viewer', params: { splatId: job.job_id } }"
           >
             View Splat →
-          </button>
+          </RouterLink>
           <button
             v-if="job.thumbnail"
             class="view-btn capture-btn"

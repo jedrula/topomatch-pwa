@@ -25,7 +25,7 @@
     "backup:package": "node scripts/backup.cjs package",
     "backup:import:seed": "node scripts/backup.cjs import-seed",
     "backup:list": "node scripts/backup.cjs list",
-    "deploy:frontend": "npm run build && cp server/firebase.json firebase.json && firebase deploy --only hosting",
+    "deploy:frontend": "npm run build && cp server/firebase.json firebase.json && firebase deploy --only hosting && echo \"✅ Deploy complete at $(date '+%H:%M')\"",
     "deploy:test": "npm run build:test && cp server/firebase.json firebase.json && firebase deploy --only hosting",
     "ios:sync": "npx cap sync ios",
     "ios:open": "npx cap open ios",

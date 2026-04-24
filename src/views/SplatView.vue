@@ -168,18 +168,31 @@ onBeforeUnmount(() => {
 
 function captureThumbnail(splatId) {
   const key = `splat-thumb-${splatId}`;
+  if (localStorage.getItem(key)) {
+    console.log(`[splat-capture] Already captured for ${splatId}, skipping.`);
+    return;
+  }
   setTimeout(() => {
     try {
       const canvas = container.value?.querySelector('canvas');
-      if (!canvas) return;
+      if (!canvas) {
+        console.warn('[splat-capture] No canvas found in container.');
+        return;
+      }
       const cropped = cropToContent(canvas);
-      if (!cropped) return;
+      if (!cropped) {
+        console.warn('[splat-capture] cropToContent returned null — canvas may be empty or all-black.');
+        return;
+      }
       const dataUrl = cropped.toDataURL('image/jpeg', 0.85);
       if (dataUrl && dataUrl !== 'data:,') {
         localStorage.setItem(key, dataUrl);
+        console.log(`[splat-capture] Capture saved for ${splatId} (${Math.round(dataUrl.length / 1024)} KB).`);
+      } else {
+        console.warn('[splat-capture] toDataURL returned empty data URL.');
       }
-    } catch {
-      // Cross-origin or WebGL read-back not available — silently skip
+    } catch (err) {
+      console.error('[splat-capture] Failed to capture thumbnail:', err);
     }
   }, 2500);
 }
