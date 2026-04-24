@@ -100,6 +100,13 @@
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
           </button>
+          <button v-if="job.image_count > 0" class="view-btn img-btn" @click="toggleImages(job.job_id)">
+            {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
+          </button>
+          <button v-if="job.stored_videos?.length" class="view-btn vid-btn" @click="toggleVideos(job.job_id)">
+            {{ expandedVideos.has(job.job_id) ? 'Hide Videos ✕' : 'Videos 🎬' }}
+          </button>
+          <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
         </div>
 
         <!-- Logs for non-done jobs too -->
@@ -107,11 +114,36 @@
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
           </button>
+          <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
         </div>
 
         <div v-if="expandedLogs.has(job.job_id)" class="log-expand">
           <pre v-if="jobLogs.get(job.job_id)?.length" class="log-pre-history">{{ jobLogs.get(job.job_id).join('\n') }}</pre>
           <p v-else class="log-empty-history">No log output available.</p>
+        </div>
+
+        <!-- Images grid -->
+        <div v-if="expandedImages.has(job.job_id)" class="images-expand">
+          <div v-if="jobImages.get(job.job_id)?.length" class="images-grid">
+            <img
+              v-for="fn in jobImages.get(job.job_id)"
+              :key="fn"
+              :src="imageUrl(job.job_id, fn)"
+              class="frame-thumb"
+              :alt="fn"
+              loading="lazy"
+            />
+          </div>
+          <p v-else class="log-empty-history">No images available.</p>
+        </div>
+
+        <!-- Videos -->
+        <div v-if="expandedVideos.has(job.job_id)" class="videos-expand">
+          <div v-for="v in job.stored_videos" :key="v.stored" class="video-dl-row">
+            <span class="video-fname">{{ v.filename }}</span>
+            <a :href="videoUrl(job.job_id, v.stored)" target="_blank" class="view-btn vid-dl-btn" download>Download ↓</a>
+            <video :src="videoUrl(job.job_id, v.stored)" controls class="inline-video" preload="metadata" />
+          </div>
         </div>
 
         <div v-if="job.thumbnail && expandedCapture.has(job.job_id)" class="capture-preview">
@@ -133,7 +165,15 @@ const loading = ref(true);
 const error = ref('');
 const expandedCapture = ref(new Set());
 const expandedLogs = ref(new Set());
+const expandedImages = ref(new Set());
+const expandedVideos = ref(new Set());
 const jobLogs = ref(new Map());
+const jobImages = ref(new Map());
+let gatewayCache = null;
+async function resolvedGateway() {
+  if (!gatewayCache) gatewayCache = await getGateway();
+  return gatewayCache;
+}
 
 function toggleCapture(jobId) {
   const s = new Set(expandedCapture.value);
@@ -141,7 +181,53 @@ function toggleCapture(jobId) {
   expandedCapture.value = s;
 }
 
-async function toggleLogs(jobId) {
+async function toggleImages(jobId) {
+  const s = new Set(expandedImages.value);
+  if (s.has(jobId)) { s.delete(jobId); expandedImages.value = s; return; }
+  s.add(jobId);
+  expandedImages.value = s;
+  if (!jobImages.value.has(jobId)) {
+    try {
+      const gateway = await resolvedGateway();
+      const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/images`);
+      if (res.ok) {
+        const data = await res.json();
+        const m = new Map(jobImages.value);
+        m.set(jobId, data.images ?? []);
+        jobImages.value = m;
+      }
+    } catch { /* silent */ }
+  }
+}
+
+function imageUrl(jobId, filename) {
+  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/images/${filename}`;
+}
+
+function videoUrl(jobId, storedFilename) {
+  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/video/${storedFilename}`;
+}
+
+function toggleVideos(jobId) {
+  const s = new Set(expandedVideos.value);
+  s.has(jobId) ? s.delete(jobId) : s.add(jobId);
+  expandedVideos.value = s;
+}
+
+async function deleteJob(job) {
+  if (!confirm(`Delete job ${job.job_id}? This removes all files from the server and cannot be undone.`)) return;
+  try {
+    const gateway = await resolvedGateway();
+    await fetch(`${gateway}/topowall/api/v1/video-to-splat/${job.job_id}`, { method: 'DELETE' });
+  } catch { /* best-effort */ }
+  // Remove from localStorage
+  localStorage.removeItem(`splat-thumb-${job.job_id}`);
+  localStorage.removeItem(`splat-${job.job_id}`);
+  // Remove from list
+  jobs.value = jobs.value.filter(j => j.job_id !== job.job_id);
+}
+
+
   const s = new Set(expandedLogs.value);
   if (s.has(jobId)) {
     s.delete(jobId);
@@ -152,7 +238,7 @@ async function toggleLogs(jobId) {
   expandedLogs.value = s;
   if (!jobLogs.value.has(jobId)) {
     try {
-      const gateway = await getGateway();
+      const gateway = await resolvedGateway();
       const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/logs`);
       if (res.ok) {
         const data = await res.json();
@@ -172,6 +258,7 @@ async function load() {
     const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/jobs`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    gatewayCache = gateway;
     jobs.value = data.jobs.map(job => {
       // Normalize legacy shapes so the template always sees arrays
       const videoInfos = Array.isArray(job.video_info)
@@ -193,6 +280,8 @@ async function load() {
         ...job,
         video_infos: videoInfos,
         params,
+        stored_videos: job.stored_videos ?? [],
+        image_count: job.image_count ?? 0,
         thumbnail: localStorage.getItem(`splat-thumb-${job.job_id}`) || null,
       };
     });
@@ -531,6 +620,59 @@ onMounted(load);
   height: auto;
   max-height: 420px;
   object-fit: contain;
+  background: #000;
+}
+
+.img-btn { background: #065f46; }
+.img-btn:hover { background: #047857; }
+
+.vid-btn { background: #7c2d12; }
+.vid-btn:hover { background: #9a3412; }
+
+.del-btn { background: #7f1d1d; margin-left: auto; }
+.del-btn:hover { background: #991b1b; }
+
+.images-expand {
+  margin-top: 8px;
+}
+.images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 4px;
+}
+.frame-thumb {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #2a2a2a;
+  background: #0d0d0d;
+}
+
+.videos-expand {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.video-dl-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vid-dl-btn {
+  align-self: flex-start;
+  background: #1f2937;
+  font-size: 0.78rem;
+  padding: 5px 12px;
+  text-decoration: none;
+}
+.vid-dl-btn:hover { background: #374151; }
+.inline-video {
+  width: 100%;
+  max-height: 280px;
+  border-radius: 6px;
+  border: 1px solid #333;
   background: #000;
 }
 </style>
