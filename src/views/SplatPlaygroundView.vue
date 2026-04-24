@@ -1,11 +1,11 @@
 <template>
   <div class="splat-playground">
-    <div class="picker">
-      <div class="picker-header">
-        <h2>Splat Viewer</h2>
-        <RouterLink :to="{ name: 'splat-history' }" class="history-link">History</RouterLink>
-      </div>
+    <div class="tab-bar">
+      <button :class="{ active: activeTab === 'upload' }" @click="activeTab = 'upload'">Upload</button>
+      <button :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">History</button>
+    </div>
 
+    <div v-if="activeTab === 'upload'" class="picker">
       <!-- Load existing .splat file -->
       <section class="section">
         <h3>Load .splat file</h3>
@@ -85,6 +85,8 @@
       </section>
     </div>
 
+    <SplatHistoryView v-if="activeTab === 'history'" />
+
     <div v-if="error" class="error">{{ error }}</div>
   </div>
 </template>
@@ -94,11 +96,13 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
 import { getGateway } from '../config/gateway.js';
+import SplatHistoryView from './SplatHistoryView.vue';
 
 const router = useRouter();
 const splatStore = useSplatStore();
 
 const error = ref('');
+const activeTab = ref('upload');
 
 // .splat file picker — store blob locally and navigate to viewer
 async function onSplatFile(e) {
@@ -188,9 +192,28 @@ async function startJob() {
   overflow: hidden;
 }
 
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid #1f2937;
+  background: #0d0d0d;
+}
+
+.tab-bar button {
+  padding: 8px 20px;
+  background: transparent;
+  color: #6b7280;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-bar button.active { color: #fff; border-bottom-color: #2563eb; }
+.tab-bar button:hover:not(.active) { color: #d1d5db; }
+
 .picker {
-  position: absolute;
-  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -198,31 +221,9 @@ async function startJob() {
   padding: 40px 20px;
   gap: 12px;
   color: #ccc;
-  z-index: 10;
   overflow-y: auto;
+  min-height: calc(100vh - 45px);
 }
-
-.picker h2 { font-size: 1.4rem; color: #fff; margin-bottom: 8px; }
-
-.picker-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  max-width: 480px;
-}
-
-.history-link {
-  padding: 6px 14px;
-  background: rgba(255,255,255,0.07);
-  color: #9ca3af;
-  border: 1px solid #374151;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  transition: background 0.15s;
-}
-.history-link:hover { background: rgba(255,255,255,0.13); color: #fff; }
 
 .section {
   width: 100%;

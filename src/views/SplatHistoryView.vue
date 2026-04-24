@@ -1,7 +1,7 @@
 <template>
   <div class="history-page">
     <div class="header">
-      <button class="back-btn" @click="router.push({ name: 'splat-playground' })">← Back</button>
+
       <h1>Splat History</h1>
       <button class="refresh-btn" @click="load">↻ Refresh</button>
     </div>
@@ -149,10 +149,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import { getGateway } from '../config/gateway.js';
 
-const router = useRouter();
 const jobs = ref([]);
 const loading = ref(true);
 const error = ref('');
@@ -344,7 +342,7 @@ onMounted(load);
   margin: 0;
 }
 
-.back-btn, .refresh-btn {
+.refresh-btn {
   padding: 7px 14px;
   background: rgba(255,255,255,0.07);
   color: #ccc;
@@ -354,7 +352,7 @@ onMounted(load);
   font-size: 0.85rem;
   transition: background 0.15s;
 }
-.back-btn:hover, .refresh-btn:hover { background: rgba(255,255,255,0.13); }
+.refresh-btn:hover { background: rgba(255,255,255,0.13); }
 
 .state-msg {
   text-align: center;
