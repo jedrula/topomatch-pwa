@@ -97,6 +97,21 @@
           >
             {{ expandedCapture.has(job.job_id) ? 'Hide Capture ✕' : 'View Capture 🖼' }}
           </button>
+          <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
+            {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
+          </button>
+        </div>
+
+        <!-- Logs for non-done jobs too -->
+        <div v-if="job.status !== 'done'" class="action-row">
+          <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
+            {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
+          </button>
+        </div>
+
+        <div v-if="expandedLogs.has(job.job_id)" class="log-expand">
+          <pre v-if="jobLogs.get(job.job_id)?.length" class="log-pre-history">{{ jobLogs.get(job.job_id).join('\n') }}</pre>
+          <p v-else class="log-empty-history">No log output available.</p>
         </div>
 
         <div v-if="job.thumbnail && expandedCapture.has(job.job_id)" class="capture-preview">
@@ -117,11 +132,36 @@ const jobs = ref([]);
 const loading = ref(true);
 const error = ref('');
 const expandedCapture = ref(new Set());
+const expandedLogs = ref(new Set());
+const jobLogs = ref(new Map());
 
 function toggleCapture(jobId) {
   const s = new Set(expandedCapture.value);
   s.has(jobId) ? s.delete(jobId) : s.add(jobId);
   expandedCapture.value = s;
+}
+
+async function toggleLogs(jobId) {
+  const s = new Set(expandedLogs.value);
+  if (s.has(jobId)) {
+    s.delete(jobId);
+    expandedLogs.value = s;
+    return;
+  }
+  s.add(jobId);
+  expandedLogs.value = s;
+  if (!jobLogs.value.has(jobId)) {
+    try {
+      const gateway = await getGateway();
+      const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/logs`);
+      if (res.ok) {
+        const data = await res.json();
+        const m = new Map(jobLogs.value);
+        m.set(jobId, data.log_lines ?? []);
+        jobLogs.value = m;
+      }
+    } catch { /* silent */ }
+  }
 }
 
 async function load() {
@@ -455,6 +495,29 @@ onMounted(load);
 
 .capture-btn { background: #4f46e5; }
 .capture-btn:hover { background: #4338ca; }
+
+.log-btn { background: #374151; }
+.log-btn:hover { background: #4b5563; }
+
+.log-expand { margin-top: 8px; }
+.log-pre-history {
+  background: #1a1a1a;
+  border: 1px solid #2d2d2d;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #9ca3af;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.log-empty-history {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 0.8rem;
+}
 
 .capture-preview {
   margin-top: 12px;

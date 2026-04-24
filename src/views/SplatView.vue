@@ -1,14 +1,33 @@
 <template>
   <div class="splat-view">
-    <div v-if="loading" class="overlay">
+    <!-- Splat loading spinner -->
+    <div v-if="loading && !processing" class="overlay">
       <p>Loading splat…</p>
     </div>
 
-    <div v-if="error" class="error">{{ error }}</div>
+    <!-- Processing / error state -->
+    <div v-if="processing" class="processing-overlay">
+      <div class="processing-card">
+        <div class="processing-header">
+          <span class="status-dot" :class="jobStatus"></span>
+          <span class="status-label">{{ jobStatus === 'error' ? 'Pipeline error' : 'Gaussian splatting in progress…' }}</span>
+        </div>
+        <pre v-if="logLines.length" class="log-pre">{{ logLines.join('\n') }}</pre>
+        <p v-else class="log-empty">No log output yet.</p>
+        <div class="processing-actions">
+          <button class="refresh-btn" :disabled="refreshing" @click="checkStatus">
+            {{ refreshing ? 'Checking…' : 'Refresh' }}
+          </button>
+          <button class="back-btn-inline" @click="goBack">← Back</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="error && !processing" class="error">{{ error }}</div>
 
     <div ref="container" class="canvas-container" />
 
-    <button class="back-btn" @click="goBack">← Back</button>
+    <button v-if="!processing" class="back-btn" @click="goBack">← Back</button>
   </div>
 </template>
 
@@ -25,36 +44,80 @@ const splatStore = useSplatStore();
 const container = ref(null);
 const loading = ref(true);
 const error = ref('');
+const processing = ref(false);
+const refreshing = ref(false);
+const jobStatus = ref('');
+const logLines = ref([]);
 let viewer = null;
+
+async function checkStatus() {
+  const splatId = route.params.splatId;
+  refreshing.value = true;
+  try {
+    const gateway = await getGateway();
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/status`);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const { status } = await res.json();
+    jobStatus.value = status;
+
+    if (status === 'done') {
+      processing.value = false;
+      loading.value = true;
+      await loadSplat(splatId, gateway);
+    } else {
+      // Fetch log lines for display
+      const logsRes = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/logs`);
+      if (logsRes.ok) {
+        const data = await logsRes.json();
+        logLines.value = data.log_lines ?? [];
+      }
+      processing.value = true;
+      loading.value = false;
+    }
+  } catch (err) {
+    error.value = 'Could not reach server: ' + err.message;
+    processing.value = false;
+    loading.value = false;
+  } finally {
+    refreshing.value = false;
+  }
+}
+
+async function loadSplat(splatId, gateway) {
+  try {
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/splat`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    await renderSplat(URL.createObjectURL(blob), splatId);
+  } catch (err) {
+    error.value = 'Failed to load splat: ' + err.message;
+    loading.value = false;
+  }
+}
 
 onMounted(async () => {
   const splatId = route.params.splatId;
 
-  // Try in-memory blob first (local file pick), then fall back to API fetch
-  let objectUrl = splatStore.getBlob(splatId);
-
-  if (!objectUrl) {
-    try {
-      const gateway = await getGateway();
-      const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/splat`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      objectUrl = URL.createObjectURL(blob);
-    } catch (err) {
-      error.value = 'Failed to load splat: ' + err.message;
-      loading.value = false;
-      return;
-    }
+  // Local file pick (in-memory blob) — skip status check, render directly
+  const objectUrl = splatStore.getBlob(splatId);
+  if (objectUrl) {
+    await renderSplat(objectUrl, splatId);
+    return;
   }
 
+  // Server job: check status first
+  await checkStatus();
+});
+
+async function renderSplat(objectUrl, splatId) {
   try {
     const [{ Viewer }, THREE] = await Promise.all([
       import('@mkkellogg/gaussian-splats-3d'),
       import('three'),
     ]);
 
-    // preserveDrawingBuffer is required so toDataURL() reads a real frame
-    // instead of a black cleared buffer (default WebGL behaviour).
     const renderer = new THREE.WebGLRenderer({
       preserveDrawingBuffer: true,
       antialias: true,
@@ -79,15 +142,12 @@ onMounted(async () => {
     });
     loading.value = false;
     viewer.start();
-
-    // Capture a thumbnail after the scene has had a moment to render.
-    // Stored in localStorage so the history page can show it without re-rendering.
     captureThumbnail(splatId);
   } catch (err) {
     error.value = 'Failed to render splat: ' + err.message;
     loading.value = false;
   }
-});
+}
 
 onBeforeUnmount(() => {
   viewer?.stop?.();
@@ -192,6 +252,92 @@ function goBack() {
   z-index: 10;
   background: #111;
 }
+
+.processing-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  background: #111;
+  z-index: 10;
+  overflow-y: auto;
+}
+
+.processing-card {
+  width: 100%;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.processing-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e5e7eb;
+  font-size: 1rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.running { background: #facc15; animation: pulse 1.5s infinite; }
+.status-dot.error   { background: #f87171; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.log-pre {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 12px 14px;
+  color: #9ca3af;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.log-empty {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.processing-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.refresh-btn {
+  padding: 8px 18px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.refresh-btn:disabled { opacity: 0.5; cursor: default; }
+.refresh-btn:hover:not(:disabled) { background: #1d4ed8; }
+
+.back-btn-inline {
+  padding: 8px 14px;
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid #444;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.back-btn-inline:hover { color: #e5e7eb; border-color: #666; }
 
 .error {
   position: absolute;

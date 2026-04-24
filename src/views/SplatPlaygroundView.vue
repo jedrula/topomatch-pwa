@@ -79,12 +79,8 @@
           </div>
 
           <button class="process-btn" :disabled="processing" @click="startJob">
-            {{ processing ? `Processing… ${processingElapsed}s` : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
+            {{ processing ? 'Submitting…' : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
           </button>
-        </div>
-
-        <div v-if="logs.length > 0 || processing" class="log-box">
-          <pre ref="logPre">{{ logs.join('\n') }}</pre>
         </div>
       </section>
     </div>
@@ -94,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onBeforeUnmount } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
 import { getGateway } from '../config/gateway.js';
@@ -125,32 +121,16 @@ const iters = ref(1000);
 const sceneName = ref('');
 const earlyStop = ref(true);
 const processing = ref(false);
-const processingElapsed = ref(0);
-let _elapsedTimer = null;
-
-function startElapsedTimer() {
-  processingElapsed.value = 0;
-  _elapsedTimer = setInterval(() => { processingElapsed.value++; }, 1000);
-}
-function stopElapsedTimer() {
-  clearInterval(_elapsedTimer);
-  _elapsedTimer = null;
-}
-onBeforeUnmount(stopElapsedTimer);
-const logs = ref([]);
-const logPre = ref(null);
+const error = ref('');
 
 function onVideoFile(e) {
   videoFiles.value = Array.from(e.target.files);
-  logs.value = [];
 }
 
 async function startJob() {
   if (!videoFiles.value.length) return;
   error.value = '';
-  logs.value = [];
   processing.value = true;
-  startElapsedTimer();
 
   let gateway;
   try {
@@ -158,7 +138,6 @@ async function startJob() {
   } catch (err) {
     error.value = 'Gateway not configured: ' + err.message;
     processing.value = false;
-    stopElapsedTimer();
     return;
   }
 
@@ -195,37 +174,9 @@ async function startJob() {
     return;
   }
 
-  // Stream logs via SSE
-  const es = new EventSource(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/logs`);
-
-  es.onmessage = async (evt) => {
-    let msg;
-    try { msg = JSON.parse(evt.data); } catch { return; }
-
-    if (msg.type === 'log') {
-      logs.value.push(msg.data);
-      await nextTick();
-      if (logPre.value) logPre.value.scrollTop = logPre.value.scrollHeight;
-    } else if (msg.type === 'done') {
-      es.close();
-      stopElapsedTimer();
-      processing.value = false;
-      logs.value.push('✓ Done — navigating to splat…');
-      router.push({ name: 'splat-viewer', params: { splatId: jobId } });
-    } else if (msg.type === 'error') {
-      es.close();
-      stopElapsedTimer();
-      processing.value = false;
-      error.value = 'Pipeline error: ' + msg.data;
-    }
-  };
-
-  es.onerror = () => {
-    es.close();
-    stopElapsedTimer();
-    processing.value = false;
-    error.value = 'Lost connection to log stream.';
-  };
+  // Navigate immediately — SplatView will show progress and allow manual refresh
+  processing.value = false;
+  router.push({ name: 'splat-viewer', params: { splatId: jobId } });
 }
 </script>
 
