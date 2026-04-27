@@ -112,7 +112,7 @@ async function onSplatFile(e) {
 
 // Video → splat pipeline
 const videoFiles = ref([]);
-const paramMode = ref('nframes');
+const paramMode = ref('fps');
 const nFrames = ref(3);
 const duration = ref(6);
 const fps = ref(0.5);

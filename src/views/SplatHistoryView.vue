@@ -18,7 +18,7 @@
             <span class="badge" :class="job.status">{{ job.status }}</span>
           </div>
           <div class="job-right">
-            <img v-if="job.thumbnail" :src="job.thumbnail" class="job-thumb" alt="splat preview" />
+            <img v-if="job.thumbnail" :src="job.thumbnail" class="job-thumb" alt="splat preview" @click="openCaptureLightbox(job.job_id, job.thumbnail)" style="cursor:pointer" />
             <span class="time">{{ formatDate(job.created_at) }}</span>
             <span v-if="job.elapsed_s != null" class="elapsed">{{ formatElapsed(job.elapsed_s) }}</span>
           </div>
@@ -132,6 +132,7 @@
               class="frame-thumb"
               :alt="fn"
               loading="lazy"
+              @click="openFrameLightbox(job.job_id, fn)"
             />
           </div>
           <p v-else class="log-empty-history">No images available.</p>
@@ -140,19 +141,31 @@
 
 
         <div v-if="job.thumbnail && expandedCapture.has(job.job_id)" class="capture-preview">
-          <img :src="job.thumbnail" alt="splat capture" class="capture-img" />
+          <img :src="job.thumbnail" alt="splat capture" class="capture-img" @click="openCaptureLightbox(job.job_id, job.thumbnail)" />
         </div>
       </div>
     </div>
+
+    <!-- Lightbox overlay -->
+    <Teleport to="body">
+      <div v-if="lightboxSrc" class="lightbox-overlay" @click="closeLightbox">
+        <button class="lightbox-close" @click.stop="closeLightbox">✕</button>
+        <button v-if="lightboxList.length > 1" class="lightbox-arrow lightbox-prev" @click.stop="lightboxStep(-1)">‹</button>
+        <img :src="lightboxSrc" class="lightbox-img" alt="full size" @click.stop />
+        <button v-if="lightboxList.length > 1" class="lightbox-arrow lightbox-next" @click.stop="lightboxStep(1)">›</button>
+        <div v-if="lightboxList.length > 1" class="lightbox-counter">{{ lightboxIndex + 1 }} / {{ lightboxList.length }}</div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { getGateway } from '../config/gateway.js';
 
 const router = useRouter();
+const route = useRoute();
 const jobs = ref([]);
 const loading = ref(true);
 const error = ref('');
@@ -165,6 +178,71 @@ let gatewayCache = null;
 async function resolvedGateway() {
   if (!gatewayCache) gatewayCache = await getGateway();
   return gatewayCache;
+}
+
+// ── Lightbox ─────────────────────────────────────────────────────────────────
+const lightboxList = ref([]);   // array of { src, jobId, filename }
+const lightboxIndex = ref(0);
+const lightboxSrc = computed(() => lightboxList.value[lightboxIndex.value]?.src ?? null);
+
+function openLightbox(list, index) {
+  lightboxList.value = list;
+  lightboxIndex.value = index;
+  const item = list[index];
+  router.replace({ query: { ...route.query, img: `${item.jobId}/${item.filename}` } });
+}
+
+function closeLightbox() {
+  lightboxList.value = [];
+  lightboxIndex.value = 0;
+  const q = { ...route.query };
+  delete q.img;
+  router.replace({ query: q });
+}
+
+function lightboxStep(dir) {
+  const n = lightboxList.value.length;
+  if (n < 2) return;
+  lightboxIndex.value = (lightboxIndex.value + dir + n) % n;
+  const item = lightboxList.value[lightboxIndex.value];
+  router.replace({ query: { ...route.query, img: `${item.jobId}/${item.filename}` } });
+}
+
+function onKeydown(e) {
+  if (!lightboxSrc.value) return;
+  if (e.key === 'ArrowRight') lightboxStep(1);
+  else if (e.key === 'ArrowLeft') lightboxStep(-1);
+  else if (e.key === 'Escape') closeLightbox();
+}
+
+// Open frame images for a job card
+function openFrameLightbox(jobId, filename) {
+  const frames = jobImages.value.get(jobId) ?? [];
+  const list = frames.map(fn => ({ src: imageUrl(jobId, fn), jobId, filename: fn }));
+  const idx = Math.max(0, list.findIndex(x => x.filename === filename));
+  openLightbox(list, idx);
+}
+
+// Open a single capture/thumbnail
+function openCaptureLightbox(jobId, src) {
+  openLightbox([{ src, jobId, filename: 'capture' }], 0);
+}
+
+// Restore lightbox from URL on load (after jobs are loaded)
+function restoreLightboxFromUrl() {
+  const imgParam = route.query.img;
+  if (!imgParam) return;
+  const slash = imgParam.indexOf('/');
+  if (slash < 0) return;
+  const jobId = imgParam.slice(0, slash);
+  const filename = imgParam.slice(slash + 1);
+  if (filename === 'capture') {
+    const job = jobs.value.find(j => j.job_id === jobId);
+    if (job?.thumbnail) openCaptureLightbox(jobId, job.thumbnail);
+  } else {
+    // Frames need to be loaded first
+    toggleImages(jobId).then(() => openFrameLightbox(jobId, filename));
+  }
 }
 
 function toggleCapture(jobId) {
@@ -319,7 +397,12 @@ function stepWidth(stepS, totalS) {
   return { width: `${Math.min(100, Math.round((stepS / totalS) * 100))}%` };
 }
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  restoreLightboxFromUrl();
+  window.addEventListener('keydown', onKeydown);
+});
+onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 </script>
 
 <style scoped>
@@ -636,5 +719,87 @@ onMounted(load);
   border-radius: 4px;
   border: 1px solid #2a2a2a;
   background: #0d0d0d;
+  cursor: pointer;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.frame-thumb:hover { opacity: 0.85; border-color: #4b9eff; }
+
+.capture-img { cursor: pointer; }
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+
+.lightbox-img {
+  max-width: 95vw;
+  max-height: 93vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+  cursor: default;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 1;
+}
+.lightbox-close:hover { background: rgba(255,255,255,0.22); }
+
+.lightbox-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 1;
+  user-select: none;
+}
+.lightbox-arrow:hover { background: rgba(255,255,255,0.25); }
+.lightbox-prev { left: 20px; }
+.lightbox-next { right: 20px; }
+
+.lightbox-counter {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.6);
+  color: #ccc;
+  font-size: 0.8rem;
+  padding: 4px 12px;
+  border-radius: 999px;
+  pointer-events: none;
 }
 </style>
