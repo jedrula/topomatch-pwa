@@ -1,7 +1,7 @@
 <template>
   <div class="history-page">
     <div class="header">
-      <button class="back-btn" @click="router.push({ name: 'splat-playground' })">← Back</button>
+
       <h1>Splat History</h1>
       <button class="refresh-btn" @click="load">↻ Refresh</button>
     </div>
@@ -90,6 +90,7 @@
           >
             View Splat →
           </RouterLink>
+          <button class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
           <button
             v-if="job.thumbnail"
             class="view-btn capture-btn"
@@ -103,6 +104,7 @@
           <button v-if="job.image_count > 0" class="view-btn img-btn" @click="toggleImages(job.job_id)">
             {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
           </button>
+          <span v-else class="no-images">no images</span>
           <template v-for="v in job.stored_videos" :key="v.stored">
             <a :href="videoUrl(job.job_id, v.stored)" class="view-btn vid-btn" download>⬇ {{ v.filename }}</a>
           </template>
@@ -111,6 +113,7 @@
 
         <!-- Logs for non-done jobs too -->
         <div v-if="job.status !== 'done'" class="action-row">
+          <button v-if="job.status === 'error'" class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
           </button>
@@ -314,6 +317,16 @@ async function toggleLogs(jobId) {
   }
 }
 
+function rerunJob(job) {
+  sessionStorage.setItem('splat-rerun', JSON.stringify({
+    jobId: job.job_id,
+    scene: job.scene,
+    params: job.params,
+    storedVideos: job.stored_videos,
+  }));
+  router.push({ name: 'splat-upload' });
+}
+
 async function load() {
   loading.value = true;
   error.value = '';
@@ -427,7 +440,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   margin: 0;
 }
 
-.back-btn, .refresh-btn {
+.refresh-btn {
   padding: 7px 14px;
   background: rgba(255,255,255,0.07);
   color: #ccc;
@@ -437,7 +450,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   font-size: 0.85rem;
   transition: background 0.15s;
 }
-.back-btn:hover, .refresh-btn:hover { background: rgba(255,255,255,0.13); }
+.refresh-btn:hover { background: rgba(255,255,255,0.13); }
 
 .state-msg {
   text-align: center;
@@ -694,6 +707,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
 .img-btn { background: #065f46; }
 .img-btn:hover { background: #047857; }
+
+.rerun-btn { background: #7c3aed; }
+.rerun-btn:hover { background: #6d28d9; }
+
+.no-images {
+  font-size: 0.78rem;
+  color: #4b5563;
+  align-self: center;
+}
 
 .vid-btn {
   background: #7c2d12;

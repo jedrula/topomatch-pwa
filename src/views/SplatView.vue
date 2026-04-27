@@ -1,5 +1,10 @@
 <template>
   <div class="splat-view">
+    <div class="splat-header">
+      <RouterLink :to="{ name: 'splat-upload' }" class="splat-tab">Upload</RouterLink>
+      <RouterLink :to="{ name: 'splat-history' }" class="splat-tab">History</RouterLink>
+      <span class="splat-header-id">{{ route.params.splatId }}</span>
+    </div>
     <!-- Splat loading spinner -->
     <div v-if="loading && !processing" class="overlay">
       <p>Loading splat…</p>
@@ -18,7 +23,6 @@
           <button class="refresh-btn" :disabled="refreshing" @click="checkStatus">
             {{ refreshing ? 'Checking…' : 'Refresh' }}
           </button>
-          <button class="back-btn-inline" @click="goBack">← Back</button>
         </div>
       </div>
     </div>
@@ -26,19 +30,16 @@
     <div v-if="error && !processing" class="error">{{ error }}</div>
 
     <div ref="container" class="canvas-container" />
-
-    <button v-if="!processing" class="back-btn" @click="goBack">← Back</button>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
 import { getGateway } from '../config/gateway.js';
 
 const route = useRoute();
-const router = useRouter();
 const splatStore = useSplatStore();
 
 const container = ref(null);
@@ -246,9 +247,7 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
   return out;
 }
 
-function goBack() {
-  router.push({ name: 'splat-playground' });
-}
+
 </script>
 
 <style scoped>
@@ -262,7 +261,7 @@ function goBack() {
 
 .canvas-container {
   width: 100%;
-  height: 100vh;
+  height: calc(100vh - 44px);
 }
 
 .overlay {
@@ -352,17 +351,6 @@ function goBack() {
 .refresh-btn:disabled { opacity: 0.5; cursor: default; }
 .refresh-btn:hover:not(:disabled) { background: #1d4ed8; }
 
-.back-btn-inline {
-  padding: 8px 14px;
-  background: transparent;
-  color: #9ca3af;
-  border: 1px solid #444;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.back-btn-inline:hover { color: #e5e7eb; border-color: #666; }
-
 .error {
   position: absolute;
   top: 20px;
@@ -378,21 +366,36 @@ function goBack() {
   text-align: center;
 }
 
-.back-btn {
-  position: absolute;
-  top: 16px;
-  left: 16px;
+.splat-header {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background: #0d0d0d;
+  border-bottom: 1px solid #1f1f1f;
   z-index: 20;
-  padding: 8px 14px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  border: 1px solid #444;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: background 0.2s;
+  position: relative;
 }
-.back-btn:hover {
-  background: rgba(0, 0, 0, 0.85);
+
+.splat-tab {
+  padding: 0 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+.splat-tab:hover { color: #fff; }
+
+.splat-header-id {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #6b7280;
+  letter-spacing: 0.03em;
+  margin-left: auto;
 }
 </style>
