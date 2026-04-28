@@ -296,14 +296,12 @@ async function startJob() {
   if (sceneName.value) form.append('scene', sceneName.value);
 
   for (const strip of videoStrips.value) {
-    const end = strip.endTime ?? strip.videoDuration;
-    const dur = end - strip.startTime;
+    form.append('start_time', strip.startTime);
+    form.append('end_time', strip.endTime ?? strip.videoDuration);
     if (paramMode.value === 'nframes') {
       form.append('n_frames', strip.nFrames);
-      form.append('duration', dur > 0 ? dur : '');
     } else {
       form.append('fps', strip.fps);
-      form.append('duration', dur > 0 ? dur : '');
     }
   }
 
