@@ -435,7 +435,6 @@ const testHoldDetection = async () => {
   try {
     const response = await fetch(`${firestoreConfig.value.holdDetection.serverUrl}/health`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true'
       }
     });
     
@@ -494,7 +493,6 @@ const testMatchImages = async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true'
       },
       body: JSON.stringify(requestBody)
     });

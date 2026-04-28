@@ -196,7 +196,6 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true'
       },
       body: JSON.stringify(requestBody)
     });
@@ -256,7 +255,6 @@ export async function stitchPanoramaOnServer(imageUrls, outputFormat = 'jpeg') {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
     },
     body: JSON.stringify({
       image_urls: imageUrls,
@@ -348,7 +346,6 @@ export async function stitchPanoramaVideoOnServer(videoUrl, { maxFrames = 20, ou
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
     },
     body: JSON.stringify({
       video_url: videoUrl,
