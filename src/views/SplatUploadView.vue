@@ -19,9 +19,15 @@
         {{ videoLoading ? 'Downloading video…' : 'Choose video(s)' }}
         <input type="file" accept=".mp4,.mov,.MOV,.MP4" multiple @change="onVideoFile" :disabled="videoLoading" hidden />
       </label>
-      <ul v-if="videoFiles.length" class="filenames">
-        <li v-for="f in videoFiles" :key="f.name">{{ f.name }}</li>
-      </ul>
+      <div v-if="videoStrips.length" class="video-strips">
+        <div v-for="strip in videoStrips" :key="strip.name" class="strip">
+          <div class="strip-label">{{ strip.name }}</div>
+          <div class="strip-frames">
+            <img v-for="(src, i) in strip.frames" :key="i" :src="src" class="frame-thumb" />
+            <div v-if="!strip.frames.length" v-for="i in 10" :key="'ph'+i" class="frame-placeholder" />
+          </div>
+        </div>
+      </div>
 
       <div v-if="videoFiles.length" class="params">
         <div class="param-row">
@@ -72,6 +78,14 @@
           </label>
         </div>
 
+        <div class="param-row">
+          <label>sparse pairs</label>
+          <label class="toggle">
+            <input type="checkbox" v-model="sparsePairs" />
+            <span class="toggle-label">{{ sparsePairs ? 'on' : 'off' }}</span>
+          </label>
+        </div>
+
         <button class="process-btn" :disabled="processing || videoLoading" @click="startJob">
             {{ processing ? 'Submitting…' : videoLoading ? 'Preparing…' : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
         </button>
@@ -103,6 +117,7 @@ async function onSplatFile(e) {
 }
 
 const videoFiles = ref([]);
+const videoStrips = ref([]); // [{ name, frames: [dataUrl, ...] }]
 const paramMode = ref('fps');
 const nFrames = ref(3);
 const duration = ref(6);
@@ -110,12 +125,56 @@ const fps = ref(0.5);
 const fpsDuration = ref(null);
 const iters = ref(1000);
 const sceneName = ref('');
-const earlyStop = ref(true);
+const earlyStop = ref(false);
+const sparsePairs = ref(false);
 const processing = ref(false);
 const videoLoading = ref(false);
 
-function onVideoFile(e) {
+async function extractFrames(file, count = 10) {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.preload = 'auto';
+    const url = URL.createObjectURL(file);
+    video.src = url;
+
+    video.addEventListener('loadedmetadata', async () => {
+      const THUMB_H = 90;
+      const scale = THUMB_H / (video.videoHeight || THUMB_H);
+      const canvas = document.createElement('canvas');
+      canvas.height = THUMB_H;
+      canvas.width = Math.round((video.videoWidth || 160) * scale);
+      const ctx = canvas.getContext('2d');
+      const frames = [];
+      const dur = isFinite(video.duration) ? video.duration : 0;
+
+      for (let i = 0; i < count; i++) {
+        const t = dur > 0 ? (dur * i) / (count - 1) : 0;
+        await new Promise((res) => {
+          video.currentTime = t;
+          video.addEventListener('seeked', res, { once: true });
+        });
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        frames.push(canvas.toDataURL('image/jpeg', 0.7));
+      }
+
+      URL.revokeObjectURL(url);
+      resolve(frames);
+    });
+
+    video.addEventListener('error', () => { URL.revokeObjectURL(url); resolve([]); });
+  });
+}
+
+async function onVideoFile(e) {
   videoFiles.value = Array.from(e.target.files);
+  videoStrips.value = videoFiles.value.map((f) => ({ name: f.name, frames: [] }));
+  await Promise.all(
+    videoFiles.value.map(async (f, i) => {
+      const frames = await extractFrames(f);
+      videoStrips.value[i] = { name: f.name, frames };
+    })
+  );
 }
 
 async function startJob() {
@@ -136,6 +195,7 @@ async function startJob() {
   for (const f of videoFiles.value) form.append('video', f);
   form.append('iters', iters.value);
   form.append('early_stop', earlyStop.value);
+  form.append('sparse_pairs', sparsePairs.value);
   if (sceneName.value) form.append('scene', sceneName.value);
 
   if (paramMode.value === 'nframes') {
@@ -178,6 +238,7 @@ onMounted(async () => {
   if (p) {
     iters.value = p.iters ?? 1000;
     earlyStop.value = p.early_stop === true || p.early_stop === 'true';
+    sparsePairs.value = p.sparse_pairs === true || p.sparse_pairs === 'true';
     if (p.n_frames != null) {
       paramMode.value = 'nframes';
       nFrames.value = p.n_frames;
@@ -203,6 +264,13 @@ onMounted(async () => {
         })
       );
       videoFiles.value = files;
+      videoStrips.value = files.map((f) => ({ name: f.name, frames: [] }));
+      await Promise.all(
+        files.map(async (f, i) => {
+          const frames = await extractFrames(f);
+          videoStrips.value[i] = { name: f.name, frames };
+        })
+      );
     } catch {
       // video fetch failed — user can pick manually
     } finally {
@@ -252,8 +320,13 @@ onMounted(async () => {
 .pick-btn.secondary:hover { background: #4b5563; }
 .pick-btn.loading { opacity: 0.65; cursor: wait; }
 
-.filenames { margin: 4px 0 0; padding: 0; list-style: none; font-size: 0.8rem; color: #9ca3af; }
-.filenames li::before { content: '▸ '; }
+.video-strips { width: min(100%, 900px); display: flex; flex-direction: column; gap: 12px; }
+.strip { display: flex; flex-direction: column; gap: 4px; }
+.strip-label { font-size: 0.75rem; color: #9ca3af; padding-left: 2px; }
+.strip-frames { display: flex; gap: 2px; overflow-x: auto; border-radius: 4px; }
+.frame-thumb { height: 90px; width: auto; border-radius: 3px; flex-shrink: 0; display: block; }
+.frame-placeholder { height: 90px; width: 120px; background: #1f2937; border-radius: 3px; flex-shrink: 0; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
 
 .params { width: 100%; display: flex; flex-direction: column; gap: 8px; }
 
