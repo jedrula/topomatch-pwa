@@ -56,6 +56,17 @@
               </div>
             </div>
 
+            <!-- Frames that will actually be extracted -->
+            <template v-for="pf in [previewFrames(strip)]" :key="strip.name + '_pf'">
+              <div v-if="pf.length" class="preview-strip">
+                <div class="preview-label">{{ pf.length }} frame{{ pf.length !== 1 ? 's' : '' }} to extract</div>
+                <div class="preview-frames">
+                  <img v-for="(src, fi) in pf.slice(0, 60)" :key="fi" :src="src" class="preview-thumb" />
+                  <div v-if="pf.length > 60" class="preview-more">+{{ pf.length - 60 }} more</div>
+                </div>
+              </div>
+            </template>
+
             <!-- Per-video params + trim times -->
             <div class="strip-params">
               <template v-if="paramMode === 'nframes'">
@@ -104,6 +115,7 @@
           <button class="process-btn" :disabled="processing || videoLoading" @click="startJob">
             {{ processing ? 'Submitting…' : videoLoading ? 'Preparing…' : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
           </button>
+          <div class="process-hint">about {{ videoStrips.reduce((s, strip) => s + previewFrames(strip).length, 0) }} frames to extract</div>
         </div>
       </template>
     </section>
@@ -158,6 +170,33 @@ function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = (s % 60).toFixed(1);
   return m > 0 ? `${m}:${sec.padStart(4, '0')}` : `${sec}s`;
+}
+
+function previewFrames(strip) {
+  if (!strip.frames.length || strip.videoDuration === 0) return [];
+  const start = strip.startTime;
+  const end = strip.endTime ?? strip.videoDuration;
+  const dur = end - start;
+  if (dur <= 0) return [];
+
+  const timestamps = [];
+  if (paramMode.value === 'nframes') {
+    const n = Math.max(1, strip.nFrames);
+    for (let i = 0; i < n; i++) {
+      timestamps.push(start + (n > 1 ? (dur * i) / (n - 1) : 0));
+    }
+  } else {
+    const interval = 1 / Math.max(0.01, strip.fps);
+    for (let t = start; t <= end + 0.001; t += interval) {
+      timestamps.push(Math.min(t, end));
+    }
+  }
+
+  const last = strip.frames.length - 1;
+  return timestamps.map((t) => {
+    const idx = Math.round((t / strip.videoDuration) * last);
+    return strip.frames[Math.max(0, Math.min(last, idx))];
+  });
 }
 
 // Trim drag
@@ -463,6 +502,32 @@ onMounted(async () => {
 }
 .trim-handle:hover { opacity: 1; }
 
+/* Preview strip */
+.preview-strip { display: flex; flex-direction: column; gap: 4px; }
+.preview-label { font-size: 0.72rem; color: #6b7280; padding-left: 2px; }
+.preview-frames {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.preview-thumb {
+  height: 72px;
+  width: auto;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: block;
+  border: 1px solid #374151;
+}
+.preview-more {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 0.75rem;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
 /* Per-video params row */
 .strip-params {
   display: flex;
@@ -541,6 +606,7 @@ onMounted(async () => {
 }
 .process-btn:hover:not(:disabled) { background: #15803d; }
 .process-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.process-hint { font-size: 0.75rem; color: #6b7280; text-align: center; margin-top: -4px; }
 
 .error {
   background: #7f1d1d;
