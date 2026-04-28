@@ -95,6 +95,14 @@
             <input type="number" v-model.number="iters" min="100" max="5000" step="100" />
           </div>
           <div class="param-row">
+            <label>image size</label>
+            <div class="toggle-group">
+              <button v-for="s in [256, 512]" :key="s" :class="{ active: imageSize === s }" @click="imageSize = s">
+                {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="param-row">
             <label>scene name</label>
             <input type="text" v-model="sceneName" placeholder="auto from filename" />
           </div>
@@ -148,6 +156,7 @@ const videoFiles = ref([]);
 const videoStrips = ref([]);
 const paramMode = ref('fps');
 const iters = ref(1000);
+const imageSize = ref(256);
 const sceneName = ref('');
 const earlyStop = ref(false);
 const sparsePairs = ref(false);
@@ -291,6 +300,7 @@ async function startJob() {
   const form = new FormData();
   for (const f of videoFiles.value) form.append('video', f);
   form.append('iters', iters.value);
+  form.append('image_size', imageSize.value);
   form.append('early_stop', earlyStop.value);
   form.append('sparse_pairs', sparsePairs.value);
   if (sceneName.value) form.append('scene', sceneName.value);
@@ -335,6 +345,7 @@ onMounted(async () => {
   const p = rerun.params;
   if (p) {
     iters.value = p.iters ?? 1000;
+    imageSize.value = p.image_size ?? 256;
     earlyStop.value = p.early_stop === true || p.early_stop === 'true';
     sparsePairs.value = p.sparse_pairs === true || p.sparse_pairs === 'true';
     paramMode.value = p.n_frames != null ? 'nframes' : 'fps';
