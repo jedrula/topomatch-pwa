@@ -120,6 +120,13 @@
               <span class="toggle-label">{{ sparsePairs ? 'on' : 'off' }}</span>
             </label>
           </div>
+          <div class="param-row">
+            <label>sparse GA</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="sparseGa" />
+              <span class="toggle-label">{{ sparseGa ? 'on' : 'off' }}</span>
+            </label>
+          </div>
           <button class="process-btn" :disabled="processing || videoLoading" @click="startJob">
             {{ processing ? 'Submitting…' : videoLoading ? 'Preparing…' : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
           </button>
@@ -160,6 +167,7 @@ const imageSize = ref(256);
 const sceneName = ref('');
 const earlyStop = ref(false);
 const sparsePairs = ref(false);
+const sparseGa = ref(false);
 const processing = ref(false);
 const videoLoading = ref(false);
 
@@ -303,6 +311,7 @@ async function startJob() {
   form.append('image_size', imageSize.value);
   form.append('early_stop', earlyStop.value);
   form.append('sparse_pairs', sparsePairs.value);
+  form.append('sparse_ga', sparseGa.value);
   if (sceneName.value) form.append('scene', sceneName.value);
 
   for (const strip of videoStrips.value) {
@@ -348,6 +357,7 @@ onMounted(async () => {
     imageSize.value = p.image_size ?? 256;
     earlyStop.value = p.early_stop === true || p.early_stop === 'true';
     sparsePairs.value = p.sparse_pairs === true || p.sparse_pairs === 'true';
+    sparseGa.value = p.sparse_ga === true || p.sparse_ga === 'true';
     paramMode.value = p.n_frames != null ? 'nframes' : 'fps';
   }
   if (rerun.scene) sceneName.value = rerun.scene;
