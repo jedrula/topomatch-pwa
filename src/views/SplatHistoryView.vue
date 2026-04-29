@@ -157,6 +157,17 @@
         <img :src="lightboxSrc" class="lightbox-img" alt="full size" @click.stop />
         <button v-if="lightboxList.length > 1" class="lightbox-arrow lightbox-next" @click.stop="lightboxStep(1)">›</button>
         <div v-if="lightboxList.length > 1" class="lightbox-counter">{{ lightboxIndex + 1 }} / {{ lightboxList.length }}</div>
+        <div v-if="lightboxJob" class="lightbox-params" @click.stop>
+          <span class="lightbox-job-id">{{ lightboxJob.job_id }}</span>
+          <div v-for="(val, key) in displayParams(lightboxJob.params ?? {})" :key="key" class="param">
+            <span class="param-key">{{ key }}</span>
+            <span class="param-val">{{ val }}</span>
+          </div>
+          <div class="param" :class="lightboxJob.early_stopped ? 'early-stop' : 'full-run'">
+            <span class="param-key">stopped at</span>
+            <span class="param-val">{{ lightboxJob.early_stopped ? `iter ${lightboxJob.stopped_at_iter} (early)` : (lightboxJob.status === 'done' ? `iter ${lightboxJob.params?.iters} (full)` : '—') }}</span>
+          </div>
+        </div>
       </div>
     </Teleport>
   </div>
@@ -187,6 +198,10 @@ async function resolvedGateway() {
 const lightboxList = ref([]);   // array of { src, jobId, filename }
 const lightboxIndex = ref(0);
 const lightboxSrc = computed(() => lightboxList.value[lightboxIndex.value]?.src ?? null);
+const lightboxJob = computed(() => {
+  const item = lightboxList.value[lightboxIndex.value];
+  return item ? jobs.value.find(j => j.job_id === item.jobId) ?? null : null;
+});
 
 function openLightbox(list, index) {
   lightboxList.value = list;
@@ -226,9 +241,13 @@ function openFrameLightbox(jobId, filename) {
   openLightbox(list, idx);
 }
 
-// Open a single capture/thumbnail
+// Open capture/thumbnail — builds a list of all jobs with thumbnails for arrow navigation
 function openCaptureLightbox(jobId, src) {
-  openLightbox([{ src, jobId, filename: 'capture' }], 0);
+  const list = jobs.value
+    .filter(j => j.thumbnail)
+    .map(j => ({ src: j.thumbnail, jobId: j.job_id, filename: 'capture' }));
+  const idx = Math.max(0, list.findIndex(x => x.jobId === jobId));
+  openLightbox(list.length ? list : [{ src, jobId, filename: 'capture' }], idx);
 }
 
 // Restore lightbox from URL on load (after jobs are loaded)
@@ -563,6 +582,30 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
 .param.early-stop .param-val { color: #fbbf24; }
 .param.full-run .param-val { color: #6ee7b7; }
+
+.lightbox-params {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  pointer-events: none;
+}
+.lightbox-job-id {
+  font-size: 0.72rem;
+  font-family: monospace;
+  color: #4b5563;
+  margin-right: 4px;
+}
+.lightbox-params .param {
+  pointer-events: none;
+  background: rgba(17,24,39,0.85);
+  border-color: #374151;
+}
 
 .info-section {
   display: flex;
