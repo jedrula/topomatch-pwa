@@ -105,6 +105,8 @@
             {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
           </button>
           <span v-else class="no-images">no images</span>
+          <a :href="splatUrl(job.job_id)" class="view-btn dl-splat-btn" download>⬇ .splat</a>
+          <a :href="plyUrl(job.job_id)" class="view-btn dl-ply-btn" download>⬇ .ply</a>
           <template v-for="v in job.stored_videos" :key="v.stored">
             <a :href="videoUrl(job.job_id, v.stored)" class="view-btn vid-btn" download>⬇ {{ v.filename }}</a>
           </template>
@@ -114,6 +116,17 @@
         <!-- Logs for non-done jobs too -->
         <div v-if="job.status !== 'done'" class="action-row">
           <button v-if="job.status === 'error'" class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
+          <button
+            v-if="job.status === 'queued' || job.status === 'running'"
+            class="view-btn cancel-btn"
+            :disabled="cancellingJobs.has(job.job_id)"
+            @click="cancelJob(job)"
+          >
+            {{ cancellingJobs.has(job.job_id) ? 'Cancelling…' : 'Cancel ✕' }}
+          </button>
+          <template v-if="job.status === 'queued'">
+            <span class="queue-pos">Queue position: #{{ job.queue_position }}</span>
+          </template>
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
           </button>
@@ -188,6 +201,7 @@ const expandedLogs = ref(new Set());
 const expandedImages = ref(new Set());
 const jobLogs = ref(new Map());
 const jobImages = ref(new Map());
+const cancellingJobs = ref(new Set());
 let gatewayCache = null;
 async function resolvedGateway() {
   if (!gatewayCache) gatewayCache = await getGateway();
@@ -298,6 +312,31 @@ function imageUrl(jobId, filename) {
 
 function videoUrl(jobId, storedFilename) {
   return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/video/${storedFilename}`;
+}
+
+function splatUrl(jobId) {
+  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/splat`;
+}
+
+function plyUrl(jobId) {
+  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/ply`;
+}
+
+async function cancelJob(job) {
+  const s = new Set(cancellingJobs.value);
+  s.add(job.job_id);
+  cancellingJobs.value = s;
+  try {
+    const gateway = await resolvedGateway();
+    await fetch(`${gateway}/topowall/api/v1/video-to-splat/${job.job_id}/cancel`, { method: 'POST' });
+    jobs.value = jobs.value.map(j =>
+      j.job_id === job.job_id ? { ...j, status: 'cancelled', queue_position: null } : j
+    );
+  } catch { /* best-effort */ } finally {
+    const s2 = new Set(cancellingJobs.value);
+    s2.delete(job.job_id);
+    cancellingJobs.value = s2;
+  }
 }
 
 async function deleteJob(job) {
@@ -500,6 +539,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .job-card.done { border-color: #1a4731; }
 .job-card.error { border-color: #4a1a1a; }
 .job-card.running { border-color: #1a3050; }
+.job-card.queued { border-color: #78350f; }
 
 .job-top {
   display: flex;
@@ -530,6 +570,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .badge.done { background: #14532d; color: #6ee7b7; }
 .badge.error { background: #7f1d1d; color: #fca5a5; }
 .badge.running { background: #1e3a5f; color: #93c5fd; }
+.badge.queued { background: #78350f; color: #fbbf24; }
+.badge.cancelled { background: #374151; color: #9ca3af; }
 
 .time { color: #6b7280; }
 .elapsed {
@@ -768,8 +810,36 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 }
 .vid-btn:hover { background: #9a3412; }
 
+.dl-splat-btn {
+  background: #1e3a5f;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.dl-splat-btn:hover { background: #1e40af; }
+
+.dl-ply-btn {
+  background: #1a3a2a;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.dl-ply-btn:hover { background: #166534; }
+
 .del-btn { background: #7f1d1d; margin-left: auto; }
 .del-btn:hover { background: #991b1b; }
+
+.cancel-btn { background: #92400e; color: #fde68a; }
+.cancel-btn:hover:not(:disabled) { background: #b45309; }
+.cancel-btn:disabled { opacity: 0.5; cursor: default; }
+
+.queue-pos {
+  font-size: 0.78rem;
+  color: #fbbf24;
+  background: #78350f;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
 
 .images-expand { margin-top: 8px; }
 .images-grid {

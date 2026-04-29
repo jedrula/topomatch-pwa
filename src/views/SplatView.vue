@@ -15,13 +15,25 @@
       <div class="processing-card">
         <div class="processing-header">
           <span class="status-dot" :class="jobStatus"></span>
-          <span class="status-label">{{ jobStatus === 'error' ? 'Pipeline error' : 'Gaussian splatting in progress…' }}</span>
+          <span class="status-label">
+            <template v-if="jobStatus === 'error'">Pipeline error</template>
+            <template v-else-if="jobStatus === 'queued'">Queued — position #{{ queuePosition }}</template>
+            <template v-else>Gaussian splatting in progress…</template>
+          </span>
         </div>
         <pre v-if="logLines.length" class="log-pre">{{ logLines.join('\n') }}</pre>
         <p v-else class="log-empty">No log output yet.</p>
         <div class="processing-actions">
           <button class="refresh-btn" :disabled="refreshing" @click="checkStatus">
             {{ refreshing ? 'Checking…' : 'Refresh' }}
+          </button>
+          <button
+            v-if="jobStatus === 'queued' || jobStatus === 'running'"
+            class="cancel-btn"
+            :disabled="cancelling"
+            @click="cancelJob"
+          >
+            {{ cancelling ? 'Cancelling…' : 'Cancel' }}
           </button>
         </div>
       </div>
@@ -47,10 +59,26 @@ const loading = ref(true);
 const error = ref('');
 const processing = ref(false);
 const refreshing = ref(false);
+const cancelling = ref(false);
 const jobStatus = ref('');
+const queuePosition = ref(null);
 const logLines = ref([]);
 let viewer = null;
 let currentObjectUrl = null;
+
+async function cancelJob() {
+  const splatId = route.params.splatId;
+  cancelling.value = true;
+  try {
+    const gateway = await getGateway();
+    await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/cancel`, { method: 'POST' });
+    window.history.back();
+  } catch (err) {
+    error.value = 'Cancel failed: ' + err.message;
+  } finally {
+    cancelling.value = false;
+  }
+}
 
 async function checkStatus() {
   const splatId = route.params.splatId;
@@ -61,8 +89,9 @@ async function checkStatus() {
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
-    const { status } = await res.json();
+    const { status, queue_position } = await res.json();
     jobStatus.value = status;
+    queuePosition.value = queue_position;
 
     if (status === 'done') {
       processing.value = false;
@@ -311,6 +340,7 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
   flex-shrink: 0;
 }
 .status-dot.running { background: #facc15; animation: pulse 1.5s infinite; }
+.status-dot.queued  { background: #f59e0b; }
 .status-dot.error   { background: #f87171; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
@@ -350,6 +380,18 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
 }
 .refresh-btn:disabled { opacity: 0.5; cursor: default; }
 .refresh-btn:hover:not(:disabled) { background: #1d4ed8; }
+
+.cancel-btn {
+  padding: 8px 18px;
+  background: #7f1d1d;
+  color: #fca5a5;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.cancel-btn:disabled { opacity: 0.5; cursor: default; }
+.cancel-btn:hover:not(:disabled) { background: #991b1b; }
 
 .error {
   position: absolute;
