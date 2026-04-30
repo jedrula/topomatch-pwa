@@ -136,6 +136,73 @@
     </section>
 
     <div v-if="error" class="error">{{ error }}</div>
+
+    <div class="divider">or</div>
+
+    <!-- Create from photos -->
+    <section class="section wide">
+      <h3>Create from photos</h3>
+
+      <label class="pick-btn secondary">
+        Choose photos
+        <input type="file" accept="image/*" multiple @change="onPhotoFile" hidden />
+      </label>
+
+      <template v-if="photoFiles.length">
+        <div class="photo-grid">
+          <div v-for="(p, i) in photoFiles" :key="i" class="photo-item">
+            <img :src="p.url" class="photo-thumb" />
+            <span class="photo-name">{{ p.name }}</span>
+            <button class="photo-remove" @click="removePhoto(i)">✕</button>
+          </div>
+        </div>
+
+        <!-- Shared params (reuse same model values as video) -->
+        <div class="params">
+          <div class="param-row">
+            <label>iters</label>
+            <input type="number" v-model.number="iters" min="100" max="5000" step="100" />
+          </div>
+          <div class="param-row">
+            <label>image size</label>
+            <div class="toggle-group">
+              <button v-for="s in [256, 512]" :key="s" :class="{ active: imageSize === s }" @click="imageSize = s">
+                {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="param-row">
+            <label>scene name</label>
+            <input type="text" v-model="sceneName" placeholder="auto from first filename" />
+          </div>
+          <div class="param-row">
+            <label>early stop</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="earlyStop" />
+              <span class="toggle-label">{{ earlyStop ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <div class="param-row">
+            <label>sparse pairs</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="sparsePairs" />
+              <span class="toggle-label">{{ sparsePairs ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <div class="param-row">
+            <label>sparse GA</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="sparseGa" />
+              <span class="toggle-label">{{ sparseGa ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <button class="process-btn" :disabled="processingPhotos" @click="startPhotoJob">
+            {{ processingPhotos ? 'Submitting…' : `Process ${photoFiles.length} Photo${photoFiles.length !== 1 ? 's' : ''}` }}
+          </button>
+          <div class="process-hint">{{ photoFiles.length }} image{{ photoFiles.length !== 1 ? 's' : '' }} — no blur check, straight to pipeline</div>
+        </div>
+      </template>
+    </section>
   </div>
 </template>
 
@@ -342,6 +409,69 @@ async function startJob() {
   }
 
   processing.value = false;
+  router.push({ name: 'splat-viewer', params: { splatId: jobId } });
+}
+
+// ── Photos ────────────────────────────────────────────────────────────────────
+const photoFiles = ref([]);  // [{ name, url, file }]
+const processingPhotos = ref(false);
+
+function onPhotoFile(e) {
+  const incoming = Array.from(e.target.files).map((f) => ({
+    name: f.name,
+    url: URL.createObjectURL(f),
+    file: f,
+  }));
+  photoFiles.value = [...photoFiles.value, ...incoming];
+  e.target.value = '';
+}
+
+function removePhoto(i) {
+  URL.revokeObjectURL(photoFiles.value[i].url);
+  photoFiles.value.splice(i, 1);
+}
+
+async function startPhotoJob() {
+  if (!photoFiles.value.length) return;
+  error.value = '';
+  processingPhotos.value = true;
+
+  let gateway;
+  try {
+    gateway = await getGateway();
+  } catch (err) {
+    error.value = 'Gateway not configured: ' + err.message;
+    processingPhotos.value = false;
+    return;
+  }
+
+  const form = new FormData();
+  for (const p of photoFiles.value) form.append('images', p.file);
+  form.append('iters', iters.value);
+  form.append('image_size', imageSize.value);
+  form.append('early_stop', earlyStop.value);
+  form.append('sparse_pairs', sparsePairs.value);
+  form.append('sparse_ga', sparseGa.value);
+  if (sceneName.value) form.append('scene', sceneName.value);
+
+  let jobId;
+  try {
+    const res = await fetch(`${gateway}/topowall/api/v1/images-to-splat`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) {
+      const detail = await res.text();
+      throw new Error(`Server error ${res.status}: ${detail}`);
+    }
+    ({ job_id: jobId } = await res.json());
+  } catch (err) {
+    error.value = 'Failed to start job: ' + err.message;
+    processingPhotos.value = false;
+    return;
+  }
+
+  processingPhotos.value = false;
   router.push({ name: 'splat-viewer', params: { splatId: jobId } });
 }
 
@@ -636,4 +766,52 @@ onMounted(async () => {
   max-width: 80%;
   text-align: center;
 }
+
+/* Photo grid */
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.photo-item {
+  position: relative;
+  width: 120px;
+  flex-shrink: 0;
+}
+.photo-thumb {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #374151;
+  display: block;
+}
+.photo-name {
+  display: block;
+  font-size: 0.65rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 3px;
+}
+.photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.photo-remove:hover { background: #dc2626; }
 </style>
