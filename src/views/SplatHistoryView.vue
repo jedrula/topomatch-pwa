@@ -115,7 +115,7 @@
 
         <!-- Logs for non-done jobs too -->
         <div v-if="job.status !== 'done'" class="action-row">
-          <button v-if="job.status === 'error'" class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
+          <button v-if="job.status === 'error' || job.status === 'cancelled'" class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
           <button
             v-if="job.status === 'queued' || job.status === 'running'"
             class="view-btn cancel-btn"
@@ -190,6 +190,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getGateway } from '../config/gateway.js';
+import { thumbGet, thumbDelete } from '../utils/thumbDb.js';
 
 const router = useRouter();
 const route = useRoute();
@@ -323,6 +324,7 @@ function plyUrl(jobId) {
 }
 
 async function cancelJob(job) {
+  if (!confirm('Cancel this job? The pipeline will be stopped and cannot be resumed.')) return;
   const s = new Set(cancellingJobs.value);
   s.add(job.job_id);
   cancellingJobs.value = s;
@@ -346,7 +348,7 @@ async function deleteJob(job) {
     await fetch(`${gateway}/topowall/api/v1/video-to-splat/${job.job_id}`, { method: 'DELETE' });
   } catch { /* best-effort */ }
   // Remove from localStorage
-  localStorage.removeItem(`splat-thumb-${job.job_id}`);
+  thumbDelete(`splat-thumb-${job.job_id}`);
   localStorage.removeItem(`splat-${job.job_id}`);
   // Remove from list
   jobs.value = jobs.value.filter(j => j.job_id !== job.job_id);
@@ -417,8 +419,13 @@ async function load() {
         params,
         stored_videos: job.stored_videos ?? [],
         image_count: job.image_count ?? 0,
-        thumbnail: localStorage.getItem(`splat-thumb-${job.job_id}`) || null,
+        thumbnail: null, // loaded async below
       };
+    });
+    // Load thumbnails from IndexedDB without blocking the list render
+    jobs.value.forEach(async (job) => {
+      const thumb = await thumbGet(`splat-thumb-${job.job_id}`);
+      if (thumb) job.thumbnail = thumb;
     });
   } catch (err) {
     error.value = 'Failed to load history: ' + err.message;

@@ -17,6 +17,7 @@
           <span class="status-dot" :class="jobStatus"></span>
           <span class="status-label">
             <template v-if="jobStatus === 'error'">Pipeline error</template>
+            <template v-else-if="jobStatus === 'cancelled'">Job cancelled</template>
             <template v-else-if="jobStatus === 'queued'">Queued — position #{{ queuePosition }}</template>
             <template v-else>Gaussian splatting in progress…</template>
           </span>
@@ -35,6 +36,13 @@
           >
             {{ cancelling ? 'Cancelling…' : 'Cancel' }}
           </button>
+          <button
+            v-if="jobStatus === 'cancelled' || jobStatus === 'error'"
+            class="rerun-btn"
+            @click="rerunJob"
+          >
+            Run Again ↩
+          </button>
         </div>
       </div>
     </div>
@@ -47,11 +55,13 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
 import { getGateway } from '../config/gateway.js';
+import { thumbGet, thumbSet } from '../utils/thumbDb.js';
 
 const route = useRoute();
+const router = useRouter();
 const splatStore = useSplatStore();
 
 const container = ref(null);
@@ -63,16 +73,20 @@ const cancelling = ref(false);
 const jobStatus = ref('');
 const queuePosition = ref(null);
 const logLines = ref([]);
+const jobMeta = ref(null); // { scene, params, stored_videos }
 let viewer = null;
 let currentObjectUrl = null;
 
 async function cancelJob() {
+  if (!confirm('Cancel this job? The pipeline will be stopped and cannot be resumed.')) return;
   const splatId = route.params.splatId;
   cancelling.value = true;
   try {
     const gateway = await getGateway();
     await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/cancel`, { method: 'POST' });
-    window.history.back();
+    jobStatus.value = 'cancelled';
+    processing.value = true;
+    loading.value = false;
   } catch (err) {
     error.value = 'Cancel failed: ' + err.message;
   } finally {
@@ -89,9 +103,12 @@ async function checkStatus() {
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
-    const { status, queue_position } = await res.json();
+    const { status, queue_position, scene, params, stored_videos } = await res.json();
     jobStatus.value = status;
     queuePosition.value = queue_position;
+    if (scene || params) {
+      jobMeta.value = { scene, params, stored_videos: stored_videos ?? [] };
+    }
 
     if (status === 'done') {
       processing.value = false;
@@ -196,14 +213,26 @@ onBeforeUnmount(() => {
   }
 });
 
+function rerunJob() {
+  const splatId = route.params.splatId;
+  const meta = jobMeta.value ?? {};
+  sessionStorage.setItem('splat-rerun', JSON.stringify({
+    jobId: splatId,
+    scene: meta.scene,
+    params: meta.params,
+    storedVideos: meta.stored_videos ?? [],
+  }));
+  router.push({ name: 'splat-upload' });
+}
+
 function captureThumbnail(splatId) {
   const key = `splat-thumb-${splatId}`;
-  if (localStorage.getItem(key)) {
-    console.log(`[splat-capture] Already captured for ${splatId}, skipping.`);
-    return;
-  }
-  setTimeout(() => {
+  setTimeout(async () => {
     try {
+      if (await thumbGet(key)) {
+        console.log(`[splat-capture] Already captured for ${splatId}, skipping.`);
+        return;
+      }
       const canvas = container.value?.querySelector('canvas');
       if (!canvas) {
         console.warn('[splat-capture] No canvas found in container.');
@@ -216,7 +245,7 @@ function captureThumbnail(splatId) {
       }
       const dataUrl = cropped.toDataURL('image/jpeg', 0.85);
       if (dataUrl && dataUrl !== 'data:,') {
-        localStorage.setItem(key, dataUrl);
+        await thumbSet(key, dataUrl);
         console.log(`[splat-capture] Capture saved for ${splatId} (${Math.round(dataUrl.length / 1024)} KB).`);
       } else {
         console.warn('[splat-capture] toDataURL returned empty data URL.');
@@ -392,6 +421,17 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
 }
 .cancel-btn:disabled { opacity: 0.5; cursor: default; }
 .cancel-btn:hover:not(:disabled) { background: #991b1b; }
+
+.rerun-btn {
+  padding: 8px 18px;
+  background: #166534;
+  color: #bbf7d0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.rerun-btn:hover { background: #15803d; }
 
 .error {
   position: absolute;
