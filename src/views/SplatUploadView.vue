@@ -103,6 +103,12 @@
             </div>
           </div>
           <div class="param-row">
+            <label>engine</label>
+            <div class="toggle-group">
+              <button v-for="e in ['mast3r', 'fast3r']" :key="e" :class="{ active: engine === e }" @click="engine = e">{{ e }}</button>
+            </div>
+          </div>
+          <div class="param-row">
             <label>scene name</label>
             <input type="text" v-model="sceneName" placeholder="auto from filename" />
           </div>
@@ -172,6 +178,12 @@
             </div>
           </div>
           <div class="param-row">
+            <label>engine</label>
+            <div class="toggle-group">
+              <button v-for="e in ['mast3r', 'fast3r']" :key="e" :class="{ active: engine === e }" @click="engine = e">{{ e }}</button>
+            </div>
+          </div>
+          <div class="param-row">
             <label>scene name</label>
             <input type="text" v-model="sceneName" placeholder="auto from first filename" />
           </div>
@@ -235,6 +247,7 @@ const sceneName = ref('');
 const earlyStop = ref(false);
 const sparsePairs = ref(false);
 const sparseGa = ref(false);
+const engine = ref('mast3r');
 const processing = ref(false);
 const videoLoading = ref(false);
 
@@ -379,6 +392,7 @@ async function startJob() {
   form.append('early_stop', earlyStop.value);
   form.append('sparse_pairs', sparsePairs.value);
   form.append('sparse_ga', sparseGa.value);
+  form.append('engine', engine.value);
   if (sceneName.value) form.append('scene', sceneName.value);
 
   for (const strip of videoStrips.value) {
@@ -452,6 +466,7 @@ async function startPhotoJob() {
   form.append('early_stop', earlyStop.value);
   form.append('sparse_pairs', sparsePairs.value);
   form.append('sparse_ga', sparseGa.value);
+  form.append('engine', engine.value);
   if (sceneName.value) form.append('scene', sceneName.value);
 
   let jobId;
@@ -488,6 +503,7 @@ onMounted(async () => {
     earlyStop.value = p.early_stop === true || p.early_stop === 'true';
     sparsePairs.value = p.sparse_pairs === true || p.sparse_pairs === 'true';
     sparseGa.value = p.sparse_ga === true || p.sparse_ga === 'true';
+    engine.value = p.engine ?? 'mast3r';
     paramMode.value = p.n_frames != null ? 'nframes' : 'fps';
   }
   if (rerun.scene) sceneName.value = rerun.scene;
