@@ -3,6 +3,7 @@
     <div class="tab-bar">
       <RouterLink :to="{ name: 'splat-upload' }">Upload</RouterLink>
       <RouterLink :to="{ name: 'splat-history' }">History</RouterLink>
+      <RouterLink :to="{ name: 'splat-prepare' }">Prepare frames</RouterLink>
     </div>
     <RouterView />
   </div>

@@ -16,6 +16,7 @@
           <div class="job-left">
             <span class="job-id">{{ job.job_id }}</span>
             <span class="badge" :class="job.status">{{ job.status }}</span>
+            <span v-if="job.executor === 'vast'" class="badge vast" :title="'vast instance ' + job.vast_instance_id">VAST ☁</span>
           </div>
           <div class="job-right">
             <img v-if="job.thumbnail" :src="job.thumbnail" class="job-thumb" alt="splat preview" @click="openCaptureLightbox(job.job_id, job.thumbnail)" style="cursor:pointer" />
@@ -383,6 +384,7 @@ function rerunJob(job) {
     scene: job.scene,
     params: job.params,
     storedVideos: job.stored_videos,
+    inputSource: job.params?.source ?? 'video',
   }));
   router.push({ name: 'splat-upload' });
 }
@@ -579,6 +581,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .badge.running { background: #1e3a5f; color: #93c5fd; }
 .badge.queued { background: #78350f; color: #fbbf24; }
 .badge.cancelled { background: #374151; color: #9ca3af; }
+.badge.vast { background: #312e81; color: #a5b4fc; }
 
 .time { color: #6b7280; }
 .elapsed {

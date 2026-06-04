@@ -96,22 +96,30 @@
           </div>
           <div class="param-row">
             <label>image size</label>
+            <!-- NOTE: only affects MASt3R (engine=mast3r). Fast3R always runs at 512px
+                 internally regardless of this setting — size=224 square-crops inputs
+                 which breaks camera geometry for non-square images. -->
             <div class="toggle-group">
               <button v-for="s in [256, 512]" :key="s" :class="{ active: imageSize === s }" @click="imageSize = s">
                 {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
               </button>
             </div>
           </div>
-          <div class="param-row">
+          <div v-if="!selectedVastInstance" class="param-row">
             <label>engine</label>
             <div class="toggle-group">
-              <button v-for="e in ['mast3r', 'fast3r']" :key="e" :class="{ active: engine === e }" @click="engine = e">{{ e }}</button>
+              <button v-for="e in ['mast3r', 'fast3r', 'colmap']" :key="e" :class="{ active: engine === e }" @click="engine = e">{{ e }}</button>
             </div>
+          </div>
+          <div v-else class="param-row">
+            <label>pipeline</label>
+            <span class="vast-pipeline-label">MegaSaM + PGSR</span>
           </div>
           <div class="param-row">
             <label>scene name</label>
             <input type="text" v-model="sceneName" placeholder="auto from filename" />
           </div>
+          <template v-if="!selectedVastInstance">
           <div class="param-row">
             <label>early stop</label>
             <label class="toggle">
@@ -132,6 +140,23 @@
               <input type="checkbox" v-model="sparseGa" />
               <span class="toggle-label">{{ sparseGa ? 'on' : 'off' }}</span>
             </label>
+          </div>
+          <div class="param-row" v-if="engine === 'fast3r'">
+            <label>COLMAP BA</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="colmapBa" />
+              <span class="toggle-label">{{ colmapBa ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          </template>
+          <div class="param-row" v-if="vastInstances.length">
+            <label>run on</label>
+            <select v-model="selectedVastInstance" class="vast-select">
+              <option value="">Local GPU</option>
+              <option v-for="inst in vastInstances" :key="inst.id" :value="inst.id">
+                {{ inst.id }}{{ inst.gpu_name ? ` — ${inst.num_gpus}× ${inst.gpu_name}` : '' }}{{ inst.dph_total != null ? ` ($${inst.dph_total.toFixed(3)}/hr)` : '' }}
+              </option>
+            </select>
           </div>
           <button class="process-btn" :disabled="processing || videoLoading" @click="startJob">
             {{ processing ? 'Submitting…' : videoLoading ? 'Preparing…' : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
@@ -154,7 +179,15 @@
         <input type="file" accept="image/*" multiple @change="onPhotoFile" hidden />
       </label>
 
-      <template v-if="photoFiles.length">
+      <!-- Rerun banner: images are on the server, no re-upload needed -->
+      <template v-if="rerunJobId && rerunImageCount > 0">
+        <div class="rerun-banner">
+          ↩ Reusing {{ rerunImageCount }} image{{ rerunImageCount !== 1 ? 's' : '' }} from previous job
+          <button class="rerun-clear" @click="rerunJobId = null">✕ Pick new images</button>
+        </div>
+      </template>
+
+      <template v-if="photoFiles.length || rerunJobId">
         <div class="photo-grid">
           <div v-for="(p, i) in photoFiles" :key="i" class="photo-item">
             <img :src="p.url" class="photo-thumb" />
@@ -171,17 +204,24 @@
           </div>
           <div class="param-row">
             <label>image size</label>
+            <!-- NOTE: only affects MASt3R (engine=mast3r). Fast3R always runs at 512px
+                 internally regardless of this setting — size=224 square-crops inputs
+                 which breaks camera geometry for non-square images. -->
             <div class="toggle-group">
               <button v-for="s in [256, 512]" :key="s" :class="{ active: imageSize === s }" @click="imageSize = s">
                 {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
               </button>
             </div>
           </div>
-          <div class="param-row">
+          <div v-if="!selectedVastInstance" class="param-row">
             <label>engine</label>
             <div class="toggle-group">
-              <button v-for="e in ['mast3r', 'fast3r']" :key="e" :class="{ active: engine === e }" @click="engine = e">{{ e }}</button>
+              <button v-for="e in ['mast3r', 'fast3r', 'colmap']" :key="e" :class="{ active: engine === e }" @click="engine = e">{{ e }}</button>
             </div>
+          </div>
+          <div v-else class="param-row">
+            <label>pipeline</label>
+            <span class="vast-pipeline-label">MegaSaM + PGSR</span>
           </div>
           <div class="param-row">
             <label>scene name</label>
@@ -208,10 +248,29 @@
               <span class="toggle-label">{{ sparseGa ? 'on' : 'off' }}</span>
             </label>
           </div>
-          <button class="process-btn" :disabled="processingPhotos" @click="startPhotoJob">
+          <div class="param-row" v-if="!selectedVastInstance && engine === 'fast3r'">
+            <label>COLMAP BA</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="colmapBa" />
+              <span class="toggle-label">{{ colmapBa ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <div class="param-row" v-if="vastInstances.length">
+            <label>run on</label>
+            <select v-model="selectedVastInstance" class="vast-select">
+              <option value="">Local GPU</option>
+              <option v-for="inst in vastInstances" :key="inst.id" :value="inst.id">
+                {{ inst.id }}{{ inst.gpu_name ? ` — ${inst.num_gpus}× ${inst.gpu_name}` : '' }}{{ inst.dph_total != null ? ` ($${inst.dph_total.toFixed(3)}/hr)` : '' }}
+              </option>
+            </select>
+          </div>
+          <button v-if="rerunJobId" class="process-btn" :disabled="processingPhotos" @click="startRerun">
+            {{ processingPhotos ? 'Submitting…' : `Re-run with ${rerunImageCount} image${rerunImageCount !== 1 ? 's' : ''}` }}
+          </button>
+          <button v-else class="process-btn" :disabled="processingPhotos" @click="startPhotoJob">
             {{ processingPhotos ? 'Submitting…' : `Process ${photoFiles.length} Photo${photoFiles.length !== 1 ? 's' : ''}` }}
           </button>
-          <div class="process-hint">{{ photoFiles.length }} image{{ photoFiles.length !== 1 ? 's' : '' }} — no blur check, straight to pipeline</div>
+          <div class="process-hint">{{ rerunJobId ? rerunImageCount : photoFiles.length }} image{{ (rerunJobId ? rerunImageCount : photoFiles.length) !== 1 ? 's' : '' }} — no blur check, straight to pipeline</div>
         </div>
       </template>
     </section>
@@ -219,7 +278,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
 import { getGateway } from '../config/gateway.js';
@@ -247,9 +306,19 @@ const sceneName = ref('');
 const earlyStop = ref(false);
 const sparsePairs = ref(false);
 const sparseGa = ref(false);
+const colmapBa = ref(false);
 const engine = ref('mast3r');
 const processing = ref(false);
 const videoLoading = ref(false);
+
+// ── Vast.ai ───────────────────────────────────────────────────────────────────
+const vastInstances = ref([]);
+const selectedVastInstance = ref('');
+
+// Vast instances only support megasam_pgsr; local GPU uses whatever engine is selected
+const effectiveEngine = computed(() =>
+  selectedVastInstance.value ? 'megasam_pgsr' : engine.value
+);
 
 function makeStrip(name) {
   return { name, frames: [], videoDuration: 0, startTime: 0, endTime: null, fps: 0.5, nFrames: 3 };
@@ -392,8 +461,11 @@ async function startJob() {
   form.append('early_stop', earlyStop.value);
   form.append('sparse_pairs', sparsePairs.value);
   form.append('sparse_ga', sparseGa.value);
-  form.append('engine', engine.value);
+  form.append('engine', effectiveEngine.value);
+  form.append('colmap_ba', colmapBa.value);
   if (sceneName.value) form.append('scene', sceneName.value);
+
+  if (selectedVastInstance.value) form.append('vast_instance_id', selectedVastInstance.value);
 
   for (const strip of videoStrips.value) {
     form.append('start_time', strip.startTime);
@@ -429,6 +501,48 @@ async function startJob() {
 // ── Photos ────────────────────────────────────────────────────────────────────
 const photoFiles = ref([]);  // [{ name, url, file }]
 const processingPhotos = ref(false);
+const rerunJobId = ref(null);       // set when rerunning an image job server-side
+const rerunImageCount = ref(0);
+
+async function startRerun() {
+  if (!rerunJobId.value) return;
+  error.value = '';
+  processingPhotos.value = true;
+  let gateway;
+  try {
+    gateway = await getGateway();
+  } catch (err) {
+    error.value = 'Gateway not configured: ' + err.message;
+    processingPhotos.value = false;
+    return;
+  }
+  try {
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${rerunJobId.value}/rerun`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scene: sceneName.value || undefined,
+        iters: iters.value,
+        image_size: imageSize.value,
+        early_stop: earlyStop.value,
+        sparse_pairs: sparsePairs.value,
+        sparse_ga: sparseGa.value,
+        engine: effectiveEngine.value,
+        colmap_ba: colmapBa.value,
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.text();
+      throw new Error(`Server error ${res.status}: ${detail}`);
+    }
+    const { job_id: jobId } = await res.json();
+    router.push({ name: 'splat-viewer', params: { splatId: jobId } });
+  } catch (err) {
+    error.value = 'Failed to start rerun: ' + err.message;
+  } finally {
+    processingPhotos.value = false;
+  }
+}
 
 function onPhotoFile(e) {
   const incoming = Array.from(e.target.files).map((f) => ({
@@ -466,8 +580,11 @@ async function startPhotoJob() {
   form.append('early_stop', earlyStop.value);
   form.append('sparse_pairs', sparsePairs.value);
   form.append('sparse_ga', sparseGa.value);
-  form.append('engine', engine.value);
+  form.append('engine', effectiveEngine.value);
+  form.append('colmap_ba', colmapBa.value);
   if (sceneName.value) form.append('scene', sceneName.value);
+
+  if (selectedVastInstance.value) form.append('vast_instance_id', selectedVastInstance.value);
 
   let jobId;
   try {
@@ -491,6 +608,16 @@ async function startPhotoJob() {
 }
 
 onMounted(async () => {
+  // Fetch vast.ai instances in background
+  try {
+    const gw = await getGateway();
+    const r = await fetch(`${gw}/topowall/api/v1/vast/instances`);
+    if (r.ok) {
+      const { instances } = await r.json();
+      vastInstances.value = instances || [];
+    }
+  } catch { /* vast unavailable — skip */ }
+
   const rerunRaw = sessionStorage.getItem('splat-rerun');
   if (!rerunRaw) return;
   sessionStorage.removeItem('splat-rerun');
@@ -503,6 +630,7 @@ onMounted(async () => {
     earlyStop.value = p.early_stop === true || p.early_stop === 'true';
     sparsePairs.value = p.sparse_pairs === true || p.sparse_pairs === 'true';
     sparseGa.value = p.sparse_ga === true || p.sparse_ga === 'true';
+    colmapBa.value = p.colmap_ba === true || p.colmap_ba === 'true';
     engine.value = p.engine ?? 'mast3r';
     paramMode.value = p.n_frames != null ? 'nframes' : 'fps';
   }
@@ -539,6 +667,25 @@ onMounted(async () => {
       // video fetch failed — user can pick manually
     } finally {
       videoLoading.value = false;
+    }
+  }
+
+  if (rerun.inputSource === 'images' && rerun.jobId) {
+    // Don't fetch blobs — server copies files internally via /rerun endpoint.
+    // Just record the source jobId and image count so the UI can show a banner.
+    rerunJobId.value = rerun.jobId;
+    const p = rerun.params;
+    rerunImageCount.value = (p?.filenames?.length) || 0;
+    // If count unknown, fetch the list just for the count (no blobs needed)
+    if (!rerunImageCount.value) {
+      try {
+        const gateway = await getGateway();
+        const listRes = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${rerun.jobId}/images`);
+        if (listRes.ok) {
+          const { images: filenames } = await listRes.json();
+          rerunImageCount.value = filenames.length;
+        }
+      } catch { /* silent */ }
     }
   }
 });
@@ -715,6 +862,23 @@ onMounted(async () => {
   padding: 4px 8px;
   font-size: 0.85rem;
 }
+.vast-select {
+  background: #1f2937;
+  color: #e5e7eb;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.vast-pipeline-label {
+  font-size: 0.85rem;
+  color: #a5b4fc;
+  background: #312e81;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid #4338ca;
+}
 .trim-times {
   display: flex;
   gap: 16px;
@@ -784,6 +948,29 @@ onMounted(async () => {
 }
 
 /* Photo grid */
+.rerun-banner {
+  width: 100%;
+  padding: 10px 14px;
+  background: #1a2a1a;
+  border: 1px solid #3a6a3a;
+  border-radius: 8px;
+  color: #7ec87e;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rerun-clear {
+  background: none;
+  border: 1px solid #3a6a3a;
+  color: #7ec87e;
+  border-radius: 5px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
 .photo-grid {
   display: flex;
   flex-wrap: wrap;

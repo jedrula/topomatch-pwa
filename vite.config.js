@@ -190,6 +190,22 @@ export default defineConfig({
     },
   },
   server: {
+    watch: {
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/ios/**',
+        '**/backups/**',
+        '**/playwright-report/**',
+        '**/test-data/**',
+        '**/firebase-emulator-data/**',
+        '**/capacitor-plugin-ios-video-editor/**',
+        '**/.vite/**',
+        '**/coverage/**',
+        '**/__pycache__/**',
+      ],
+    },
     cors: true,
     mimeTypes: {
       'application/wasm': ['wasm'],

@@ -148,6 +148,11 @@ const router = createRouter({
           name: 'splat-history',
           component: () => import('../views/SplatHistoryView.vue'),
         },
+        {
+          path: 'prepare',
+          name: 'splat-prepare',
+          component: () => import('../views/PrepareFramesView.vue'),
+        },
       ],
     },
     {
