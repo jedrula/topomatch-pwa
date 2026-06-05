@@ -114,7 +114,7 @@
           <div v-if="!selectedVastInstance" class="param-row">
             <label>trainer</label>
             <div class="toggle-group">
-              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
+              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto', 'gsplat']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
             </div>
           </div>
           <div v-if="selectedVastInstance" class="param-row">
@@ -235,7 +235,7 @@
           <div v-if="!selectedVastInstance" class="param-row">
             <label>trainer</label>
             <div class="toggle-group">
-              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
+              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto', 'gsplat']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
             </div>
           </div>
           <div v-if="selectedVastInstance" class="param-row">

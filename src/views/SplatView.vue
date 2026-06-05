@@ -7,7 +7,10 @@
     </div>
     <!-- Splat loading spinner -->
     <div v-if="loading && !processing" class="overlay">
-      <p>Loading splat…</p>
+      <p>Loading splat… {{ loadProgress }}%</p>
+      <div class="load-progress-bar">
+        <div class="load-progress-fill" :style="{ width: loadProgress + '%' }"></div>
+      </div>
     </div>
 
     <!-- Processing / error state -->
@@ -66,6 +69,7 @@ const splatStore = useSplatStore();
 
 const container = ref(null);
 const loading = ref(true);
+const loadProgress = ref(0);
 const error = ref('');
 const processing = ref(false);
 const refreshing = ref(false);
@@ -137,8 +141,21 @@ async function loadSplat(splatId, gateway) {
   try {
     const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/splat`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    currentObjectUrl = URL.createObjectURL(blob);
+
+    const total = +res.headers.get('Content-Length');
+    loadProgress.value = 0;
+    let received = 0;
+    const reader = res.body.getReader();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.byteLength;
+      loadProgress.value = Math.round(received / total * 100);
+    }
+    currentObjectUrl = URL.createObjectURL(new Blob(chunks, { type: 'application/octet-stream' }));
+
     await renderSplat(currentObjectUrl, splatId);
   } catch (err) {
     error.value = 'Failed to load splat: ' + err.message;
@@ -326,12 +343,27 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #9ca3af;
   font-size: 1rem;
   z-index: 10;
   background: #111;
+  gap: 12px;
+}
+.load-progress-bar {
+  width: 200px;
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.load-progress-fill {
+  height: 100%;
+  background: #7c3aed;
+  border-radius: 2px;
+  transition: width 0.15s ease;
 }
 
 .processing-overlay {
