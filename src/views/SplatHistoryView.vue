@@ -65,9 +65,9 @@
           <span class="info-label">Steps</span>
           <div class="steps">
             <div class="step">
-              <span class="step-name">MASt3R</span>
-              <span class="step-bar-wrap"><span class="step-bar mast3r" :style="stepWidth(job.pipeline_stats.mast3r_s, totalPipelineS(job))"></span></span>
-              <span class="step-time">{{ formatElapsed(job.pipeline_stats.mast3r_s) }}</span>
+              <span class="step-name">{{ job.pipeline_stats.sfm || job.params?.sfm || 'sfm' }}</span>
+              <span class="step-bar-wrap"><span class="step-bar mast3r" :style="stepWidth(job.pipeline_stats.sfm_s, totalPipelineS(job))"></span></span>
+              <span class="step-time">{{ formatElapsed(job.pipeline_stats.sfm_s) }}</span>
             </div>
             <div class="step">
               <span class="step-name">3DGS train</span>
@@ -469,7 +469,7 @@ function formatBytes(bytes) {
 function totalPipelineS(job) {
   const s = job.pipeline_stats;
   if (!s) return null;
-  return (s.mast3r_s || 0) + (s.train_s || 0) + (s.ply2splat_s || 0) || null;
+  return (s.sfm_s || 0) + (s.train_s || 0) + (s.ply2splat_s || 0) || null;
 }
 
 function stepWidth(stepS, totalS) {
