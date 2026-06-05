@@ -7,7 +7,7 @@
     </div>
     <!-- Splat loading spinner -->
     <div v-if="loading && !processing" class="overlay">
-      <p>Loading splat… {{ loadProgress }}%</p>
+      <p>Loading splat… {{ loadProgress }}%<span v-if="splatSizeBytes"> ({{ (splatSizeBytes / 1024 / 1024).toFixed(1) }} MB)</span></p>
       <div class="load-progress-bar">
         <div class="load-progress-fill" :style="{ width: loadProgress + '%' }"></div>
       </div>
@@ -70,6 +70,7 @@ const splatStore = useSplatStore();
 const container = ref(null);
 const loading = ref(true);
 const loadProgress = ref(0);
+const splatSizeBytes = ref(0);
 const error = ref('');
 const processing = ref(false);
 const refreshing = ref(false);
@@ -143,6 +144,7 @@ async function loadSplat(splatId, gateway) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const total = +res.headers.get('Content-Length');
+    splatSizeBytes.value = total;
     loadProgress.value = 0;
     let received = 0;
     const reader = res.body.getReader();

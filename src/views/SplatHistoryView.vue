@@ -89,7 +89,7 @@
             class="view-btn"
             :to="{ name: 'splat-viewer', params: { splatId: job.job_id } }"
           >
-            View Splat →
+            View Splat →<span v-if="job.splat_size_bytes" class="splat-size-inline"> {{ (job.splat_size_bytes / 1024 / 1024).toFixed(1) }} MB</span>
           </RouterLink>
           <button class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
           <button
@@ -591,6 +591,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   border-radius: 4px;
   font-size: 0.78rem;
 }
+.splat-size-inline {
+  opacity: 0.55;
+  font-size: 0.78em;
+  margin-left: 2px;
+}
 
 .scene-name {
   font-size: 1rem;
@@ -746,18 +751,19 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
 .view-btn {
   align-self: flex-start;
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: #2563eb;
   color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   transition: background 0.15s;
+  white-space: nowrap;
 }
 .view-btn:hover { background: #1d4ed8; }
 
-.action-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.action-row { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .capture-btn { background: #4f46e5; }
 .capture-btn:hover { background: #4338ca; }
