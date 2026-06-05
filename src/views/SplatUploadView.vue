@@ -106,12 +106,18 @@
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
-            <label>engine</label>
+            <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="e in ['mast3r', 'fast3r', 'colmap']" :key="e" :class="{ active: engine === e }" @click="engine = e">{{ e }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
-          <div v-else class="param-row">
+          <div v-if="!selectedVastInstance" class="param-row">
+            <label>trainer</label>
+            <div class="toggle-group">
+              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
+            </div>
+          </div>
+          <div v-if="selectedVastInstance" class="param-row">
             <label>pipeline</label>
             <span class="vast-pipeline-label">MegaSaM + PGSR</span>
           </div>
@@ -141,12 +147,19 @@
               <span class="toggle-label">{{ sparseGa ? 'on' : 'off' }}</span>
             </label>
           </div>
-          <div class="param-row" v-if="engine === 'fast3r'">
+          <div class="param-row" v-if="sfm === 'fast3r'">
             <label>COLMAP BA</label>
             <label class="toggle">
               <input type="checkbox" v-model="colmapBa" />
               <span class="toggle-label">{{ colmapBa ? 'on' : 'off' }}</span>
             </label>
+          </div>
+          <div class="param-row" v-if="sfm === 'colmap'">
+            <label>matcher</label>
+            <div class="toggle-group">
+              <button v-for="m in ['auto', 'sequential', 'exhaustive', 'vocab_tree']" :key="m"
+                :class="{ active: colmapMatcher === m }" @click="colmapMatcher = m">{{ m }}</button>
+            </div>
           </div>
           </template>
           <div class="param-row" v-if="vastInstances.length">
@@ -214,12 +227,18 @@
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
-            <label>engine</label>
+            <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="e in ['mast3r', 'fast3r', 'colmap']" :key="e" :class="{ active: engine === e }" @click="engine = e">{{ e }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
-          <div v-else class="param-row">
+          <div v-if="!selectedVastInstance" class="param-row">
+            <label>trainer</label>
+            <div class="toggle-group">
+              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
+            </div>
+          </div>
+          <div v-if="selectedVastInstance" class="param-row">
             <label>pipeline</label>
             <span class="vast-pipeline-label">MegaSaM + PGSR</span>
           </div>
@@ -248,12 +267,19 @@
               <span class="toggle-label">{{ sparseGa ? 'on' : 'off' }}</span>
             </label>
           </div>
-          <div class="param-row" v-if="!selectedVastInstance && engine === 'fast3r'">
+          <div class="param-row" v-if="!selectedVastInstance && sfm === 'fast3r'">
             <label>COLMAP BA</label>
             <label class="toggle">
               <input type="checkbox" v-model="colmapBa" />
               <span class="toggle-label">{{ colmapBa ? 'on' : 'off' }}</span>
             </label>
+          </div>
+          <div class="param-row" v-if="!selectedVastInstance && sfm === 'colmap'">
+            <label>matcher</label>
+            <div class="toggle-group">
+              <button v-for="m in ['auto', 'sequential', 'exhaustive', 'vocab_tree']" :key="m"
+                :class="{ active: colmapMatcher === m }" @click="colmapMatcher = m">{{ m }}</button>
+            </div>
           </div>
           <div class="param-row" v-if="vastInstances.length">
             <label>run on</label>
@@ -307,18 +333,41 @@ const earlyStop = ref(false);
 const sparsePairs = ref(false);
 const sparseGa = ref(false);
 const colmapBa = ref(false);
-const engine = ref('mast3r');
+const colmapMatcher = ref('auto');
+
+const sfm = ref('mast3r');
+const trainer = ref('instantsplat');
+
+const sharedParams = computed(() => ({
+  iters: iters.value,
+  image_size: imageSize.value,
+  early_stop: earlyStop.value,
+  sparse_pairs: sparsePairs.value,
+  sparse_ga: sparseGa.value,
+  sfm: selectedVastInstance.value ? 'megasam' : sfm.value,
+  trainer: selectedVastInstance.value ? 'pgsr' : trainer.value,
+  colmap_ba: colmapBa.value,
+  colmap_matcher: colmapMatcher.value !== 'auto' ? colmapMatcher.value : '',
+}));
+
+function appendSharedParams(form) {
+  const p = sharedParams.value;
+  form.append('iters', p.iters);
+  form.append('image_size', p.image_size);
+  form.append('early_stop', p.early_stop);
+  form.append('sparse_pairs', p.sparse_pairs);
+  form.append('sparse_ga', p.sparse_ga);
+  form.append('sfm', p.sfm);
+  form.append('trainer', p.trainer);
+  form.append('colmap_ba', p.colmap_ba);
+  if (p.colmap_matcher) form.append('colmap_matcher', p.colmap_matcher);
+}
 const processing = ref(false);
 const videoLoading = ref(false);
 
 // ── Vast.ai ───────────────────────────────────────────────────────────────────
 const vastInstances = ref([]);
 const selectedVastInstance = ref('');
-
-// Vast instances only support megasam_pgsr; local GPU uses whatever engine is selected
-const effectiveEngine = computed(() =>
-  selectedVastInstance.value ? 'megasam_pgsr' : engine.value
-);
 
 function makeStrip(name) {
   return { name, frames: [], videoDuration: 0, startTime: 0, endTime: null, fps: 0.5, nFrames: 3 };
@@ -456,13 +505,7 @@ async function startJob() {
 
   const form = new FormData();
   for (const f of videoFiles.value) form.append('video', f);
-  form.append('iters', iters.value);
-  form.append('image_size', imageSize.value);
-  form.append('early_stop', earlyStop.value);
-  form.append('sparse_pairs', sparsePairs.value);
-  form.append('sparse_ga', sparseGa.value);
-  form.append('engine', effectiveEngine.value);
-  form.append('colmap_ba', colmapBa.value);
+  appendSharedParams(form);
   if (sceneName.value) form.append('scene', sceneName.value);
 
   if (selectedVastInstance.value) form.append('vast_instance_id', selectedVastInstance.value);
@@ -521,14 +564,8 @@ async function startRerun() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        ...sharedParams.value,
         scene: sceneName.value || undefined,
-        iters: iters.value,
-        image_size: imageSize.value,
-        early_stop: earlyStop.value,
-        sparse_pairs: sparsePairs.value,
-        sparse_ga: sparseGa.value,
-        engine: effectiveEngine.value,
-        colmap_ba: colmapBa.value,
       }),
     });
     if (!res.ok) {
@@ -575,13 +612,7 @@ async function startPhotoJob() {
 
   const form = new FormData();
   for (const p of photoFiles.value) form.append('images', p.file);
-  form.append('iters', iters.value);
-  form.append('image_size', imageSize.value);
-  form.append('early_stop', earlyStop.value);
-  form.append('sparse_pairs', sparsePairs.value);
-  form.append('sparse_ga', sparseGa.value);
-  form.append('engine', effectiveEngine.value);
-  form.append('colmap_ba', colmapBa.value);
+  appendSharedParams(form);
   if (sceneName.value) form.append('scene', sceneName.value);
 
   if (selectedVastInstance.value) form.append('vast_instance_id', selectedVastInstance.value);
@@ -631,7 +662,9 @@ onMounted(async () => {
     sparsePairs.value = p.sparse_pairs === true || p.sparse_pairs === 'true';
     sparseGa.value = p.sparse_ga === true || p.sparse_ga === 'true';
     colmapBa.value = p.colmap_ba === true || p.colmap_ba === 'true';
-    engine.value = p.engine ?? 'mast3r';
+    colmapMatcher.value = p.colmap_matcher || 'auto';
+    sfm.value = p.sfm ?? (p.engine === 'pgsr' ? 'mast3r' : p.engine) ?? 'mast3r';
+    trainer.value = p.trainer ?? (p.engine === 'pgsr' ? 'pgsr' : 'instantsplat') ?? 'instantsplat';
     paramMode.value = p.n_frames != null ? 'nframes' : 'fps';
   }
   if (rerun.scene) sceneName.value = rerun.scene;
