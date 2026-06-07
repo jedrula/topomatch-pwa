@@ -184,11 +184,24 @@ onMounted(async () => {
   await checkStatus();
 });
 
+async function fetchInitialCamera(splatId, gateway) {
+  if (!gateway || !splatId) return null;
+  try {
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/initial-camera`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 async function renderSplat(objectUrl, splatId) {
   try {
-    const [{ Viewer }, THREE] = await Promise.all([
+    const gateway = await getGateway();
+    const [{ Viewer }, THREE, initialCam] = await Promise.all([
       import('@mkkellogg/gaussian-splats-3d'),
       import('three'),
+      fetchInitialCamera(splatId, gateway),
     ]);
 
     const renderer = new THREE.WebGLRenderer({
@@ -205,9 +218,9 @@ async function renderSplat(objectUrl, splatId) {
     viewer = new Viewer({
       renderer,
       rootElement: container.value,
-      cameraUp: [0, -1, 0],
-      initialCameraPosition: [0, 0, -3],
-      initialCameraLookAt: [0, 0, 0],
+      cameraUp: initialCam?.up ?? [0, -1, 0],
+      initialCameraPosition: initialCam?.position ?? [0, 0, -3],
+      initialCameraLookAt: initialCam?.look_at ?? [0, 0, 0],
     });
     await viewer.addSplatScene(objectUrl, {
       splatAlphaRemovalThreshold: 5,

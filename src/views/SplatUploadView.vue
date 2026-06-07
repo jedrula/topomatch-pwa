@@ -105,13 +105,13 @@
                   {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
                 </button>
               </div>
-              <small class="param-note">long-edge resize for SfM pose estimation — only used by MASt3R; ignored by Fast3R, COLMAP, GLOMAP, FastMap</small>
+              <small class="param-note">long-edge resize for SfM pose estimation — only used by MASt3R; ignored by Fast3R, COLMAP, GLOMAP variants, FastMap</small>
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
             <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'fastmap', 'realityscan']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'glomap_lg', 'glomap_disk', 'glomap_sp', 'glomap_loftr', 'colmap_lg', 'fastmap', 'realityscan']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
@@ -229,13 +229,13 @@
                   {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
                 </button>
               </div>
-              <small class="param-note">long-edge resize for SfM pose estimation — only used by MASt3R; ignored by Fast3R, COLMAP, GLOMAP, FastMap</small>
+              <small class="param-note">long-edge resize for SfM pose estimation — only used by MASt3R; ignored by Fast3R, COLMAP, GLOMAP variants, FastMap</small>
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
             <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'fastmap', 'realityscan']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'glomap_lg', 'glomap_disk', 'glomap_sp', 'glomap_loftr', 'colmap_lg', 'fastmap', 'realityscan']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
