@@ -84,10 +84,59 @@
 
         <div v-if="job.error" class="job-error">{{ job.error }}</div>
 
+        <!-- Quality metrics -->
+        <div v-if="job.metrics && (job.metrics.psnr != null || job.metrics.registered_images != null)" class="metrics-row">
+          <span v-if="job.metrics.psnr != null" class="metric" :class="psnrClass(job.metrics.psnr)" title="PSNR — higher is better. >24 dB = good, >22 = ok, <20 = poor">
+            PSNR {{ job.metrics.psnr.toFixed(1) }} dB
+          </span>
+          <span v-if="job.metrics.ssim != null" class="metric" title="SSIM — structural similarity, 0–1, higher better">
+            SSIM {{ job.metrics.ssim.toFixed(3) }}
+          </span>
+          <span v-if="job.metrics.lpips != null" class="metric" title="LPIPS — perceptual loss, lower better">
+            LPIPS {{ job.metrics.lpips.toFixed(3) }}
+          </span>
+          <span v-if="job.metrics.registered_images != null" class="metric muted" title="SfM: registered images / sparse points">
+            📷 {{ job.metrics.registered_images }}{{ job.image_count ? '/' + job.image_count : '' }}
+          </span>
+          <span v-if="job.metrics.sfm_points != null" class="metric muted" title="Sparse point count from SfM">
+            pts {{ job.metrics.sfm_points.toLocaleString() }}
+          </span>
+          <span v-if="job.metrics.gaussian_count != null" class="metric muted" title="Number of Gaussians in splat">
+            G {{ (job.metrics.gaussian_count / 1000).toFixed(0) }}k
+          </span>
+        </div>
+
+        <!-- Note -->
+        <div class="note-section">
+          <template v-if="editingNotes.has(job.job_id)">
+            <textarea
+              class="note-textarea"
+              :ref="el => el && el.focus()"
+              v-model="pendingNotes[job.job_id]"
+              @blur="saveNote(job.job_id)"
+              @keydown.esc="cancelNoteEdit(job.job_id)"
+              placeholder="Note quality, floaters, initial view, settings impressions…"
+              rows="3"
+            ></textarea>
+            <div class="note-edit-actions">
+              <button class="note-save-btn" @mousedown.prevent @click="saveNote(job.job_id)">Save</button>
+              <button class="note-cancel-btn" @mousedown.prevent @click="cancelNoteEdit(job.job_id)">Cancel</button>
+            </div>
+          </template>
+          <div
+            v-else
+            class="note-display"
+            :class="{ 'note-empty': !job.note }"
+            @click="startNoteEdit(job.job_id, job.note)"
+            :title="job.note ? 'Click to edit note' : 'Click to add note'"
+          >{{ job.note || 'Add note…' }}</div>
+        </div>
+
         <div v-if="job.status === 'done'" class="action-row">
           <RouterLink
             class="view-btn"
             :to="{ name: 'splat-viewer', params: { splatId: job.job_id } }"
+            target="_blank"
           >
             View Splat →<span v-if="job.splat_size_bytes" class="splat-size-inline"> {{ (job.splat_size_bytes / 1024 / 1024).toFixed(1) }} MB</span>
           </RouterLink>
@@ -98,6 +147,9 @@
             @click="toggleCapture(job.job_id)"
           >
             {{ expandedCapture.has(job.job_id) ? 'Hide Capture ✕' : 'View Capture 🖼' }}
+          </button>
+          <button v-if="job.has_pointcloud" class="view-btn pc-btn" @click="togglePointCloud(job.job_id)">
+            {{ expandedPointCloud.has(job.job_id) ? 'Hide Cloud ✕' : 'Point Cloud ✦' }}
           </button>
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
@@ -125,6 +177,9 @@
           >
             {{ cancellingJobs.has(job.job_id) ? 'Cancelling…' : 'Cancel ✕' }}
           </button>
+          <button v-if="job.has_pointcloud" class="view-btn pc-btn" @click="togglePointCloud(job.job_id)">
+            {{ expandedPointCloud.has(job.job_id) ? 'Hide Cloud ✕' : 'Point Cloud ✦' }}
+          </button>
           <template v-if="job.status === 'queued'">
             <span class="queue-pos">Queue position: #{{ job.queue_position }}</span>
           </template>
@@ -134,8 +189,13 @@
           <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
         </div>
 
+        <!-- Point cloud viewer -->
+        <div v-if="expandedPointCloud.has(job.job_id)" class="pc-expand">
+          <PointCloudViewer :url="pointcloudUrl(job.job_id)" />
+        </div>
+
         <div v-if="expandedLogs.has(job.job_id)" class="log-expand">
-          <pre v-if="jobLogs.get(job.job_id)?.length" class="log-pre-history">{{ jobLogs.get(job.job_id).join('\n') }}</pre>
+          <pre v-if="jobLogs.get(job.job_id)?.length" class="log-pre-history" :data-job-id="job.job_id">{{ jobLogs.get(job.job_id).join('\n') }}</pre>
           <p v-else class="log-empty-history">No log output available.</p>
         </div>
 
@@ -188,10 +248,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getGateway } from '../config/gateway.js';
 import { thumbGet, thumbDelete } from '../utils/thumbDb.js';
+import PointCloudViewer from '../components/PointCloudViewer.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -201,9 +262,12 @@ const error = ref('');
 const expandedCapture = ref(new Set());
 const expandedLogs = ref(new Set());
 const expandedImages = ref(new Set());
+const expandedPointCloud = ref(new Set());
 const jobLogs = ref(new Map());
 const jobImages = ref(new Map());
 const cancellingJobs = ref(new Set());
+const editingNotes = ref(new Set());
+const pendingNotes = ref({});
 let gatewayCache = null;
 async function resolvedGateway() {
   if (!gatewayCache) gatewayCache = await getGateway();
@@ -324,6 +388,16 @@ function plyUrl(jobId) {
   return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/ply`;
 }
 
+function pointcloudUrl(jobId) {
+  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/pointcloud`;
+}
+
+function togglePointCloud(jobId) {
+  const s = new Set(expandedPointCloud.value);
+  s.has(jobId) ? s.delete(jobId) : s.add(jobId);
+  expandedPointCloud.value = s;
+}
+
 async function cancelJob(job) {
   if (!confirm('Cancel this job? The pipeline will be stopped and cannot be resumed.')) return;
   const s = new Set(cancellingJobs.value);
@@ -373,9 +447,44 @@ async function toggleLogs(jobId) {
         const m = new Map(jobLogs.value);
         m.set(jobId, data.log_lines ?? []);
         jobLogs.value = m;
+        nextTick(() => {
+          const el = document.querySelector(`.log-pre-history[data-job-id="${jobId}"]`);
+          if (el) el.scrollTop = el.scrollHeight;
+        });
       }
     } catch { /* silent */ }
   }
+}
+
+function startNoteEdit(jobId, currentNote) {
+  const s = new Set(editingNotes.value);
+  s.add(jobId);
+  editingNotes.value = s;
+  pendingNotes.value[jobId] = currentNote ?? '';
+}
+
+async function saveNote(jobId) {
+  const s = new Set(editingNotes.value);
+  if (!s.has(jobId)) return;
+  s.delete(jobId);
+  editingNotes.value = s;
+  const text = pendingNotes.value[jobId] ?? '';
+  const job = jobs.value.find(j => j.job_id === jobId);
+  if (job) job.note = text.trim();
+  try {
+    const gateway = await resolvedGateway();
+    await fetch(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/note`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: text }),
+    });
+  } catch { /* best-effort */ }
+}
+
+function cancelNoteEdit(jobId) {
+  const s = new Set(editingNotes.value);
+  s.delete(jobId);
+  editingNotes.value = s;
 }
 
 function rerunJob(job) {
@@ -441,6 +550,12 @@ function formatDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
     + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function psnrClass(psnr) {
+  if (psnr >= 24) return 'metric-good';
+  if (psnr >= 21) return 'metric-ok';
+  return 'metric-poor';
 }
 
 function formatElapsed(seconds) {
@@ -637,6 +752,26 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   overflow-y: auto;
 }
 
+.metrics-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.metric {
+  font-size: 0.72rem;
+  font-family: monospace;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #94a3b8;
+}
+.metric.muted { opacity: 0.65; }
+.metric.metric-good { color: #4ade80; border-color: #166534; background: #052e16; }
+.metric.metric-ok   { color: #fbbf24; border-color: #78350f; background: #1c1000; }
+.metric.metric-poor { color: #f87171; border-color: #7f1d1d; background: #1c0a0a; }
+
 .param.early-stop .param-val { color: #fbbf24; }
 .param.full-run .param-val { color: #6ee7b7; }
 
@@ -768,6 +903,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .capture-btn { background: #4f46e5; }
 .capture-btn:hover { background: #4338ca; }
 
+.pc-btn { background: #4c1d95; }
+.pc-btn:hover { background: #6d28d9; }
+.pc-expand { margin-top: 8px; }
 .log-btn { background: #374151; }
 .log-btn:hover { background: #4b5563; }
 
@@ -876,6 +1014,67 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .frame-thumb:hover { opacity: 0.85; border-color: #4b9eff; }
 
 .capture-img { cursor: pointer; }
+
+.note-section { margin-top: 2px; }
+
+.note-display {
+  font-size: 0.82rem;
+  color: #9ca3af;
+  background: #111827;
+  border: 1px dashed #2d3748;
+  border-radius: 6px;
+  padding: 7px 10px;
+  cursor: text;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  transition: border-color 0.15s, background 0.15s;
+  min-height: 32px;
+}
+.note-display:hover { border-color: #4b5563; background: #1a2030; }
+.note-display.note-empty { color: #3d4f66; font-style: italic; }
+
+.note-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #111827;
+  border: 1px solid #4b6fa0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: #e5e7eb;
+  font-size: 0.82rem;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+.note-textarea:focus { border-color: #60a5fa; }
+
+.note-edit-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+.note-save-btn {
+  padding: 4px 12px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+.note-save-btn:hover { background: #1d4ed8; }
+.note-cancel-btn {
+  padding: 4px 10px;
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+.note-cancel-btn:hover { color: #9ca3af; border-color: #4b5563; }
 
 .lightbox-overlay {
   position: fixed;

@@ -99,16 +99,19 @@
             <!-- NOTE: only affects MASt3R (engine=mast3r). Fast3R always runs at 512px
                  internally regardless of this setting — size=224 square-crops inputs
                  which breaks camera geometry for non-square images. -->
-            <div class="toggle-group">
-              <button v-for="s in [256, 512]" :key="s" :class="{ active: imageSize === s }" @click="imageSize = s">
-                {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
-              </button>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div class="toggle-group">
+                <button v-for="s in [256, 512]" :key="s" :class="{ active: imageSize === s }" @click="imageSize = s">
+                  {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
+                </button>
+              </div>
+              <small class="param-note">long-edge resize for SfM pose estimation — only used by MASt3R; ignored by Fast3R, COLMAP, GLOMAP, FastMap</small>
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
             <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="s in ['mast3r', 'fast3r', 'colmap']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'fastmap', 'realityscan']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
@@ -154,7 +157,7 @@
               <span class="toggle-label">{{ colmapBa ? 'on' : 'off' }}</span>
             </label>
           </div>
-          <div class="param-row" v-if="sfm === 'colmap'">
+          <div class="param-row" v-if="sfm === 'colmap' || sfm === 'glomap'">
             <label>matcher</label>
             <div class="toggle-group">
               <button v-for="m in ['auto', 'sequential', 'exhaustive', 'vocab_tree']" :key="m"
@@ -220,16 +223,19 @@
             <!-- NOTE: only affects MASt3R (engine=mast3r). Fast3R always runs at 512px
                  internally regardless of this setting — size=224 square-crops inputs
                  which breaks camera geometry for non-square images. -->
-            <div class="toggle-group">
-              <button v-for="s in [256, 512]" :key="s" :class="{ active: imageSize === s }" @click="imageSize = s">
-                {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
-              </button>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div class="toggle-group">
+                <button v-for="s in [256, 512]" :key="s" :class="{ active: imageSize === s }" @click="imageSize = s">
+                  {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 256 ? '40+ frames' : '≤14 frames' }}</span>
+                </button>
+              </div>
+              <small class="param-note">long-edge resize for SfM pose estimation — only used by MASt3R; ignored by Fast3R, COLMAP, GLOMAP, FastMap</small>
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
             <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="s in ['mast3r', 'fast3r', 'colmap']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'fastmap', 'realityscan']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
           <div v-if="!selectedVastInstance" class="param-row">
@@ -274,7 +280,7 @@
               <span class="toggle-label">{{ colmapBa ? 'on' : 'off' }}</span>
             </label>
           </div>
-          <div class="param-row" v-if="!selectedVastInstance && sfm === 'colmap'">
+          <div class="param-row" v-if="!selectedVastInstance && (sfm === 'colmap' || sfm === 'glomap')">
             <label>matcher</label>
             <div class="toggle-group">
               <button v-for="m in ['auto', 'sequential', 'exhaustive', 'vocab_tree']" :key="m"
@@ -953,6 +959,7 @@ onMounted(async () => {
 .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .toggle input[type="checkbox"] { accent-color: #2563eb; width: 16px; height: 16px; cursor: pointer; }
 .toggle-label { font-size: 0.85rem; color: #9ca3af; }
+.param-note { font-size: 0.72rem; color: #6b7280; }
 
 .process-btn {
   margin-top: 8px;
