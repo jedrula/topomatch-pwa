@@ -111,14 +111,43 @@
           <div v-if="!selectedVastInstance" class="param-row">
             <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'glomap_lg', 'glomap_disk', 'glomap_sp', 'glomap_loftr', 'colmap_lg', 'fastmap', 'realityscan']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'glomap_lg', 'glomap_disk', 'glomap_sp', 'glomap_loftr', 'colmap_lg', 'fastmap', 'realityscan', 'onthefly']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
-          <div v-if="!selectedVastInstance" class="param-row">
+          <div v-if="!selectedVastInstance && sfm !== 'onthefly'" class="param-row">
             <label>trainer</label>
             <div class="toggle-group">
-              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto', 'gsplat']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
+              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto', 'gsplat', '2dgs', 'brush']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
             </div>
+          </div>
+          <div v-if="!selectedVastInstance && trainer === 'gsplat' && sfm !== 'onthefly'" class="param-row">
+            <label>MCMC</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="mcmc" />
+              <span class="toggle-label">{{ mcmc ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <div v-if="!selectedVastInstance && (trainer === 'gsplat' || trainer === '2dgs') && sfm !== 'onthefly'" class="param-row">
+            <label>live viewer</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="viewer" />
+              <span class="toggle-label">{{ viewer ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <div v-if="!selectedVastInstance && trainer === 'gsplat' && sfm !== 'onthefly'" class="param-row">
+            <label>post-process</label>
+            <div class="toggle-group">
+              <button v-for="pp in ['none', 'bilateral_grid', 'ppisp']" :key="pp"
+                :class="{ active: postProcessing === pp }" @click="postProcessing = pp">{{ pp }}</button>
+            </div>
+          </div>
+          <div v-if="!selectedVastInstance && (trainer === 'gsplat' || trainer === '2dgs') && sfm !== 'onthefly'" class="param-row">
+            <label>ssim λ</label>
+            <input type="number" v-model.number="ssimLambda" min="0" max="0.5" step="0.05" />
+          </div>
+          <div v-if="!selectedVastInstance && sfm === 'onthefly'" class="param-row">
+            <label>trainer</label>
+            <span style="opacity:0.5;font-size:0.85em">combined with sfm (no separate trainer)</span>
           </div>
           <div v-if="selectedVastInstance" class="param-row">
             <label>pipeline</label>
@@ -214,7 +243,7 @@
 
         <!-- Shared params (reuse same model values as video) -->
         <div class="params">
-          <div class="param-row">
+          <div v-if="sfm !== 'onthefly'" class="param-row">
             <label>iters</label>
             <input type="number" v-model.number="iters" min="100" max="5000" step="100" />
           </div>
@@ -235,14 +264,43 @@
           <div v-if="!selectedVastInstance" class="param-row">
             <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'glomap_lg', 'glomap_disk', 'glomap_sp', 'glomap_loftr', 'colmap_lg', 'fastmap', 'realityscan']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'glomap_lg', 'glomap_disk', 'glomap_sp', 'glomap_loftr', 'colmap_lg', 'fastmap', 'realityscan', 'onthefly']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
-          <div v-if="!selectedVastInstance" class="param-row">
+          <div v-if="!selectedVastInstance && sfm !== 'onthefly'" class="param-row">
             <label>trainer</label>
             <div class="toggle-group">
-              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto', 'gsplat']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
+              <button v-for="t in ['instantsplat', 'pgsr', 'splatfacto', 'gsplat', '2dgs', 'brush']" :key="t" :class="{ active: trainer === t }" @click="trainer = t">{{ t }}</button>
             </div>
+          </div>
+          <div v-if="!selectedVastInstance && trainer === 'gsplat' && sfm !== 'onthefly'" class="param-row">
+            <label>MCMC</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="mcmc" />
+              <span class="toggle-label">{{ mcmc ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <div v-if="!selectedVastInstance && (trainer === 'gsplat' || trainer === '2dgs') && sfm !== 'onthefly'" class="param-row">
+            <label>live viewer</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="viewer" />
+              <span class="toggle-label">{{ viewer ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <div v-if="!selectedVastInstance && trainer === 'gsplat' && sfm !== 'onthefly'" class="param-row">
+            <label>post-process</label>
+            <div class="toggle-group">
+              <button v-for="pp in ['none', 'bilateral_grid', 'ppisp']" :key="pp"
+                :class="{ active: postProcessing === pp }" @click="postProcessing = pp">{{ pp }}</button>
+            </div>
+          </div>
+          <div v-if="!selectedVastInstance && (trainer === 'gsplat' || trainer === '2dgs') && sfm !== 'onthefly'" class="param-row">
+            <label>ssim λ</label>
+            <input type="number" v-model.number="ssimLambda" min="0" max="0.5" step="0.05" />
+          </div>
+          <div v-if="!selectedVastInstance && sfm === 'onthefly'" class="param-row">
+            <label>trainer</label>
+            <span style="opacity:0.5;font-size:0.85em">combined with sfm (no separate trainer)</span>
           </div>
           <div v-if="selectedVastInstance" class="param-row">
             <label>pipeline</label>
@@ -310,7 +368,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
 import { getGateway } from '../config/gateway.js';
@@ -343,6 +401,12 @@ const colmapMatcher = ref('auto');
 
 const sfm = ref('mast3r');
 const trainer = ref('instantsplat');
+const mcmc = ref(true);
+const viewer = ref(false);
+const postProcessing = ref('none');
+const ssimLambda = ref(0.2);
+
+watch(postProcessing, (v) => { if (v === 'ppisp') mcmc.value = true; });
 
 const sharedParams = computed(() => ({
   iters: iters.value,
@@ -352,6 +416,10 @@ const sharedParams = computed(() => ({
   sparse_ga: sparseGa.value,
   sfm: selectedVastInstance.value ? 'megasam' : sfm.value,
   trainer: selectedVastInstance.value ? 'pgsr' : trainer.value,
+  mcmc: mcmc.value,
+  viewer: viewer.value,
+  post_processing: postProcessing.value,
+  ssim_lambda: ssimLambda.value,
   colmap_ba: colmapBa.value,
   colmap_matcher: colmapMatcher.value !== 'auto' ? colmapMatcher.value : '',
 }));
@@ -365,6 +433,14 @@ function appendSharedParams(form) {
   form.append('sparse_ga', p.sparse_ga);
   form.append('sfm', p.sfm);
   form.append('trainer', p.trainer);
+  form.append('mcmc', p.trainer === 'gsplat' ? p.mcmc : false);
+  form.append('viewer', (p.trainer === 'gsplat' || p.trainer === '2dgs') ? p.viewer : false);
+  if (p.trainer === 'gsplat') {
+    form.append('post_processing', p.post_processing);
+    form.append('ssim_lambda', p.ssim_lambda);
+  } else if (p.trainer === '2dgs') {
+    form.append('ssim_lambda', p.ssim_lambda);
+  }
   form.append('colmap_ba', p.colmap_ba);
   if (p.colmap_matcher) form.append('colmap_matcher', p.colmap_matcher);
 }
@@ -671,6 +747,10 @@ onMounted(async () => {
     colmapMatcher.value = p.colmap_matcher || 'auto';
     sfm.value = p.sfm ?? (p.engine === 'pgsr' ? 'mast3r' : p.engine) ?? 'mast3r';
     trainer.value = p.trainer ?? (p.engine === 'pgsr' ? 'pgsr' : 'instantsplat') ?? 'instantsplat';
+    mcmc.value = p.mcmc === true || p.mcmc === 'true';
+    viewer.value = p.viewer !== false && p.viewer !== 'false';
+    postProcessing.value = p.post_processing || 'none';
+    ssimLambda.value = p.ssim_lambda != null ? parseFloat(p.ssim_lambda) : 0.2;
     paramMode.value = p.n_frames != null ? 'nframes' : 'fps';
   }
   if (rerun.scene) sceneName.value = rerun.scene;

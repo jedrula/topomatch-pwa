@@ -32,6 +32,13 @@
             {{ refreshing ? 'Checking…' : 'Refresh' }}
           </button>
           <button
+            v-if="jobStatus === 'running' && viewerPort"
+            class="preview-btn"
+            @click="openViewer"
+          >
+            Live preview ↗
+          </button>
+          <button
             v-if="jobStatus === 'queued' || jobStatus === 'running'"
             class="cancel-btn"
             :disabled="cancelling"
@@ -77,10 +84,15 @@ const refreshing = ref(false);
 const cancelling = ref(false);
 const jobStatus = ref('');
 const queuePosition = ref(null);
+const viewerPort = ref(null);
 const logLines = ref([]);
 const jobMeta = ref(null); // { scene, params, stored_videos }
 let viewer = null;
 let currentObjectUrl = null;
+
+function openViewer() {
+  window.open(`http://localhost:${viewerPort.value}`, '_blank');
+}
 
 async function cancelJob() {
   if (!confirm('Cancel this job? The pipeline will be stopped and cannot be resumed.')) return;
@@ -108,9 +120,10 @@ async function checkStatus() {
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
-    const { status, queue_position, scene, params, stored_videos } = await res.json();
+    const { status, queue_position, scene, params, stored_videos, viewer_port } = await res.json();
     jobStatus.value = status;
     queuePosition.value = queue_position;
+    viewerPort.value = viewer_port ?? null;
     if (scene || params) {
       jobMeta.value = { scene, params, stored_videos: stored_videos ?? [] };
     }
@@ -456,6 +469,17 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
 }
 .refresh-btn:disabled { opacity: 0.5; cursor: default; }
 .refresh-btn:hover:not(:disabled) { background: #1d4ed8; }
+
+.preview-btn {
+  padding: 8px 18px;
+  background: #065f46;
+  color: #6ee7b7;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.preview-btn:hover { background: #047857; }
 
 .cancel-btn {
   padding: 8px 18px;
