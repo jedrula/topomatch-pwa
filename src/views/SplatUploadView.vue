@@ -111,7 +111,7 @@
           <div v-if="!selectedVastInstance" class="param-row">
             <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'glomap_lg', 'glomap_disk', 'glomap_sp', 'glomap_loftr', 'colmap_lg', 'fastmap', 'realityscan', 'onthefly']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap_sift', 'glomap_sift', 'glomap_aliked', 'glomap_disk', 'glomap_superpoint', 'glomap_loftr', 'colmap_aliked', 'fastmap', 'realityscan', 'onthefly']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
           <div v-if="!selectedVastInstance && sfm !== 'onthefly'" class="param-row">
@@ -264,7 +264,7 @@
           <div v-if="!selectedVastInstance" class="param-row">
             <label>sfm</label>
             <div class="toggle-group">
-              <button v-for="s in ['mast3r', 'fast3r', 'colmap', 'glomap', 'glomap_lg', 'glomap_disk', 'glomap_sp', 'glomap_loftr', 'colmap_lg', 'fastmap', 'realityscan', 'onthefly']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
+              <button v-for="s in ['mast3r', 'fast3r', 'colmap_sift', 'glomap_sift', 'glomap_aliked', 'glomap_disk', 'glomap_superpoint', 'glomap_loftr', 'colmap_aliked', 'fastmap', 'realityscan', 'onthefly']" :key="s" :class="{ active: sfm === s }" @click="sfm = s">{{ s }}</button>
             </div>
           </div>
           <div v-if="!selectedVastInstance && sfm !== 'onthefly'" class="param-row">
