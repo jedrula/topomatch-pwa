@@ -147,6 +147,7 @@ const router = createRouter({
           path: 'history',
           name: 'splat-history',
           component: () => import('../views/SplatHistoryView.vue'),
+          meta: { requiresAdmin: true },
         },
         {
           path: 'prepare',

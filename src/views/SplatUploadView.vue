@@ -141,6 +141,20 @@
                 :class="{ active: postProcessing === pp }" @click="postProcessing = pp">{{ pp }}</button>
             </div>
           </div>
+          <div v-if="!selectedVastInstance && trainer === 'gsplat' && postProcessing === 'bilateral_grid' && sfm !== 'onthefly'" class="param-row">
+            <label>bilagrid fused</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="bilateralGridFused" />
+              <span class="toggle-label">{{ bilateralGridFused ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <div v-if="!selectedVastInstance && trainer === 'gsplat' && sfm !== 'onthefly'" class="param-row">
+            <label>random bkgd</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="randomBkgd" />
+              <span class="toggle-label">{{ randomBkgd ? 'on' : 'off' }}</span>
+            </label>
+          </div>
           <div v-if="!selectedVastInstance && (trainer === 'gsplat' || trainer === '2dgs') && sfm !== 'onthefly'" class="param-row">
             <label>ssim λ</label>
             <input type="number" v-model.number="ssimLambda" min="0" max="0.5" step="0.05" />
@@ -186,7 +200,7 @@
               <span class="toggle-label">{{ colmapBa ? 'on' : 'off' }}</span>
             </label>
           </div>
-          <div class="param-row" v-if="sfm === 'colmap' || sfm === 'glomap'">
+          <div class="param-row" v-if="sfm === 'colmap_sift' || sfm === 'glomap_sift' || sfm === 'fastmap'">
             <label>matcher</label>
             <div class="toggle-group">
               <button v-for="m in ['auto', 'sequential', 'exhaustive', 'vocab_tree']" :key="m"
@@ -294,6 +308,20 @@
                 :class="{ active: postProcessing === pp }" @click="postProcessing = pp">{{ pp }}</button>
             </div>
           </div>
+          <div v-if="!selectedVastInstance && trainer === 'gsplat' && postProcessing === 'bilateral_grid' && sfm !== 'onthefly'" class="param-row">
+            <label>bilagrid fused</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="bilateralGridFused" />
+              <span class="toggle-label">{{ bilateralGridFused ? 'on' : 'off' }}</span>
+            </label>
+          </div>
+          <div v-if="!selectedVastInstance && trainer === 'gsplat' && sfm !== 'onthefly'" class="param-row">
+            <label>random bkgd</label>
+            <label class="toggle">
+              <input type="checkbox" v-model="randomBkgd" />
+              <span class="toggle-label">{{ randomBkgd ? 'on' : 'off' }}</span>
+            </label>
+          </div>
           <div v-if="!selectedVastInstance && (trainer === 'gsplat' || trainer === '2dgs') && sfm !== 'onthefly'" class="param-row">
             <label>ssim λ</label>
             <input type="number" v-model.number="ssimLambda" min="0" max="0.5" step="0.05" />
@@ -338,7 +366,7 @@
               <span class="toggle-label">{{ colmapBa ? 'on' : 'off' }}</span>
             </label>
           </div>
-          <div class="param-row" v-if="!selectedVastInstance && (sfm === 'colmap' || sfm === 'glomap')">
+          <div class="param-row" v-if="!selectedVastInstance && (sfm === 'colmap_sift' || sfm === 'glomap_sift' || sfm === 'fastmap')">
             <label>matcher</label>
             <div class="toggle-group">
               <button v-for="m in ['auto', 'sequential', 'exhaustive', 'vocab_tree']" :key="m"
@@ -404,6 +432,8 @@ const trainer = ref('instantsplat');
 const mcmc = ref(true);
 const viewer = ref(false);
 const postProcessing = ref('none');
+const bilateralGridFused = ref(false);
+const randomBkgd = ref(false);
 const ssimLambda = ref(0.2);
 
 watch(postProcessing, (v) => { if (v === 'ppisp') mcmc.value = true; });
@@ -419,6 +449,8 @@ const sharedParams = computed(() => ({
   mcmc: mcmc.value,
   viewer: viewer.value,
   post_processing: postProcessing.value,
+  bilateral_grid_fused: bilateralGridFused.value,
+  random_bkgd: randomBkgd.value,
   ssim_lambda: ssimLambda.value,
   colmap_ba: colmapBa.value,
   colmap_matcher: colmapMatcher.value !== 'auto' ? colmapMatcher.value : '',
@@ -437,6 +469,8 @@ function appendSharedParams(form) {
   form.append('viewer', (p.trainer === 'gsplat' || p.trainer === '2dgs') ? p.viewer : false);
   if (p.trainer === 'gsplat') {
     form.append('post_processing', p.post_processing);
+    form.append('bilateral_grid_fused', p.bilateral_grid_fused);
+    form.append('random_bkgd', p.random_bkgd);
     form.append('ssim_lambda', p.ssim_lambda);
   } else if (p.trainer === '2dgs') {
     form.append('ssim_lambda', p.ssim_lambda);
@@ -750,6 +784,8 @@ onMounted(async () => {
     mcmc.value = p.mcmc === true || p.mcmc === 'true';
     viewer.value = p.viewer !== false && p.viewer !== 'false';
     postProcessing.value = p.post_processing || 'none';
+    bilateralGridFused.value = !!p.bilateral_grid_fused;
+    randomBkgd.value = !!p.random_bkgd;
     ssimLambda.value = p.ssim_lambda != null ? parseFloat(p.ssim_lambda) : 0.2;
     paramMode.value = p.n_frames != null ? 'nframes' : 'fps';
   }
