@@ -236,8 +236,8 @@
               </div>
             </div>
             <div class="step-arrow">›</div>
-            <div class="pipeline-step" :class="{ active: phaseNum === 3, done: phaseNum >= 4 }">
-              <div class="step-circle" :class="{ done: phaseNum >= 4 }">{{ phaseNum >= 4 ? '✓' : '3' }}</div>
+            <div class="pipeline-step" :class="{ active: phaseNum === 3 && !awaitingConfirmation, done: phaseNum >= 4 || awaitingConfirmation }">
+              <div class="step-circle" :class="{ done: phaseNum >= 4 || awaitingConfirmation }">{{ phaseNum >= 4 || awaitingConfirmation ? '✓' : '3' }}</div>
               <div class="step-body">
                 <span class="step-name">Selection</span>
                 <span class="step-status">{{ step3Status }}</span>
@@ -294,8 +294,18 @@
             </div>
           </template>
 
+          <!-- Confirm button (shown after selection, before upload) -->
+          <button
+            v-if="awaitingConfirmation"
+            class="process-btn confirm-btn"
+            @click="confirmUpload"
+          >
+            Upload {{ extractionViz.selectedIndices.length }} frames
+          </button>
+
           <!-- Process button -->
           <button
+            v-else
             class="process-btn"
             :disabled="videoLoading || phaseNum > 0"
             @click="startJob"
@@ -565,6 +575,8 @@ function appendSharedParams(form) {
 }
 const processing = ref(false);
 const videoLoading = ref(false);
+const awaitingConfirmation = ref(false);
+const pendingFrameBlobs = ref([]);
 
 // ── Extraction pipeline visualization ─────────────────────────────────────────
 const extractionViz = ref({
@@ -585,6 +597,8 @@ function resetExtractionViz() {
     phase: null, keyframeCount: 0, scoredFrames: [],
     selectedIndices: [], batches: [], uploadLoaded: 0, uploadTotal: 0,
   };
+  awaitingConfirmation.value = false;
+  pendingFrameBlobs.value = [];
 }
 
 onUnmounted(() => {
@@ -778,7 +792,23 @@ async function startJob() {
     return;
   }
 
-  // Build form and upload with progress tracking
+  // Pause here — let the user review the frame grid before uploading
+  pendingFrameBlobs.value = allFrameBlobs;
+  awaitingConfirmation.value = true;
+}
+
+async function confirmUpload() {
+  const allFrameBlobs = pendingFrameBlobs.value;
+  awaitingConfirmation.value = false;
+
+  let gateway;
+  try {
+    gateway = await getGateway();
+  } catch (err) {
+    error.value = 'Gateway not configured: ' + err.message;
+    return;
+  }
+
   const form = new FormData();
   allFrameBlobs.forEach((f, i) => {
     form.append('images', new File([f.fullBlob], `frame_${String(i).padStart(5, '0')}.jpg`, { type: 'image/jpeg' }));
@@ -1262,6 +1292,8 @@ onMounted(async () => {
 }
 .process-btn:hover:not(:disabled) { background: #15803d; }
 .process-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.confirm-btn { background: #1d4ed8; }
+.confirm-btn:hover { background: #1e40af; }
 .process-hint { font-size: 0.75rem; color: #6b7280; text-align: center; margin-top: -4px; }
 
 .error {
