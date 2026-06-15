@@ -209,92 +209,93 @@
         </div>
 
         <!-- ── Extraction pipeline ─────────────────────────────────────── -->
-        <!-- TODO CHECK: user reported something wrong in the UI (screenshot at 09:32:55 not readable).
-             Verify after loading a real video:
-             1. Old "preview-strip" frame row is gone (deleted — should not appear below the film strip)
-             2. The 4-step pipeline panel shows below the shared params (idle: all dimmed, ~N frames hint)
-             3. After clicking Process Video → steps light up in sequence as scoring/selecting/uploading runs
-             4. Batch grid shows correct winner (★ green border) vs rejected (28% opacity) per batch row
-             5. Upload progress bar appears and fills during XHR upload to /images-to-splat
-        -->
         <div class="pipeline-panel">
-          <!-- Step row -->
-          <div class="pipeline-steps">
-            <div class="pipeline-step" :class="{ done: phaseNum >= 2 }">
-              <div class="step-circle" :class="{ done: phaseNum >= 2 }">{{ phaseNum >= 2 ? '✓' : '1' }}</div>
-              <div class="step-body">
-                <span class="step-name">Keyframes</span>
-                <span class="step-status">{{ step1Status }}</span>
+
+          <!-- Progress bars: shown while worker is running -->
+          <template v-if="(phaseNum === 2 || phaseNum === 3) && !awaitingConfirmation">
+            <div class="extraction-progress">
+              <div class="prog-row">
+                <span class="prog-label">Extracting Frames</span>
+                <span class="prog-method">MediaBunny</span>
+                <span class="prog-count">{{ extractionViz.scoredFrames.length }}/{{ extractionViz.keyframeCount || '?' }}</span>
+              </div>
+              <div class="prog-track"><div class="prog-fill" :style="{ width: progressPct + '%' }" /></div>
+              <div class="prog-row prog-row-gap">
+                <span class="prog-label">Calculating Sharpness</span>
+                <span class="prog-count">{{ extractionViz.scoredFrames.length }}/{{ extractionViz.keyframeCount || '?' }}</span>
+              </div>
+              <div class="prog-track"><div class="prog-fill prog-fill-blue" :style="{ width: progressPct + '%' }" /></div>
+            </div>
+          </template>
+
+          <!-- Upload progress -->
+          <template v-if="phaseNum === 4">
+            <div class="extraction-progress">
+              <div class="prog-row">
+                <span class="prog-label">Uploading</span>
+                <span class="prog-count">{{ step4Status }}</span>
+              </div>
+              <div class="prog-track" v-if="extractionViz.uploadTotal > 0">
+                <div class="prog-fill prog-fill-blue" :style="{ width: (extractionViz.uploadLoaded / extractionViz.uploadTotal * 100) + '%' }" />
               </div>
             </div>
-            <div class="step-arrow">›</div>
-            <div class="pipeline-step" :class="{ active: phaseNum === 2, done: phaseNum >= 3 }">
-              <div class="step-circle" :class="{ done: phaseNum >= 3 }">{{ phaseNum >= 3 ? '✓' : '2' }}</div>
-              <div class="step-body">
-                <span class="step-name">Sharpness</span>
-                <span class="step-status">{{ step2Status }}</span>
-              </div>
+          </template>
+
+          <!-- Frame bar chart + minimap (appears as frames are scored) -->
+          <template v-if="extractionViz.scoredFrames.length">
+            <div class="analysis-header">
+              <span class="analysis-title">Frame Analysis</span>
+              <span class="analysis-sub">
+                {{ extractionViz.scoredFrames.length }}{{ extractionViz.keyframeCount ? ` / ${extractionViz.keyframeCount}` : '' }} frames
+              </span>
             </div>
-            <div class="step-arrow">›</div>
-            <div class="pipeline-step" :class="{ active: phaseNum === 3 && !awaitingConfirmation, done: phaseNum >= 4 || awaitingConfirmation }">
-              <div class="step-circle" :class="{ done: phaseNum >= 4 || awaitingConfirmation }">{{ phaseNum >= 4 || awaitingConfirmation ? '✓' : '3' }}</div>
-              <div class="step-body">
-                <span class="step-name">Selection</span>
-                <span class="step-status">{{ step3Status }}</span>
-              </div>
+
+            <div class="barchart-wrap">
+              <svg
+                class="barchart-svg"
+                :viewBox="`0 0 ${extractionViz.scoredFrames.length} 100`"
+                preserveAspectRatio="none"
+              >
+                <rect
+                  v-for="(frame, idx) in extractionViz.scoredFrames"
+                  :key="idx"
+                  :x="idx"
+                  :y="100 - scorePercent(frame.score)"
+                  width="0.85"
+                  :height="Math.max(scorePercent(frame.score), 1)"
+                  :fill="selectedSet.has(idx) ? '#3b82f6' : (phaseNum >= 3 ? '#374151' : '#4b5563')"
+                />
+              </svg>
             </div>
-            <div class="step-arrow">›</div>
-            <div class="pipeline-step" :class="{ active: phaseNum === 4 }">
-              <div class="step-circle">4</div>
-              <div class="step-body">
-                <span class="step-name">Upload</span>
-                <span class="step-status">{{ step4Status }}</span>
-              </div>
+
+            <div class="minimap-wrap" v-if="extractionViz.scoredFrames.length >= 3">
+              <svg
+                class="minimap-svg"
+                :viewBox="`0 0 ${Math.max(extractionViz.scoredFrames.length - 1, 1)} 100`"
+                preserveAspectRatio="none"
+              >
+                <polyline
+                  :points="minimapPoints"
+                  fill="none"
+                  stroke="#3b82f6"
+                  stroke-width="2"
+                  vector-effect="non-scaling-stroke"
+                />
+              </svg>
             </div>
+
+            <div v-if="awaitingConfirmation" class="confirm-stats">
+              <span class="conf-n">{{ extractionViz.selectedIndices.length }}</span>
+              <span class="conf-label"> frames selected of {{ extractionViz.scoredFrames.length }} total</span>
+            </div>
+          </template>
+
+          <!-- Idle hint -->
+          <div v-else-if="phaseNum === 0" class="pipeline-idle-hint">
+            {{ videoLoading ? 'Loading video…' : `~${estimatedFrameCount} frames will be extracted in-browser` }}
           </div>
 
-          <!-- Upload progress bar -->
-          <div v-if="phaseNum === 4 && extractionViz.uploadTotal > 0" class="upload-bar-wrap">
-            <div class="upload-bar" :style="{ width: (extractionViz.uploadLoaded / extractionViz.uploadTotal * 100) + '%' }" />
-          </div>
-
-          <!-- Frame grid — flat during scoring, batches after selection -->
-          <template v-if="extractionViz.batches.length">
-            <!-- Batch view: one row per batch, winner highlighted -->
-            <div class="batch-grid">
-              <div v-for="(batch, bi) in extractionViz.batches" :key="bi" class="batch-row">
-                <span class="batch-num">{{ bi + 1 }}</span>
-                <div class="batch-frames">
-                  <div
-                    v-for="idx in range(batch.start, batch.end)"
-                    :key="idx"
-                    class="frame-card"
-                    :class="{ winner: idx === batch.winner, rejected: idx !== batch.winner }"
-                  >
-                    <img :src="extractionViz.scoredFrames[idx]?.thumbUrl" class="frame-card-img" />
-                    <div class="score-fill" :style="{ width: scorePercent(extractionViz.scoredFrames[idx]?.score) + '%' }" />
-                    <span v-if="idx === batch.winner" class="winner-badge">★</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
-          <template v-else-if="extractionViz.scoredFrames.length">
-            <!-- Flat view: frames appear as they are scored -->
-            <div class="flat-frame-grid">
-              <div v-for="(frame, idx) in extractionViz.scoredFrames" :key="idx" class="frame-card">
-                <img :src="frame.thumbUrl" class="frame-card-img" />
-                <div class="score-fill" :style="{ width: scorePercent(frame.score) + '%' }" />
-              </div>
-            </div>
-          </template>
-          <template v-else>
-            <div class="pipeline-idle-hint">
-              {{ videoLoading ? 'Loading video…' : `~${estimatedFrameCount} frames will be extracted in-browser` }}
-            </div>
-          </template>
-
-          <!-- Confirm button (shown after selection, before upload) -->
+          <!-- Confirm button -->
           <button
             v-if="awaitingConfirmation"
             class="process-btn confirm-btn"
@@ -310,7 +311,7 @@
             :disabled="videoLoading || phaseNum > 0"
             @click="startJob"
           >
-            {{ phaseNum === 2 ? `Scoring… ${extractionViz.scoredFrames.length}/${extractionViz.keyframeCount}`
+            {{ phaseNum === 2 ? `Extracting… ${extractionViz.scoredFrames.length}/${extractionViz.keyframeCount || '?'}`
               : phaseNum === 3 ? 'Selecting best frames…'
               : phaseNum === 4 ? 'Uploading…'
               : videoLoading ? 'Preparing…'
@@ -633,6 +634,21 @@ function scorePercent(score) {
 function range(start, end) {
   return Array.from({ length: end - start + 1 }, (_, k) => start + k);
 }
+
+const selectedSet = computed(() => new Set(extractionViz.value.selectedIndices));
+
+const progressPct = computed(() => {
+  const v = extractionViz.value;
+  if (!v.keyframeCount) return 0;
+  return Math.min(100, Math.round((v.scoredFrames.length / v.keyframeCount) * 100));
+});
+
+const minimapPoints = computed(() => {
+  const frames = extractionViz.value.scoredFrames;
+  if (frames.length < 2) return '';
+  const max = Math.max(...frames.map(f => f.score ?? 0), 0.001);
+  return frames.map((f, i) => `${i},${90 - ((f.score ?? 0) / max) * 80}`).join(' ');
+});
 
 const step1Status = computed(() => {
   const v = extractionViz.value;
@@ -1385,60 +1401,6 @@ onMounted(async () => {
   gap: 14px;
 }
 
-/* Step row */
-.pipeline-steps {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.pipeline-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #2d3748;
-  background: #1a202c;
-  opacity: 0.45;
-  transition: opacity 0.2s, border-color 0.2s;
-  min-width: 140px;
-}
-.pipeline-step.active { opacity: 1; border-color: #3b82f6; background: #1e293b; }
-.pipeline-step.done   { opacity: 0.75; border-color: #374151; }
-
-.step-circle {
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  border: 2px solid #4b5563;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.72rem; font-weight: 700; color: #9ca3af;
-  flex-shrink: 0;
-}
-.step-circle.done { border-color: #22c55e; color: #22c55e; }
-.pipeline-step.active .step-circle { border-color: #3b82f6; color: #60a5fa; }
-
-.step-body { display: flex; flex-direction: column; gap: 1px; }
-.step-name  { font-size: 0.78rem; font-weight: 600; color: #d1d5db; }
-.step-status { font-size: 0.68rem; color: #6b7280; font-variant-numeric: tabular-nums; }
-.pipeline-step.active .step-status { color: #93c5fd; }
-
-.step-arrow { color: #374151; font-size: 1.1rem; flex-shrink: 0; padding: 0 2px; }
-
-/* Upload progress bar */
-.upload-bar-wrap {
-  height: 4px;
-  background: #1f2937;
-  border-radius: 2px;
-  overflow: hidden;
-}
-.upload-bar {
-  height: 100%;
-  background: #3b82f6;
-  border-radius: 2px;
-  transition: width 0.15s;
-}
-
 /* Idle hint */
 .pipeline-idle-hint {
   font-size: 0.78rem;
@@ -1447,83 +1409,101 @@ onMounted(async () => {
   padding: 8px 0;
 }
 
-/* Batch grid (after selection) */
-.batch-grid {
+/* Progress bars */
+.extraction-progress {
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  width: 100%;
+  gap: 5px;
 }
-.batch-row {
+.prog-row {
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
 }
-.batch-num {
-  width: 18px;
-  font-size: 0.6rem;
-  color: #4b5563;
-  text-align: right;
-  padding-top: 4px;
-  flex-shrink: 0;
+.prog-row-gap { margin-top: 8px; }
+.prog-label { flex: 1; color: #d1d5db; }
+.prog-method {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  background: #1e3a8a;
+  color: #93c5fd;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.prog-count {
+  font-size: 0.75rem;
+  color: #6b7280;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.batch-frames {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-/* Flat grid (during scoring) */
-.flat-frame-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  width: 100%;
-}
-
-/* Individual frame card */
-.frame-card {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  border-radius: 4px;
+.prog-track {
+  height: 5px;
+  background: #1e293b;
+  border-radius: 3px;
   overflow: hidden;
-  border: 2px solid transparent;
-  flex-shrink: 0;
-  transition: opacity 0.3s, border-color 0.3s;
-  background: #111827;
 }
-.frame-card.winner {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 1px #166534;
+.prog-fill {
+  height: 100%;
+  background: #e2e8f0;
+  border-radius: 3px;
+  transition: width 0.2s ease;
 }
-.frame-card.rejected {
-  opacity: 0.28;
+.prog-fill-blue { background: #3b82f6; }
+
+/* Frame analysis header */
+.analysis-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
-.frame-card-img {
+.analysis-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #d1d5db;
+}
+.analysis-sub {
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+/* Bar chart */
+.barchart-wrap {
+  width: 100%;
+  height: 110px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0f172a;
+}
+.barchart-svg {
   width: 100%;
   height: 100%;
-  object-fit: cover;
   display: block;
 }
 
-/* Score bar at bottom of each card */
-.score-fill {
-  position: absolute;
-  bottom: 0; left: 0;
-  height: 3px;
-  background: linear-gradient(to right, #dc2626, #f59e0b, #22c55e);
-  border-radius: 0 0 2px 2px;
+/* Minimap */
+.minimap-wrap {
+  width: 100%;
+  height: 32px;
+  background: #0f172a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.minimap-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-/* Winner star badge */
-.winner-badge {
-  position: absolute;
-  top: 2px; right: 3px;
-  font-size: 0.65rem;
-  color: #22c55e;
-  text-shadow: 0 0 4px #000;
-  line-height: 1;
+/* Confirmation stats */
+.confirm-stats {
+  font-size: 0.82rem;
+  color: #9ca3af;
+  text-align: center;
+}
+.conf-n {
+  font-weight: 700;
+  color: #60a5fa;
 }
 </style>
