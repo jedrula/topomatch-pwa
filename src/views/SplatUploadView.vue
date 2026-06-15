@@ -503,17 +503,17 @@ async function onSplatFile(e) {
 const videoFiles = ref([]);
 const videoStrips = ref([]);
 const paramMode = ref('fps');
-const iters = ref(1000);
+const iters = ref(5000);
 const imageSize = ref(256);
 const sceneName = ref('');
 const earlyStop = ref(false);
 const sparsePairs = ref(false);
 const sparseGa = ref(false);
 const colmapBa = ref(false);
-const colmapMatcher = ref('auto');
+const colmapMatcher = ref('exhaustive');
 
-const sfm = ref('mast3r');
-const trainer = ref('instantsplat');
+const sfm = ref('glomap_sift');
+const trainer = ref('brush');
 const mcmc = ref(true);
 const viewer = ref(false);
 const postProcessing = ref('none');
