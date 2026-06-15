@@ -1,5 +1,13 @@
 <template>
   <div class="filter-bar">
+    <input
+      v-model="query"
+      class="scene-search"
+      type="search"
+      placeholder="Search scene names…"
+      spellcheck="false"
+    />
+
     <div class="filter-groups">
       <!-- Status chips -->
       <div class="filter-group">
@@ -117,6 +125,7 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+const query          = ref('');
 const activeStatuses = ref(new Set());
 const activeTrainers = ref(new Set());
 const activeSources  = ref(new Set());
@@ -154,6 +163,7 @@ const psnrColorClass = computed(() => {
 });
 
 const isActive = computed(() =>
+  query.value.trim().length > 0 ||
   activeStatuses.value.size > 0 ||
   activeTrainers.value.size > 0 ||
   activeSources.value.size  > 0 ||
@@ -170,6 +180,7 @@ function toggle(key, val) {
 }
 
 function reset() {
+  query.value          = '';
   activeStatuses.value = new Set();
   activeTrainers.value = new Set();
   activeSources.value  = new Set();
@@ -180,6 +191,7 @@ function reset() {
 
 function buildFilters() {
   return {
+    query:    query.value.trim() || null,
     statuses: activeStatuses.value.size > 0 ? new Set(activeStatuses.value) : null,
     trainers: activeTrainers.value.size > 0 ? new Set(activeTrainers.value) : null,
     sources:  activeSources.value.size  > 0 ? new Set(activeSources.value)  : null,
@@ -188,7 +200,7 @@ function buildFilters() {
   };
 }
 
-watch([activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrValue, itersEnabled, itersValue], () => {
+watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrValue, itersEnabled, itersValue], () => {
   emit('update:modelValue', buildFilters());
 }, { deep: true });
 </script>
@@ -205,6 +217,22 @@ watch([activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrValue, it
   flex-direction: column;
   gap: 10px;
 }
+
+.scene-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0d1117;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: #e5e7eb;
+  font-size: 0.85rem;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.scene-search::placeholder { color: #4b5563; }
+.scene-search:focus { border-color: #2563eb; }
+.scene-search::-webkit-search-cancel-button { cursor: pointer; }
 
 .filter-groups {
   display: flex;

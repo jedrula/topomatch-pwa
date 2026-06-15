@@ -271,7 +271,8 @@ const jobs = ref([]);
 const filters = ref({ statuses: null, minPsnr: null });
 
 const filteredJobs = computed(() => {
-  const { statuses, trainers, sources, minPsnr, maxIters } = filters.value;
+  const { statuses, trainers, sources, minPsnr, maxIters, query } = filters.value;
+  const needle = query?.trim().toLowerCase();
   return jobs.value.filter(job => {
     if (statuses  && !statuses.has(job.status))          return false;
     if (trainers  && !trainers.has(job.params?.trainer)) return false;
@@ -280,6 +281,10 @@ const filteredJobs = computed(() => {
     if (minPsnr != null) {
       const psnr = job.metrics?.psnr;
       if (psnr == null || psnr < minPsnr) return false;
+    }
+    if (needle) {
+      const haystack = (job.scene ?? '').toLowerCase();
+      if (!haystack.includes(needle)) return false;
     }
     return true;
   });
