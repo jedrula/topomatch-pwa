@@ -172,7 +172,60 @@
           <template v-for="v in job.stored_videos" :key="v.stored">
             <a :href="videoUrl(job.job_id, v.stored)" class="view-btn vid-btn" download>⬇ {{ v.filename }}</a>
           </template>
+          <button class="view-btn assign-toggle-btn" @click="toggleAssign(job.job_id)">
+            {{ expandedAssign.has(job.job_id) ? 'Cancel' : 'Assign 📍' }}
+          </button>
           <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
+        </div>
+
+        <!-- Splat assignment panel -->
+        <div v-if="expandedAssign.has(job.job_id)" class="assign-panel">
+          <div v-if="locationsLoading" class="assign-msg">Loading locations…</div>
+          <div v-else-if="locationsError" class="assign-msg assign-error">{{ locationsError }}</div>
+          <template v-else>
+            <div class="assign-row">
+              <label class="assign-label">Location</label>
+              <select
+                :value="assignSelections[job.job_id]?.locationId ?? ''"
+                @change="e => onLocationSelect(job.job_id, e.target.value)"
+                class="assign-select"
+              >
+                <option value="">Choose location…</option>
+                <option v-for="loc in locationsList" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
+              </select>
+            </div>
+
+            <template v-if="assignSelections[job.job_id]?.locationId">
+              <div class="assign-row">
+                <label class="assign-label">Routesetting</label>
+                <select
+                  :value="assignSelections[job.job_id]?.routesetting ?? ''"
+                  @change="e => onRoutesettingSelect(job.job_id, e.target.value)"
+                  class="assign-select"
+                >
+                  <option value="">Choose routesetting…</option>
+                  <option
+                    v-for="rs in getLocationRoutesettings(assignSelections[job.job_id].locationId)"
+                    :key="rs"
+                    :value="rs"
+                  >{{ formatDate(rs) }}</option>
+                </select>
+              </div>
+
+              <button
+                v-if="assignSelections[job.job_id]?.routesetting && !assignSelections[job.job_id]?.done"
+                :disabled="assignSelections[job.job_id]?.saving"
+                @click="saveAssignment(job.job_id)"
+                class="view-btn assign-confirm-btn"
+              >
+                {{ assignSelections[job.job_id]?.saving ? 'Saving…' : 'Confirm assignment ✓' }}
+              </button>
+
+              <div v-if="assignSelections[job.job_id]?.done" class="assign-success">
+                ✓ Assigned! Users will now see "View in 3D" on that routesetting.
+              </div>
+            </template>
+          </template>
         </div>
 
         <!-- Logs for non-done jobs too -->
@@ -259,6 +312,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { getDocs, collection, orderBy, query as fsQuery, doc, updateDoc, FieldPath } from 'firebase/firestore';
+import { db } from '../services/firebase.js';
 import { getGateway } from '../config/gateway.js';
 import { thumbGet, thumbDelete } from '../utils/thumbDb.js';
 import PointCloudViewer from '../components/PointCloudViewer.vue';
@@ -622,6 +677,81 @@ function totalPipelineS(job) {
 function stepWidth(stepS, totalS) {
   if (!stepS || !totalS || totalS === 0) return { width: '0%' };
   return { width: `${Math.min(100, Math.round((stepS / totalS) * 100))}%` };
+}
+
+// ── Splat assignment ─────────────────────────────────────────────────────────
+const expandedAssign = ref(new Set());
+const locationsList = ref([]);
+const locationsLoading = ref(false);
+const locationsError = ref('');
+// Per-job selection state: { locationId, routesetting, saving, done }
+const assignSelections = ref({});
+
+function toggleAssign(jobId) {
+  const s = new Set(expandedAssign.value);
+  if (s.has(jobId)) {
+    s.delete(jobId);
+  } else {
+    s.add(jobId);
+    if (!assignSelections.value[jobId]) {
+      assignSelections.value[jobId] = { locationId: '', routesetting: '', saving: false, done: false };
+    }
+    if (locationsList.value.length === 0 && !locationsLoading.value) {
+      loadLocations();
+    }
+  }
+  expandedAssign.value = s;
+}
+
+async function loadLocations() {
+  locationsLoading.value = true;
+  locationsError.value = '';
+  try {
+    const snap = await getDocs(fsQuery(collection(db, 'locations'), orderBy('name')));
+    locationsList.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    locationsError.value = 'Failed to load locations: ' + err.message;
+  } finally {
+    locationsLoading.value = false;
+  }
+}
+
+function onLocationSelect(jobId, locationId) {
+  assignSelections.value[jobId] = { locationId, routesetting: '', saving: false, done: false };
+}
+
+function onRoutesettingSelect(jobId, routesetting) {
+  assignSelections.value[jobId] = { ...assignSelections.value[jobId], routesetting, done: false };
+}
+
+function getLocationRoutesettings(locationId) {
+  const loc = locationsList.value.find(l => l.id === locationId);
+  if (!loc?.routesettings?.length) return [];
+  return [...loc.routesettings].sort((a, b) => b.localeCompare(a));
+}
+
+async function saveAssignment(jobId) {
+  const sel = assignSelections.value[jobId];
+  if (!sel?.locationId || !sel?.routesetting) return;
+  sel.saving = true;
+  try {
+    const gateway = gatewayCache ?? await resolvedGateway();
+    const ref = doc(db, 'locations', sel.locationId);
+    // FieldPath handles ISO timestamp keys that contain dots/colons
+    await updateDoc(ref, new FieldPath('splatJobs', sel.routesetting), jobId, 'splatGatewayUrl', gateway);
+    sel.done = true;
+    // Auto-close panel after 3s
+    setTimeout(() => {
+      const s = new Set(expandedAssign.value);
+      s.delete(jobId);
+      expandedAssign.value = s;
+      sel.done = false;
+    }, 3000);
+  } catch (err) {
+    alert('Failed to save assignment: ' + err.message);
+  } finally {
+    sel.saving = false;
+  }
 }
 
 onMounted(async () => {
@@ -1183,5 +1313,61 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   padding: 4px 12px;
   border-radius: 999px;
   pointer-events: none;
+}
+
+/* ── Splat assignment ── */
+.assign-toggle-btn { background: #1d4e3c; color: #6ee7b7; }
+.assign-toggle-btn:hover { background: #15573f; }
+
+.assign-panel {
+  background: #0f1a14;
+  border: 1px solid #1a3d28;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.assign-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.assign-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+  width: 88px;
+  flex-shrink: 0;
+}
+
+.assign-select {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  color: #e5e7eb;
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  outline: none;
+  cursor: pointer;
+}
+.assign-select:focus { border-color: #6ee7b7; }
+
+.assign-confirm-btn { background: #065f46; color: #6ee7b7; }
+.assign-confirm-btn:hover:not(:disabled) { background: #047857; }
+.assign-confirm-btn:disabled { opacity: 0.5; cursor: default; }
+
+.assign-msg { font-size: 0.82rem; color: #6b7280; }
+.assign-error { color: #f87171; }
+
+.assign-success {
+  font-size: 0.82rem;
+  color: #6ee7b7;
+  background: #052e16;
+  border: 1px solid #14532d;
+  border-radius: 6px;
+  padding: 8px 12px;
 }
 </style>
