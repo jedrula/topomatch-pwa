@@ -1,7 +1,7 @@
 <template>
   <div class="picker">
     <!-- Load existing .splat file -->
-    <section class="section narrow">
+    <section v-if="!videoFiles.length" class="section narrow">
       <h3>Load .splat file</h3>
       <label class="pick-btn">
         Choose .splat file
@@ -9,27 +9,18 @@
       </label>
     </section>
 
-    <div class="divider">or</div>
+    <div v-if="!videoFiles.length" class="divider">or</div>
 
     <!-- Create from video -->
     <section class="section wide">
       <h3>Create from video</h3>
 
-      <label class="pick-btn secondary" :class="{ loading: videoLoading }">
+      <label v-if="!videoFiles.length" class="pick-btn secondary" :class="{ loading: videoLoading }">
         {{ videoLoading ? 'Downloading video…' : 'Choose video(s)' }}
         <input type="file" accept=".mp4,.mov,.MOV,.MP4" multiple @change="onVideoFile" :disabled="videoLoading" hidden />
       </label>
 
       <template v-if="videoFiles.length">
-        <!-- Mode selector above strips -->
-        <div class="mode-row">
-          <span class="mode-label">Mode</span>
-          <div class="toggle-group">
-            <button :class="{ active: paramMode === 'nframes' }" @click="paramMode = 'nframes'">n-frames + duration</button>
-            <button :class="{ active: paramMode === 'fps' }" @click="paramMode = 'fps'">fps</button>
-          </div>
-        </div>
-
         <!-- Per-video strips -->
         <div class="video-strips">
           <div v-for="(strip, i) in videoStrips" :key="strip.name" class="strip">
@@ -58,16 +49,6 @@
 
             <!-- Per-video params + trim times -->
             <div class="strip-params">
-              <template v-if="paramMode === 'nframes'">
-                <label class="param-input">n-frames
-                  <input type="number" v-model.number="strip.nFrames" min="2" max="20" />
-                </label>
-              </template>
-              <template v-else>
-                <label class="param-input">fps
-                  <input type="number" v-model.number="strip.fps" min="0.1" max="5" step="0.1" />
-                </label>
-              </template>
               <div class="trim-times">
                 <span class="time-field">start <span class="time-val">{{ formatTime(strip.startTime) }}</span></span>
                 <span class="time-field">end <span class="time-val">{{ formatTime(strip.endTime ?? strip.videoDuration) }}</span></span>
@@ -75,6 +56,106 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- ── Extraction pipeline (right under the strip) ───────────── -->
+        <div class="pipeline-panel">
+
+          <!-- Progress bars: shown while worker is running -->
+          <template v-if="(phaseNum === 2 || phaseNum === 3) && !awaitingConfirmation">
+            <div class="extraction-progress">
+              <div class="prog-row">
+                <span class="prog-label">Extracting Frames</span>
+                <span class="prog-method">MediaBunny</span>
+                <span class="prog-count">{{ extractionViz.scoredFrames.length }}/{{ extractionViz.keyframeCount || '?' }}</span>
+              </div>
+              <div class="prog-track"><div class="prog-fill" :style="{ width: progressPct + '%' }" /></div>
+              <div class="prog-row prog-row-gap">
+                <span class="prog-label">Calculating Sharpness</span>
+                <span class="prog-count">{{ extractionViz.scoredFrames.length }}/{{ extractionViz.keyframeCount || '?' }}</span>
+              </div>
+              <div class="prog-track"><div class="prog-fill prog-fill-blue" :style="{ width: progressPct + '%' }" /></div>
+            </div>
+          </template>
+
+          <!-- Upload progress -->
+          <template v-if="phaseNum === 4">
+            <div class="extraction-progress">
+              <div class="prog-row">
+                <span class="prog-label">Uploading</span>
+                <span class="prog-count">{{ step4Status }}</span>
+              </div>
+              <div class="prog-track" v-if="extractionViz.uploadTotal > 0">
+                <div class="prog-fill prog-fill-blue" :style="{ width: (extractionViz.uploadLoaded / extractionViz.uploadTotal * 100) + '%' }" />
+              </div>
+            </div>
+          </template>
+
+          <!-- Frame bar chart + minimap + preview -->
+          <template v-if="extractionViz.scoredFrames.length">
+            <div class="analysis-header">
+              <span class="analysis-title">Frame Analysis</span>
+              <span class="analysis-sub">
+                {{ extractionViz.scoredFrames.length }}{{ extractionViz.keyframeCount ? ` / ${extractionViz.keyframeCount}` : '' }} frames
+              </span>
+            </div>
+
+            <div class="barchart-wrap" @click="onChartClick">
+              <svg
+                class="barchart-svg"
+                :viewBox="`0 0 ${extractionViz.scoredFrames.length} 100`"
+                preserveAspectRatio="none"
+              >
+                <rect
+                  v-for="(frame, idx) in extractionViz.scoredFrames"
+                  :key="idx"
+                  :x="idx"
+                  :y="100 - scorePercent(frame.score)"
+                  width="0.85"
+                  :height="Math.max(scorePercent(frame.score), 1)"
+                  :fill="previewFrame?.index === idx ? '#f59e0b' : selectedSet.has(idx) ? '#3b82f6' : (phaseNum >= 3 ? '#374151' : '#4b5563')"
+                />
+              </svg>
+            </div>
+
+            <!-- Frame preview on click -->
+            <div v-if="previewFrame" class="frame-preview">
+              <img :src="previewFrame.thumbUrl" class="preview-thumb" />
+              <div class="preview-info">
+                <span class="preview-time">{{ formatTime(previewFrame.timeS) }}</span>
+                <span class="preview-score">sharpness {{ normalizedScore(previewFrame.score) }}/100</span>
+                <span class="preview-badge" :class="selectedSet.has(previewFrame.index) ? 'preview-sel' : 'preview-rej'">
+                  {{ selectedSet.has(previewFrame.index) ? 'selected' : 'rejected' }}
+                </span>
+              </div>
+              <button class="preview-close" @click.stop="previewFrame = null">✕</button>
+            </div>
+
+            <!-- Batch selection controls -->
+            <div class="batch-controls">
+              <label class="batch-ctrl">
+                <span>Batch size</span>
+                <input type="number" v-model.number="batchSize" min="1" max="50" />
+                <span class="batch-hint">frames per group</span>
+              </label>
+              <label class="batch-ctrl">
+                <span>Buffer</span>
+                <input type="number" v-model.number="batchBuffer" min="0" max="20" />
+                <span class="batch-hint">frames to skip between groups</span>
+              </label>
+            </div>
+
+            <div v-if="awaitingConfirmation" class="confirm-stats">
+              <span class="conf-n">{{ liveSelection.length }}</span>
+              <span class="conf-label"> frames selected of {{ extractionViz.scoredFrames.length }} total</span>
+            </div>
+          </template>
+
+          <!-- Idle hint (brief — auto-trigger fires shortly after video loads) -->
+          <div v-else-if="phaseNum === 0" class="pipeline-idle-hint">
+            {{ videoLoading ? 'Loading video…' : 'Preparing extraction…' }}
+          </div>
+
         </div>
 
         <!-- Shared params -->
@@ -208,125 +289,15 @@
           </div>
         </div>
 
-        <!-- ── Extraction pipeline ─────────────────────────────────────── -->
-        <div class="pipeline-panel">
-
-          <!-- Progress bars: shown while worker is running -->
-          <template v-if="(phaseNum === 2 || phaseNum === 3) && !awaitingConfirmation">
-            <div class="extraction-progress">
-              <div class="prog-row">
-                <span class="prog-label">Extracting Frames</span>
-                <span class="prog-method">MediaBunny</span>
-                <span class="prog-count">{{ extractionViz.scoredFrames.length }}/{{ extractionViz.keyframeCount || '?' }}</span>
-              </div>
-              <div class="prog-track"><div class="prog-fill" :style="{ width: progressPct + '%' }" /></div>
-              <div class="prog-row prog-row-gap">
-                <span class="prog-label">Calculating Sharpness</span>
-                <span class="prog-count">{{ extractionViz.scoredFrames.length }}/{{ extractionViz.keyframeCount || '?' }}</span>
-              </div>
-              <div class="prog-track"><div class="prog-fill prog-fill-blue" :style="{ width: progressPct + '%' }" /></div>
-            </div>
-          </template>
-
-          <!-- Upload progress -->
-          <template v-if="phaseNum === 4">
-            <div class="extraction-progress">
-              <div class="prog-row">
-                <span class="prog-label">Uploading</span>
-                <span class="prog-count">{{ step4Status }}</span>
-              </div>
-              <div class="prog-track" v-if="extractionViz.uploadTotal > 0">
-                <div class="prog-fill prog-fill-blue" :style="{ width: (extractionViz.uploadLoaded / extractionViz.uploadTotal * 100) + '%' }" />
-              </div>
-            </div>
-          </template>
-
-          <!-- Frame bar chart + minimap (appears as frames are scored) -->
-          <template v-if="extractionViz.scoredFrames.length">
-            <div class="analysis-header">
-              <span class="analysis-title">Frame Analysis</span>
-              <span class="analysis-sub">
-                {{ extractionViz.scoredFrames.length }}{{ extractionViz.keyframeCount ? ` / ${extractionViz.keyframeCount}` : '' }} frames
-              </span>
-            </div>
-
-            <div class="barchart-wrap">
-              <svg
-                class="barchart-svg"
-                :viewBox="`0 0 ${extractionViz.scoredFrames.length} 100`"
-                preserveAspectRatio="none"
-              >
-                <rect
-                  v-for="(frame, idx) in extractionViz.scoredFrames"
-                  :key="idx"
-                  :x="idx"
-                  :y="100 - scorePercent(frame.score)"
-                  width="0.85"
-                  :height="Math.max(scorePercent(frame.score), 1)"
-                  :fill="selectedSet.has(idx) ? '#3b82f6' : (phaseNum >= 3 ? '#374151' : '#4b5563')"
-                />
-              </svg>
-            </div>
-
-            <div class="minimap-wrap" v-if="extractionViz.scoredFrames.length >= 3">
-              <svg
-                class="minimap-svg"
-                :viewBox="`0 0 ${Math.max(extractionViz.scoredFrames.length - 1, 1)} 100`"
-                preserveAspectRatio="none"
-              >
-                <polyline
-                  :points="minimapPoints"
-                  fill="none"
-                  stroke="#3b82f6"
-                  stroke-width="2"
-                  vector-effect="non-scaling-stroke"
-                />
-              </svg>
-            </div>
-
-            <div v-if="awaitingConfirmation" class="confirm-stats">
-              <span class="conf-n">{{ extractionViz.selectedIndices.length }}</span>
-              <span class="conf-label"> frames selected of {{ extractionViz.scoredFrames.length }} total</span>
-            </div>
-          </template>
-
-          <!-- Idle hint -->
-          <div v-else-if="phaseNum === 0" class="pipeline-idle-hint">
-            {{ videoLoading ? 'Loading video…' : `~${estimatedFrameCount} frames will be extracted in-browser` }}
-          </div>
-
-          <!-- Confirm button -->
-          <button
-            v-if="awaitingConfirmation"
-            class="process-btn confirm-btn"
-            @click="confirmUpload"
-          >
-            Upload {{ extractionViz.selectedIndices.length }} frames
-          </button>
-
-          <!-- Process button -->
-          <button
-            v-else
-            class="process-btn"
-            :disabled="videoLoading || phaseNum > 0"
-            @click="startJob"
-          >
-            {{ phaseNum === 2 ? `Extracting… ${extractionViz.scoredFrames.length}/${extractionViz.keyframeCount || '?'}`
-              : phaseNum === 3 ? 'Selecting best frames…'
-              : phaseNum === 4 ? 'Uploading…'
-              : videoLoading ? 'Preparing…'
-              : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
-          </button>
-        </div>
       </template>
     </section>
 
     <div v-if="error" class="error">{{ error }}</div>
 
-    <div class="divider">or</div>
+    <div v-if="!videoFiles.length" class="divider">or</div>
 
     <!-- Create from photos -->
-    <section class="section wide">
+    <section v-if="!videoFiles.length" class="section wide">
       <h3>Create from photos</h3>
 
       <label class="pick-btn secondary">
@@ -488,6 +459,14 @@
         </div>
       </template>
     </section>
+
+    <button
+      v-if="awaitingConfirmation"
+      class="process-btn create-model-btn"
+      @click="confirmUpload"
+    >
+      Create model from {{ liveSelection.length }} frames
+    </button>
   </div>
 </template>
 
@@ -513,7 +492,6 @@ async function onSplatFile(e) {
 
 const videoFiles = ref([]);
 const videoStrips = ref([]);
-const paramMode = ref('fps');
 const iters = ref(5000);
 const imageSize = ref(256);
 const sceneName = ref('');
@@ -577,15 +555,17 @@ function appendSharedParams(form) {
 const processing = ref(false);
 const videoLoading = ref(false);
 const awaitingConfirmation = ref(false);
-const pendingFrameBlobs = ref([]);
+const previewFrame = ref(null);
+const activeWorkers = [];
+const EXTRACTION_FPS = 10;
+const batchSize = ref(5);
+const batchBuffer = ref(2);
 
 // ── Extraction pipeline visualization ─────────────────────────────────────────
 const extractionViz = ref({
-  phase: null,          // null | 'scoring' | 'selecting' | 'uploading'
+  phase: null,        // null | 'scoring' | 'uploading'
   keyframeCount: 0,
-  scoredFrames: [],     // [{ index, timeS, score, thumbUrl }]
-  selectedIndices: [],  // number[] — set during/after 'selecting'
-  batches: [],          // [{ start, end, winner }]
+  scoredFrames: [],   // [{ index, timeS, score, thumbUrl, fileIdx }]
   uploadLoaded: 0,
   uploadTotal: 0,
 });
@@ -595,11 +575,9 @@ function resetExtractionViz() {
     if (f.thumbUrl) URL.revokeObjectURL(f.thumbUrl);
   }
   extractionViz.value = {
-    phase: null, keyframeCount: 0, scoredFrames: [],
-    selectedIndices: [], batches: [], uploadLoaded: 0, uploadTotal: 0,
+    phase: null, keyframeCount: 0, scoredFrames: [], uploadLoaded: 0, uploadTotal: 0,
   };
   awaitingConfirmation.value = false;
-  pendingFrameBlobs.value = [];
 }
 
 onUnmounted(() => {
@@ -616,9 +594,8 @@ const phaseNum = computed(() => {
 const estimatedFrameCount = computed(() =>
   videoStrips.value.reduce((s, strip) => {
     const dur = Math.max(0, (strip.endTime ?? strip.videoDuration) - strip.startTime);
-    return s + (paramMode.value === 'nframes'
-      ? Math.max(1, strip.nFrames)
-      : Math.max(1, Math.round(strip.fps * dur)));
+    const total = Math.round(dur * EXTRACTION_FPS);
+    return s + Math.ceil(total / Math.max(1, batchSize.value + batchBuffer.value));
   }, 0)
 );
 
@@ -631,11 +608,46 @@ function scorePercent(score) {
   return Math.round(((score ?? 0) / Math.max(maxScore.value, 1)) * 100);
 }
 
+function normalizedScore(score) {
+  return Math.round(((score ?? 0) / Math.max(maxScore.value, 0.001)) * 100);
+}
+
 function range(start, end) {
   return Array.from({ length: end - start + 1 }, (_, k) => start + k);
 }
 
-const selectedSet = computed(() => new Set(extractionViz.value.selectedIndices));
+function batchedSelectMain(frames, bs, bb) {
+  if (!frames.length) return [];
+  bs = Math.max(1, bs);
+  bb = Math.max(0, bb);
+  const stride = bs + bb;
+  const selected = [];
+  for (let i = 0; i < frames.length; i += stride) {
+    const end = Math.min(i + bs, frames.length);
+    let bestJ = 0;
+    for (let j = 1; j < end - i; j++) {
+      if (frames[i + j].score > frames[i + bestJ].score) bestJ = j;
+    }
+    selected.push(frames[i + bestJ]);
+  }
+  return selected;
+}
+
+const liveSelection = computed(() =>
+  batchedSelectMain(extractionViz.value.scoredFrames, batchSize.value, batchBuffer.value)
+);
+
+const selectedSet = computed(() => new Set(liveSelection.value.map(f => f.index)));
+
+function onChartClick(e) {
+  const frames = extractionViz.value.scoredFrames;
+  if (!frames.length) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const idx = Math.max(0, Math.min(Math.floor(((e.clientX - rect.left) / rect.width) * frames.length), frames.length - 1));
+  const frame = frames[idx];
+  if (!frame) return;
+  previewFrame.value = previewFrame.value?.index === idx ? null : { ...frame, index: idx };
+}
 
 const progressPct = computed(() => {
   const v = extractionViz.value;
@@ -643,12 +655,6 @@ const progressPct = computed(() => {
   return Math.min(100, Math.round((v.scoredFrames.length / v.keyframeCount) * 100));
 });
 
-const minimapPoints = computed(() => {
-  const frames = extractionViz.value.scoredFrames;
-  if (frames.length < 2) return '';
-  const max = Math.max(...frames.map(f => f.score ?? 0), 0.001);
-  return frames.map((f, i) => `${i},${90 - ((f.score ?? 0) / max) * 80}`).join(' ');
-});
 
 const step1Status = computed(() => {
   const v = extractionViz.value;
@@ -662,10 +668,9 @@ const step2Status = computed(() => {
   return `${v.scoredFrames.length} frames scored`;
 });
 const step3Status = computed(() => {
-  const v = extractionViz.value;
-  if (phaseNum.value < 3) return '—';
-  if (phaseNum.value === 3) return 'Selecting…';
-  return `${v.selectedIndices.length} of ${v.scoredFrames.length} selected`;
+  const total = extractionViz.value.scoredFrames.length;
+  if (!total) return '—';
+  return `${liveSelection.value.length} of ${total} selected`;
 });
 const step4Status = computed(() => {
   const v = extractionViz.value;
@@ -679,7 +684,7 @@ const vastInstances = ref([]);
 const selectedVastInstance = ref('');
 
 function makeStrip(name) {
-  return { name, frames: [], videoDuration: 0, startTime: 0, endTime: null, fps: 0.5, nFrames: 3 };
+  return { name, frames: [], videoDuration: 0, startTime: 0, endTime: null };
 }
 
 function startPct(strip) {
@@ -769,11 +774,14 @@ async function onVideoFile(e) {
       videoStrips.value[i] = { ...videoStrips.value[i], frames, videoDuration };
     })
   );
+  startJob();
 }
 
 async function startJob() {
   if (!videoFiles.value.length) return;
+  while (activeWorkers.length) activeWorkers.pop().terminate();
   error.value = '';
+  previewFrame.value = null;
   resetExtractionViz();
 
   let gateway;
@@ -784,7 +792,6 @@ async function startJob() {
     return;
   }
 
-  const allFrameBlobs = [];
   extractionViz.value.phase = 'scoring';
 
   try {
@@ -792,15 +799,8 @@ async function startJob() {
     for (let si = 0; si < videoFiles.value.length; si++) {
       const file = videoFiles.value[si];
       const strip = videoStrips.value[si];
-      const end = strip.endTime ?? strip.videoDuration;
-      const dur = Math.max(0, end - strip.startTime);
-      const nFrames = paramMode.value === 'nframes'
-        ? Math.max(1, strip.nFrames)
-        : Math.max(1, Math.round(strip.fps * dur));
-
-      const frames = await extractWithWorker(file, nFrames, strip.startTime, strip.endTime, indexOffset);
+      await scoreWithWorker(file, EXTRACTION_FPS, strip.startTime, strip.endTime, si, indexOffset);
       indexOffset = extractionViz.value.scoredFrames.length;
-      allFrameBlobs.push(...frames);
     }
   } catch (err) {
     error.value = 'Frame extraction failed: ' + err.message;
@@ -808,13 +808,10 @@ async function startJob() {
     return;
   }
 
-  // Pause here — let the user review the frame grid before uploading
-  pendingFrameBlobs.value = allFrameBlobs;
   awaitingConfirmation.value = true;
 }
 
 async function confirmUpload() {
-  const allFrameBlobs = pendingFrameBlobs.value;
   awaitingConfirmation.value = false;
 
   let gateway;
@@ -822,6 +819,23 @@ async function confirmUpload() {
     gateway = await getGateway();
   } catch (err) {
     error.value = 'Gateway not configured: ' + err.message;
+    return;
+  }
+
+  // Decode selected frames at full resolution using the current (live) selection
+  const selected = liveSelection.value;
+  let allFrameBlobs;
+  try {
+    const perFile = await Promise.all(
+      videoFiles.value.map((file, si) => {
+        const timestamps = selected.filter(f => f.fileIdx === si).map(f => f.timeS);
+        const scores = Object.fromEntries(selected.filter(f => f.fileIdx === si).map(f => [f.timeS, f.score]));
+        return timestamps.length ? decodeWithWorker(file, timestamps, scores) : Promise.resolve([]);
+      })
+    );
+    allFrameBlobs = perFile.flat();
+  } catch (err) {
+    error.value = 'Frame decode failed: ' + err.message;
     return;
   }
 
@@ -866,37 +880,54 @@ async function confirmUpload() {
   router.push({ name: 'splat-viewer', params: { splatId: jobId } });
 }
 
-function extractWithWorker(file, nFrames, startTime, endTime, indexOffset = 0) {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      new URL('../workers/frameExtractor.worker.js', import.meta.url),
-      { type: 'module' },
-    );
+function makeWorker() {
+  return new Worker(new URL('../workers/frameExtractor.worker.js', import.meta.url), { type: 'module' });
+}
 
+function scoreWithWorker(file, fps, startTime, endTime, fileIdx, indexOffset = 0) {
+  return new Promise((resolve, reject) => {
+    const worker = makeWorker();
+    activeWorkers.push(worker);
+    const cleanup = () => {
+      const i = activeWorkers.indexOf(worker);
+      if (i !== -1) activeWorkers.splice(i, 1);
+      worker.terminate();
+    };
     worker.onmessage = ({ data }) => {
       const viz = extractionViz.value;
       if (data.type === 'total') {
         viz.keyframeCount += data.count;
       } else if (data.type === 'frame-scored') {
         const thumbUrl = URL.createObjectURL(data.thumbBlob);
-        viz.scoredFrames.push({ index: data.index + indexOffset, timeS: data.timeS, score: data.score, thumbUrl });
-      } else if (data.type === 'selection') {
-        viz.phase = 'selecting';
-        for (const b of data.batches) {
-          viz.batches.push({ start: b.start + indexOffset, end: b.end + indexOffset, winner: b.winner + indexOffset });
-        }
-        for (const idx of data.selectedIndices) viz.selectedIndices.push(idx + indexOffset);
+        viz.scoredFrames.push({ index: data.index + indexOffset, timeS: data.timeS, score: data.score, thumbUrl, fileIdx });
       } else if (data.type === 'done') {
-        worker.terminate();
-        resolve(data.frames);
+        cleanup();
+        resolve();
       } else if (data.type === 'error') {
-        worker.terminate();
+        cleanup();
         reject(new Error(data.message));
       }
     };
+    worker.onerror = (e) => { cleanup(); reject(new Error(e.message)); };
+    worker.postMessage({ file, extractionFps: fps, startTime: startTime || 0, endTime: endTime ?? Infinity });
+  });
+}
 
-    worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message)); };
-    worker.postMessage({ file, nFrames, startTime: startTime || 0, endTime: endTime ?? Infinity });
+function decodeWithWorker(file, timestamps, scores = {}) {
+  return new Promise((resolve, reject) => {
+    const worker = makeWorker();
+    activeWorkers.push(worker);
+    const cleanup = () => {
+      const i = activeWorkers.indexOf(worker);
+      if (i !== -1) activeWorkers.splice(i, 1);
+      worker.terminate();
+    };
+    worker.onmessage = ({ data }) => {
+      if (data.type === 'done') { cleanup(); resolve(data.frames); }
+      else if (data.type === 'error') { cleanup(); reject(new Error(data.message)); }
+    };
+    worker.onerror = (e) => { cleanup(); reject(new Error(e.message)); };
+    worker.postMessage({ mode: 'decode', file, timestamps, scores });
   });
 }
 
@@ -1030,7 +1061,6 @@ onMounted(async () => {
     bilateralGridFused.value = !!p.bilateral_grid_fused;
     randomBkgd.value = !!p.random_bkgd;
     ssimLambda.value = p.ssim_lambda != null ? parseFloat(p.ssim_lambda) : 0.2;
-    paramMode.value = p.n_frames != null ? 'nframes' : 'fps';
   }
   if (rerun.scene) sceneName.value = rerun.scene;
 
@@ -1049,10 +1079,6 @@ onMounted(async () => {
       videoFiles.value = files;
       videoStrips.value = files.map((f, idx) => {
         const strip = makeStrip(f.name);
-        if (p) {
-          if (p.n_frames != null) strip.nFrames = (Array.isArray(p.n_frames) ? p.n_frames[idx] : p.n_frames) ?? 3;
-          if (p.fps != null) strip.fps = (Array.isArray(p.fps) ? p.fps[idx] : p.fps) ?? 0.5;
-        }
         return strip;
       });
       await Promise.all(
@@ -1310,6 +1336,8 @@ onMounted(async () => {
 .process-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .confirm-btn { background: #1d4ed8; }
 .confirm-btn:hover { background: #1e40af; }
+.create-model-btn { background: #1d4ed8; width: 100%; margin-top: 24px; font-size: 1rem; padding: 14px; }
+.create-model-btn:hover { background: #1e40af; }
 .process-hint { font-size: 0.75rem; color: #6b7280; text-align: center; margin-top: -4px; }
 
 .error {
@@ -1506,4 +1534,102 @@ onMounted(async () => {
   font-weight: 700;
   color: #60a5fa;
 }
+
+/* Batch selection controls */
+.batch-controls {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.batch-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  cursor: default;
+}
+.batch-ctrl input[type="number"] {
+  width: 56px;
+  background: #1e293b;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  color: #e2e8f0;
+  padding: 3px 6px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.batch-hint {
+  font-size: 0.7rem;
+  color: #4b5563;
+}
+
+/* Frame preview (click on bar chart) */
+.barchart-wrap { cursor: pointer; }
+.frame-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  background: #1e293b;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  position: relative;
+}
+.preview-thumb {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  image-rendering: auto;
+}
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.preview-time { font-size: 0.82rem; color: #94a3b8; font-variant-numeric: tabular-nums; }
+.preview-score { font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }
+.preview-badge {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  width: fit-content;
+}
+.preview-sel { background: #1e3a8a; color: #93c5fd; }
+.preview-rej { background: #292524; color: #a8a29e; }
+.preview-close {
+  position: absolute;
+  top: 6px; right: 8px;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 4px;
+}
+.preview-close:hover { color: #e5e7eb; }
+
+/* Confirm + re-extract row */
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.confirm-actions .process-btn { flex: 1; margin-top: 0; }
+.reextract-btn {
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  transition: border-color 0.2s, color 0.2s;
+  margin-top: 8px;
+}
+.reextract-btn:hover { border-color: #6b7280; color: #d1d5db; }
+.confirm-actions .reextract-btn { margin-top: 0; }
 </style>
