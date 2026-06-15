@@ -60,6 +60,7 @@
     "floating-vue": "^2.0.0",
     "form-data": "^4.0.4",
     "glob": "^11.0.3",
+    "mediabunny": "^1.46.0",
     "mp4box": "^2.3.0",
     "node-fetch": "^3.3.2",
     "onnxruntime-web": "^1.22.0",

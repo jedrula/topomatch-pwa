@@ -56,17 +56,6 @@
               </div>
             </div>
 
-            <!-- Frames that will actually be extracted -->
-            <template v-for="pf in [previewFrames(strip)]" :key="strip.name + '_pf'">
-              <div v-if="pf.length" class="preview-strip">
-                <div class="preview-label">{{ pf.length }} frame{{ pf.length !== 1 ? 's' : '' }} to extract</div>
-                <div class="preview-frames">
-                  <img v-for="(src, fi) in pf.slice(0, 60)" :key="fi" :src="src" class="preview-thumb" />
-                  <div v-if="pf.length > 60" class="preview-more">+{{ pf.length - 60 }} more</div>
-                </div>
-              </div>
-            </template>
-
             <!-- Per-video params + trim times -->
             <div class="strip-params">
               <template v-if="paramMode === 'nframes'">
@@ -217,10 +206,106 @@
               </option>
             </select>
           </div>
-          <button class="process-btn" :disabled="processing || videoLoading" @click="startJob">
-            {{ processing ? 'Submitting…' : videoLoading ? 'Preparing…' : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
+        </div>
+
+        <!-- ── Extraction pipeline ─────────────────────────────────────── -->
+        <!-- TODO CHECK: user reported something wrong in the UI (screenshot at 09:32:55 not readable).
+             Verify after loading a real video:
+             1. Old "preview-strip" frame row is gone (deleted — should not appear below the film strip)
+             2. The 4-step pipeline panel shows below the shared params (idle: all dimmed, ~N frames hint)
+             3. After clicking Process Video → steps light up in sequence as scoring/selecting/uploading runs
+             4. Batch grid shows correct winner (★ green border) vs rejected (28% opacity) per batch row
+             5. Upload progress bar appears and fills during XHR upload to /images-to-splat
+        -->
+        <div class="pipeline-panel">
+          <!-- Step row -->
+          <div class="pipeline-steps">
+            <div class="pipeline-step" :class="{ done: phaseNum >= 2 }">
+              <div class="step-circle" :class="{ done: phaseNum >= 2 }">{{ phaseNum >= 2 ? '✓' : '1' }}</div>
+              <div class="step-body">
+                <span class="step-name">Keyframes</span>
+                <span class="step-status">{{ step1Status }}</span>
+              </div>
+            </div>
+            <div class="step-arrow">›</div>
+            <div class="pipeline-step" :class="{ active: phaseNum === 2, done: phaseNum >= 3 }">
+              <div class="step-circle" :class="{ done: phaseNum >= 3 }">{{ phaseNum >= 3 ? '✓' : '2' }}</div>
+              <div class="step-body">
+                <span class="step-name">Sharpness</span>
+                <span class="step-status">{{ step2Status }}</span>
+              </div>
+            </div>
+            <div class="step-arrow">›</div>
+            <div class="pipeline-step" :class="{ active: phaseNum === 3, done: phaseNum >= 4 }">
+              <div class="step-circle" :class="{ done: phaseNum >= 4 }">{{ phaseNum >= 4 ? '✓' : '3' }}</div>
+              <div class="step-body">
+                <span class="step-name">Selection</span>
+                <span class="step-status">{{ step3Status }}</span>
+              </div>
+            </div>
+            <div class="step-arrow">›</div>
+            <div class="pipeline-step" :class="{ active: phaseNum === 4 }">
+              <div class="step-circle">4</div>
+              <div class="step-body">
+                <span class="step-name">Upload</span>
+                <span class="step-status">{{ step4Status }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Upload progress bar -->
+          <div v-if="phaseNum === 4 && extractionViz.uploadTotal > 0" class="upload-bar-wrap">
+            <div class="upload-bar" :style="{ width: (extractionViz.uploadLoaded / extractionViz.uploadTotal * 100) + '%' }" />
+          </div>
+
+          <!-- Frame grid — flat during scoring, batches after selection -->
+          <template v-if="extractionViz.batches.length">
+            <!-- Batch view: one row per batch, winner highlighted -->
+            <div class="batch-grid">
+              <div v-for="(batch, bi) in extractionViz.batches" :key="bi" class="batch-row">
+                <span class="batch-num">{{ bi + 1 }}</span>
+                <div class="batch-frames">
+                  <div
+                    v-for="idx in range(batch.start, batch.end)"
+                    :key="idx"
+                    class="frame-card"
+                    :class="{ winner: idx === batch.winner, rejected: idx !== batch.winner }"
+                  >
+                    <img :src="extractionViz.scoredFrames[idx]?.thumbUrl" class="frame-card-img" />
+                    <div class="score-fill" :style="{ width: scorePercent(extractionViz.scoredFrames[idx]?.score) + '%' }" />
+                    <span v-if="idx === batch.winner" class="winner-badge">★</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+          <template v-else-if="extractionViz.scoredFrames.length">
+            <!-- Flat view: frames appear as they are scored -->
+            <div class="flat-frame-grid">
+              <div v-for="(frame, idx) in extractionViz.scoredFrames" :key="idx" class="frame-card">
+                <img :src="frame.thumbUrl" class="frame-card-img" />
+                <div class="score-fill" :style="{ width: scorePercent(frame.score) + '%' }" />
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="pipeline-idle-hint">
+              {{ videoLoading ? 'Loading video…' : `~${estimatedFrameCount} frames will be extracted in-browser` }}
+            </div>
+          </template>
+
+          <!-- Process button -->
+          <button
+            class="process-btn"
+            :disabled="videoLoading || phaseNum > 0"
+            @click="startJob"
+          >
+            {{ phaseNum === 2 ? `Scoring… ${extractionViz.scoredFrames.length}/${extractionViz.keyframeCount}`
+              : phaseNum === 3 ? 'Selecting best frames…'
+              : phaseNum === 4 ? 'Uploading…'
+              : videoLoading ? 'Preparing…'
+              : videoFiles.length > 1 ? `Process ${videoFiles.length} Videos` : 'Process Video' }}
           </button>
-          <div class="process-hint">about {{ videoStrips.reduce((s, strip) => s + previewFrames(strip).length, 0) }} frames to extract</div>
         </div>
       </template>
     </section>
@@ -396,7 +481,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
 import { getGateway } from '../config/gateway.js';
@@ -481,6 +566,84 @@ function appendSharedParams(form) {
 const processing = ref(false);
 const videoLoading = ref(false);
 
+// ── Extraction pipeline visualization ─────────────────────────────────────────
+const extractionViz = ref({
+  phase: null,          // null | 'scoring' | 'selecting' | 'uploading'
+  keyframeCount: 0,
+  scoredFrames: [],     // [{ index, timeS, score, thumbUrl }]
+  selectedIndices: [],  // number[] — set during/after 'selecting'
+  batches: [],          // [{ start, end, winner }]
+  uploadLoaded: 0,
+  uploadTotal: 0,
+});
+
+function resetExtractionViz() {
+  for (const f of extractionViz.value.scoredFrames) {
+    if (f.thumbUrl) URL.revokeObjectURL(f.thumbUrl);
+  }
+  extractionViz.value = {
+    phase: null, keyframeCount: 0, scoredFrames: [],
+    selectedIndices: [], batches: [], uploadLoaded: 0, uploadTotal: 0,
+  };
+}
+
+onUnmounted(() => {
+  for (const f of extractionViz.value.scoredFrames) {
+    if (f.thumbUrl) URL.revokeObjectURL(f.thumbUrl);
+  }
+});
+
+const phaseNum = computed(() => {
+  const p = extractionViz.value.phase;
+  return p === 'scoring' ? 2 : p === 'selecting' ? 3 : p === 'uploading' ? 4 : 0;
+});
+
+const estimatedFrameCount = computed(() =>
+  videoStrips.value.reduce((s, strip) => {
+    const dur = Math.max(0, (strip.endTime ?? strip.videoDuration) - strip.startTime);
+    return s + (paramMode.value === 'nframes'
+      ? Math.max(1, strip.nFrames)
+      : Math.max(1, Math.round(strip.fps * dur)));
+  }, 0)
+);
+
+const maxScore = computed(() => {
+  const scores = extractionViz.value.scoredFrames.map(f => f.score);
+  return scores.length ? Math.max(...scores) : 1;
+});
+
+function scorePercent(score) {
+  return Math.round(((score ?? 0) / Math.max(maxScore.value, 1)) * 100);
+}
+
+function range(start, end) {
+  return Array.from({ length: end - start + 1 }, (_, k) => start + k);
+}
+
+const step1Status = computed(() => {
+  const v = extractionViz.value;
+  if (!v.phase) return `~${estimatedFrameCount.value} I-frames`;
+  return `${v.keyframeCount || '?'} I-frames`;
+});
+const step2Status = computed(() => {
+  const v = extractionViz.value;
+  if (!v.phase) return 'score each frame for sharpness';
+  if (phaseNum.value === 2) return `${v.scoredFrames.length} / ${v.keyframeCount}`;
+  return `${v.scoredFrames.length} frames scored`;
+});
+const step3Status = computed(() => {
+  const v = extractionViz.value;
+  if (phaseNum.value < 3) return '—';
+  if (phaseNum.value === 3) return 'Selecting…';
+  return `${v.selectedIndices.length} of ${v.scoredFrames.length} selected`;
+});
+const step4Status = computed(() => {
+  const v = extractionViz.value;
+  if (phaseNum.value < 4) return '—';
+  if (!v.uploadTotal) return 'Uploading…';
+  return `${Math.round((v.uploadLoaded / v.uploadTotal) * 100)}% (${(v.uploadLoaded / 1e6).toFixed(1)} MB)`;
+});
+
 // ── Vast.ai ───────────────────────────────────────────────────────────────────
 const vastInstances = ref([]);
 const selectedVastInstance = ref('');
@@ -501,33 +664,6 @@ function formatTime(s) {
   const m = Math.floor(s / 60);
   const sec = (s % 60).toFixed(1);
   return m > 0 ? `${m}:${sec.padStart(4, '0')}` : `${sec}s`;
-}
-
-function previewFrames(strip) {
-  if (!strip.frames.length || strip.videoDuration === 0) return [];
-  const start = strip.startTime;
-  const end = strip.endTime ?? strip.videoDuration;
-  const dur = end - start;
-  if (dur <= 0) return [];
-
-  const timestamps = [];
-  if (paramMode.value === 'nframes') {
-    const n = Math.max(1, strip.nFrames);
-    for (let i = 0; i < n; i++) {
-      timestamps.push(start + (n > 1 ? (dur * i) / (n - 1) : 0));
-    }
-  } else {
-    const interval = 1 / Math.max(0.01, strip.fps);
-    for (let t = start; t <= end + 0.001; t += interval) {
-      timestamps.push(Math.min(t, end));
-    }
-  }
-
-  const last = strip.frames.length - 1;
-  return timestamps.map((t) => {
-    const idx = Math.round((t / strip.videoDuration) * last);
-    return strip.frames[Math.max(0, Math.min(last, idx))];
-  });
 }
 
 // Trim drag
@@ -608,53 +744,114 @@ async function onVideoFile(e) {
 async function startJob() {
   if (!videoFiles.value.length) return;
   error.value = '';
-  processing.value = true;
+  resetExtractionViz();
 
   let gateway;
   try {
     gateway = await getGateway();
   } catch (err) {
     error.value = 'Gateway not configured: ' + err.message;
-    processing.value = false;
     return;
   }
 
+  const allFrameBlobs = [];
+  extractionViz.value.phase = 'scoring';
+
+  try {
+    let indexOffset = 0;
+    for (let si = 0; si < videoFiles.value.length; si++) {
+      const file = videoFiles.value[si];
+      const strip = videoStrips.value[si];
+      const end = strip.endTime ?? strip.videoDuration;
+      const dur = Math.max(0, end - strip.startTime);
+      const nFrames = paramMode.value === 'nframes'
+        ? Math.max(1, strip.nFrames)
+        : Math.max(1, Math.round(strip.fps * dur));
+
+      const frames = await extractWithWorker(file, nFrames, strip.startTime, strip.endTime, indexOffset);
+      indexOffset = extractionViz.value.scoredFrames.length;
+      allFrameBlobs.push(...frames);
+    }
+  } catch (err) {
+    error.value = 'Frame extraction failed: ' + err.message;
+    extractionViz.value.phase = null;
+    return;
+  }
+
+  // Build form and upload with progress tracking
   const form = new FormData();
-  for (const f of videoFiles.value) form.append('video', f);
+  allFrameBlobs.forEach((f, i) => {
+    form.append('images', new File([f.fullBlob], `frame_${String(i).padStart(5, '0')}.jpg`, { type: 'image/jpeg' }));
+  });
   appendSharedParams(form);
   if (sceneName.value) form.append('scene', sceneName.value);
-
   if (selectedVastInstance.value) form.append('vast_instance_id', selectedVastInstance.value);
 
-  for (const strip of videoStrips.value) {
-    form.append('start_time', strip.startTime);
-    form.append('end_time', strip.endTime ?? strip.videoDuration);
-    if (paramMode.value === 'nframes') {
-      form.append('n_frames', strip.nFrames);
-    } else {
-      form.append('fps', strip.fps);
-    }
-  }
+  extractionViz.value.phase = 'uploading';
 
   let jobId;
   try {
-    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat`, {
-      method: 'POST',
-      body: form,
+    jobId = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${gateway}/topowall/api/v1/images-to-splat`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          extractionViz.value.uploadLoaded = e.loaded;
+          extractionViz.value.uploadTotal = e.total;
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText).job_id); }
+          catch { reject(new Error('Invalid server response')); }
+        } else {
+          reject(new Error(`Server error ${xhr.status}: ${xhr.responseText.slice(0, 200)}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(form);
     });
-    if (!res.ok) {
-      const detail = await res.text();
-      throw new Error(`Server error ${res.status}: ${detail}`);
-    }
-    ({ job_id: jobId } = await res.json());
   } catch (err) {
-    error.value = 'Failed to start job: ' + err.message;
-    processing.value = false;
+    error.value = 'Upload failed: ' + err.message;
+    extractionViz.value.phase = null;
     return;
   }
 
-  processing.value = false;
   router.push({ name: 'splat-viewer', params: { splatId: jobId } });
+}
+
+function extractWithWorker(file, nFrames, startTime, endTime, indexOffset = 0) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      new URL('../workers/frameExtractor.worker.js', import.meta.url),
+      { type: 'module' },
+    );
+
+    worker.onmessage = ({ data }) => {
+      const viz = extractionViz.value;
+      if (data.type === 'total') {
+        viz.keyframeCount += data.count;
+      } else if (data.type === 'frame-scored') {
+        const thumbUrl = URL.createObjectURL(data.thumbBlob);
+        viz.scoredFrames.push({ index: data.index + indexOffset, timeS: data.timeS, score: data.score, thumbUrl });
+      } else if (data.type === 'selection') {
+        viz.phase = 'selecting';
+        for (const b of data.batches) {
+          viz.batches.push({ start: b.start + indexOffset, end: b.end + indexOffset, winner: b.winner + indexOffset });
+        }
+        for (const idx of data.selectedIndices) viz.selectedIndices.push(idx + indexOffset);
+      } else if (data.type === 'done') {
+        worker.terminate();
+        resolve(data.frames);
+      } else if (data.type === 'error') {
+        worker.terminate();
+        reject(new Error(data.message));
+      }
+    };
+
+    worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message)); };
+    worker.postMessage({ file, nFrames, startTime: startTime || 0, endTime: endTime ?? Infinity });
+  });
 }
 
 // ── Photos ────────────────────────────────────────────────────────────────────
@@ -969,32 +1166,6 @@ onMounted(async () => {
 }
 .trim-handle:hover { opacity: 1; }
 
-/* Preview strip */
-.preview-strip { display: flex; flex-direction: column; gap: 4px; }
-.preview-label { font-size: 0.72rem; color: #6b7280; padding-left: 2px; }
-.preview-frames {
-  display: flex;
-  gap: 3px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-.preview-thumb {
-  height: 72px;
-  width: auto;
-  border-radius: 4px;
-  flex-shrink: 0;
-  display: block;
-  border: 1px solid #374151;
-}
-.preview-more {
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  font-size: 0.75rem;
-  color: #6b7280;
-  flex-shrink: 0;
-}
-
 /* Per-video params row */
 .strip-params {
   display: flex;
@@ -1173,4 +1344,154 @@ onMounted(async () => {
   line-height: 1;
 }
 .photo-remove:hover { background: #dc2626; }
+
+/* ── Extraction pipeline panel ───────────────────────────────────────────────── */
+.pipeline-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Step row */
+.pipeline-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #2d3748;
+  background: #1a202c;
+  opacity: 0.45;
+  transition: opacity 0.2s, border-color 0.2s;
+  min-width: 140px;
+}
+.pipeline-step.active { opacity: 1; border-color: #3b82f6; background: #1e293b; }
+.pipeline-step.done   { opacity: 0.75; border-color: #374151; }
+
+.step-circle {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 2px solid #4b5563;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem; font-weight: 700; color: #9ca3af;
+  flex-shrink: 0;
+}
+.step-circle.done { border-color: #22c55e; color: #22c55e; }
+.pipeline-step.active .step-circle { border-color: #3b82f6; color: #60a5fa; }
+
+.step-body { display: flex; flex-direction: column; gap: 1px; }
+.step-name  { font-size: 0.78rem; font-weight: 600; color: #d1d5db; }
+.step-status { font-size: 0.68rem; color: #6b7280; font-variant-numeric: tabular-nums; }
+.pipeline-step.active .step-status { color: #93c5fd; }
+
+.step-arrow { color: #374151; font-size: 1.1rem; flex-shrink: 0; padding: 0 2px; }
+
+/* Upload progress bar */
+.upload-bar-wrap {
+  height: 4px;
+  background: #1f2937;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.upload-bar {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 2px;
+  transition: width 0.15s;
+}
+
+/* Idle hint */
+.pipeline-idle-hint {
+  font-size: 0.78rem;
+  color: #4b5563;
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* Batch grid (after selection) */
+.batch-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.batch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.batch-num {
+  width: 18px;
+  font-size: 0.6rem;
+  color: #4b5563;
+  text-align: right;
+  padding-top: 4px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.batch-frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+/* Flat grid (during scoring) */
+.flat-frame-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  width: 100%;
+}
+
+/* Individual frame card */
+.frame-card {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  transition: opacity 0.3s, border-color 0.3s;
+  background: #111827;
+}
+.frame-card.winner {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px #166534;
+}
+.frame-card.rejected {
+  opacity: 0.28;
+}
+.frame-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Score bar at bottom of each card */
+.score-fill {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 3px;
+  background: linear-gradient(to right, #dc2626, #f59e0b, #22c55e);
+  border-radius: 0 0 2px 2px;
+}
+
+/* Winner star badge */
+.winner-badge {
+  position: absolute;
+  top: 2px; right: 3px;
+  font-size: 0.65rem;
+  color: #22c55e;
+  text-shadow: 0 0 4px #000;
+  line-height: 1;
+}
 </style>
