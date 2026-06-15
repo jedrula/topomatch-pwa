@@ -264,8 +264,10 @@ export async function extractVideoFrames(videoSource, timestamps) {
 
     video.addEventListener('loadedmetadata', () => {
       // 🎯 MEMORY OPTIMIZATION: Configurable downscaling
+      // YOLO is trained on 640×640, but iOS Vision benefits from higher resolution
       const DOWNSCALE_IMAGES = true; // Set to true in production for memory savings
-      const MAX_DIMENSION = 640; // Optimal for YOLOv8 (trained on 640x640)
+      const isIosNative = window.Capacitor?.isNativePlatform?.() && window.Capacitor?.getPlatform?.() === 'ios';
+      const MAX_DIMENSION = isIosNative ? 1280 : 640; // iOS Vision handles larger images; YOLO trained on 640
       
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;

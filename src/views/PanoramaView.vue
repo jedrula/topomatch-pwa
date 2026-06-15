@@ -174,7 +174,7 @@ const route = useRoute();
 const router = useRouter();
 
 // ── Tab ──
-const tab = ref('images');
+const tab = ref('video');
 
 // ── Images tab state ──
 const locationData = ref(null);
