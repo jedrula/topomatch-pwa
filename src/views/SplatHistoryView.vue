@@ -6,12 +6,21 @@
       <button class="refresh-btn" @click="load">↻ Refresh</button>
     </div>
 
+    <HistoryFilters
+      v-if="!loading && !error && jobs.length > 0"
+      v-model="filters"
+      :jobs="jobs"
+      :total-count="jobs.length"
+      :match-count="filteredJobs.length"
+    />
+
     <div v-if="loading" class="state-msg">Loading…</div>
     <div v-else-if="error" class="state-msg error">{{ error }}</div>
     <div v-else-if="jobs.length === 0" class="state-msg muted">No jobs yet.</div>
+    <div v-else-if="filteredJobs.length === 0" class="state-msg muted">No jobs match the current filters.</div>
 
     <div v-else class="job-list">
-      <div v-for="job in jobs" :key="job.job_id" class="job-card" :class="job.status">
+      <div v-for="job in filteredJobs" :key="job.job_id" class="job-card" :class="job.status">
         <div class="job-top">
           <div class="job-left">
             <span class="job-id">{{ job.job_id }}</span>
@@ -253,10 +262,28 @@ import { useRouter, useRoute } from 'vue-router';
 import { getGateway } from '../config/gateway.js';
 import { thumbGet, thumbDelete } from '../utils/thumbDb.js';
 import PointCloudViewer from '../components/PointCloudViewer.vue';
+import HistoryFilters from '../components/HistoryFilters.vue';
 
 const router = useRouter();
 const route = useRoute();
 const jobs = ref([]);
+
+const filters = ref({ statuses: null, minPsnr: null });
+
+const filteredJobs = computed(() => {
+  const { statuses, trainers, sources, minPsnr, maxIters } = filters.value;
+  return jobs.value.filter(job => {
+    if (statuses  && !statuses.has(job.status))          return false;
+    if (trainers  && !trainers.has(job.params?.trainer)) return false;
+    if (sources   && !sources.has(job.params?.source))   return false;
+    if (maxIters != null && (job.params?.iters ?? Infinity) > maxIters) return false;
+    if (minPsnr != null) {
+      const psnr = job.metrics?.psnr;
+      if (psnr == null || psnr < minPsnr) return false;
+    }
+    return true;
+  });
+});
 const loading = ref(true);
 const error = ref('');
 const expandedCapture = ref(new Set());
