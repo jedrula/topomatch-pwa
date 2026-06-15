@@ -234,6 +234,7 @@ async function renderSplat(objectUrl, splatId) {
       cameraUp: initialCam?.up ?? [0, -1, 0],
       initialCameraPosition: initialCam?.position ?? [0, 0, -3],
       initialCameraLookAt: initialCam?.look_at ?? [0, 0, 0],
+      sharedMemoryForWorkers: false,
     });
     await viewer.addSplatScene(objectUrl, {
       splatAlphaRemovalThreshold: 5,
