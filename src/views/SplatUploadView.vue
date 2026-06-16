@@ -154,6 +154,7 @@ const params = reactive({
   sparseGa: false,
   colmapBa: false,
   colmapMatcher: 'exhaustive',
+  viewGraphCalibrator: false,
   sfm: 'glomap_sift',
   trainer: 'brush',
   mcmc: true,
@@ -181,8 +182,9 @@ const sharedParams = computed(() => ({
   bilateral_grid_fused: params.bilateralGridFused,
   random_bkgd:          params.randomBkgd,
   ssim_lambda:          params.ssimLambda,
-  colmap_ba:            params.colmapBa,
-  colmap_matcher:       params.colmapMatcher !== 'auto' ? params.colmapMatcher : '',
+  colmap_ba:              params.colmapBa,
+  colmap_matcher:         params.colmapMatcher !== 'auto' ? params.colmapMatcher : '',
+  view_graph_calibrator:  params.viewGraphCalibrator,
 }));
 
 function appendSharedParams(form) {
@@ -206,6 +208,7 @@ function appendSharedParams(form) {
   }
   form.append('colmap_ba', p.colmap_ba);
   if (p.colmap_matcher) form.append('colmap_matcher', p.colmap_matcher);
+  if (p.view_graph_calibrator) form.append('view_graph_calibrator', true);
 }
 
 // ── Splat file ────────────────────────────────────────────────────────────────
@@ -538,8 +541,9 @@ onMounted(async () => {
     params.earlyStop           = rp.early_stop   === true || rp.early_stop   === 'true';
     params.sparsePairs         = rp.sparse_pairs  === true || rp.sparse_pairs  === 'true';
     params.sparseGa            = rp.sparse_ga     === true || rp.sparse_ga     === 'true';
-    params.colmapBa            = rp.colmap_ba     === true || rp.colmap_ba     === 'true';
-    params.colmapMatcher       = rp.colmap_matcher || 'auto';
+    params.colmapBa              = rp.colmap_ba            === true || rp.colmap_ba            === 'true';
+    params.colmapMatcher         = rp.colmap_matcher || 'auto';
+    params.viewGraphCalibrator   = rp.view_graph_calibrator === true || rp.view_graph_calibrator === 'true';
     params.sfm                 = rp.sfm ?? (rp.engine === 'pgsr' ? 'mast3r' : rp.engine) ?? 'mast3r';
     params.trainer             = rp.trainer ?? (rp.engine === 'pgsr' ? 'pgsr' : 'instantsplat') ?? 'instantsplat';
     params.mcmc                = rp.mcmc   === true || rp.mcmc   === 'true';

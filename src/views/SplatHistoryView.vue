@@ -263,16 +263,33 @@
 
         <!-- Images grid -->
         <div v-if="expandedImages.has(job.job_id)" class="images-expand">
+          <div v-if="job.has_masks" class="mask-toggle-row">
+            <label class="mask-toggle-label">
+              <input type="checkbox" :checked="maskEnabled.has(job.job_id)" @change="toggleMask(job.job_id)" />
+              Apply mask
+            </label>
+          </div>
           <div v-if="jobImages.get(job.job_id)?.length" class="images-grid">
-            <img
+            <div
               v-for="fn in jobImages.get(job.job_id)"
               :key="fn"
-              :src="imageUrl(job.job_id, fn)"
-              class="frame-thumb"
-              :alt="fn"
-              loading="lazy"
+              class="thumb-cell"
               @click="openFrameLightbox(job.job_id, fn)"
-            />
+            >
+              <img
+                :src="imageUrl(job.job_id, fn)"
+                class="frame-thumb"
+                :alt="fn"
+                loading="lazy"
+              />
+              <img
+                v-if="maskEnabled.has(job.job_id)"
+                :src="maskUrl(job.job_id, fn)"
+                class="mask-overlay"
+                :alt="'mask-' + fn"
+                loading="lazy"
+              />
+            </div>
           </div>
           <p v-else class="log-empty-history">No images available.</p>
         </div>
@@ -350,6 +367,7 @@ const expandedCapture = ref(new Set());
 const expandedLogs = ref(new Set());
 const expandedImages = ref(new Set());
 const expandedPointCloud = ref(new Set());
+const maskEnabled = ref(new Set());
 const jobLogs = ref(new Map());
 const jobImages = ref(new Map());
 const cancellingJobs = ref(new Set());
@@ -461,6 +479,17 @@ async function toggleImages(jobId) {
 
 function imageUrl(jobId, filename) {
   return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/images/${filename}`;
+}
+
+function maskUrl(jobId, filename) {
+  const stem = filename.replace(/\.[^.]+$/, '');
+  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/masks/${stem}.png`;
+}
+
+function toggleMask(jobId) {
+  const s = new Set(maskEnabled.value);
+  s.has(jobId) ? s.delete(jobId) : s.add(jobId);
+  maskEnabled.value = s;
 }
 
 function videoUrl(jobId, storedFilename) {
@@ -1158,22 +1187,52 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 }
 
 .images-expand { margin-top: 8px; }
+.mask-toggle-row {
+  margin-bottom: 6px;
+}
+.mask-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  cursor: pointer;
+  user-select: none;
+}
+.mask-toggle-label input[type="checkbox"] { cursor: pointer; accent-color: #4b9eff; }
 .images-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 4px;
 }
-.frame-thumb {
-  width: 100%;
-  aspect-ratio: 4/3;
-  object-fit: cover;
+.thumb-cell {
+  position: relative;
+  cursor: pointer;
   border-radius: 4px;
+  overflow: hidden;
   border: 1px solid #2a2a2a;
   background: #0d0d0d;
-  cursor: pointer;
-  transition: opacity 0.15s, border-color 0.15s;
+  aspect-ratio: 4/3;
+  transition: border-color 0.15s;
 }
-.frame-thumb:hover { opacity: 0.85; border-color: #4b9eff; }
+.thumb-cell:hover { border-color: #4b9eff; }
+.thumb-cell:hover .frame-thumb { opacity: 0.85; }
+.frame-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.15s;
+}
+.mask-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
 
 .capture-img { cursor: pointer; }
 

@@ -129,6 +129,14 @@
             :class="{ active: p.colmapMatcher === m }" @click="p.colmapMatcher = m">{{ m }}</button>
         </div>
       </div>
+      <div class="param-row" v-if="p.sfm === 'glomap_sift'">
+        <label>VGC</label>
+        <label class="toggle">
+          <input type="checkbox" v-model="p.viewGraphCalibrator" />
+          <span class="toggle-label">{{ p.viewGraphCalibrator ? 'on' : 'off' }}</span>
+        </label>
+        <span class="param-note" style="margin-left:4px">view_graph_calibrator — fixes missing focal length priors before global mapping</span>
+      </div>
     </template>
 
     <div v-if="vastInstances.length" class="param-row">
