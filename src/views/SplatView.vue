@@ -10,6 +10,12 @@
         @click="fileInput.click()"
       >{{ localizing ? 'Localizing…' : 'Locate' }}</button>
       <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="localize" />
+      <button
+        v-if="!loading && !processing"
+        class="segment-btn"
+        :disabled="segmenting"
+        @click="segmentView"
+      >{{ segmenting ? 'Segmenting…' : 'Segment' }}</button>
       <span class="splat-header-id">{{ route.params.splatId }}</span>
     </div>
     <div v-if="localizeError" class="locate-error">{{ localizeError }}</div>
@@ -67,7 +73,18 @@
 
     <div v-if="error && !processing" class="error">{{ error }}</div>
 
-    <div ref="container" class="canvas-container" />
+    <div class="canvas-wrapper">
+      <div ref="container" class="canvas-container" />
+      <!-- Mask overlay: SVGs returned by SAM2 layered over the splat canvas -->
+      <div v-if="segmentMasks.length" class="mask-overlay" @click="clearMasks">
+        <svg class="mask-svg" :viewBox="`0 0 ${maskViewW} ${maskViewH}`" xmlns="http://www.w3.org/2000/svg">
+          <g v-for="(mask, i) in segmentMasks" :key="i">
+            <path :d="mask.path" :fill="mask.color" fill-opacity="0.45" stroke="white" stroke-width="1.5" />
+          </g>
+        </svg>
+        <div class="mask-hint">{{ segmentMasks.length }} hold{{ segmentMasks.length !== 1 ? 's' : '' }} detected — click to clear</div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -98,6 +115,10 @@ const jobMeta = ref(null); // { scene, params, stored_videos }
 const fileInput = ref(null);
 const localizing = ref(false);
 const localizeError = ref('');
+const segmenting = ref(false);
+const segmentMasks = ref([]);
+const maskViewW = ref(1920);
+const maskViewH = ref(1080);
 let viewer = null;
 let currentObjectUrl = null;
 let THREE = null;
@@ -290,6 +311,71 @@ async function localize(event) {
     setTimeout(() => { localizeError.value = ''; }, 6000);
   } finally {
     localizing.value = false;
+  }
+}
+
+function clearMasks() {
+  segmentMasks.value = [];
+}
+
+// Hue-distributed colours for each detected hold
+const HOLD_COLOURS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#14b8a6'];
+
+async function segmentView() {
+  if (!viewer) return;
+  const canvas = viewer.renderer?.domElement ?? container.value?.querySelector('canvas');
+  if (!canvas) return;
+
+  segmenting.value = true;
+  segmentMasks.value = [];
+  try {
+    maskViewW.value = canvas.width;
+    maskViewH.value = canvas.height;
+
+    // Capture current WebGL frame as JPEG blob
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const blob = await (await fetch(dataUrl)).blob();
+
+    const gateway = await getGateway();
+    const splatId = route.params.splatId;
+    const form = new FormData();
+    form.append('image', blob, 'view.jpg');
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/segment-view`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) {
+      const detail = (await res.json().catch(() => ({}))).detail ?? `HTTP ${res.status}`;
+      throw new Error(detail);
+    }
+    const data = await res.json();
+    console.log('[segment-view] response:', data);
+
+    // data.holds: SAM2 HoldDetection[] — { polygon:[[x,y],...], bbox:{x,y,width,height}, ... }
+    // data.image_info: { width, height } — coordinate space of the polygons
+    const holds = data.holds ?? [];
+    const imgW = data.image_info?.width ?? maskViewW.value;
+    const imgH = data.image_info?.height ?? maskViewH.value;
+    maskViewW.value = imgW;
+    maskViewH.value = imgH;
+    segmentMasks.value = holds.map((h, i) => {
+      const colour = HOLD_COLOURS[i % HOLD_COLOURS.length];
+      let path = '';
+      if (h.polygon && h.polygon.length >= 3) {
+        path = `M ${h.polygon[0][0]},${h.polygon[0][1]}` +
+               h.polygon.slice(1).map(p => ` L ${p[0]},${p[1]}`).join('') + ' Z';
+      } else if (h.bbox) {
+        const { x, y, width, height } = h.bbox;
+        path = `M ${x},${y} L ${x+width},${y} L ${x+width},${y+height} L ${x},${y+height} Z`;
+      }
+      return { path, color: colour, pts: h.polygon ?? null };
+    });
+  } catch (err) {
+    console.error('[segment-view] error:', err);
+    localizeError.value = 'Segmentation failed: ' + err.message;
+    setTimeout(() => { localizeError.value = ''; }, 6000);
+  } finally {
+    segmenting.value = false;
   }
 }
 
@@ -637,5 +723,50 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
   max-width: 80%;
   text-align: center;
   pointer-events: none;
+}
+
+.segment-btn {
+  margin-left: 8px;
+  padding: 4px 14px;
+  background: #14532d;
+  color: #86efac;
+  border: 1px solid #166534;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.segment-btn:hover:not(:disabled) { background: #166534; }
+.segment-btn:disabled { opacity: 0.5; cursor: default; }
+
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.mask-overlay {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  z-index: 20;
+}
+
+.mask-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.mask-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.65);
+  color: #d1fae5;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  pointer-events: none;
+  white-space: nowrap;
 }
 </style>
