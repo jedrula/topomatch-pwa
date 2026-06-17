@@ -337,18 +337,57 @@ function pointInPolygon(px, py, polygon) {
   return inside;
 }
 
+// Sample median RGB of pixels inside a polygon (stepped grid for speed).
+// Returns [r, g, b] in 0-255, or null if no pixels sampled.
+function sampleMaskColor(pts, pixelData, pixelW, pixelH, scaleX, scaleY) {
+  if (!pts || pts.length < 3) return null;
+  const xs = pts.map(p => p[0] * scaleX), ys = pts.map(p => p[1] * scaleY);
+  const x0 = Math.max(0, Math.floor(Math.min(...xs)));
+  const x1 = Math.min(pixelW - 1, Math.ceil(Math.max(...xs)));
+  const y0 = Math.max(0, Math.floor(Math.min(...ys)));
+  const y1 = Math.min(pixelH - 1, Math.ceil(Math.max(...ys)));
+  const step = Math.max(1, Math.floor(Math.max(x1 - x0, y1 - y0) / 30));
+  const rs = [], gs = [], bs = [];
+  for (let py = y0; py <= y1; py += step) {
+    for (let px = x0; px <= x1; px += step) {
+      // Scale back to polygon coordinate space for point-in-polygon test
+      if (pointInPolygon(px / scaleX, py / scaleY, pts)) {
+        const idx = (py * pixelW + px) * 4;
+        rs.push(pixelData[idx]); gs.push(pixelData[idx + 1]); bs.push(pixelData[idx + 2]);
+      }
+    }
+  }
+  if (rs.length === 0) return null;
+  rs.sort((a, b) => a - b); gs.sort((a, b) => a - b); bs.sort((a, b) => a - b);
+  const mid = Math.floor(rs.length / 2);
+  return [rs[mid], gs[mid], bs[mid]];
+}
+
 // Lift 2D mask polygons → 3D by finding which Gaussian centers project inside each mask.
 // Returns an array of THREE.Vector3[] (one per mask), parallel to the masks array.
 // Iterates all Gaussians once, assigns each to matching masks.
-// Depth-filters each mask to the modal depth layer (removes floaters / background
-// Gaussians that pass the 2D test but are in front of or behind the actual wall surface).
-function liftMasksToGaussians(masks, imgW, imgH) {
+// Applies two filters:
+//   1. Color filter — pixel at the projected Gaussian position must match the hold's
+//      median color within COLOR_DIST_THRESH (magic-wand style).
+//   2. Depth filter — IQR Tukey fence removes floaters / background depth layers.
+const COLOR_DIST_THRESH = 80; // RGB Euclidean distance (0-255 per channel)
+
+function liftMasksToGaussians(masks, imgW, imgH, pixelData, pixelW, pixelH) {
   const splatMesh = viewer.splatMesh;
   if (!splatMesh) return masks.map(() => []);
 
   const count = splatMesh.getSplatCount();
   const cam = viewer.camera;
   const tmp = new THREE.Vector3();
+
+  // Scale from SAM2 image coords → pixel data coords
+  const scaleX = pixelData ? pixelW / imgW : 1;
+  const scaleY = pixelData ? pixelH / imgH : 1;
+
+  // Pre-compute per-mask representative color (median RGB inside polygon)
+  const maskColors = pixelData
+    ? masks.map(m => sampleMaskColor(m.pts, pixelData, pixelW, pixelH, scaleX, scaleY))
+    : masks.map(() => null);
 
   // Per-mask: store { world: Vector3, ndcZ: float } so we can depth-filter afterwards
   const raw = masks.map(() => []);
@@ -363,10 +402,26 @@ function liftMasksToGaussians(masks, imgW, imgH) {
     const py = (-proj.y + 1) / 2 * imgH;
     if (px < 0 || px > imgW || py < 0 || py > imgH) continue;
 
+    // Sample pixel color at projected position (for color filter)
+    let pr = 0, pg = 0, pb = 0;
+    if (pixelData) {
+      const ipx = Math.min(pixelW - 1, Math.round(px * scaleX));
+      const ipy = Math.min(pixelH - 1, Math.round(py * scaleY));
+      const idx = (ipy * pixelW + ipx) * 4;
+      pr = pixelData[idx]; pg = pixelData[idx + 1]; pb = pixelData[idx + 2];
+    }
+
     for (let m = 0; m < masks.length; m++) {
-      if (masks[m].pts && pointInPolygon(px, py, masks[m].pts)) {
-        raw[m].push({ world: tmp.clone(), ndcZ: proj.z });
+      if (!masks[m].pts || !pointInPolygon(px, py, masks[m].pts)) continue;
+
+      // Color filter: skip Gaussians projected to pixels that don't match the hold color
+      const mc = maskColors[m];
+      if (mc) {
+        const dr = pr - mc[0], dg = pg - mc[1], db = pb - mc[2];
+        if (Math.sqrt(dr * dr + dg * dg + db * db) > COLOR_DIST_THRESH) continue;
       }
+
+      raw[m].push({ world: tmp.clone(), ndcZ: proj.z });
     }
   }
 
@@ -480,6 +535,19 @@ async function segmentView() {
     const imgW = data.image_info?.width ?? glCanvas.width;
     const imgH = data.image_info?.height ?? glCanvas.height;
 
+    // Decode the captured frame into pixel data for color-based filtering.
+    // The blob is already in memory; draw it to an offscreen canvas to read RGBA pixels.
+    let pixelData = null, pixelW = 0, pixelH = 0;
+    try {
+      const imgBitmap = await createImageBitmap(blob);
+      pixelW = imgBitmap.width; pixelH = imgBitmap.height;
+      const offscreen = new OffscreenCanvas(pixelW, pixelH);
+      offscreen.getContext('2d').drawImage(imgBitmap, 0, 0);
+      pixelData = offscreen.getContext('2d').getImageData(0, 0, pixelW, pixelH).data;
+    } catch (e) {
+      console.warn('[segment-view] pixel decode failed, skipping color filter:', e);
+    }
+
     // Size overlay canvas to match the WebGL canvas
     const oc = overlayCanvas.value;
     if (oc) { oc.width = glCanvas.width; oc.height = glCanvas.height; }
@@ -494,7 +562,7 @@ async function segmentView() {
     }));
 
     // Find which Gaussian centers project inside each mask — single pass over all splats
-    const pts3DPerMask = liftMasksToGaussians(maskDescs, imgW, imgH);
+    const pts3DPerMask = liftMasksToGaussians(maskDescs, imgW, imgH, pixelData, pixelW, pixelH);
 
     masks3D = maskDescs.map((m, i) => ({
       color: m.color,
