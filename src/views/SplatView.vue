@@ -3,8 +3,16 @@
     <div class="splat-header">
       <RouterLink :to="{ name: 'splat-upload' }" class="splat-tab">Upload</RouterLink>
       <RouterLink :to="{ name: 'splat-history' }" class="splat-tab">History</RouterLink>
+      <button
+        v-if="!loading && !processing"
+        class="locate-btn"
+        :disabled="localizing"
+        @click="fileInput.click()"
+      >{{ localizing ? 'Localizing…' : 'Locate' }}</button>
+      <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="localize" />
       <span class="splat-header-id">{{ route.params.splatId }}</span>
     </div>
+    <div v-if="localizeError" class="locate-error">{{ localizeError }}</div>
     <!-- Splat loading spinner -->
     <div v-if="loading && !processing" class="overlay">
       <p>Loading splat… {{ loadProgress }}%<span v-if="splatSizeBytes"> ({{ (splatSizeBytes / 1024 / 1024).toFixed(1) }} MB)</span></p>
@@ -87,8 +95,12 @@ const queuePosition = ref(null);
 const viewerPort = ref(null);
 const logLines = ref([]);
 const jobMeta = ref(null); // { scene, params, stored_videos }
+const fileInput = ref(null);
+const localizing = ref(false);
+const localizeError = ref('');
 let viewer = null;
 let currentObjectUrl = null;
+let THREE = null;
 
 function openViewer() {
   window.open(`http://localhost:${viewerPort.value}`, '_blank');
@@ -211,13 +223,14 @@ async function fetchInitialCamera(splatId, gateway) {
 async function renderSplat(objectUrl, splatId) {
   try {
     const gateway = await getGateway();
-    const [{ Viewer }, THREE, initialCam] = await Promise.all([
+    const [{ Viewer }, threeModule, initialCam] = await Promise.all([
       import('@mkkellogg/gaussian-splats-3d'),
       import('three'),
       fetchInitialCamera(splatId, gateway),
     ]);
+    THREE = threeModule;
 
-    const renderer = new THREE.WebGLRenderer({
+    const renderer = new threeModule.WebGLRenderer({
       preserveDrawingBuffer: true,
       antialias: true,
     });
@@ -246,6 +259,50 @@ async function renderSplat(objectUrl, splatId) {
   } catch (err) {
     error.value = 'Failed to render splat: ' + err.message;
     loading.value = false;
+  }
+}
+
+async function localize(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file || !viewer) return;
+
+  localizing.value = true;
+  localizeError.value = '';
+  try {
+    const gateway = await getGateway();
+    const splatId = route.params.splatId;
+    const form = new FormData();
+    form.append('image', file);
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/localize`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) {
+      const detail = (await res.json().catch(() => ({}))).detail ?? `HTTP ${res.status}`;
+      throw new Error(detail);
+    }
+    const cam = await res.json();
+    console.log('[localize] response:', cam);
+    jumpToCamera(cam);
+  } catch (err) {
+    localizeError.value = 'Localization failed: ' + err.message;
+    setTimeout(() => { localizeError.value = ''; }, 6000);
+  } finally {
+    localizing.value = false;
+  }
+}
+
+function jumpToCamera(cam) {
+  if (!viewer || !THREE) return;
+  const [px, py, pz] = cam.position;
+  const [lx, ly, lz] = cam.look_at;
+  const [ux, uy, uz] = cam.up;
+  viewer.camera.position.set(px, py, pz);
+  viewer.camera.up.set(ux, uy, uz);
+  if (viewer.controls?.target) {
+    viewer.controls.target.set(lx, ly, lz);
+    viewer.controls.update();
   }
 }
 
@@ -551,5 +608,34 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
   color: #6b7280;
   letter-spacing: 0.03em;
   margin-left: auto;
+}
+
+.locate-btn {
+  margin-left: 8px;
+  padding: 4px 14px;
+  background: #1e1b4b;
+  color: #a5b4fc;
+  border: 1px solid #3730a3;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.locate-btn:hover:not(:disabled) { background: #312e81; }
+.locate-btn:disabled { opacity: 0.5; cursor: default; }
+
+.locate-error {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #7f1d1d;
+  color: #fca5a5;
+  padding: 8px 18px;
+  border-radius: 6px;
+  z-index: 30;
+  font-size: 0.82rem;
+  max-width: 80%;
+  text-align: center;
+  pointer-events: none;
 }
 </style>
