@@ -311,7 +311,7 @@ async function localize(event) {
 // ── Segment-view: 3D-locked mask overlay ─────────────────────────────────────
 const HOLD_COLOURS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#14b8a6'];
 
-// masks3D: [{ color, pts3D: THREE.Vector3[] }]  — world-space polygon vertices
+// masks3D: [{ color, center: THREE.Vector3 }]  — one world-space centroid per hold
 let masks3D = [];
 let maskRafId = null;
 const overlayCanvas = ref(null);  // bound to the overlay <canvas> element
@@ -337,59 +337,18 @@ function pointInPolygon(px, py, polygon) {
   return inside;
 }
 
-// Sample median RGB of pixels inside a polygon (stepped grid for speed).
-// Returns [r, g, b] in 0-255, or null if no pixels sampled.
-function sampleMaskColor(pts, pixelData, pixelW, pixelH, scaleX, scaleY) {
-  if (!pts || pts.length < 3) return null;
-  const xs = pts.map(p => p[0] * scaleX), ys = pts.map(p => p[1] * scaleY);
-  const x0 = Math.max(0, Math.floor(Math.min(...xs)));
-  const x1 = Math.min(pixelW - 1, Math.ceil(Math.max(...xs)));
-  const y0 = Math.max(0, Math.floor(Math.min(...ys)));
-  const y1 = Math.min(pixelH - 1, Math.ceil(Math.max(...ys)));
-  const step = Math.max(1, Math.floor(Math.max(x1 - x0, y1 - y0) / 30));
-  const rs = [], gs = [], bs = [];
-  for (let py = y0; py <= y1; py += step) {
-    for (let px = x0; px <= x1; px += step) {
-      // Scale back to polygon coordinate space for point-in-polygon test
-      if (pointInPolygon(px / scaleX, py / scaleY, pts)) {
-        const idx = (py * pixelW + px) * 4;
-        rs.push(pixelData[idx]); gs.push(pixelData[idx + 1]); bs.push(pixelData[idx + 2]);
-      }
-    }
-  }
-  if (rs.length === 0) return null;
-  rs.sort((a, b) => a - b); gs.sort((a, b) => a - b); bs.sort((a, b) => a - b);
-  const mid = Math.floor(rs.length / 2);
-  return [rs[mid], gs[mid], bs[mid]];
-}
-
-// Lift 2D mask polygons → 3D by finding which Gaussian centers project inside each mask.
-// Returns an array of THREE.Vector3[] (one per mask), parallel to the masks array.
-// Iterates all Gaussians once, assigns each to matching masks.
-// Applies two filters:
-//   1. Color filter — pixel at the projected Gaussian position must match the hold's
-//      median color within COLOR_DIST_THRESH (magic-wand style).
-//   2. Depth filter — IQR Tukey fence removes floaters / background depth layers.
-const COLOR_DIST_THRESH = 80; // RGB Euclidean distance (0-255 per channel)
-
-function liftMasksToGaussians(masks, imgW, imgH, pixelData, pixelW, pixelH) {
+// Lift 2D mask polygons → 3D centroids. For each mask, collects all Gaussian centers
+// that project inside the polygon, depth-filters via IQR, then returns the mean
+// world-space position as a single representative THREE.Vector3 (or null).
+function liftMasksToGaussians(masks, imgW, imgH) {
   const splatMesh = viewer.splatMesh;
-  if (!splatMesh) return masks.map(() => []);
+  if (!splatMesh) return masks.map(() => null);
 
   const count = splatMesh.getSplatCount();
   const cam = viewer.camera;
   const tmp = new THREE.Vector3();
 
-  // Scale from SAM2 image coords → pixel data coords
-  const scaleX = pixelData ? pixelW / imgW : 1;
-  const scaleY = pixelData ? pixelH / imgH : 1;
-
-  // Pre-compute per-mask representative color (median RGB inside polygon)
-  const maskColors = pixelData
-    ? masks.map(m => sampleMaskColor(m.pts, pixelData, pixelW, pixelH, scaleX, scaleY))
-    : masks.map(() => null);
-
-  // Per-mask: store { world: Vector3, ndcZ: float } so we can depth-filter afterwards
+  // Per-mask: accumulate { world, ndcZ } for depth filtering
   const raw = masks.map(() => []);
 
   for (let i = 0; i < count; i++) {
@@ -402,65 +361,36 @@ function liftMasksToGaussians(masks, imgW, imgH, pixelData, pixelW, pixelH) {
     const py = (-proj.y + 1) / 2 * imgH;
     if (px < 0 || px > imgW || py < 0 || py > imgH) continue;
 
-    // Sample pixel color at projected position (for color filter)
-    let pr = 0, pg = 0, pb = 0;
-    if (pixelData) {
-      const ipx = Math.min(pixelW - 1, Math.round(px * scaleX));
-      const ipy = Math.min(pixelH - 1, Math.round(py * scaleY));
-      const idx = (ipy * pixelW + ipx) * 4;
-      pr = pixelData[idx]; pg = pixelData[idx + 1]; pb = pixelData[idx + 2];
-    }
-
     for (let m = 0; m < masks.length; m++) {
-      if (!masks[m].pts || !pointInPolygon(px, py, masks[m].pts)) continue;
-
-      // Color filter: skip Gaussians projected to pixels that don't match the hold color
-      const mc = maskColors[m];
-      if (mc) {
-        const dr = pr - mc[0], dg = pg - mc[1], db = pb - mc[2];
-        if (Math.sqrt(dr * dr + dg * dg + db * db) > COLOR_DIST_THRESH) continue;
+      if (masks[m].pts && pointInPolygon(px, py, masks[m].pts)) {
+        raw[m].push({ world: tmp.clone(), ndcZ: proj.z });
       }
-
-      raw[m].push({ world: tmp.clone(), ndcZ: proj.z });
     }
   }
 
-  // Depth-filter via IQR (Tukey fence). More robust than std-dev against the long
-  // tail of stray floaters / background Gaussians that pass the 2D mask test.
+  // Depth-filter via IQR then compute centroid of survivors.
   return raw.map(pts => {
-    if (pts.length < 6) return pts.map(p => p.world);
-    const zs = pts.map(p => p.ndcZ).sort((a, b) => a - b);
-    const n = zs.length;
-    const q1 = zs[Math.floor(n * 0.25)];
-    const q3 = zs[Math.floor(n * 0.75)];
-    const iqr = Math.max(q3 - q1, 0.005);   // floor avoids over-tightening on flat walls
-    const lo = q1 - 1.5 * iqr;
-    const hi = q3 + 1.5 * iqr;
-    const filtered = pts.filter(p => p.ndcZ >= lo && p.ndcZ <= hi).map(p => p.world);
-    // Fall back to all points if filter is too aggressive (< 3 survivors)
-    return filtered.length >= 3 ? filtered : pts.map(p => p.world);
-  });
-}
+    if (pts.length === 0) return null;
 
-// 2D convex hull via gift wrapping — returns [[x,y], ...] in CCW order
-function convexHull2D(pts) {
-  if (pts.length < 3) return pts;
-  let lo = 0;
-  for (let i = 1; i < pts.length; i++) if (pts[i][0] < pts[lo][0]) lo = i;
-  const hull = [];
-  let cur = lo;
-  do {
-    hull.push(pts[cur]);
-    let next = (cur + 1) % pts.length;
-    for (let i = 0; i < pts.length; i++) {
-      const cx = pts[cur][0], cy = pts[cur][1];
-      const nx = pts[next][0], ny = pts[next][1];
-      const ix = pts[i][0], iy = pts[i][1];
-      if ((nx - cx) * (iy - cy) - (ny - cy) * (ix - cx) < 0) next = i;
+    // IQR Tukey fence — removes floaters and background depth layers
+    let survivors = pts;
+    if (pts.length >= 6) {
+      const zs = pts.map(p => p.ndcZ).sort((a, b) => a - b);
+      const n = zs.length;
+      const q1 = zs[Math.floor(n * 0.25)];
+      const q3 = zs[Math.floor(n * 0.75)];
+      const iqr = Math.max(q3 - q1, 0.005);
+      const lo = q1 - 1.5 * iqr, hi = q3 + 1.5 * iqr;
+      const filtered = pts.filter(p => p.ndcZ >= lo && p.ndcZ <= hi);
+      if (filtered.length >= 3) survivors = filtered;
     }
-    cur = next;
-  } while (cur !== lo && hull.length <= pts.length);
-  return hull;
+
+    // Centroid of depth-filtered Gaussians → single representative 3D point
+    const c = new THREE.Vector3();
+    for (const p of survivors) c.add(p.world);
+    c.divideScalar(survivors.length);
+    return c;
+  });
 }
 
 function drawMasks3D() {
@@ -473,27 +403,19 @@ function drawMasks3D() {
   ctx.clearRect(0, 0, W, H);
 
   const tmp = new THREE.Vector3();
-  for (const { color, pts3D } of masks3D) {
-    if (pts3D.length < 3) continue;
+  for (const { color, center } of masks3D) {
+    tmp.copy(center).project(cam);
+    if (tmp.z < -1 || tmp.z > 1) continue;
 
-    // Project all 3D Gaussian centers to screen, keep only visible ones
-    const screen = [];
-    for (const p of pts3D) {
-      tmp.copy(p).project(cam);
-      if (tmp.z < -1 || tmp.z > 1) continue;
-      screen.push([(tmp.x + 1) / 2 * W, (-tmp.y + 1) / 2 * H]);
-    }
-    if (screen.length < 3) continue;
+    const sx = (tmp.x + 1) / 2 * W;
+    const sy = (-tmp.y + 1) / 2 * H;
 
-    const hull = convexHull2D(screen);
     ctx.beginPath();
-    ctx.moveTo(hull[0][0], hull[0][1]);
-    for (let i = 1; i < hull.length; i++) ctx.lineTo(hull[i][0], hull[i][1]);
-    ctx.closePath();
-    ctx.fillStyle = color + '73';
+    ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+    ctx.fillStyle = color + 'cc';
     ctx.fill();
     ctx.strokeStyle = 'white';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
     ctx.stroke();
   }
 
@@ -535,19 +457,6 @@ async function segmentView() {
     const imgW = data.image_info?.width ?? glCanvas.width;
     const imgH = data.image_info?.height ?? glCanvas.height;
 
-    // Decode the captured frame into pixel data for color-based filtering.
-    // The blob is already in memory; draw it to an offscreen canvas to read RGBA pixels.
-    let pixelData = null, pixelW = 0, pixelH = 0;
-    try {
-      const imgBitmap = await createImageBitmap(blob);
-      pixelW = imgBitmap.width; pixelH = imgBitmap.height;
-      const offscreen = new OffscreenCanvas(pixelW, pixelH);
-      offscreen.getContext('2d').drawImage(imgBitmap, 0, 0);
-      pixelData = offscreen.getContext('2d').getImageData(0, 0, pixelW, pixelH).data;
-    } catch (e) {
-      console.warn('[segment-view] pixel decode failed, skipping color filter:', e);
-    }
-
     // Size overlay canvas to match the WebGL canvas
     const oc = overlayCanvas.value;
     if (oc) { oc.width = glCanvas.width; oc.height = glCanvas.height; }
@@ -561,13 +470,13 @@ async function segmentView() {
         : []),
     }));
 
-    // Find which Gaussian centers project inside each mask — single pass over all splats
-    const pts3DPerMask = liftMasksToGaussians(maskDescs, imgW, imgH, pixelData, pixelW, pixelH);
+    // Lift each mask to a single representative 3D centroid — one point per hold
+    const centers = liftMasksToGaussians(maskDescs, imgW, imgH);
 
     masks3D = maskDescs.map((m, i) => ({
       color: m.color,
-      pts3D: pts3DPerMask[i],
-    })).filter(m => m.pts3D.length >= 3);
+      center: centers[i],
+    })).filter(m => m.center !== null);
 
     if (masks3D.length) {
       segmentMasks.value = masks3D;  // truthy — keeps hint visible
