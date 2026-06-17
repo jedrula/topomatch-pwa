@@ -370,16 +370,20 @@ function liftMasksToGaussians(masks, imgW, imgH) {
     }
   }
 
-  // Depth-filter: keep only Gaussians within 1 std-dev of the median NDC-Z.
-  // This strips floaters and background that pass the 2D test.
+  // Depth-filter via IQR (Tukey fence). More robust than std-dev against the long
+  // tail of stray floaters / background Gaussians that pass the 2D mask test.
   return raw.map(pts => {
     if (pts.length < 6) return pts.map(p => p.world);
     const zs = pts.map(p => p.ndcZ).sort((a, b) => a - b);
-    const med = zs[Math.floor(zs.length / 2)];
-    const mean = zs.reduce((s, v) => s + v, 0) / zs.length;
-    const std = Math.sqrt(zs.reduce((s, v) => s + (v - mean) ** 2, 0) / zs.length);
-    const sigma = Math.max(std, 0.01);
-    return pts.filter(p => Math.abs(p.ndcZ - med) <= sigma).map(p => p.world);
+    const n = zs.length;
+    const q1 = zs[Math.floor(n * 0.25)];
+    const q3 = zs[Math.floor(n * 0.75)];
+    const iqr = Math.max(q3 - q1, 0.005);   // floor avoids over-tightening on flat walls
+    const lo = q1 - 1.5 * iqr;
+    const hi = q3 + 1.5 * iqr;
+    const filtered = pts.filter(p => p.ndcZ >= lo && p.ndcZ <= hi).map(p => p.world);
+    // Fall back to all points if filter is too aggressive (< 3 survivors)
+    return filtered.length >= 3 ? filtered : pts.map(p => p.world);
   });
 }
 
