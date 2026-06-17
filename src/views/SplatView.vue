@@ -75,14 +75,10 @@
 
     <div class="canvas-wrapper">
       <div ref="container" class="canvas-container" />
-      <!-- Mask overlay: SVGs returned by SAM2 layered over the splat canvas -->
-      <div v-if="segmentMasks.length" class="mask-overlay" @click="clearMasks">
-        <svg class="mask-svg" :viewBox="`0 0 ${maskViewW} ${maskViewH}`" xmlns="http://www.w3.org/2000/svg">
-          <g v-for="(mask, i) in segmentMasks" :key="i">
-            <path :d="mask.path" :fill="mask.color" fill-opacity="0.45" stroke="white" stroke-width="1.5" />
-          </g>
-        </svg>
-        <div class="mask-hint">{{ segmentMasks.length }} hold{{ segmentMasks.length !== 1 ? 's' : '' }} detected — click to clear</div>
+      <!-- 3D-locked mask overlay: redrawn every frame via RAF -->
+      <canvas ref="overlayCanvas" class="mask-overlay-canvas" />
+      <div v-if="segmentMasks.length" class="mask-hint" @click="clearMasks">
+        {{ segmentMasks.length }} hold{{ segmentMasks.length !== 1 ? 's' : '' }} detected — click to clear
       </div>
     </div>
   </div>
@@ -116,9 +112,7 @@ const fileInput = ref(null);
 const localizing = ref(false);
 const localizeError = ref('');
 const segmenting = ref(false);
-const segmentMasks = ref([]);
-const maskViewW = ref(1920);
-const maskViewH = ref(1080);
+const segmentMasks = ref([]);  // truthy when masks active — drives hint visibility
 let viewer = null;
 let currentObjectUrl = null;
 let THREE = null;
@@ -314,26 +308,153 @@ async function localize(event) {
   }
 }
 
-function clearMasks() {
-  segmentMasks.value = [];
-}
-
-// Hue-distributed colours for each detected hold
+// ── Segment-view: 3D-locked mask overlay ─────────────────────────────────────
 const HOLD_COLOURS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#14b8a6'];
 
+// masks3D: [{ color, pts3D: THREE.Vector3[] }]  — world-space polygon vertices
+let masks3D = [];
+let maskRafId = null;
+const overlayCanvas = ref(null);  // bound to the overlay <canvas> element
+
+function clearMasks() {
+  segmentMasks.value = [];
+  masks3D = [];
+  if (maskRafId !== null) { cancelAnimationFrame(maskRafId); maskRafId = null; }
+  const c = overlayCanvas.value;
+  if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+}
+
+// Point-in-polygon test (ray casting algorithm)
+function pointInPolygon(px, py, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0], yi = polygon[i][1];
+    const xj = polygon[j][0], yj = polygon[j][1];
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// Lift 2D mask polygons → 3D by finding which Gaussian centers project inside each mask.
+// Returns an array of THREE.Vector3[] (one per mask), parallel to the masks array.
+// Iterates all Gaussians once, assigns each to matching masks.
+// Depth-filters each mask to the modal depth layer (removes floaters / background
+// Gaussians that pass the 2D test but are in front of or behind the actual wall surface).
+function liftMasksToGaussians(masks, imgW, imgH) {
+  const splatMesh = viewer.splatMesh;
+  if (!splatMesh) return masks.map(() => []);
+
+  const count = splatMesh.getSplatCount();
+  const cam = viewer.camera;
+  const tmp = new THREE.Vector3();
+
+  // Per-mask: store { world: Vector3, ndcZ: float } so we can depth-filter afterwards
+  const raw = masks.map(() => []);
+
+  for (let i = 0; i < count; i++) {
+    splatMesh.getSplatCenter(i, tmp, true);
+
+    const proj = tmp.clone().project(cam);
+    if (proj.z < -1 || proj.z > 1) continue;
+
+    const px = (proj.x + 1) / 2 * imgW;
+    const py = (-proj.y + 1) / 2 * imgH;
+    if (px < 0 || px > imgW || py < 0 || py > imgH) continue;
+
+    for (let m = 0; m < masks.length; m++) {
+      if (masks[m].pts && pointInPolygon(px, py, masks[m].pts)) {
+        raw[m].push({ world: tmp.clone(), ndcZ: proj.z });
+      }
+    }
+  }
+
+  // Depth-filter: keep only Gaussians within 1 std-dev of the median NDC-Z.
+  // This strips floaters and background that pass the 2D test.
+  return raw.map(pts => {
+    if (pts.length < 6) return pts.map(p => p.world);
+    const zs = pts.map(p => p.ndcZ).sort((a, b) => a - b);
+    const med = zs[Math.floor(zs.length / 2)];
+    const mean = zs.reduce((s, v) => s + v, 0) / zs.length;
+    const std = Math.sqrt(zs.reduce((s, v) => s + (v - mean) ** 2, 0) / zs.length);
+    const sigma = Math.max(std, 0.01);
+    return pts.filter(p => Math.abs(p.ndcZ - med) <= sigma).map(p => p.world);
+  });
+}
+
+// 2D convex hull via gift wrapping — returns [[x,y], ...] in CCW order
+function convexHull2D(pts) {
+  if (pts.length < 3) return pts;
+  let lo = 0;
+  for (let i = 1; i < pts.length; i++) if (pts[i][0] < pts[lo][0]) lo = i;
+  const hull = [];
+  let cur = lo;
+  do {
+    hull.push(pts[cur]);
+    let next = (cur + 1) % pts.length;
+    for (let i = 0; i < pts.length; i++) {
+      const cx = pts[cur][0], cy = pts[cur][1];
+      const nx = pts[next][0], ny = pts[next][1];
+      const ix = pts[i][0], iy = pts[i][1];
+      if ((nx - cx) * (iy - cy) - (ny - cy) * (ix - cx) < 0) next = i;
+    }
+    cur = next;
+  } while (cur !== lo && hull.length <= pts.length);
+  return hull;
+}
+
+function drawMasks3D() {
+  const c = overlayCanvas.value;
+  if (!c || !masks3D.length || !viewer) return;
+
+  const cam = viewer.camera;
+  const W = c.width, H = c.height;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const tmp = new THREE.Vector3();
+  for (const { color, pts3D } of masks3D) {
+    if (pts3D.length < 3) continue;
+
+    // Project all 3D Gaussian centers to screen, keep only visible ones
+    const screen = [];
+    for (const p of pts3D) {
+      tmp.copy(p).project(cam);
+      if (tmp.z < -1 || tmp.z > 1) continue;
+      screen.push([(tmp.x + 1) / 2 * W, (-tmp.y + 1) / 2 * H]);
+    }
+    if (screen.length < 3) continue;
+
+    const hull = convexHull2D(screen);
+    ctx.beginPath();
+    ctx.moveTo(hull[0][0], hull[0][1]);
+    for (let i = 1; i < hull.length; i++) ctx.lineTo(hull[i][0], hull[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = color + '73';
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  maskRafId = requestAnimationFrame(drawMasks3D);
+}
+
+function startMaskLoop() {
+  if (maskRafId !== null) cancelAnimationFrame(maskRafId);
+  maskRafId = requestAnimationFrame(drawMasks3D);
+}
+
 async function segmentView() {
-  if (!viewer) return;
-  const canvas = viewer.renderer?.domElement ?? container.value?.querySelector('canvas');
-  if (!canvas) return;
+  if (!viewer || !THREE) return;
+  const glCanvas = viewer.renderer?.domElement ?? container.value?.querySelector('canvas');
+  if (!glCanvas) return;
 
   segmenting.value = true;
-  segmentMasks.value = [];
+  clearMasks();
   try {
-    maskViewW.value = canvas.width;
-    maskViewH.value = canvas.height;
-
-    // Capture current WebGL frame as JPEG blob
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const dataUrl = glCanvas.toDataURL('image/jpeg', 0.9);
     const blob = await (await fetch(dataUrl)).blob();
 
     const gateway = await getGateway();
@@ -351,25 +472,35 @@ async function segmentView() {
     const data = await res.json();
     console.log('[segment-view] response:', data);
 
-    // data.holds: SAM2 HoldDetection[] — { polygon:[[x,y],...], bbox:{x,y,width,height}, ... }
-    // data.image_info: { width, height } — coordinate space of the polygons
     const holds = data.holds ?? [];
-    const imgW = data.image_info?.width ?? maskViewW.value;
-    const imgH = data.image_info?.height ?? maskViewH.value;
-    maskViewW.value = imgW;
-    maskViewH.value = imgH;
-    segmentMasks.value = holds.map((h, i) => {
-      const colour = HOLD_COLOURS[i % HOLD_COLOURS.length];
-      let path = '';
-      if (h.polygon && h.polygon.length >= 3) {
-        path = `M ${h.polygon[0][0]},${h.polygon[0][1]}` +
-               h.polygon.slice(1).map(p => ` L ${p[0]},${p[1]}`).join('') + ' Z';
-      } else if (h.bbox) {
-        const { x, y, width, height } = h.bbox;
-        path = `M ${x},${y} L ${x+width},${y} L ${x+width},${y+height} L ${x},${y+height} Z`;
-      }
-      return { path, color: colour, pts: h.polygon ?? null };
-    });
+    const imgW = data.image_info?.width ?? glCanvas.width;
+    const imgH = data.image_info?.height ?? glCanvas.height;
+
+    // Size overlay canvas to match the WebGL canvas
+    const oc = overlayCanvas.value;
+    if (oc) { oc.width = glCanvas.width; oc.height = glCanvas.height; }
+
+    // Build mask descriptors (color + polygon for point-in-polygon test)
+    const maskDescs = holds.map((h, i) => ({
+      color: HOLD_COLOURS[i % HOLD_COLOURS.length],
+      pts: h.polygon ?? (h.bbox
+        ? [[h.bbox.x, h.bbox.y], [h.bbox.x+h.bbox.width, h.bbox.y],
+           [h.bbox.x+h.bbox.width, h.bbox.y+h.bbox.height], [h.bbox.x, h.bbox.y+h.bbox.height]]
+        : []),
+    }));
+
+    // Find which Gaussian centers project inside each mask — single pass over all splats
+    const pts3DPerMask = liftMasksToGaussians(maskDescs, imgW, imgH);
+
+    masks3D = maskDescs.map((m, i) => ({
+      color: m.color,
+      pts3D: pts3DPerMask[i],
+    })).filter(m => m.pts3D.length >= 3);
+
+    if (masks3D.length) {
+      segmentMasks.value = masks3D;  // truthy — keeps hint visible
+      startMaskLoop();
+    }
   } catch (err) {
     console.error('[segment-view] error:', err);
     localizeError.value = 'Segmentation failed: ' + err.message;
@@ -393,6 +524,7 @@ function jumpToCamera(cam) {
 }
 
 onBeforeUnmount(() => {
+  if (maskRafId !== null) { cancelAnimationFrame(maskRafId); maskRafId = null; }
   viewer?.stop?.();
   viewer?.dispose?.();
   viewer = null;
@@ -743,17 +875,13 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
   width: 100%;
 }
 
-.mask-overlay {
+.mask-overlay-canvas {
   position: absolute;
   inset: 0;
-  cursor: pointer;
-  z-index: 20;
-}
-
-.mask-svg {
   width: 100%;
   height: 100%;
-  display: block;
+  z-index: 20;
+  pointer-events: none;
 }
 
 .mask-hint {
@@ -766,7 +894,8 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
   padding: 6px 16px;
   border-radius: 20px;
   font-size: 0.78rem;
-  pointer-events: none;
+  cursor: pointer;
+  z-index: 21;
   white-space: nowrap;
 }
 </style>
