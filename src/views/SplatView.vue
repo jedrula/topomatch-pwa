@@ -271,6 +271,7 @@ async function renderSplat(objectUrl, splatId) {
     loading.value = false;
     viewer.start();
     captureThumbnail(splatId);
+    restoreSavedHolds(splatId, gateway);
   } catch (err) {
     error.value = 'Failed to render splat: ' + err.message;
     loading.value = false;
@@ -427,6 +428,34 @@ function startMaskLoop() {
   maskRafId = requestAnimationFrame(drawMasks3D);
 }
 
+// Rebuild the 3D-locked overlay from a server holds list ([{ color, center:[x,y,z] }]).
+function restoreHolds(holdsList) {
+  masks3D = (holdsList ?? [])
+    .filter(h => Array.isArray(h.center) && h.center.length === 3)
+    .map(h => ({ color: h.color, center: new THREE.Vector3(h.center[0], h.center[1], h.center[2]) }));
+
+  const glCanvas = viewer?.renderer?.domElement ?? container.value?.querySelector('canvas');
+  const oc = overlayCanvas.value;
+  if (oc && glCanvas) { oc.width = glCanvas.width; oc.height = glCanvas.height; }
+
+  if (masks3D.length) {
+    segmentMasks.value = masks3D;  // truthy — keeps hint visible
+    startMaskLoop();
+  }
+}
+
+// Fetch previously-saved holds for this splat and re-project them (no segmentation).
+async function restoreSavedHolds(splatId, gateway) {
+  try {
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/holds`);
+    if (!res.ok) return;  // 404 for local/in-memory splats — non-fatal
+    const { holds } = await res.json();
+    if (holds?.length) restoreHolds(holds);
+  } catch {
+    /* non-fatal — overlay simply stays empty */
+  }
+}
+
 async function segmentView() {
   if (!viewer || !THREE) return;
   const glCanvas = viewer.renderer?.domElement ?? container.value?.querySelector('canvas');
@@ -472,16 +501,23 @@ async function segmentView() {
 
     // Lift each mask to a single representative 3D centroid — one point per hold
     const centers = liftMasksToGaussians(maskDescs, imgW, imgH);
+    const newCentres = centers
+      .filter(c => c !== null)
+      .map(c => ({ center: [c.x, c.y, c.z] }));
 
-    masks3D = maskDescs.map((m, i) => ({
-      color: m.color,
-      center: centers[i],
-    })).filter(m => m.center !== null);
-
-    if (masks3D.length) {
-      segmentMasks.value = masks3D;  // truthy — keeps hint visible
-      startMaskLoop();
-    }
+    // Persist server-side. The BE accumulates (idempotent + overlap-aware) and
+    // owns colour assignment, so we render whatever authoritative set it returns.
+    const saveRes = await fetch(
+      `${gateway}/topowall/api/v1/video-to-splat/${splatId}/holds`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ holds: newCentres }),
+      },
+    );
+    if (!saveRes.ok) throw new Error(`Save failed: HTTP ${saveRes.status}`);
+    const { holds: merged } = await saveRes.json();
+    restoreHolds(merged);
   } catch (err) {
     console.error('[segment-view] error:', err);
     localizeError.value = 'Segmentation failed: ' + err.message;
