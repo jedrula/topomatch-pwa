@@ -190,6 +190,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     watch: {
       ignored: [
         '**/node_modules/**',

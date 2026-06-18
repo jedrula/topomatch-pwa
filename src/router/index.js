@@ -161,6 +161,11 @@ const router = createRouter({
       name: 'splat-viewer',
       component: () => import('../views/SplatView.vue'),
     },
+    {
+      path: '/splat/:splatId/holds',
+      name: 'splat-hold-assign',
+      component: () => import('../views/SplatHoldAssignView.vue'),
+    },
   ],
 });
 

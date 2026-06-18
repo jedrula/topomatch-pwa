@@ -16,6 +16,11 @@
         :disabled="segmenting"
         @click="segmentView"
       >{{ segmenting ? 'Segmenting…' : 'Segment' }}</button>
+      <RouterLink
+        v-if="!loading && !processing"
+        class="assign-btn"
+        :to="{ name: 'splat-hold-assign', params: { splatId: route.params.splatId } }"
+      >Assign Holds</RouterLink>
       <span class="splat-header-id">{{ route.params.splatId }}</span>
     </div>
     <div v-if="localizeError" class="locate-error">{{ localizeError }}</div>
@@ -310,7 +315,8 @@ async function localize(event) {
 }
 
 // ── Segment-view: 3D-locked mask overlay ─────────────────────────────────────
-const HOLD_COLOURS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#14b8a6'];
+// Hold colours are assigned by the backend (single source of truth) and arrive
+// on each hold via /holds — the FE only renders them.
 
 // masks3D: [{ color, center: THREE.Vector3 }]  — one world-space centroid per hold
 let masks3D = [];
@@ -490,9 +496,8 @@ async function segmentView() {
     const oc = overlayCanvas.value;
     if (oc) { oc.width = glCanvas.width; oc.height = glCanvas.height; }
 
-    // Build mask descriptors (color + polygon for point-in-polygon test)
-    const maskDescs = holds.map((h, i) => ({
-      color: HOLD_COLOURS[i % HOLD_COLOURS.length],
+    // Build mask descriptors (polygon for the point-in-polygon test)
+    const maskDescs = holds.map((h) => ({
       pts: h.polygon ?? (h.bbox
         ? [[h.bbox.x, h.bbox.y], [h.bbox.x+h.bbox.width, h.bbox.y],
            [h.bbox.x+h.bbox.width, h.bbox.y+h.bbox.height], [h.bbox.x, h.bbox.y+h.bbox.height]]
@@ -886,6 +891,21 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
 }
 .segment-btn:hover:not(:disabled) { background: #166534; }
 .segment-btn:disabled { opacity: 0.5; cursor: default; }
+
+.assign-btn {
+  margin-left: 8px;
+  padding: 4px 14px;
+  background: #292524;
+  color: #d6d3d1;
+  border: 1px solid #44403c;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+.assign-btn:hover { background: #3c3836; color: #fff; }
 
 .canvas-wrapper {
   position: relative;
