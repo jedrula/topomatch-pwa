@@ -13,8 +13,8 @@
         Click holds to assign/remove from
         <b :style="{ color: activeProblem.color }">{{ activeProblem.name }}</b>
       </span>
-      <span v-else-if="holds.length" class="mode-hint warn">
-        Create or select a problem first →
+      <span v-else-if="holds.length" class="mode-hint">
+        Click a hold to inspect · select a problem to assign →
       </span>
     </header>
 
@@ -148,6 +148,20 @@
 
       </aside>
     </div>
+    <!-- Hold inspection modal -->
+    <Teleport to="body">
+      <div v-if="inspectedHoldId !== null" class="inspect-overlay" @click.self="closeInspect">
+        <div class="inspect-modal">
+          <div class="inspect-hdr">
+            <span class="inspect-title">Hold #{{ inspectedHoldId }}</span>
+            <button class="inspect-close" @click="closeInspect">×</button>
+          </div>
+          <div v-if="cropLoading" class="inspect-loading">Loading training views…</div>
+          <div v-else-if="cropError" class="inspect-error">{{ cropError }}</div>
+          <img v-else-if="cropUrl" :src="cropUrl" class="inspect-grid" />
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -184,6 +198,36 @@ const PROBLEM_COLORS = [
   '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899',
 ];
 
+// ── Hold inspection state ─────────────────────────────────────────────────────
+const inspectedHoldId = ref(null);
+const cropUrl = ref(null);
+const cropLoading = ref(false);
+const cropError = ref('');
+
+async function inspectHold(holdId) {
+  inspectedHoldId.value = holdId;
+  cropLoading.value = true;
+  cropError.value = '';
+  if (cropUrl.value) { URL.revokeObjectURL(cropUrl.value); cropUrl.value = null; }
+  try {
+    const gateway = await getGateway();
+    const splatId = route.params.splatId;
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/holds/${holdId}/crops`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    cropUrl.value = URL.createObjectURL(await res.blob());
+  } catch (e) {
+    cropError.value = e.message;
+  } finally {
+    cropLoading.value = false;
+  }
+}
+
+function closeInspect() {
+  inspectedHoldId.value = null;
+  if (cropUrl.value) { URL.revokeObjectURL(cropUrl.value); cropUrl.value = null; }
+  cropError.value = '';
+}
+
 // ── Cleanup / blacklist state ──────────────────────────────────────────────────
 // blacklisted is a plain Set (non-reactive — accessed directly in RAF drawHolds).
 // blacklistedCount mirrors its size reactively for the template.
@@ -199,6 +243,7 @@ function blacklistSet(id, exclude) {
 }
 
 function enterCleanupMode() {
+  closeInspect();
   activeProblemId.value = null;
   cleanupView.value = 'excluded';
   cleanupMode.value = true;
@@ -245,6 +290,7 @@ function createProblem() {
 }
 
 function setActiveProblm(pid) {
+  closeInspect();
   activeProblemId.value = activeProblemId.value === pid ? null : pid;
 }
 
@@ -481,7 +527,6 @@ function buildHoldClickHandler() {
 
   function findNearestHold(clientX, clientY, canvasEl) {
     if (!holds.value.length || !viewer?.camera) return null;
-    if (!cleanupMode.value && !activeProblem.value) return null;
 
     const rect = canvasEl.getBoundingClientRect();
     const cx = clientX - rect.left;
@@ -553,7 +598,11 @@ function buildHoldClickHandler() {
       return;
     }
 
-    if (!activeProblem.value) return;
+    if (!activeProblem.value) {
+      inspectHold(nearest.id);
+      return;
+    }
+
     if (nearest.problemId === activeProblem.value.id) {
       nearest.problemId = null;
     } else {
@@ -992,5 +1041,73 @@ onBeforeUnmount(() => {
   font-size: 0.82rem;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* ── Hold inspection modal ── */
+.inspect-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inspect-modal {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.inspect-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+}
+
+.inspect-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.inspect-close {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 1.3rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.inspect-close:hover { color: #f87171; }
+
+.inspect-loading {
+  padding: 40px;
+  color: #6b7280;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.inspect-error {
+  padding: 40px;
+  color: #f87171;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.inspect-grid {
+  display: block;
+  max-width: 100%;
+  border-radius: 0 0 10px 10px;
 }
 </style>
