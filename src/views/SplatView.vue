@@ -16,6 +16,12 @@
         :disabled="segmenting"
         @click="segmentView"
       >{{ segmenting ? 'Segmenting…' : 'Segment' }}</button>
+      <button
+        v-if="!loading && !processing && segmentMasks.length"
+        class="clear-holds-btn"
+        :disabled="clearingHolds"
+        @click="clearAllHolds"
+      >{{ clearingHolds ? 'Clearing…' : 'Clear holds' }}</button>
       <RouterLink
         v-if="!loading && !processing"
         class="assign-btn"
@@ -117,6 +123,7 @@ const fileInput = ref(null);
 const localizing = ref(false);
 const localizeError = ref('');
 const segmenting = ref(false);
+const clearingHolds = ref(false);
 const segmentMasks = ref([]);  // truthy when masks active — drives hint visibility
 let viewer = null;
 let currentObjectUrl = null;
@@ -329,6 +336,18 @@ function clearMasks() {
   if (maskRafId !== null) { cancelAnimationFrame(maskRafId); maskRafId = null; }
   const c = overlayCanvas.value;
   if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+}
+
+async function clearAllHolds() {
+  const splatId = route.params.splatId;
+  clearingHolds.value = true;
+  try {
+    const gateway = await getGateway();
+    await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/holds`, { method: 'DELETE' });
+    clearMasks();
+  } finally {
+    clearingHolds.value = false;
+  }
 }
 
 // Point-in-polygon test (ray casting algorithm)
@@ -891,6 +910,18 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
 }
 .segment-btn:hover:not(:disabled) { background: #166534; }
 .segment-btn:disabled { opacity: 0.5; cursor: default; }
+
+.clear-holds-btn {
+  padding: 6px 14px;
+  background: #450a0a;
+  color: #fca5a5;
+  border: 1px solid #7f1d1d;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.clear-holds-btn:hover:not(:disabled) { background: #7f1d1d; }
+.clear-holds-btn:disabled { opacity: 0.5; cursor: default; }
 
 .assign-btn {
   margin-left: 8px;
