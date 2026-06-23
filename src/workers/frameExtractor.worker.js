@@ -88,7 +88,7 @@ async function decodeFrames(file, timestamps, scores) {
   // Cap the longer dimension at MAX_DIM, let the other scale proportionally — no letterboxing
   const [dw, dh] = await Promise.all([videoTrack.getDisplayWidth(), videoTrack.getDisplayHeight()]);
   const scale    = Math.min(1, MAX_DIM / Math.max(dw, dh));
-  const sinkOpts = scale < 1 ? { width: Math.round(dw * scale), height: Math.round(dh * scale) } : {};
+  const sinkOpts = scale < 1 ? { width: Math.round(dw * scale), height: Math.round(dh * scale), fit: 'fill' } : {};
 
   const fullSink = new CanvasSink(videoTrack, sinkOpts);
   const frames = [];
