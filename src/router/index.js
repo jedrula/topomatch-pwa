@@ -162,6 +162,11 @@ const router = createRouter({
       component: () => import('../views/SplatView.vue'),
     },
     {
+      path: '/splat/:splatId/walk',
+      name: 'splat-walk',
+      component: () => import('../views/SplatWalkView.vue'),
+    },
+    {
       path: '/splat/:splatId/holds',
       name: 'splat-hold-assign',
       component: () => import('../views/SplatHoldAssignView.vue'),

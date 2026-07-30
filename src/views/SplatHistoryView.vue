@@ -149,7 +149,17 @@
           >
             View Splat →<span v-if="job.splat_size_bytes" class="splat-size-inline"> {{ (job.splat_size_bytes / 1024 / 1024).toFixed(1) }} MB</span>
           </RouterLink>
+          <RouterLink
+            class="view-btn walk-btn"
+            :to="{ name: 'splat-walk', params: { splatId: job.job_id } }"
+            target="_blank"
+          >
+            Walk / Fly 🚶
+          </RouterLink>
           <button class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
+          <button class="view-btn fork-btn" @click="toggleFork(job.job_id)">
+            {{ expandedFork.has(job.job_id) ? 'Cancel ✕' : 'Fork Training ⑂' }}
+          </button>
           <button
             v-if="job.thumbnail"
             class="view-btn capture-btn"
@@ -169,6 +179,7 @@
           <span v-else class="no-images">no images</span>
           <a :href="splatUrl(job.job_id)" class="view-btn dl-splat-btn" download>⬇ .splat</a>
           <a :href="plyUrl(job.job_id)" class="view-btn dl-ply-btn" download>⬇ .ply</a>
+          <a v-if="job.has_colmap_sparse" :href="colmapDatasetUrl(job.job_id)" class="view-btn dl-colmap-btn" download>⬇ COLMAP</a>
           <template v-for="v in job.stored_videos" :key="v.stored">
             <a :href="videoUrl(job.job_id, v.stored)" class="view-btn vid-btn" download>⬇ {{ v.filename }}</a>
           </template>
@@ -176,6 +187,36 @@
             {{ expandedAssign.has(job.job_id) ? 'Cancel' : 'Assign 📍' }}
           </button>
           <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
+          <span class="crop-inline">
+            <button
+              class="view-btn crop-btn"
+              :disabled="cropState[job.job_id]?.status === 'running'"
+              @click="cropAndView(job.job_id)"
+            >{{ cropState[job.job_id]?.status === 'running' ? 'Cropping…' : 'Crop ✂' }}</button>
+            <input
+              class="crop-dist-input"
+              type="number" min="1" max="50" step="0.5"
+              :value="cropDist[job.job_id] ?? 7"
+              @change="cropDist[job.job_id] = +$event.target.value"
+            />m
+            <RouterLink
+              v-if="cropState[job.job_id]?.variant"
+              class="view-btn crop-view-btn"
+              :to="{ name: 'splat-viewer', params: { splatId: job.job_id }, query: { variant: cropState[job.job_id].variant } }"
+              target="_blank"
+            >View Cropped →</RouterLink>
+            <span v-if="cropState[job.job_id]?.error" class="crop-error">{{ cropState[job.job_id].error }}</span>
+          </span>
+        </div>
+
+        <!-- Fork training panel -->
+        <div v-if="expandedFork.has(job.job_id) && forkParams[job.job_id]" class="fork-panel">
+          <div class="fork-hint">SfM poses from job {{ job.job_id }} are reused — only training runs.</div>
+          <TrainingParams :model-value="forkParams[job.job_id]" mode="fork" />
+          <div v-if="forkParams[job.job_id].error" class="fork-error">{{ forkParams[job.job_id].error }}</div>
+          <button class="fork-submit-btn" :disabled="forkParams[job.job_id].submitting" @click="submitFork(job.job_id)">
+            {{ forkParams[job.job_id].submitting ? 'Starting…' : 'Start Fork' }}
+          </button>
         </div>
 
         <!-- Splat assignment panel -->
@@ -247,6 +288,9 @@
           </template>
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
+          </button>
+          <button v-if="job.image_count > 0" class="view-btn img-btn" @click="toggleImages(job.job_id)">
+            {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
           </button>
           <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
         </div>
@@ -335,6 +379,7 @@ import { getGateway } from '../config/gateway.js';
 import { thumbGet, thumbDelete } from '../utils/thumbDb.js';
 import PointCloudViewer from '../components/PointCloudViewer.vue';
 import HistoryFilters from '../components/HistoryFilters.vue';
+import TrainingParams from '../components/TrainingParams.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -365,8 +410,12 @@ const loading = ref(true);
 const error = ref('');
 const expandedCapture = ref(new Set());
 const expandedLogs = ref(new Set());
+const expandedFork = ref(new Set());
+const forkParams = ref({});  // job_id → training params object + submitting/error state
 const expandedImages = ref(new Set());
 const expandedPointCloud = ref(new Set());
+const cropDist = ref({});    // job_id → distance in metres (default 7)
+const cropState = ref({});   // job_id → { status, variant, error }
 const maskEnabled = ref(new Set());
 const jobLogs = ref(new Map());
 const jobImages = ref(new Map());
@@ -508,6 +557,10 @@ function pointcloudUrl(jobId) {
   return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/pointcloud`;
 }
 
+function colmapDatasetUrl(jobId) {
+  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/colmap-dataset`;
+}
+
 function togglePointCloud(jobId) {
   const s = new Set(expandedPointCloud.value);
   s.has(jobId) ? s.delete(jobId) : s.add(jobId);
@@ -603,6 +656,26 @@ function cancelNoteEdit(jobId) {
   editingNotes.value = s;
 }
 
+async function cropAndView(jobId) {
+  const dist = cropDist.value[jobId] ?? 7;
+  cropState.value[jobId] = { status: 'running', variant: null, error: null };
+  try {
+    const gateway = await resolvedGateway();
+    const res = await fetch(
+      `${gateway}/topowall/api/v1/video-to-splat/${jobId}/crop?max_dist_m=${dist}`,
+      { method: 'POST' }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || res.statusText);
+    }
+    const data = await res.json();
+    cropState.value[jobId] = { status: 'done', variant: data.variant, error: null };
+  } catch (e) {
+    cropState.value[jobId] = { status: 'error', variant: null, error: e.message };
+  }
+}
+
 function rerunJob(job) {
   sessionStorage.setItem('splat-rerun', JSON.stringify({
     jobId: job.job_id,
@@ -612,6 +685,59 @@ function rerunJob(job) {
     inputSource: job.params?.source ?? 'video',
   }));
   router.push({ name: 'splat-upload' });
+}
+
+function toggleFork(jobId) {
+  const s = new Set(expandedFork.value);
+  if (s.has(jobId)) {
+    s.delete(jobId);
+  } else {
+    s.add(jobId);
+    if (!forkParams.value[jobId]) {
+      forkParams.value[jobId] = {
+        trainer: 'brush', iters: 5000, brushExtraArgs: '',
+        mcmc: false, viewer: false,
+        postProcessing: 'none', bilateralGridFused: false, randomBkgd: false, ssimLambda: 0.2,
+        sceneName: '',
+        submitting: false, error: '',
+      };
+    }
+  }
+  expandedFork.value = s;
+}
+
+async function submitFork(jobId) {
+  const p = forkParams.value[jobId];
+  if (!p || p.submitting) return;
+  p.submitting = true;
+  p.error = '';
+  try {
+    const gateway = await resolvedGateway();
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/fork-training`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trainer:              p.trainer,
+        iters:                p.iters,
+        mcmc:                 p.mcmc,
+        post_processing:      p.postProcessing,
+        bilateral_grid_fused: p.bilateralGridFused,
+        random_bkgd:          p.randomBkgd,
+        ssim_lambda:          p.ssimLambda,
+        brush_extra_args:     p.brushExtraArgs || undefined,
+        scene:                p.sceneName || undefined,
+      }),
+    });
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(`${res.status}: ${msg.slice(0, 200)}`);
+    }
+    const { job_id } = await res.json();
+    router.push({ name: 'splat-viewer', params: { splatId: job_id } });
+  } catch (err) {
+    p.error = err.message;
+    p.submitting = false;
+  }
 }
 
 async function load() {
@@ -683,11 +809,17 @@ function formatElapsed(seconds) {
 }
 
 function displayParams(params) {
-  const skip = ['filenames', 'filename', 'scene', 'video_count'];
+  const skip = ['filenames', 'filename', 'scene', 'video_count', 'capture_info'];
   return Object.fromEntries(
     Object.entries(params)
       .filter(([k, v]) => !skip.includes(k) && v != null)
-      .map(([k, v]) => k === 'early_stop' ? ['early stop', v ? 'on' : 'off'] : [k, v])
+      .map(([k, v]) => {
+        if (k === 'early_stop') return ['early stop', v ? 'on' : 'off'];
+        if (k === 'forked_from') return ['forked from', v];
+        if (k === 'image_resolution') return ['resolution', v];
+        if (k === 'brush_extra_args') return ['brush args', v];
+        return [k, v];
+      })
   );
 }
 
@@ -1171,6 +1303,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 }
 .dl-ply-btn:hover { background: #166534; }
 
+.dl-colmap-btn {
+  background: #1c2a3a;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.crop-inline { display: inline-flex; align-items: center; gap: 4px; }
+.crop-btn { background: #3d2a00; }
+.crop-btn:hover { background: #7c5500; }
+.crop-btn:disabled { opacity: 0.5; cursor: default; }
+.crop-dist-input {
+  width: 48px; padding: 2px 4px; background: #1a1a2e; color: #eee;
+  border: 1px solid #444; border-radius: 4px; font-size: 11px; text-align: center;
+}
+.crop-view-btn { background: #14532d; text-decoration: none; }
+.crop-view-btn:hover { background: #166534; }
+.crop-error { color: #f87171; font-size: 11px; }
+.dl-colmap-btn:hover { background: #1e3a5f; }
+
 .del-btn { background: #7f1d1d; margin-left: auto; }
 .del-btn:hover { background: #991b1b; }
 
@@ -1377,6 +1528,39 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 /* ── Splat assignment ── */
 .assign-toggle-btn { background: #1d4e3c; color: #6ee7b7; }
 .assign-toggle-btn:hover { background: #15573f; }
+
+.fork-btn { background: #0e4166; }
+.fork-btn:hover { background: #0d5a8a; }
+
+.fork-panel {
+  background: #0d1a26;
+  border: 1px solid #1a3d5c;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fork-hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+.fork-error {
+  font-size: 0.78rem;
+  color: #f87171;
+}
+.fork-submit-btn {
+  align-self: flex-start;
+  background: #0e4166;
+  color: #e5e7eb;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.fork-submit-btn:hover:not(:disabled) { background: #0d5a8a; }
+.fork-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .assign-panel {
   background: #0f1a14;
