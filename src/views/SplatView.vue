@@ -17,11 +17,23 @@
         @click="segmentView"
       >{{ segmenting ? 'Segmenting…' : 'Segment' }}</button>
       <button
+        v-if="!loading && !processing"
+        class="segment-training-btn"
+        :disabled="segmenting"
+        @click="segmentTraining"
+      >{{ segmenting ? 'Segmenting…' : 'Segment Training' }}</button>
+      <button
         v-if="!loading && !processing && segmentMasks.length"
         class="clear-holds-btn"
         :disabled="clearingHolds"
         @click="clearAllHolds"
       >{{ clearingHolds ? 'Clearing…' : 'Clear holds' }}</button>
+      <button
+        v-if="!loading && !processing"
+        class="fix-btn"
+        :disabled="fixing"
+        @click="fixView"
+      >{{ fixing ? '✨ Fixing…' : '✨ Fix view' }}</button>
       <RouterLink
         v-if="!loading && !processing"
         class="assign-btn"
@@ -92,6 +104,16 @@
         {{ segmentMasks.length }} hold{{ segmentMasks.length !== 1 ? 's' : '' }} detected — click to clear
       </div>
     </div>
+
+    <div v-if="fixError" class="fix-err">{{ fixError }}</div>
+    <div v-if="fixedUrl" class="fix-overlay">
+      <img :src="fixedUrl" alt="Fixer-cleaned view" />
+      <div class="fix-overlay-bar">
+        <span>NVIDIA Fixer — cleaned view</span>
+        <a :href="fixedUrl" download="fixed_view.png">Download</a>
+        <button @click="closeFixed">Back to live ✕</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -120,6 +142,9 @@ const viewerPort = ref(null);
 const logLines = ref([]);
 const jobMeta = ref(null); // { scene, params, stored_videos }
 const fileInput = ref(null);
+const fixing = ref(false);
+const fixedUrl = ref('');
+const fixError = ref('');
 const localizing = ref(false);
 const localizeError = ref('');
 const segmenting = ref(false);
@@ -192,7 +217,8 @@ async function checkStatus() {
 
 async function loadSplat(splatId, gateway) {
   try {
-    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/splat`);
+    const variant = route.query.variant ? `?variant=${route.query.variant}` : '';
+    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/splat${variant}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const total = +res.headers.get('Content-Length');
@@ -276,9 +302,14 @@ async function renderSplat(objectUrl, splatId) {
       initialCameraLookAt: initialCam?.look_at ?? [0, 0, 0],
       sharedMemoryForWorkers: false,
     });
+    // format must be explicit: blob URLs carry no extension for the library to
+    // sniff. sphericalHarmonicsDegree 3 is what makes .ply/.spz look right —
+    // .splat stores DC colour only, so SH there would be a no-op.
+    const sceneFormat = splatStore.getFormat(splatId);
     await viewer.addSplatScene(objectUrl, {
       splatAlphaRemovalThreshold: 5,
-      format: 0,
+      format: sceneFormat,
+      sphericalHarmonicsDegree: sceneFormat === 0 ? 0 : 3,
     });
     loading.value = false;
     viewer.start();
@@ -551,6 +582,32 @@ async function segmentView() {
   }
 }
 
+async function segmentTraining() {
+  segmenting.value = true;
+  clearMasks();
+  const gateway = await getGateway();
+  const splatId = route.params.splatId;
+  try {
+    const res = await fetch(
+      `${gateway}/topowall/api/v1/video-to-splat/${splatId}/segment-training`,
+      { method: 'POST' },
+    );
+    if (!res.ok) {
+      const detail = (await res.json().catch(() => ({}))).detail ?? `HTTP ${res.status}`;
+      throw new Error(detail);
+    }
+    const data = await res.json();
+    console.log('[segment-training]', data.processed_images, 'images,', data.raw_detections, 'raw detections,', data.holds.length, 'merged holds');
+    restoreHolds(data.holds);
+  } catch (err) {
+    console.error('[segment-training] error:', err);
+    localizeError.value = 'Segment training failed: ' + err.message;
+    setTimeout(() => { localizeError.value = ''; }, 6000);
+  } finally {
+    segmenting.value = false;
+  }
+}
+
 function jumpToCamera(cam) {
   if (!viewer || !THREE) return;
   const [px, py, pz] = cam.position;
@@ -564,7 +621,39 @@ function jumpToCamera(cam) {
   }
 }
 
+// Send the current view to the Fixer service and overlay the cleaned result.
+async function fixView() {
+  if (!viewer || fixing.value) return;
+  fixing.value = true;
+  fixError.value = '';
+  try {
+    const canvas = viewer.renderer?.domElement || container.value?.querySelector('canvas');
+    if (!canvas) throw new Error('no canvas');
+    // Force a fresh frame, then read SYNCHRONOUSLY (mkkellogg renderer has no preserveDrawingBuffer).
+    viewer.update();
+    viewer.render();
+    const dataUrl = canvas.toDataURL('image/png');
+    const blob = await (await fetch(dataUrl)).blob();
+    const gateway = await getGateway();
+    const fd = new FormData();
+    fd.append('file', blob, 'view.png');
+    const res = await fetch(`${gateway}/topowall/api/v1/fix?orient=auto`, { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(`fix ${res.status} (is the Fixer service up?)`);
+    if (fixedUrl.value) URL.revokeObjectURL(fixedUrl.value);
+    fixedUrl.value = URL.createObjectURL(await res.blob());
+  } catch (e) {
+    fixError.value = e.message;
+  } finally {
+    fixing.value = false;
+  }
+}
+function closeFixed() {
+  if (fixedUrl.value) URL.revokeObjectURL(fixedUrl.value);
+  fixedUrl.value = '';
+}
+
 onBeforeUnmount(() => {
+  if (fixedUrl.value) URL.revokeObjectURL(fixedUrl.value);
   if (maskRafId !== null) { cancelAnimationFrame(maskRafId); maskRafId = null; }
   viewer?.stop?.();
   viewer?.dispose?.();
@@ -910,6 +999,39 @@ function cropToContent(srcCanvas, threshold = 15, padding = 12) {
 }
 .segment-btn:hover:not(:disabled) { background: #166534; }
 .segment-btn:disabled { opacity: 0.5; cursor: default; }
+
+.fix-btn {
+  padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer;
+  background: #7a3fd0; color: #fff; font: 600 0.85rem system-ui, sans-serif;
+}
+.fix-btn:hover:not(:disabled) { background: #8f57e0; }
+.fix-btn:disabled { opacity: 0.5; cursor: default; }
+.fix-err {
+  position: fixed; top: 60px; right: 14px; z-index: 60; max-width: 300px;
+  background: rgba(120,20,20,.9); color: #fdd; padding: 6px 10px; border-radius: 6px;
+  font: 12px system-ui; }
+.fix-overlay {
+  position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.fix-overlay img { max-width: 100%; max-height: calc(100% - 48px); object-fit: contain; }
+.fix-overlay-bar { display: flex; align-items: center; gap: 16px; height: 48px; color: #ddd; font: 13px system-ui; }
+.fix-overlay-bar a, .fix-overlay-bar button {
+  color: #c78bff; background: none; border: 1px solid #c78bff; border-radius: 5px;
+  padding: 5px 12px; cursor: pointer; text-decoration: none; font: 13px system-ui; }
+.fix-overlay-bar a:hover, .fix-overlay-bar button:hover { background: rgba(199,139,255,.15); }
+
+.segment-training-btn {
+  margin-left: 4px;
+  padding: 4px 14px;
+  background: #0c4a1e;
+  color: #6ee7b7;
+  border: 1px solid #065f46;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.segment-training-btn:hover:not(:disabled) { background: #065f46; }
+.segment-training-btn:disabled { opacity: 0.5; cursor: default; }
 
 .clear-holds-btn {
   padding: 6px 14px;

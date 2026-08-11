@@ -1,5 +1,13 @@
 <template>
   <div class="picker">
+    <!-- Examples live on their own page so this view stays uncluttered -->
+    <section v-if="!videoFiles.length && examples.length" class="section narrow">
+      <router-link class="examples-link" :to="{ name: 'splat-examples' }">
+        Browse {{ examples.length }} example splat<span v-if="examples.length !== 1">s</span> &rarr;
+      </router-link>
+      <p class="examples-hint">Reference results to compare against, served from the GPU box.</p>
+    </section>
+
     <!-- Load existing .splat file (hidden once any video is picked) -->
     <section v-if="!videoFiles.length" class="section narrow">
       <h3>Load .splat file</h3>
@@ -40,8 +48,10 @@
             :strip="strip"
             :batch-size="batchSize"
             :batch-buffer="batchBuffer"
+            :min-sharpness="minSharpness"
             @trim="onTrim(si, $event)"
             @remove="removeVideo(si)"
+            @enlarge="onEnlargeFrame(si, $event)"
           />
         </div>
 
@@ -57,7 +67,23 @@
             <input type="number" v-model.number="batchBuffer" min="0" max="20" />
             <span class="batch-hint">frames skipped between groups</span>
           </label>
+          <label class="batch-ctrl">
+            <span>min sharpness</span>
+            <input type="number" v-model.number="minSharpness" min="0" max="100" step="5" />
+            <span class="batch-hint">% of strip max</span>
+          </label>
+          <div class="batch-ctrl res-ctrl">
+            <span>resolution</span>
+            <div class="toggle-group">
+              <button v-for="r in RESOLUTION_OPTIONS" :key="r"
+                      :class="{ active: maxResolution === r }"
+                      @click="maxResolution = r; autoResolution = r">{{ r }}</button>
+            </div>
+          </div>
           <span class="batch-total">{{ liveSelection.length }} frames from {{ videoFiles.length }} video(s)</span>
+          <span v-if="minSharpness > 0 && totalRemovedByFilter > 0" class="sharp-removed">
+            {{ totalRemovedByFilter }} frame{{ totalRemovedByFilter !== 1 ? 's' : '' }} removed by sharpness filter
+          </span>
         </div>
 
         <!-- Phase 2: training settings (shown when frames are ready and nothing is scoring) -->
@@ -117,11 +143,12 @@
 
         <TrainingParams :model-value="params" :vast-instances="vastInstances" />
 
+        <div v-if="processingPhotos && photoStatus" class="process-hint">{{ photoStatus }}</div>
         <button v-if="rerunJobId" class="process-btn" :disabled="processingPhotos" @click="startRerun">
           {{ processingPhotos ? 'Submitting…' : `Re-run with ${rerunImageCount} image${rerunImageCount !== 1 ? 's' : ''}` }}
         </button>
         <button v-else class="process-btn" :disabled="processingPhotos || !photoFiles.length" @click="startPhotoJob">
-          {{ processingPhotos ? 'Submitting…' : `Process ${photoFiles.length} Photo${photoFiles.length !== 1 ? 's' : ''}` }}
+          {{ processingPhotos ? photoStatus || 'Processing…' : `Process ${photoFiles.length} Photo${photoFiles.length !== 1 ? 's' : ''}` }}
         </button>
         <div class="process-hint">
           {{ rerunJobId ? rerunImageCount : photoFiles.length }} image{{ (rerunJobId ? rerunImageCount : photoFiles.length) !== 1 ? 's' : '' }} — no blur check, straight to pipeline
@@ -129,16 +156,26 @@
       </template>
     </section>
   </div>
+
+  <Teleport to="body">
+    <div v-if="enlargeModal.src" class="img-modal-backdrop" @click="enlargeModal.src = null">
+      <button class="img-modal-close" @click="enlargeModal.src = null">✕</button>
+      <img :src="enlargeModal.src" class="img-modal-img" @click.stop />
+    </div>
+    <div v-else-if="enlargeModal.loading" class="img-modal-backdrop" @click="enlargeModal.loading = false">
+      <span class="img-modal-loading">Decoding…</span>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, shallowReactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
 import { getGateway } from '../config/gateway.js';
 import VideoStrip from '../components/VideoStrip.vue';
 import TrainingParams from '../components/TrainingParams.vue';
-import { batchedSelectMain } from '../utils/frameScoringUtils.js';
+import { batchedSelectWithThreshold } from '../utils/frameScoringUtils.js';
 
 const router    = useRouter();
 const splatStore = useSplatStore();
@@ -164,6 +201,7 @@ const params = reactive({
   randomBkgd: false,
   ssimLambda: 0.2,
   selectedVastInstance: '',
+  brushExtraArgs: '',
 });
 
 const vastInstances = ref([]);
@@ -185,6 +223,7 @@ const sharedParams = computed(() => ({
   colmap_ba:              params.colmapBa,
   colmap_matcher:         params.colmapMatcher !== 'auto' ? params.colmapMatcher : '',
   view_graph_calibrator:  params.viewGraphCalibrator,
+  brush_extra_args:       params.brushExtraArgs || undefined,
 }));
 
 function appendSharedParams(form) {
@@ -212,6 +251,19 @@ function appendSharedParams(form) {
 }
 
 // ── Splat file ────────────────────────────────────────────────────────────────
+// ── Examples ──────────────────────────────────────────────────────────────────
+// Only the count is needed here; the gallery lives in SplatExamplesView.vue.
+const examples = ref([]);
+
+async function loadExamples() {
+  try {
+    const gateway = await getGateway();
+    const res = await fetch(`${gateway}/topowall/api/v1/examples`);
+    if (!res.ok) return;                     // older server or offline: hide the link
+    examples.value = (await res.json()).examples || [];
+  } catch { /* hide the link */ }
+}
+
 async function onSplatFile(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -226,24 +278,63 @@ const EXTRACTION_FPS = 10;
 const videoFiles  = ref([]);
 const videoStrips = ref([]);
 const videoLoading = ref(false);
-const batchSize   = ref(5);
-const batchBuffer = ref(2);
+const batchSize      = ref(5);
+const batchBuffer    = ref(2);
+const minSharpness   = ref(0);
+const maxResolution  = ref(1920);
+const autoResolution = ref(1920); // tracks what we'd auto-set; maxResolution follows until user overrides
 const uploading   = ref(false);
 const uploadLoaded = ref(0);
 const uploadTotal  = ref(0);
+const enlargeModal = shallowReactive({ src: null, loading: false });
+
+async function onEnlargeFrame(si, { timeS }) {
+  if (enlargeModal.loading) return;
+  enlargeModal.loading = true;
+  enlargeModal.src = null;
+  try {
+    const frames = await decodeWithWorker(videoFiles.value[si], [timeS], {}, maxResolution.value);
+    if (frames[0]) {
+      const url = URL.createObjectURL(frames[0].fullBlob);
+      enlargeModal.src = url;
+    }
+  } catch { /* silent — modal just won't open */ }
+  finally { enlargeModal.loading = false; }
+}
 
 const activeWorkers = [];
 const stripWorkers  = new Map();  // strip index → Worker
 
-function makeStrip(name) {
-  return { name, frames: [], videoDuration: 0, startTime: 0, endTime: null, scoredFrames: [], keyframeCount: 0, scoring: false };
+const RESOLUTION_OPTIONS = [1280, 1920, 2560, 3840];
+function snapResolution(dim) {
+  return RESOLUTION_OPTIONS.find(r => r >= dim) ?? RESOLUTION_OPTIONS[RESOLUTION_OPTIONS.length - 1];
+}
+function updateAutoResolution() {
+  const dims = videoStrips.value.filter(s => s.nativeWidth).map(s => Math.max(s.nativeWidth, s.nativeHeight));
+  if (!dims.length) return;
+  const snapped = snapResolution(Math.max(...dims));
+  if (maxResolution.value === autoResolution.value) maxResolution.value = snapped;
+  autoResolution.value = snapped;
 }
 
-const liveSelection = computed(() =>
-  videoStrips.value.flatMap((strip, si) =>
-    batchedSelectMain(strip.scoredFrames, batchSize.value, batchBuffer.value).map(f => ({ ...f, fileIdx: si }))
-  )
-);
+function makeStrip(name) {
+  return { name, frames: [], videoDuration: 0, startTime: 0, endTime: null, scoredFrames: [], keyframeCount: 0, scoring: false, nativeWidth: 0, nativeHeight: 0 };
+}
+
+const liveData = computed(() => {
+  let totalRemoved = 0;
+  const selected = videoStrips.value.flatMap((strip, si) => {
+    const { selected: s, removedCount } = batchedSelectWithThreshold(
+      strip.scoredFrames, batchSize.value, batchBuffer.value, minSharpness.value
+    );
+    totalRemoved += removedCount;
+    return s.map(f => ({ ...f, fileIdx: si }));
+  });
+  return { selected, totalRemoved };
+});
+
+const liveSelection       = computed(() => liveData.value.selected);
+const totalRemovedByFilter = computed(() => liveData.value.totalRemoved);
 
 const anyScoring = computed(() => videoStrips.value.some(s => s.scoring));
 
@@ -263,7 +354,9 @@ function scoreWithWorker(file, fps, startTime, endTime, fileIdx, callbacks = {})
       worker.terminate();
     };
     worker.onmessage = ({ data }) => {
-      if (data.type === 'total') {
+      if (data.type === 'video-info') {
+        callbacks.onVideoInfo?.({ width: data.width, height: data.height });
+      } else if (data.type === 'total') {
         callbacks.onTotal?.(data.count);
       } else if (data.type === 'frame-scored') {
         const thumbUrl = URL.createObjectURL(data.thumbBlob);
@@ -279,7 +372,7 @@ function scoreWithWorker(file, fps, startTime, endTime, fileIdx, callbacks = {})
   });
 }
 
-function decodeWithWorker(file, timestamps, scores = {}) {
+function decodeWithWorker(file, timestamps, scores = {}, maxDim = 1920) {
   return new Promise((resolve, reject) => {
     const worker = makeWorker();
     activeWorkers.push(worker);
@@ -293,7 +386,7 @@ function decodeWithWorker(file, timestamps, scores = {}) {
       else if (data.type === 'error') { cleanup(); reject(new Error(data.message)); }
     };
     worker.onerror = (e) => { cleanup(); reject(new Error(e.message)); };
-    worker.postMessage({ mode: 'decode', file, timestamps, scores });
+    worker.postMessage({ mode: 'decode', file, timestamps, scores, maxDim });
   });
 }
 
@@ -305,9 +398,13 @@ async function scoreStrip(idx) {
   strip.keyframeCount = 0;
   try {
     await scoreWithWorker(file, EXTRACTION_FPS, strip.startTime, strip.endTime, idx, {
-      onTotal: (count) => { if (videoStrips.value[idx]) videoStrips.value[idx].keyframeCount = count; },
-      onFrame: (frame) => { if (videoStrips.value[idx]) videoStrips.value[idx].scoredFrames.push(frame); },
-      workerRef: (w)   => { stripWorkers.set(idx, w); },
+      onVideoInfo: ({ width, height }) => {
+        if (videoStrips.value[idx]) { videoStrips.value[idx].nativeWidth = width; videoStrips.value[idx].nativeHeight = height; }
+        updateAutoResolution();
+      },
+      onTotal:    (count) => { if (videoStrips.value[idx]) videoStrips.value[idx].keyframeCount = count; },
+      onFrame:    (frame) => { if (videoStrips.value[idx]) videoStrips.value[idx].scoredFrames.push(frame); },
+      workerRef:  (w)     => { stripWorkers.set(idx, w); },
     });
     stripWorkers.delete(idx);
   } catch (err) {
@@ -406,7 +503,7 @@ async function confirmUpload() {
       videoFiles.value.map((file, si) => {
         const timestamps = selected.filter(f => f.fileIdx === si).map(f => f.timeS);
         const scores     = Object.fromEntries(selected.filter(f => f.fileIdx === si).map(f => [f.timeS, f.score]));
-        return timestamps.length ? decodeWithWorker(file, timestamps, scores) : Promise.resolve([]);
+        return timestamps.length ? decodeWithWorker(file, timestamps, scores, maxResolution.value) : Promise.resolve([]);
       })
     );
     allFrameBlobs = perFile.flat();
@@ -416,33 +513,77 @@ async function confirmUpload() {
     return;
   }
 
-  const form = new FormData();
-  allFrameBlobs.forEach((f, i) =>
-    form.append('images', new File([f.fullBlob], `frame_${String(i).padStart(5, '0')}.jpg`, { type: 'image/jpeg' }))
+  // Split frames into ≤50 MB chunks
+  const frameFiles = allFrameBlobs.map((f, i) =>
+    new File([f.fullBlob], `frame_${String(i).padStart(5, '0')}.jpg`, { type: 'image/jpeg' })
   );
-  appendSharedParams(form);
-  if (params.sceneName) form.append('scene', params.sceneName);
-  if (params.selectedVastInstance) form.append('vast_instance_id', params.selectedVastInstance);
+  const chunks = [];
+  let current = [], currentSize = 0;
+  for (const file of frameFiles) {
+    if (currentSize + file.size > CHUNK_BYTES && current.length > 0) {
+      chunks.push(current);
+      current = [];
+      currentSize = 0;
+    }
+    current.push(file);
+    currentSize += file.size;
+  }
+  if (current.length) chunks.push(current);
 
-  let jobId;
+  const totalBytes = frameFiles.reduce((s, f) => s + f.size, 0);
+  uploadTotal.value = totalBytes;
+  let bytesUploaded = 0;
+
+  const captureInfo = JSON.stringify({
+    source: 'video',
+    videos: videoFiles.value.map(f => ({ name: f.name, size_bytes: f.size })),
+    batch_size: batchSize.value,
+    batch_buffer: batchBuffer.value,
+    extraction_fps: EXTRACTION_FPS,
+    frame_count: allFrameBlobs.length,
+    max_dim: PHOTO_MAX_DIM,
+    jpeg_quality: PHOTO_QUALITY,
+    selected_timestamps: videoFiles.value.map((_, si) =>
+      liveSelection.value.filter(f => f.fileIdx === si).map(f => Math.round(f.timeS * 1000) / 1000)
+    ),
+  });
+
+  let jobId = null;
   try {
-    jobId = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${gateway}/topowall/api/v1/images-to-splat`);
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) { uploadLoaded.value = e.loaded; uploadTotal.value = e.total; }
-      };
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try { resolve(JSON.parse(xhr.responseText).job_id); }
-          catch { reject(new Error('Invalid server response')); }
-        } else {
-          reject(new Error(`Server error ${xhr.status}: ${xhr.responseText.slice(0, 200)}`));
-        }
-      };
-      xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send(form);
-    });
+    for (let ci = 0; ci < chunks.length; ci++) {
+      const isLast = ci === chunks.length - 1;
+      const form = new FormData();
+      for (const file of chunks[ci]) form.append('images', file);
+      if (jobId) form.append('job_id', jobId);
+      else form.append('capture_info', captureInfo);
+      form.append('finalize', isLast);
+      appendSharedParams(form);
+      if (params.sceneName) form.append('scene', params.sceneName);
+      if (params.selectedVastInstance) form.append('vast_instance_id', params.selectedVastInstance);
+
+      const chunkBytes = chunks[ci].reduce((s, f) => s + f.size, 0);
+      const baseUploaded = bytesUploaded;
+      jobId = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${gateway}/topowall/api/v1/images-to-splat`);
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable)
+            uploadLoaded.value = baseUploaded + Math.round(e.loaded / e.total * chunkBytes);
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try { resolve(JSON.parse(xhr.responseText).job_id); }
+            catch { reject(new Error('Invalid server response')); }
+          } else {
+            reject(new Error(`Server error ${xhr.status}: ${xhr.responseText.slice(0, 200)}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.send(form);
+      });
+      bytesUploaded += chunkBytes;
+      uploadLoaded.value = bytesUploaded;
+    }
   } catch (err) {
     error.value = 'Upload failed: ' + err.message;
     uploading.value = false;
@@ -455,8 +596,13 @@ async function confirmUpload() {
 // ── Photos ────────────────────────────────────────────────────────────────────
 const photoFiles       = ref([]);
 const processingPhotos = ref(false);
+const photoStatus      = ref('');
 const rerunJobId       = ref(null);
 const rerunImageCount  = ref(0);
+
+const PHOTO_MAX_DIM  = 1920;
+const PHOTO_QUALITY  = 0.88;
+const CHUNK_BYTES    = 50 * 1024 * 1024; // 50 MB per POST
 
 function onPhotoFile(e) {
   const incoming = Array.from(e.target.files).map((f) => ({ name: f.name, url: URL.createObjectURL(f), file: f }));
@@ -469,30 +615,81 @@ function removePhoto(i) {
   photoFiles.value.splice(i, 1);
 }
 
+async function resizePhoto(file) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, PHOTO_MAX_DIM / Math.max(bmp.width, bmp.height));
+  const w = Math.round(bmp.width * scale);
+  const h = Math.round(bmp.height * scale);
+  const canvas = new OffscreenCanvas(w, h);
+  canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
+  bmp.close();
+  return canvas.convertToBlob({ type: 'image/jpeg', quality: PHOTO_QUALITY });
+}
+
 async function startPhotoJob() {
   if (!photoFiles.value.length) return;
   error.value = '';
   processingPhotos.value = true;
+  photoStatus.value = '';
   let gateway;
   try { gateway = await getGateway(); }
   catch (err) { error.value = 'Gateway not configured: ' + err.message; processingPhotos.value = false; return; }
 
-  const form = new FormData();
-  for (const p of photoFiles.value) form.append('images', p.file);
-  appendSharedParams(form);
-  if (params.sceneName) form.append('scene', params.sceneName);
-  if (params.selectedVastInstance) form.append('vast_instance_id', params.selectedVastInstance);
-
-  let jobId;
-  try {
-    const res = await fetch(`${gateway}/topowall/api/v1/images-to-splat`, { method: 'POST', body: form });
-    if (!res.ok) throw new Error(`Server error ${res.status}: ${await res.text()}`);
-    ({ job_id: jobId } = await res.json());
-  } catch (err) {
-    error.value = 'Failed to start job: ' + err.message;
-    processingPhotos.value = false;
-    return;
+  // Resize sequentially to avoid decoding many large bitmaps at once
+  const blobs = [];
+  for (let i = 0; i < photoFiles.value.length; i++) {
+    photoStatus.value = `Resizing ${i + 1} / ${photoFiles.value.length}…`;
+    const p = photoFiles.value[i];
+    try {
+      const blob = await resizePhoto(p.file);
+      blobs.push({ blob, name: p.name.replace(/\.[^.]+$/, '.jpg') });
+    } catch (err) {
+      error.value = `Failed to resize ${p.name}: ${err.message}`;
+      processingPhotos.value = false;
+      return;
+    }
   }
+
+  // Split into ≤50 MB chunks
+  const chunks = [];
+  let current = [], currentSize = 0;
+  for (const b of blobs) {
+    if (currentSize + b.blob.size > CHUNK_BYTES && current.length > 0) {
+      chunks.push(current);
+      current = [];
+      currentSize = 0;
+    }
+    current.push(b);
+    currentSize += b.blob.size;
+  }
+  if (current.length) chunks.push(current);
+
+  // Upload chunks sequentially
+  let jobId = null;
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const isLast = ci === chunks.length - 1;
+    photoStatus.value = chunks.length > 1
+      ? `Uploading chunk ${ci + 1} / ${chunks.length}…`
+      : 'Uploading…';
+    const form = new FormData();
+    for (const b of chunks[ci])
+      form.append('images', new File([b.blob], b.name, { type: 'image/jpeg' }));
+    if (jobId) form.append('job_id', jobId);
+    form.append('finalize', isLast);
+    appendSharedParams(form);
+    if (params.sceneName) form.append('scene', params.sceneName);
+    if (params.selectedVastInstance) form.append('vast_instance_id', params.selectedVastInstance);
+    try {
+      const res = await fetch(`${gateway}/topowall/api/v1/images-to-splat`, { method: 'POST', body: form });
+      if (!res.ok) throw new Error(`Server error ${res.status}: ${await res.text()}`);
+      ({ job_id: jobId } = await res.json());
+    } catch (err) {
+      error.value = `Upload failed (chunk ${ci + 1}/${chunks.length}): ${err.message}`;
+      processingPhotos.value = false;
+      return;
+    }
+  }
+
   processingPhotos.value = false;
   router.push({ name: 'splat-viewer', params: { splatId: jobId } });
 }
@@ -522,7 +719,17 @@ async function startRerun() {
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
+function onKeydown(e) {
+  if (e.key === 'Escape' && (enlargeModal.src || enlargeModal.loading)) {
+    if (enlargeModal.src) URL.revokeObjectURL(enlargeModal.src);
+    enlargeModal.src = null;
+    enlargeModal.loading = false;
+  }
+}
+
 onMounted(async () => {
+  document.addEventListener('keydown', onKeydown);
+  loadExamples();                       // fire and forget; section stays hidden if it fails
   try {
     const gw = await getGateway();
     const r  = await fetch(`${gw}/topowall/api/v1/vast/instances`);
@@ -552,6 +759,7 @@ onMounted(async () => {
     params.bilateralGridFused  = !!rp.bilateral_grid_fused;
     params.randomBkgd          = !!rp.random_bkgd;
     params.ssimLambda          = rp.ssim_lambda != null ? parseFloat(rp.ssim_lambda) : 0.2;
+    params.brushExtraArgs      = rp.brush_extra_args || '';
   }
   if (rerun.scene) params.sceneName = rerun.scene;
 
@@ -590,9 +798,12 @@ onMounted(async () => {
       } catch { /* silent */ }
     }
   }
+
 });
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown);
+  if (enlargeModal.src) URL.revokeObjectURL(enlargeModal.src);
   for (const strip of videoStrips.value) {
     for (const f of strip.scoredFrames) {
       if (f.thumbUrl) URL.revokeObjectURL(f.thumbUrl);
@@ -603,6 +814,26 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ── Examples ─────────────────────────────────────────────────────────────── */
+.examples-hint { margin: 0 0 .6rem; font-size: .85rem; opacity: .7; }
+.examples { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+.example-btn {
+  display: flex; flex-direction: column; gap: .25rem; width: 100%;
+  text-align: left; padding: .75rem .9rem; cursor: pointer;
+  border: 1px solid rgba(128, 128, 128, .35); border-radius: 8px;
+  background: rgba(128, 128, 128, .06); color: inherit; font: inherit;
+}
+.example-btn:hover:not(:disabled) { background: rgba(128, 128, 128, .14); }
+.example-btn:disabled { cursor: default; opacity: .55; }
+.example-title { font-weight: 600; }
+.example-sub   { font-size: .85rem; opacity: .75; }
+.example-stats { font-size: .78rem; opacity: .65; font-variant-numeric: tabular-nums; }
+.example-desc  { font-size: .82rem; opacity: .8; line-height: 1.35; margin-top: .2rem; }
+.example-why   { font-size: .82rem; opacity: .9; font-style: italic; margin-top: .2rem; }
+.example-src   { font-size: .74rem; opacity: .55; }
+.example-progress { font-size: .8rem; font-weight: 600; }
+.example.busy .example-btn { border-color: currentColor; }
+
 .picker {
   display: flex;
   flex-direction: column;
@@ -710,7 +941,41 @@ onUnmounted(() => {
   text-align: center;
 }
 .batch-hint  { font-size: 0.7rem; color: #4b5563; }
-.batch-total { font-size: 0.75rem; color: #60a5fa; margin-left: auto; font-variant-numeric: tabular-nums; }
+.batch-total    { font-size: 0.75rem; color: #60a5fa; margin-left: auto; font-variant-numeric: tabular-nums; }
+.res-ctrl                { flex-direction: row; align-items: center; gap: 8px; }
+.res-ctrl .toggle-group  { display: flex; gap: 3px; }
+.res-ctrl .toggle-group button {
+  padding: 3px 8px;
+  background: #1e293b;
+  border: 1px solid #374151;
+  color: #9ca3af;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.res-ctrl .toggle-group button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.sharp-removed  { font-size: 0.75rem; color: #f87171; font-variant-numeric: tabular-nums; }
+
+.img-modal-backdrop {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.88);
+  display: flex; align-items: center; justify-content: center;
+  cursor: zoom-out;
+}
+.img-modal-img {
+  max-width: 90vw; max-height: 90vh;
+  object-fit: contain; border-radius: 6px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+  cursor: default;
+}
+.img-modal-close {
+  position: fixed; top: 18px; right: 22px;
+  background: rgba(255,255,255,0.1); border: none; color: #e5e7eb;
+  font-size: 1.2rem; width: 36px; height: 36px; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.img-modal-close:hover { background: rgba(255,255,255,0.22); }
+.img-modal-loading { color: #9ca3af; font-size: 0.9rem; }
 
 /* Upload progress (Phase 2) */
 .extraction-progress { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
