@@ -144,6 +144,11 @@ const router = createRouter({
           component: () => import('../views/SplatUploadView.vue'),
         },
         {
+          path: 'upload/examples',
+          name: 'splat-examples',
+          component: () => import('../views/SplatExamplesView.vue'),
+        },
+        {
           path: 'history',
           name: 'splat-history',
           component: () => import('../views/SplatHistoryView.vue'),
@@ -165,6 +170,13 @@ const router = createRouter({
       path: '/splat/:splatId/walk',
       name: 'splat-walk',
       component: () => import('../views/SplatWalkView.vue'),
+    },
+    {
+      // Standalone POC: same walk/fly idea on PlayCanvas + SOG (13.7x smaller download,
+      // SH preserved). Additive on purpose — walk v1 above keeps working on .ply.
+      path: '/splat/:splatId/walk2',
+      name: 'splat-walk2',
+      component: () => import('../views/SplatWalk2View.vue'),
     },
     {
       path: '/splat/:splatId/holds',

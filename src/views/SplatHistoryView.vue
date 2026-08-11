@@ -156,6 +156,14 @@
           >
             Walk / Fly 🚶
           </RouterLink>
+          <RouterLink
+            class="view-btn walk2-btn"
+            :to="{ name: 'splat-walk2', params: { splatId: job.job_id } }"
+            target="_blank"
+            title="POC: PlayCanvas + SOG — 13.7x smaller download, spherical harmonics preserved"
+          >
+            Walk v2 ⚡
+          </RouterLink>
           <button class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
           <button class="view-btn fork-btn" @click="toggleFork(job.job_id)">
             {{ expandedFork.has(job.job_id) ? 'Cancel ✕' : 'Fork Training ⑂' }}
@@ -1272,6 +1280,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
 .rerun-btn { background: #7c3aed; }
 .rerun-btn:hover { background: #6d28d9; }
+.walk2-btn { background: #1f6f43; }
+.walk2-btn:hover { background: #185835; }
 
 .no-images {
   font-size: 0.78rem;
