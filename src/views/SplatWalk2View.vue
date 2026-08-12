@@ -5,6 +5,7 @@
     <div class="walk2-hud">
       <div><b>Walk / Fly v2</b> — <code>{{ splatId }}</code> <span class="tag">SOG</span></div>
       <div><b>WASD</b> move · <b>Shift</b> sprint · <b>Space/C</b> up/down · <b>Esc</b> release</div>
+      <div class="walk2-note">carpet-walk keeps you where the camera actually went — no wall clipping</div>
       <div>
         look <input type="range" min="0.02" max="0.5" step="0.01" v-model.number="sens" />
         {{ sens.toFixed(2) }}
@@ -13,11 +14,14 @@
         speed <input type="range" min="0.2" max="6" step="0.1" v-model.number="speed" />
         {{ speed.toFixed(1) }}
       </div>
-      <div class="walk2-flip">
-        up <button :class="{ on: !flipUp }" @click="setFlip(false)">carpet</button>
-        <button :class="{ on: flipUp }" @click="setFlip(true)">flipped</button>
-        <span class="walk2-up">{{ upLabel }}</span>
+      <div>
+        <label><input type="checkbox" v-model="carpetWalk" /> carpet-walk</label>
+        r <input type="range" min="0.1" max="6" step="0.05" v-model.number="radius"
+                 :disabled="!carpetWalk" />
+        {{ radius.toFixed(2) }}
       </div>
+      <div v-if="distInfo" class="walk2-dist">{{ distInfo }}</div>
+      <div v-if="upLabel" class="walk2-up">up {{ upLabel }}</div>
       <div v-if="sizeInfo" class="walk2-size">{{ sizeInfo }}</div>
     </div>
 
@@ -51,7 +55,7 @@
 //
 // ORIENTATION is settled empirically (Chrome, 2026-08-11) rather than derived — see the
 // camera block below for the three things that were tried and what each did.
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import { getGateway } from '../config/gateway.js';
 
@@ -66,11 +70,13 @@ const progressLabel = ref('');
 const showHint = ref(false);
 const speed = ref(1.5);
 const sizeInfo = ref('');
-const flipUp = ref(false);
 const sens = ref(0.14);
 const upLabel = ref('');
-let applyFlip = () => {};
-const setFlip = (v) => { flipUp.value = v; applyFlip(); };
+// carpet-walk: confine the viewer to within `radius` of a camera centre. See the clamp below.
+const carpetWalk = ref(true);
+const radius = ref(0.6);
+const distInfo = ref('');
+let reclamp = () => {};
 
 let app = null;
 let splatEntity = null;
@@ -201,20 +207,59 @@ onMounted(async () => {
       const right = new pc.Vec3().cross(f, UP).normalize();
       return rotAbout(f, right, pitch).normalize();
     };
-    // The scene's true up is not always carpet.world_up: brush exports in its own frame,
-    // which need not match the COLMAP world the carpet is derived from. Rather than guess,
-    // expose the flip and let one click settle it per scene.
+    // carpet.world_up is now trustworthy, so there is no up/flipped toggle: /carpet derives
+    // gravity from the capture's own ARKit trajectory (which is gravity-aligned by
+    // construction) and reports which branch it used. The frames all agree — the brush PLY
+    // sits in the COLMAP frame the carpet is derived in (splat->COLMAP nearest-neighbour
+    // median 0.027 vs 0.90 if x,y were negated) and the SOG preserves it — so an override
+    // would only ever be a way to make this wrong.
     const applyCamera = () => {
-      const up = flipUp.value ? UP.clone().mulScalar(-1) : UP;
       camera.setPosition(pos);
-      camera.lookAt(pos.clone().add(currentDir()), up);
+      camera.lookAt(pos.clone().add(currentDir()), UP);
     };
-    applyFlip = () => {
-      upLabel.value = (flipUp.value ? '-' : '+') +
-        `(${UP.x.toFixed(2)}, ${UP.y.toFixed(2)}, ${UP.z.toFixed(2)})`;
-      applyCamera();
+    upLabel.value = `(${UP.x.toFixed(2)}, ${UP.y.toFixed(2)}, ${UP.z.toFixed(2)})`;
+
+    // ---- carpet-walk: poor man's collision (ported from walk v1) ----
+    // The camera centres are the only positions we KNOW were physically occupied, so
+    // confining the viewer to within `radius` of the nearest one keeps it out of walls and
+    // out of the unobserved space behind them — where the splat has no real geometry to show
+    // anyway, only stretched gaussians and floaters. Cheaper and more robust than meshing the
+    // scene to collide against, which is why v1 had it.
+    const CN = carpet?.centers?.length ? Float32Array.from(carpet.centers.flat()) : null;
+    const nCam = CN ? (CN.length / 3) | 0 : 0;
+    const nearestCarpet = (p) => {
+      let bd = Infinity, bx = 0, by = 0, bz = 0;
+      for (let i = 0; i < nCam; i++) {
+        const cx = CN[i * 3], cy = CN[i * 3 + 1], cz = CN[i * 3 + 2];
+        const dx = p.x - cx, dy = p.y - cy, dz = p.z - cz;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < bd) { bd = d2; bx = cx; by = cy; bz = cz; }
+      }
+      return { d: Math.sqrt(bd), x: bx, y: by, z: bz };
     };
-    applyFlip();
+    // Returns the outward unit normal when it had to pull the camera back, else null, so the
+    // caller can also kill the outward velocity — otherwise holding W into a wall builds up
+    // speed that releases as a lurch the moment you turn away.
+    const clampToCarpet = () => {
+      if (!nCam) return null;
+      const nc = nearestCarpet(pos);
+      const r = radius.value;
+      if (carpetWalk.value && nc.d > r) {
+        const ox = pos.x - nc.x, oy = pos.y - nc.y, oz = pos.z - nc.z;
+        const k = r / (nc.d || 1);
+        pos.set(nc.x + ox * k, nc.y + oy * k, nc.z + oz * k);
+        distInfo.value = `dist to carpet ${r.toFixed(2)} (r ${r.toFixed(2)}) · clamped`;
+        return new pc.Vec3(ox, oy, oz).normalize();
+      }
+      distInfo.value = `dist to carpet ${nc.d.toFixed(2)} (r ${r.toFixed(2)}) · ` +
+        (carpetWalk.value ? 'walking' : 'free-fly');
+      return null;
+    };
+    // Enabling the mode (or shrinking r) while parked outside must take effect at once, not
+    // silently wait for the next keypress.
+    reclamp = () => { clampToCarpet(); applyCamera(); };
+    clampToCarpet();
+    applyCamera();
 
     // POC debug handle — lets me inspect/drive the camera from the console without a
     // rebuild cycle (the engine is a bundled module, so `pc` is not global).
@@ -282,7 +327,7 @@ onMounted(async () => {
     const DAMP = 11;       // 1/s   — coasts a short distance after release
     const onUpdate = (dt) => {
       const step = Math.min(dt, 0.05);   // a stalled tab must not teleport the camera
-      const up = flipUp.value ? UP.clone().mulScalar(-1) : UP;
+      const up = UP;
       const d = currentDir();
       // ground-plane basis
       let fwd = d.clone().sub(up.clone().mulScalar(d.dot(up)));
@@ -305,6 +350,11 @@ onMounted(async () => {
       }
       if (vel.lengthSq() > 1e-9) {
         pos.add(vel.clone().mulScalar(step));
+        const n = clampToCarpet();
+        if (n) {
+          const outward = vel.dot(n);
+          if (outward > 0) vel.sub(n.mulScalar(outward));
+        }
         applyCamera();
       }
     };
@@ -315,6 +365,8 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+watch([carpetWalk, radius], () => reclamp());
 
 onBeforeUnmount(() => {
   cleanupFns.forEach((fn) => { try { fn(); } catch { /* ignore */ } });
@@ -342,12 +394,8 @@ onBeforeUnmount(() => {
   font: 11px ui-monospace, monospace; padding: 2px 7px; margin-right: 4px; cursor: pointer;
 }
 .walk2-orient button.on { background: #2f6fd0; color: #fff; border-color: #2f6fd0; }
-.walk2-flip { margin-top: 6px; }
-.walk2-flip button {
-  background: #23232c; color: #cfcfe0; border: 1px solid #3a3a48; border-radius: 4px;
-  font: 11px ui-monospace, monospace; padding: 2px 8px; margin-right: 4px; cursor: pointer;
-}
-.walk2-flip button.on { background: #2f6fd0; color: #fff; border-color: #2f6fd0; }
+.walk2-note { color: #9aa; font-size: 10.5px; }
+.walk2-dist { color: #cfcfe0; font-size: 11px; }
 .walk2-up { color: #9aa; font-size: 10.5px; }
 .walk2-size { margin-top: 6px; color: #9be89b; }
 .walk2-status {
