@@ -4,10 +4,19 @@
 
     <div class="walk2-hud">
       <div><b>Walk / Fly v2</b> — <code>{{ splatId }}</code> <span class="tag">SOG</span></div>
-      <div><b>WASD</b> move · <b>Q/E</b> down/up · click to look · <b>Esc</b> release</div>
+      <div><b>WASD</b> move · <b>Shift</b> sprint · <b>Space/C</b> up/down · <b>Esc</b> release</div>
+      <div>
+        look <input type="range" min="0.02" max="0.5" step="0.01" v-model.number="sens" />
+        {{ sens.toFixed(2) }}
+      </div>
       <div>
         speed <input type="range" min="0.2" max="6" step="0.1" v-model.number="speed" />
         {{ speed.toFixed(1) }}
+      </div>
+      <div class="walk2-flip">
+        up <button :class="{ on: !flipUp }" @click="setFlip(false)">carpet</button>
+        <button :class="{ on: flipUp }" @click="setFlip(true)">flipped</button>
+        <span class="walk2-up">{{ upLabel }}</span>
       </div>
       <div v-if="sizeInfo" class="walk2-size">{{ sizeInfo }}</div>
     </div>
@@ -57,6 +66,11 @@ const progressLabel = ref('');
 const showHint = ref(false);
 const speed = ref(1.5);
 const sizeInfo = ref('');
+const flipUp = ref(false);
+const sens = ref(0.14);
+const upLabel = ref('');
+let applyFlip = () => {};
+const setFlip = (v) => { flipUp.value = v; applyFlip(); };
 
 let app = null;
 let splatEntity = null;
@@ -154,31 +168,53 @@ onMounted(async () => {
     showHint.value = true;
 
     // ---- camera ----
-    // ROLL = 180 is required for an upright view and was verified visually: with roll 0
-    // this room renders UPSIDE DOWN (ceiling light strips along the bottom of the frame),
-    // with roll 180 it is upright. That is expected — carpet.world_up here is ~(0,-1,0)
-    // while setEulerAngles assumes the engine's +Y.
+    // Orientation comes from carpet.world_up, NOT a hardcoded roll. The earlier version
+    // pinned ROLL=180 because a lookAt(target, world_up) attempt appeared to render black —
+    // but that black was a BACKGROUNDED-TAB artefact (requestAnimationFrame is fully
+    // suspended when document.hidden, and PlayCanvas drives its loop from rAF), not a real
+    // failure. The hardcode happened to suit glomap scenes, whose estimated up is ~-Y, and
+    // it renders ARKit pose-prior scenes UPSIDE DOWN — those are in ARKit's world, which is
+    // gravity-aligned, so /carpet reports up = exactly (0,1,0) for them.
     //
-    // Caveat on how this was tested: automated screenshots in a BACKGROUNDED tab render
-    // black, because requestAnimationFrame is fully suspended when document.hidden is
-    // true (measured: 0 rAF callbacks in 400 ms) and PlayCanvas drives its loop from rAF.
-    // Several "black screen" results while iterating were that, not the code — so don't
-    // trust a black canvas from an unfocused tab as evidence of a bug here.
-    //
-    // Motion is expressed in the camera's OWN basis (forward/right/up) so it stays
-    // self-consistent regardless of the underlying frame convention.
-    const ROLL = 180;
+    // yaw turns about UP; pitch about the current right vector; both applied via
+    // lookAt(target, UP), which is orientation-agnostic.
+    const UP = carpet?.world_up
+      ? new pc.Vec3(...carpet.world_up).normalize()
+      : new pc.Vec3(0, 1, 0);
     const pos = carpet?.start_pos
       ? new pc.Vec3(...carpet.start_pos)
       : new pc.Vec3(0, 1.5, 4);
-    const f0 = carpet?.start_fwd || [0, 0, -1];
-    let yaw = Math.atan2(-f0[0], -f0[2]) * (180 / Math.PI);
-    let pitch = Math.asin(Math.max(-1, Math.min(1, f0[1]))) * (180 / Math.PI);
-    const applyCamera = () => {
-      camera.setPosition(pos);
-      camera.setEulerAngles(pitch, yaw, ROLL);
+    let refFwd = carpet?.start_fwd
+      ? new pc.Vec3(...carpet.start_fwd).normalize()
+      : new pc.Vec3(0, 0, -1);
+    refFwd = refFwd.sub(UP.clone().mulScalar(refFwd.dot(UP)));
+    if (refFwd.lengthSq() < 1e-6) refFwd = new pc.Vec3(1, 0, 0);
+    refFwd.normalize();
+
+    let yaw = 0;
+    let pitch = 0;
+    const _q = new pc.Quat();
+    const rotAbout = (v, axis, deg) =>
+      _q.setFromAxisAngle(axis, deg).transformVector(v, new pc.Vec3());
+    const currentDir = () => {
+      const f = rotAbout(refFwd, UP, yaw);
+      const right = new pc.Vec3().cross(f, UP).normalize();
+      return rotAbout(f, right, pitch).normalize();
     };
-    applyCamera();
+    // The scene's true up is not always carpet.world_up: brush exports in its own frame,
+    // which need not match the COLMAP world the carpet is derived from. Rather than guess,
+    // expose the flip and let one click settle it per scene.
+    const applyCamera = () => {
+      const up = flipUp.value ? UP.clone().mulScalar(-1) : UP;
+      camera.setPosition(pos);
+      camera.lookAt(pos.clone().add(currentDir()), up);
+    };
+    applyFlip = () => {
+      upLabel.value = (flipUp.value ? '-' : '+') +
+        `(${UP.x.toFixed(2)}, ${UP.y.toFixed(2)}, ${UP.z.toFixed(2)})`;
+      applyCamera();
+    };
+    applyFlip();
 
     // POC debug handle — lets me inspect/drive the camera from the console without a
     // rebuild cycle (the engine is a bundled module, so `pc` is not global).
@@ -189,7 +225,7 @@ onMounted(async () => {
         return {
           camPos: [camera.getPosition().x, camera.getPosition().y, camera.getPosition().z],
           camFwd: [camera.forward.x, camera.forward.y, camera.forward.z],
-          roll: ROLL,
+          UP: [UP.x, UP.y, UP.z],
           yaw, pitch,
           aabb: mi?.aabb
             ? { c: [mi.aabb.center.x, mi.aabb.center.y, mi.aabb.center.z],
@@ -204,14 +240,15 @@ onMounted(async () => {
     const keys = {};
     const onKeyDown = (e) => {
       keys[e.code] = true;
-      if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].includes(e.code)) e.preventDefault();
+      if (['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','KeyC'].includes(e.code)) e.preventDefault();
     };
     const onKeyUp = (e) => { keys[e.code] = false; };
     const onClick = () => canvas.requestPointerLock?.();
     const onMove = (e) => {
       if (document.pointerLockElement !== canvas) return;
-      yaw -= e.movementX * 0.12;
-      pitch = Math.max(-89, Math.min(89, pitch - e.movementY * 0.12));
+      // Raw deltas, no smoothing or acceleration — 1:1 is what makes an FPS feel direct.
+      yaw -= e.movementX * sens.value;
+      pitch = Math.max(-89, Math.min(89, pitch - e.movementY * sens.value));
       applyCamera();
     };
     const onLockChange = () => { showHint.value = document.pointerLockElement !== canvas; };
@@ -233,17 +270,43 @@ onMounted(async () => {
     // BLACK, with a provably correct camera — re-applying the IDENTICAL position and
     // angles from the console was enough to make the scene appear, which is how this was
     // pinned down. So re-assert the pose for the first few frames to kick the sort.
+    // FPS movement, not free-flight. Two things make it feel like a game rather than a
+    // debug camera:
+    //  1. W/S travel along the view direction PROJECTED ONTO THE GROUND PLANE, so looking up
+    //     no longer lifts you off the floor — that was the main thing making it feel wrong.
+    //     Vertical is explicit (Space / C), which is also how you get a drone view.
+    //  2. Velocity is accelerated and damped rather than applied per-key-press, so starting,
+    //     stopping and strafing carry a little momentum instead of snapping.
+    const vel = new pc.Vec3();
+    const ACCEL = 34;      // m/s^2 — reaches full speed in ~1/8 s
+    const DAMP = 11;       // 1/s   — coasts a short distance after release
     const onUpdate = (dt) => {
-      const v = speed.value * dt;
-      let moved = false;
-      const step = (vec, sign) => { pos.add(vec.clone().mulScalar(sign * v)); moved = true; };
-      if (keys.KeyW) step(camera.forward, 1);
-      if (keys.KeyS) step(camera.forward, -1);
-      if (keys.KeyD) step(camera.right, 1);
-      if (keys.KeyA) step(camera.right, -1);
-      if (keys.KeyE) step(camera.up, 1);
-      if (keys.KeyQ) step(camera.up, -1);
-      if (moved) applyCamera();
+      const step = Math.min(dt, 0.05);   // a stalled tab must not teleport the camera
+      const up = flipUp.value ? UP.clone().mulScalar(-1) : UP;
+      const d = currentDir();
+      // ground-plane basis
+      let fwd = d.clone().sub(up.clone().mulScalar(d.dot(up)));
+      if (fwd.lengthSq() < 1e-8) fwd = new pc.Vec3().cross(up, new pc.Vec3(1, 0, 0));
+      fwd.normalize();
+      const right = new pc.Vec3().cross(fwd, up).normalize();
+
+      const want = new pc.Vec3();
+      if (keys.KeyW) want.add(fwd);
+      if (keys.KeyS) want.sub(fwd);
+      if (keys.KeyD) want.add(right);
+      if (keys.KeyA) want.sub(right);
+      if (keys.Space) want.add(up);
+      if (keys.KeyC || keys.ControlLeft) want.sub(up);
+      if (want.lengthSq() > 1e-8) {
+        want.normalize().mulScalar(speed.value * (keys.ShiftLeft || keys.ShiftRight ? 3 : 1));
+        vel.add(want.sub(vel).mulScalar(Math.min(1, ACCEL * step / Math.max(speed.value, 0.001))));
+      } else {
+        vel.mulScalar(Math.max(0, 1 - DAMP * step));
+      }
+      if (vel.lengthSq() > 1e-9) {
+        pos.add(vel.clone().mulScalar(step));
+        applyCamera();
+      }
     };
     app.on('update', onUpdate);
     cleanupFns.push(() => app.off('update', onUpdate));
@@ -279,6 +342,13 @@ onBeforeUnmount(() => {
   font: 11px ui-monospace, monospace; padding: 2px 7px; margin-right: 4px; cursor: pointer;
 }
 .walk2-orient button.on { background: #2f6fd0; color: #fff; border-color: #2f6fd0; }
+.walk2-flip { margin-top: 6px; }
+.walk2-flip button {
+  background: #23232c; color: #cfcfe0; border: 1px solid #3a3a48; border-radius: 4px;
+  font: 11px ui-monospace, monospace; padding: 2px 8px; margin-right: 4px; cursor: pointer;
+}
+.walk2-flip button.on { background: #2f6fd0; color: #fff; border-color: #2f6fd0; }
+.walk2-up { color: #9aa; font-size: 10.5px; }
 .walk2-size { margin-top: 6px; color: #9be89b; }
 .walk2-status {
   position: absolute; bottom: 14px; left: 12px; right: 12px; z-index: 5;
