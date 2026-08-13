@@ -38,7 +38,6 @@ export class HoldDetectionApiClient {
       const response = await fetch(`${this.baseUrl}/health`, {
         method: 'GET',
         headers: {
-          'ngrok-skip-browser-warning': 'true'
         }
       });
 
@@ -65,7 +64,6 @@ export class HoldDetectionApiClient {
       const response = await fetch(`${this.baseUrl}/api/v1/process`, {
         method: 'POST',
         headers: {
-          'ngrok-skip-browser-warning': 'true'
         },
         body: formData
       });
@@ -90,7 +88,6 @@ export class HoldDetectionApiClient {
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/status/${jobId}`, {
         headers: {
-          'ngrok-skip-browser-warning': 'true'
         }
       });
 

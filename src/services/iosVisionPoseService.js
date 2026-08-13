@@ -165,8 +165,8 @@ export class IosVisionPoseService extends PoseDetectionService {
       const ctx = canvas.getContext('2d');
       ctx.putImageData(imageData, 0, 0);
       
-      // Convert to base64 (JPEG for smaller size)
-      const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+      // Convert to base64 — high quality preserves fine detail (wrists, ankles)
+      const base64 = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
       resolve(base64);
     });
   }

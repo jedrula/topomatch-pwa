@@ -320,7 +320,6 @@ async function run() {
     loadingStep.value = 'Matching…'
     const matchRes = await fetch(`${serverUrl}/api/v1/general-matching`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
       body: JSON.stringify({
         image1: toBase64(d1.dataUrl),
         image2: toBase64(d2.dataUrl),
