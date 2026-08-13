@@ -169,6 +169,10 @@ const router = createRouter({
     {
       path: '/splat/:splatId/walk',
       name: 'splat-walk',
+      // Fullscreen viewer: App.vue hides the floating chrome on these routes. The WhatsApp
+      // button (fixed bottom-left, z-40) sat exactly on the mobile thumbstick and swallowed
+      // every touch, and the analysis indicator (bottom-right, z-50) covers the up/down pad.
+      meta: { fullscreen: true },
       component: () => import('../views/SplatWalkView.vue'),
     },
     {
@@ -176,6 +180,7 @@ const router = createRouter({
       // SH preserved). Additive on purpose — walk v1 above keeps working on .ply.
       path: '/splat/:splatId/walk2',
       name: 'splat-walk2',
+      meta: { fullscreen: true },
       component: () => import('../views/SplatWalk2View.vue'),
     },
     {

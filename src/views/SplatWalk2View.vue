@@ -2,7 +2,7 @@
   <div class="walk2-view">
     <canvas ref="canvasEl" class="walk2-canvas"></canvas>
 
-    <div class="walk2-hud">
+    <div v-if="!isTouch" class="walk2-hud">
       <div><b>Walk / Fly v2</b> — <code>{{ splatId }}</code> <span class="tag">SOG</span></div>
       <div><b>WASD</b> move · <b>Shift</b> sprint · <b>Space/C</b> up/down · <b>Esc</b> release</div>
       <div class="walk2-note">carpet-walk keeps you where the camera actually went — no wall clipping</div>
@@ -32,8 +32,31 @@
       </div>
     </div>
 
-    <div v-if="showHint" class="walk2-hint">click to look around</div>
-    <RouterLink :to="{ name: 'splat-walk', params: { splatId } }" class="walk2-back">← walk v1 (.ply)</RouterLink>
+    <pre v-if="debug" class="walk2-debug">{{ dbg }}</pre>
+
+    <div v-if="showHint" class="walk2-hint">
+      {{ isTouch ? 'drag to look · stick to walk' : 'click to look around' }}
+      <span class="walk2-build">build {{ buildStamp }}</span>
+    </div>
+
+    <!-- Touch layer -->
+    <div v-if="isTouch" class="walk2-touch">
+      <div ref="stickEl" class="walk2-stick">
+        <div class="walk2-stick-knob"
+             :style="{ transform: `translate(${stickKnob.x}px, ${stickKnob.y}px)` }"></div>
+      </div>
+      <div class="walk2-vbtns">
+        <button @touchstart.passive="touchUp = true" @touchend="touchUp = false"
+                @touchcancel="touchUp = false">▲</button>
+        <button @touchstart.passive="touchDown = true" @touchend="touchDown = false"
+                @touchcancel="touchDown = false">▼</button>
+      </div>
+      <div v-if="atEdge" class="walk2-edge">edge of captured area</div>
+    </div>
+    <RouterLink v-if="!isTouch" :to="{ name: 'splat-walk', params: { splatId } }"
+                class="walk2-back">← walk v1 (.ply)</RouterLink>
+    <RouterLink v-else :to="{ name: 'splat-history' }" class="walk2-back-btn"
+                aria-label="back to history">←</RouterLink>
   </div>
 </template>
 
@@ -74,9 +97,27 @@ const sens = ref(0.14);
 const upLabel = ref('');
 // carpet-walk: confine the viewer to within `radius` of a camera centre. See the clamp below.
 const carpetWalk = ref(true);
+// Back to 0.6 m. It was raised to 1.5 while chasing a stick bug on the theory that a tight
+// clamp was pinning the camera; the real cause was the hit-test, so the loosening was
+// unnecessary and it let the viewer drift close enough to walls to look wrong. 0.6 is also
+// what walk v1 shipped with.
 const radius = ref(0.6);
 const distInfo = ref('');
 let reclamp = () => {};
+// Touch controls. isTouch gates the whole on-screen layer: on a desktop it would just be
+// clutter over the canvas, and the keyboard path is strictly better there.
+const buildStamp = __BUILD_STAMP__;
+const debug = ref(false);
+const dbg = ref('');
+// Set while the clamp is actively holding the camera back, so being pinned is visible instead
+// of looking like dead controls.
+const atEdge = ref(false);
+const isTouch = ref(false);
+const stickEl = ref(null);
+const stickRef = ref(null);
+const stickKnob = ref({ x: 0, y: 0 });
+const touchUp = ref(false);
+const touchDown = ref(false);
 
 let app = null;
 let splatEntity = null;
@@ -84,6 +125,12 @@ let objectUrl = null;
 let cleanupFns = [];
 
 onMounted(async () => {
+  // ?touch=1 forces the layer on: it makes the mobile control scheme testable on a desktop
+  // (and reviewable without a phone), which is otherwise only reachable via device emulation.
+  debug.value = new URLSearchParams(location.search).has('debug');
+  isTouch.value = window.matchMedia?.('(pointer: coarse)').matches
+    || navigator.maxTouchPoints > 0
+    || new URLSearchParams(location.search).has('touch');
   try {
     const gateway = await getGateway();
     const base = `${gateway}/topowall/api/v1/video-to-splat/${splatId}`;
@@ -297,6 +344,104 @@ onMounted(async () => {
       applyCamera();
     };
     const onLockChange = () => { showHint.value = document.pointerLockElement !== canvas; };
+
+    // ---- touch: look by dragging, move with the on-screen stick ----
+    // Pointer lock does not exist on mobile, and there are no keys, so the desktop path gives
+    // a viewer you can neither turn nor walk. Split by SCREEN REGION rather than by gesture
+    // count: a drag starting inside the stick moves, anything else looks. Region beats
+    // finger-counting because it stays unambiguous when a second finger lands mid-drag.
+    const lookTouch = { id: null, x: 0, y: 0 };
+    const stick = { id: null, cx: 0, cy: 0, x: 0, y: 0 };   // x/y in [-1,1]
+    const STICK_R = 58;                                     // px, matches the CSS radius
+
+    let lastGrab = 'none';
+    const inStick = (t) => {
+      const el = stickEl.value;
+      if (!el) { lastGrab = 'stickEl NULL'; return false; }
+      const r = el.getBoundingClientRect();
+      // Grab area is deliberately LARGER than the drawn circle, and open towards the screen
+      // corner. A thumb lands imprecisely and its contact patch is centimetres wide, so a
+      // hit-test on the visible 116 px circle rejects touches that plainly meant the stick —
+      // and a rejected touch silently becomes a look-drag, which is exactly the reported
+      // symptom of "look works, walking does nothing".
+      const PAD = 44;
+      const hit = t.clientX <= r.right + PAD && t.clientY >= r.top - PAD
+               && t.clientX >= 0 && t.clientY <= window.innerHeight;
+      lastGrab = hit ? 'stick' : `look (grab x<=${(r.right + PAD).toFixed(0)} ` +
+                                 `y>=${(r.top - PAD).toFixed(0)}  touch=` +
+                                 `${t.clientX.toFixed(0)},${t.clientY.toFixed(0)})`;
+      return hit;
+    };
+    const onTouchStart = (e) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (stick.id === null && inStick(t)) {
+          const r = stickEl.value.getBoundingClientRect();
+          stick.id = t.identifier;
+          stick.cx = r.left + r.width / 2;
+          stick.cy = r.top + r.height / 2;
+          stick.x = 0; stick.y = 0;
+        } else if (lookTouch.id === null) {
+          lookTouch.id = t.identifier;
+          lookTouch.x = t.clientX;
+          lookTouch.y = t.clientY;
+          showHint.value = false;
+        }
+      }
+      if (e.cancelable && !e.target.closest?.('.walk2-vbtns')) e.preventDefault();
+    };
+    const onTouchMove = (e) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (t.identifier === stick.id) {
+          // Clamp to the ring so the stick is analogue but bounded, like a thumbstick.
+          const dx = (t.clientX - stick.cx) / STICK_R;
+          const dy = (t.clientY - stick.cy) / STICK_R;
+          const m = Math.hypot(dx, dy) || 1;
+          const k = Math.min(1, m) / m;
+          stick.x = dx * k; stick.y = dy * k;
+          stickKnob.value = { x: stick.x * STICK_R, y: stick.y * STICK_R };
+        } else if (t.identifier === lookTouch.id) {
+          // Touch look wants ~3x the mouse sensitivity: a thumb swipe covers far less
+          // distance than a mouse drag, so 1:1 leaves you unable to turn around.
+          yaw -= (t.clientX - lookTouch.x) * sens.value * 3;
+          pitch = Math.max(-89, Math.min(89, pitch - (t.clientY - lookTouch.y) * sens.value * 3));
+          lookTouch.x = t.clientX; lookTouch.y = t.clientY;
+          applyCamera();
+        }
+      }
+      if (e.cancelable) e.preventDefault();
+    };
+    const onTouchEnd = (e) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (t.identifier === stick.id) {
+          stick.id = null; stick.x = 0; stick.y = 0;
+          stickKnob.value = { x: 0, y: 0 };
+        }
+        if (t.identifier === lookTouch.id) lookTouch.id = null;
+      }
+    };
+    // Non-passive: these must be able to preventDefault, or the page pans and rubber-bands
+    // under the drag instead of the camera turning.
+    const noGesture = (e) => { if (e.cancelable) e.preventDefault(); };
+    for (const ev of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick']) {
+      canvas.addEventListener(ev, noGesture, { passive: false });
+    }
+    cleanupFns.push(() => {
+      for (const ev of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick']) {
+        canvas.removeEventListener(ev, noGesture);
+      }
+    });
+
+    const topts = { passive: false };
+    const touchRoot = canvas.parentElement || canvas;
+    touchRoot.addEventListener('touchstart', onTouchStart, topts);
+    touchRoot.addEventListener('touchmove', onTouchMove, topts);
+    touchRoot.addEventListener('touchend', onTouchEnd);
+    touchRoot.addEventListener('touchcancel', onTouchEnd);
+    stickRef.value = stick;
+
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     canvas.addEventListener('click', onClick);
@@ -308,6 +453,10 @@ onMounted(async () => {
       canvas.removeEventListener('click', onClick);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('pointerlockchange', onLockChange);
+      touchRoot.removeEventListener('touchstart', onTouchStart);
+      touchRoot.removeEventListener('touchmove', onTouchMove);
+      touchRoot.removeEventListener('touchend', onTouchEnd);
+      touchRoot.removeEventListener('touchcancel', onTouchEnd);
     });
 
     // The gsplat sorter only runs when the camera transform changes AFTER the splat is
@@ -340,10 +489,20 @@ onMounted(async () => {
       if (keys.KeyS) want.sub(fwd);
       if (keys.KeyD) want.add(right);
       if (keys.KeyA) want.sub(right);
-      if (keys.Space) want.add(up);
-      if (keys.KeyC || keys.ControlLeft) want.sub(up);
+      if (keys.Space || touchUp.value) want.add(up);
+      if (keys.KeyC || keys.ControlLeft || touchDown.value) want.sub(up);
+      // Analogue stick, added before normalise so a half-pushed stick still walks slowly
+      // once the vector is scaled by its own length below.
+      const st = stickRef.value;
+      if (st && (st.x || st.y)) {
+        want.add(fwd.clone().mulScalar(-st.y));
+        want.add(right.clone().mulScalar(st.x));
+      }
       if (want.lengthSq() > 1e-8) {
-        want.normalize().mulScalar(speed.value * (keys.ShiftLeft || keys.ShiftRight ? 3 : 1));
+        const stMag = st ? Math.min(1, Math.hypot(st.x, st.y)) : 0;
+        const analogue = stMag > 0 ? Math.max(0.15, stMag) : 1;
+        want.normalize().mulScalar(speed.value * analogue *
+                                  (keys.ShiftLeft || keys.ShiftRight ? 3 : 1));
         vel.add(want.sub(vel).mulScalar(Math.min(1, ACCEL * step / Math.max(speed.value, 0.001))));
       } else {
         vel.mulScalar(Math.max(0, 1 - DAMP * step));
@@ -351,11 +510,25 @@ onMounted(async () => {
       if (vel.lengthSq() > 1e-9) {
         pos.add(vel.clone().mulScalar(step));
         const n = clampToCarpet();
+        atEdge.value = !!n;
         if (n) {
           const outward = vel.dot(n);
           if (outward > 0) vel.sub(n.mulScalar(outward));
         }
         applyCamera();
+      } else if (atEdge.value && !want.lengthSq()) {
+        atEdge.value = false;
+      }
+      if (debug.value) {
+        const st2 = stickRef.value || { id: null, x: 0, y: 0 };
+        dbg.value =
+          `build ${buildStamp}\n` +
+          `isTouch ${isTouch.value}  stickEl ${stickEl.value ? 'ok' : 'NULL'}\n` +
+          `lastTouch ${lastGrab}\n` +
+          `stick id=${st2.id} x=${st2.x.toFixed(2)} y=${st2.y.toFixed(2)}\n` +
+          `vel ${vel.length().toFixed(3)} m/s  speed ${speed.value}\n` +
+          `carpetWalk ${carpetWalk.value} r=${radius.value}  atEdge ${atEdge.value}\n` +
+          `${distInfo.value}`;
       }
     };
     app.on('update', onUpdate);
@@ -378,8 +551,19 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.walk2-view { position: fixed; inset: 0; background: #0b0b0f; overflow: hidden; }
-.walk2-canvas { width: 100%; height: 100%; display: block; }
+.walk2-view {
+  position: fixed; inset: 0; background: #0b0b0f; overflow: hidden;
+  /* Nothing here is text to be selected, and a long-press selection or magnifier over the
+     canvas is pure obstruction. */
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+.walk2-canvas {
+  width: 100%; height: 100%; display: block;
+  /* Every touch on the canvas is camera input, so the browser must not claim any of it for
+     scrolling, pinch-zoom or double-tap zoom. */
+  touch-action: none;
+}
 .walk2-hud {
   position: absolute; top: 12px; left: 12px; z-index: 5;
   background: rgba(0,0,0,.62); color: #e8e8ef; padding: 10px 13px;
@@ -395,6 +579,54 @@ onBeforeUnmount(() => {
 }
 .walk2-orient button.on { background: #2f6fd0; color: #fff; border-color: #2f6fd0; }
 .walk2-note { color: #9aa; font-size: 10.5px; }
+.walk2-build { display: block; margin-top: 3px; font-size: 10px; opacity: .6; }
+.walk2-debug {
+  position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 10px; z-index: 62;
+  margin: 0; padding: 7px 9px; border-radius: 7px; max-width: 68vw;
+  background: rgba(0,0,0,.72); color: #9fe89f;
+  font: 10px/1.45 ui-monospace, monospace; white-space: pre-wrap;
+}
+.walk2-edge {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(160px + env(safe-area-inset-bottom)); z-index: 62;
+  background: rgba(0,0,0,.66); color: #ffd9a0; padding: 6px 12px; border-radius: 999px;
+  font: 11px system-ui; pointer-events: none;
+}
+/* Above the app's floating chrome (WhatsApp z-40, analysis indicator z-50): those are
+   hidden on this route, but the stick must win even if something new appears. */
+.walk2-touch { position: fixed; inset: 0; pointer-events: none; z-index: 60; touch-action: none; }
+.walk2-back-btn {
+  position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 14px; z-index: 61;
+  width: 42px; height: 42px; border-radius: 50%; text-decoration: none;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); color: #e8e8ef; font-size: 20px;
+  border: 1px solid rgba(255,255,255,.2);
+}
+.walk2-stick {
+  position: absolute; left: 18px; bottom: calc(30px + env(safe-area-inset-bottom));
+  width: 116px; height: 116px;
+  border-radius: 50%; background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.22); pointer-events: auto;
+  display: flex; align-items: center; justify-content: center;
+}
+.walk2-stick-knob {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(255,255,255,.34); border: 1px solid rgba(255,255,255,.5);
+}
+.walk2-vbtns {
+  position: absolute; right: 18px; bottom: calc(30px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 10px;
+}
+.walk2-vbtns button {
+  pointer-events: auto; width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.24);
+  color: #e8e8ef; font-size: 17px;
+}
+/* The HUD eats most of a phone screen at desktop sizing. */
+@media (max-width: 760px) {
+  .walk2-hud { font-size: 10.5px; max-width: 62vw; padding: 7px 9px; }
+  .walk2-hud input[type=range] { width: 78px; }
+}
 .walk2-dist { color: #cfcfe0; font-size: 11px; }
 .walk2-up { color: #9aa; font-size: 10.5px; }
 .walk2-size { margin-top: 6px; color: #9be89b; }
