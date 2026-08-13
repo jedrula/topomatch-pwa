@@ -26,6 +26,12 @@
             <span class="job-id">{{ job.job_id }}</span>
             <span class="badge" :class="job.status">{{ job.status }}</span>
             <span v-if="job.executor === 'vast'" class="badge vast" :title="'vast instance ' + job.vast_instance_id">VAST ☁</span>
+            <button
+              class="star-btn"
+              :class="{ on: job.starred }"
+              :title="job.starred ? 'Starred — click to unstar' : 'Star this run'"
+              @click="toggleStar(job)"
+            >{{ job.starred ? '★' : '☆' }}</button>
           </div>
           <div class="job-right">
             <img v-if="job.thumbnail" :src="job.thumbnail" class="job-thumb" alt="splat preview" @click="openCaptureLightbox(job.job_id, job.thumbnail)" style="cursor:pointer" />
@@ -393,12 +399,13 @@ const router = useRouter();
 const route = useRoute();
 const jobs = ref([]);
 
-const filters = ref({ statuses: null, minPsnr: null });
+const filters = ref({ statuses: null, minPsnr: null, starredOnly: false });
 
 const filteredJobs = computed(() => {
-  const { statuses, trainers, sources, minPsnr, maxIters, query } = filters.value;
+  const { statuses, trainers, sources, minPsnr, maxIters, query, starredOnly } = filters.value;
   const needle = query?.trim().toLowerCase();
   return jobs.value.filter(job => {
+    if (starredOnly && !job.starred)                     return false;
     if (statuses  && !statuses.has(job.status))          return false;
     if (trainers  && !trainers.has(job.params?.trainer)) return false;
     if (sources   && !sources.has(job.params?.source))   return false;
@@ -656,6 +663,24 @@ async function saveNote(jobId) {
       body: JSON.stringify({ note: text }),
     });
   } catch { /* best-effort */ }
+}
+
+async function toggleStar(job) {
+  const next = !job.starred;
+  job.starred = next;          // optimistic: the star must feel instant while clicking down a list
+  try {
+    const gateway = await resolvedGateway();
+    const r = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${job.job_id}/star`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ starred: next }),
+    });
+    if (!r.ok) throw new Error(`star ${r.status}`);
+  } catch {
+    job.starred = !next;       // roll back rather than lie: a star that silently did not persist
+                               // is worse than one that visibly failed, since the whole point is
+                               // to still be there tomorrow.
+  }
 }
 
 function cancelNoteEdit(jobId) {
@@ -1437,6 +1462,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   gap: 6px;
   margin-top: 5px;
 }
+.star-btn {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  font-size: 15px; line-height: 1; color: #6b6b7a;
+}
+.star-btn:hover { color: #d9b23a; }
+.star-btn.on { color: #f0c14b; }
 .note-save-btn {
   padding: 4px 12px;
   background: #2563eb;

@@ -8,6 +8,13 @@
       spellcheck="false"
     />
 
+    <button
+      class="starred-chip"
+      :class="{ on: starredOnly }"
+      :title="starredOnly ? 'Showing starred only' : 'Show starred only'"
+      @click="starredOnly = !starredOnly"
+    >{{ starredOnly ? '★' : '☆' }} starred</button>
+
     <div class="filter-groups">
       <!-- Status chips -->
       <div class="filter-group">
@@ -129,6 +136,7 @@ const query          = ref('');
 const activeStatuses = ref(new Set());
 const activeTrainers = ref(new Set());
 const activeSources  = ref(new Set());
+const starredOnly    = ref(false);
 const psnrEnabled    = ref(false);
 const psnrValue      = ref(22);
 const itersEnabled   = ref(false);
@@ -197,10 +205,11 @@ function buildFilters() {
     sources:  activeSources.value.size  > 0 ? new Set(activeSources.value)  : null,
     minPsnr:  psnrEnabled.value  ? psnrValue.value  : null,
     maxIters: itersEnabled.value ? itersValue.value  : null,
+    starredOnly: starredOnly.value,
   };
 }
 
-watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrValue, itersEnabled, itersValue], () => {
+watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrValue, itersEnabled, itersValue, starredOnly], () => {
   emit('update:modelValue', buildFilters());
 }, { deep: true });
 </script>
@@ -402,4 +411,14 @@ watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrVa
   cursor: default;
   border-bottom: 1px dashed #374151;
 }
+</style>
+
+<style scoped>
+.starred-chip {
+  background: #23232c; color: #cfcfe0; border: 1px solid #3a3a48;
+  border-radius: 999px; padding: 3px 11px; cursor: pointer;
+  font: 12px system-ui; margin-right: 8px;
+}
+.starred-chip:hover { border-color: #55556a; }
+.starred-chip.on { background: #f0c14b; border-color: #f0c14b; color: #2a2410; font-weight: 600; }
 </style>
