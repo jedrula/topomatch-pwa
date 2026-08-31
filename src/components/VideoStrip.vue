@@ -43,6 +43,7 @@
         <span class="analysis-sub">
           {{ strip.scoredFrames.length }}{{ strip.keyframeCount ? ` / ${strip.keyframeCount}` : '' }} frames
           · {{ selectedSet.size }} selected
+          <template v-if="filteredSet.size"> · <span class="filtered-count">{{ filteredSet.size }} filtered</span></template>
         </span>
       </div>
 
@@ -59,39 +60,41 @@
             :y="100 - scorePercent(frame.score)"
             width="0.85"
             :height="Math.max(scorePercent(frame.score), 1)"
-            :fill="previewFrame?.index === idx ? '#f59e0b' : selectedSet.has(idx) ? '#3b82f6' : '#374151'"
+            :fill="previewFrame?.index === idx ? '#f59e0b' : selectedSet.has(idx) ? '#3b82f6' : filteredSet.has(idx) ? '#450a0a' : '#374151'"
           />
         </svg>
       </div>
 
       <div v-if="previewFrame" class="frame-preview">
-        <img :src="previewFrame.thumbUrl" class="preview-thumb" />
+        <img :src="previewFrame.thumbUrl" class="preview-thumb" @click.stop="emit('enlarge', { timeS: previewFrame.timeS })" title="Click to enlarge" />
         <div class="preview-info">
           <span class="preview-time">{{ formatTime(previewFrame.timeS) }}</span>
           <span class="preview-score">sharpness {{ normalizedScore(previewFrame.score) }}/100</span>
-          <span class="preview-badge" :class="selectedSet.has(previewFrame.index) ? 'preview-sel' : 'preview-rej'">
-            {{ selectedSet.has(previewFrame.index) ? 'selected' : 'rejected' }}
+          <span class="preview-badge" :class="selectedSet.has(previewFrame.index) ? 'preview-sel' : filteredSet.has(previewFrame.index) ? 'preview-filtered' : 'preview-rej'">
+            {{ selectedSet.has(previewFrame.index) ? 'selected' : filteredSet.has(previewFrame.index) ? 'filtered' : 'rejected' }}
           </span>
         </div>
         <button class="preview-close" @click.stop="previewFrame = null">✕</button>
       </div>
     </template>
   </div>
+
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
-import { batchedSelectMain, formatTime } from '../utils/frameScoringUtils.js';
+import { batchedSelectWithThreshold, formatTime } from '../utils/frameScoringUtils.js';
 
 const props = defineProps({
-  strip:       { type: Object, required: true },
-  batchSize:   { type: Number, required: true },
-  batchBuffer: { type: Number, required: true },
+  strip:        { type: Object, required: true },
+  batchSize:    { type: Number, required: true },
+  batchBuffer:  { type: Number, required: true },
+  minSharpness: { type: Number, default: 0 },
 });
 
-const emit = defineEmits(['remove', 'trim']);
+const emit = defineEmits(['remove', 'trim', 'enlarge']);
 
-const framesEl    = ref(null);
+const framesEl     = ref(null);
 const previewFrame = ref(null);
 
 const startPct = computed(() =>
@@ -113,9 +116,17 @@ function normalizedScore(score) {
   return Math.round(((score ?? 0) / Math.max(maxScore.value, 0.001)) * 100);
 }
 
-const selectedSet = computed(() =>
-  new Set(batchedSelectMain(props.strip.scoredFrames, props.batchSize, props.batchBuffer).map(f => f.index))
-);
+const selectedSet = computed(() => {
+  const { selected } = batchedSelectWithThreshold(props.strip.scoredFrames, props.batchSize, props.batchBuffer, props.minSharpness);
+  return new Set(selected.map(f => f.index));
+});
+
+const filteredSet = computed(() => {
+  if (!props.minSharpness || !props.strip.scoredFrames.length) return new Set();
+  const maxScore = Math.max(...props.strip.scoredFrames.map(f => f.score));
+  const threshold = maxScore * (props.minSharpness / 100);
+  return new Set(props.strip.scoredFrames.filter(f => f.score < threshold).map(f => f.index));
+});
 
 const progressPct = computed(() => {
   if (!props.strip.keyframeCount) return 0;
@@ -232,16 +243,21 @@ function startDrag(handle) {
   display: flex; align-items: center; gap: 12px; padding: 8px 10px;
   background: #1e293b; border-radius: 6px; border: 1px solid #334155; position: relative;
 }
-.preview-thumb { width: 96px; height: 96px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.preview-thumb { width: 96px; height: 96px; object-fit: cover; border-radius: 4px; flex-shrink: 0; cursor: zoom-in; }
 .preview-info { display: flex; flex-direction: column; gap: 4px; }
 .preview-time  { font-size: 0.82rem; color: #94a3b8; font-variant-numeric: tabular-nums; }
 .preview-score { font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }
 .preview-badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; width: fit-content; }
-.preview-sel   { background: #1e3a8a; color: #93c5fd; }
-.preview-rej   { background: #292524; color: #a8a29e; }
+.preview-sel      { background: #1e3a8a; color: #93c5fd; }
+.preview-rej      { background: #292524; color: #a8a29e; }
+.preview-filtered { background: #450a0a; color: #fca5a5; }
+.filtered-count   { color: #f87171; }
 .preview-close {
   position: absolute; top: 6px; right: 8px;
   background: none; border: none; color: #6b7280; cursor: pointer; font-size: 0.8rem; padding: 2px 4px;
 }
 .preview-close:hover { color: #e5e7eb; }
+</style>
+
+<style>
 </style>

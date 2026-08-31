@@ -15,6 +15,15 @@ export function batchedSelectMain(frames, bs, bb) {
   return selected;
 }
 
+export function batchedSelectWithThreshold(frames, bs, bb, minSharpPct) {
+  if (!frames.length) return { selected: [], removedCount: 0 };
+  if (!minSharpPct) return { selected: batchedSelectMain(frames, bs, bb), removedCount: 0 };
+  const maxScore = Math.max(...frames.map(f => f.score));
+  const threshold = maxScore * (minSharpPct / 100);
+  const passing = frames.filter(f => f.score >= threshold);
+  return { selected: batchedSelectMain(passing, bs, bb), removedCount: frames.length - passing.length };
+}
+
 export function formatTime(s) {
   if (s == null || isNaN(s)) return '—';
   const m = Math.floor(s / 60);

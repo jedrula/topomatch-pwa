@@ -18,14 +18,13 @@
 
 import { Input, BlobSource, ALL_FORMATS, VideoSampleSink, CanvasSink } from 'mediabunny';
 
-const THUMB   = 64;
-const VIZ     = 80;
-const MAX_DIM = 1920;
+const THUMB = 64;
+const VIZ   = 80;
 
 self.onmessage = async ({ data }) => {
   if (data.mode === 'decode') {
     try {
-      const frames = await decodeFrames(data.file, data.timestamps, data.scores ?? {});
+      const frames = await decodeFrames(data.file, data.timestamps, data.scores ?? {}, data.maxDim ?? 1920);
       self.postMessage({ type: 'done', frames });
     } catch (e) {
       self.postMessage({ type: 'error', message: e.message });
@@ -47,7 +46,12 @@ async function scoreFrames(file, extractionFps, startTime, endTime) {
   const videoTrack = await input.getPrimaryVideoTrack();
   if (!videoTrack) throw new Error('No video track found');
 
-  const metaDuration = await videoTrack.getDurationFromMetadata();
+  const [dw, dh, metaDuration] = await Promise.all([
+    videoTrack.getDisplayWidth(),
+    videoTrack.getDisplayHeight(),
+    videoTrack.getDurationFromMetadata(),
+  ]);
+  self.postMessage({ type: 'video-info', width: dw, height: dh });
   if (metaDuration == null) throw new Error('Could not determine video duration');
   const clampEnd = Math.min(endTime === Infinity ? metaDuration : endTime, metaDuration);
   const step = 1 / Math.max(0.1, extractionFps);
@@ -80,15 +84,15 @@ async function scoreFrames(file, extractionFps, startTime, endTime) {
   input.dispose();
 }
 
-async function decodeFrames(file, timestamps, scores) {
+async function decodeFrames(file, timestamps, scores, maxDim) {
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
   const videoTrack = await input.getPrimaryVideoTrack();
   if (!videoTrack) throw new Error('No video track found');
 
-  // Cap the longer dimension at MAX_DIM, let the other scale proportionally — no letterboxing
+  // Cap the longer dimension at maxDim, let the other scale proportionally — no letterboxing
   const [dw, dh] = await Promise.all([videoTrack.getDisplayWidth(), videoTrack.getDisplayHeight()]);
-  const scale    = Math.min(1, MAX_DIM / Math.max(dw, dh));
-  const sinkOpts = scale < 1 ? { width: Math.round(dw * scale), height: Math.round(dh * scale) } : {};
+  const scale    = Math.min(1, maxDim / Math.max(dw, dh));
+  const sinkOpts = scale < 1 ? { width: Math.round(dw * scale), height: Math.round(dh * scale), fit: 'fill' } : {};
 
   const fullSink = new CanvasSink(videoTrack, sinkOpts);
   const frames = [];
