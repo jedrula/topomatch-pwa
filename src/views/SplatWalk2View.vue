@@ -5,7 +5,9 @@
     <div v-if="!isTouch" class="walk2-hud">
       <div><b>Walk / Fly v2</b> — <code>{{ splatId }}</code> <span class="tag">SOG</span></div>
       <div><b>WASD</b> move · <b>Shift</b> sprint · <b>Space/C</b> up/down · <b>Esc</b> release</div>
-      <div class="walk2-note">carpet-walk keeps you where the camera actually went — no wall clipping</div>
+      <div><b>[</b> / <b>]</b> step to the previous / next capture pose
+        <span v-if="camCount">— {{ camIndex + 1 }} / {{ camCount }}</span></div>
+      <div class="walk2-note">carpet-walk keeps you inside a tube around the capture path — outside it the splat is floaters, not scene</div>
       <div>
         look <input type="range" min="0.02" max="0.5" step="0.01" v-model.number="sens" />
         {{ sens.toFixed(2) }}
@@ -16,8 +18,8 @@
       </div>
       <div>
         <label><input type="checkbox" v-model="carpetWalk" /> carpet-walk</label>
-        r <input type="range" min="0.1" max="6" step="0.05" v-model.number="radius"
-                 :disabled="!carpetWalk" />
+        r <input type="range" :min="radiusMax / 48" :max="radiusMax" :step="radiusMax / 200"
+                 v-model.number="radius" :disabled="!carpetWalk" />
         {{ radius.toFixed(2) }}
       </div>
       <div v-if="distInfo" class="walk2-dist">{{ distInfo }}</div>
@@ -50,6 +52,10 @@
                 @touchcancel="touchUp = false">▲</button>
         <button @touchstart.passive="touchDown = true" @touchend="touchDown = false"
                 @touchcancel="touchDown = false">▼</button>
+        <!-- Same capture-pose stepping the [ and ] keys do. There is no keyboard on a phone,
+             and this is the movement most likely to land on a good view. -->
+        <button @touchstart.passive="stepCam(-1)">‹</button>
+        <button @touchstart.passive="stepCam(1)">›</button>
       </div>
       <div v-if="atEdge" class="walk2-edge">edge of captured area</div>
     </div>
@@ -91,17 +97,24 @@ const loading = ref(true);
 const progressPct = ref(0);
 const progressLabel = ref('');
 const showHint = ref(false);
+// Both of these are SET FROM THE CARPET once it loads (see applyScale). Scene units are
+// arbitrary — a splat trained from COLMAP has no metric scale — so a hardcoded 1.5 m/s is a
+// stroll in one capture and a rocket in the next.
 const speed = ref(1.5);
 const sizeInfo = ref('');
 const sens = ref(0.14);
 const upLabel = ref('');
-// carpet-walk: confine the viewer to within `radius` of a camera centre. See the clamp below.
+// carpet-walk: confine the viewer to a TUBE around the flight path. See the clamp below.
 const carpetWalk = ref(true);
-// Back to 0.6 m. It was raised to 1.5 while chasing a stick bug on the theory that a tight
-// clamp was pinning the camera; the real cause was the hit-test, so the loosening was
-// unnecessary and it let the viewer drift close enough to walls to look wrong. 0.6 is also
-// what walk v1 shipped with.
+// Was a hardcoded 0.6 in scene units, which only ever suited room-scale phone captures. The
+// server now derives a radius from the capture's own extent and this is overwritten by it.
 const radius = ref(0.6);
+const radiusMax = ref(6);
+// Which capture pose the viewer last stepped to, shown so "where the drone was" is a place
+// you can name and return to rather than a vague region.
+const camIndex = ref(0);
+const camCount = ref(0);
+let stepCam = () => {};
 const distInfo = ref('');
 let reclamp = () => {};
 // Touch controls. isTouch gates the whole on-screen layer: on a desktop it would just be
@@ -254,59 +267,180 @@ onMounted(async () => {
       const right = new pc.Vec3().cross(f, UP).normalize();
       return rotAbout(f, right, pitch).normalize();
     };
-    // carpet.world_up is now trustworthy, so there is no up/flipped toggle: /carpet derives
-    // gravity from the capture's own ARKit trajectory (which is gravity-aligned by
-    // construction) and reports which branch it used. The frames all agree — the brush PLY
-    // sits in the COLMAP frame the carpet is derived in (splat->COLMAP nearest-neighbour
-    // median 0.027 vs 0.90 if x,y were negated) and the SOG preserves it — so an override
-    // would only ever be a way to make this wrong.
+    // carpet.world_up is trustworthy only when /carpet MEASURED it, which it reports as
+    // up_confident (up_source 'arkit_traj'): gravity comes from the capture's own ARKit
+    // trajectory, which is gravity-aligned by construction. The frames all agree — the brush
+    // PLY sits in the COLMAP frame the carpet is derived in (splat->COLMAP nearest-neighbour
+    // median 0.027 vs 0.90 if x,y were negated) and the SOG preserves it — so for those pods
+    // an override would only ever be a way to make this wrong.
+    //
+    // Without a trajectory there is nothing to measure and /carpet guesses from the sensor
+    // axis. That guess gets the axis right but can be a full 180 deg out on the SIGN, so
+    // those pods DO need the flip — label it as a guess rather than presenting it as settled.
     const applyCamera = () => {
       camera.setPosition(pos);
       camera.lookAt(pos.clone().add(currentDir()), UP);
     };
-    upLabel.value = `(${UP.x.toFixed(2)}, ${UP.y.toFixed(2)}, ${UP.z.toFixed(2)})`;
+    const upGuessed = carpet?.world_up && carpet.up_confident === false;
+    // 'para' (portrait phone) gets the axis right but can be a full 180 deg out on the SIGN,
+    // so it is the one that may need flipping. 'perp' (gimbal / levelled camera) resolves its
+    // own sign from the point cloud, so calling it "may be flipped" would be misleading.
+    upLabel.value = `(${UP.x.toFixed(2)}, ${UP.y.toFixed(2)}, ${UP.z.toFixed(2)})`
+      + (carpet?.up_model ? ` ${carpet.up_source}` : '')
+      + (upGuessed && carpet?.up_model === 'para' ? ' — sign may be flipped' : '')
+      + (carpet?.traj_from ? ` via ${carpet.traj_from}` : '');
 
-    // ---- carpet-walk: poor man's collision (ported from walk v1) ----
-    // The camera centres are the only positions we KNOW were physically occupied, so
-    // confining the viewer to within `radius` of the nearest one keeps it out of walls and
-    // out of the unobserved space behind them — where the splat has no real geometry to show
-    // anyway, only stretched gaussians and floaters. Cheaper and more robust than meshing the
-    // scene to collide against, which is why v1 had it.
+    // ---- carpet-walk: confinement to the captured volume ----
+    // The flight path is the only place we KNOW the scene was observed from, and outside the
+    // observed cone a 3DGS reconstruction is not merely unseen — it is a halo of stretched
+    // gaussians encoding the background as it looked from the capture, so free flight out
+    // there looks broken even when training views are sharp.
+    //
+    // v1 confined the camera to a sphere around the nearest camera CENTRE. That fails in two
+    // ways this scene shows plainly:
+    //   * a capture with a cut in it splits into disconnected blobs — the drone pod breaks
+    //     into 87 + 65 cameras at ANY radius below 5 scene units, so whichever half you spawn
+    //     in is the only half you can ever reach;
+    //   * between sparse samples the volume is lumpy, and you get held back by geometry that
+    //     is really just the gap between two spheres.
+    // Clamping to the nearest point on the ordered POLYLINE instead gives one connected tube,
+    // which is what "move more or less where the drone went" actually means.
     const CN = carpet?.centers?.length ? Float32Array.from(carpet.centers.flat()) : null;
     const nCam = CN ? (CN.length / 3) | 0 : 0;
-    const nearestCarpet = (p) => {
+    const walk = carpet?.walk || null;
+    const isCut = new Uint8Array(Math.max(nCam - 1, 0));
+    for (const i of (walk?.cuts || [])) if (i >= 0 && i < isCut.length) isCut[i] = 1;
+    // Scene units are arbitrary, so every distance the controls speak in has to be derived
+    // from the capture rather than assumed. `span` is the extent of the camera CORE (the
+    // server drops mis-posed outliers first — one camera a thousand units out would otherwise
+    // set the speed for the whole scene).
+    if (walk?.tube_radius) {
+      radius.value = walk.tube_radius;
+      radiusMax.value = walk.tube_radius * 8;
+    }
+    if (walk?.span) {
+      // Crossing the whole capture in about ten seconds reads as walking pace whatever the
+      // scene's scale turns out to be.
+      speed.value = Math.min(6, Math.max(0.2, walk.span / 10));
+    }
+    // Height along UP below which the camera would be underground. Without it, descending
+    // simply buries you in the terrain — the tube alone does not stop it, because the drone
+    // flew close enough to the ground that its own tube reaches through the floor.
+    // The standoff must never rise above the LOWEST pose the capture actually occupied — the
+    // drone flew there, so it is walkable by definition, and a floor above it makes stepping
+    // to that pose and then touching W lurch the camera upwards.
+    const floorH = walk && Number.isFinite(walk.floor)
+      ? walk.floor + Math.min(0.02 * (walk.span || 1),
+                              Math.max(0, walk.cam_height_min ?? 0))
+      : null;
+
+    // Nearest point on the path, as a polyline. Brute force over a few hundred segments is
+    // nothing next to rendering a million gaussians, and it keeps the clamp exact.
+    const _n = { d: 0, x: 0, y: 0, z: 0 };
+    const nearestOnPath = (p) => {
       let bd = Infinity, bx = 0, by = 0, bz = 0;
-      for (let i = 0; i < nCam; i++) {
-        const cx = CN[i * 3], cy = CN[i * 3 + 1], cz = CN[i * 3 + 2];
-        const dx = p.x - cx, dy = p.y - cy, dz = p.z - cz;
-        const d2 = dx * dx + dy * dy + dz * dz;
+      if (nCam === 1) {
+        bx = CN[0]; by = CN[1]; bz = CN[2];
+        bd = (p.x - bx) ** 2 + (p.y - by) ** 2 + (p.z - bz) ** 2;
+      }
+      for (let i = 0; i < nCam - 1; i++) {
+        // Segments the capture never flew (a cut between two separate shots) are NOT part of
+        // the walkable tube. Including them is what let the camera drift into un-observed
+        // space and render as floaters; travel across a cut is by pose-step instead.
+        if (isCut[i]) continue;
+        const ax = CN[i * 3], ay = CN[i * 3 + 1], az = CN[i * 3 + 2];
+        const ex = CN[i * 3 + 3] - ax, ey = CN[i * 3 + 4] - ay, ez = CN[i * 3 + 5] - az;
+        const L2 = ex * ex + ey * ey + ez * ez;
+        let t = L2 > 1e-12 ? ((p.x - ax) * ex + (p.y - ay) * ey + (p.z - az) * ez) / L2 : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const cx = ax + ex * t, cy = ay + ey * t, cz = az + ez * t;
+        const d2 = (p.x - cx) ** 2 + (p.y - cy) ** 2 + (p.z - cz) ** 2;
         if (d2 < bd) { bd = d2; bx = cx; by = cy; bz = cz; }
       }
-      return { d: Math.sqrt(bd), x: bx, y: by, z: bz };
+      if (!Number.isFinite(bd)) {
+        // Every segment was a cut (a capture of two lone stills, say), so the polyline has no
+        // walkable length at all. Fall back to the nearest CENTRE, which always exists —
+        // otherwise the clamp below divides by an infinite distance and parks the camera at
+        // the origin.
+        for (let i = 0; i < nCam; i++) {
+          const d2 = (p.x - CN[i * 3]) ** 2 + (p.y - CN[i * 3 + 1]) ** 2
+                   + (p.z - CN[i * 3 + 2]) ** 2;
+          if (d2 < bd) { bd = d2; bx = CN[i * 3]; by = CN[i * 3 + 1]; bz = CN[i * 3 + 2]; }
+        }
+      }
+      _n.d = Math.sqrt(bd); _n.x = bx; _n.y = by; _n.z = bz;
+      return _n;
     };
     // Returns the outward unit normal when it had to pull the camera back, else null, so the
     // caller can also kill the outward velocity — otherwise holding W into a wall builds up
     // speed that releases as a lurch the moment you turn away.
     const clampToCarpet = () => {
-      if (!nCam) return null;
-      const nc = nearestCarpet(pos);
-      const r = radius.value;
-      if (carpetWalk.value && nc.d > r) {
-        const ox = pos.x - nc.x, oy = pos.y - nc.y, oz = pos.z - nc.z;
-        const k = r / (nc.d || 1);
-        pos.set(nc.x + ox * k, nc.y + oy * k, nc.z + oz * k);
-        distInfo.value = `dist to carpet ${r.toFixed(2)} (r ${r.toFixed(2)}) · clamped`;
-        return new pc.Vec3(ox, oy, oz).normalize();
+      let pushed = null;
+      if (nCam) {
+        const nc = nearestOnPath(pos);
+        const r = radius.value;
+        if (carpetWalk.value && nc.d > r) {
+          const ox = pos.x - nc.x, oy = pos.y - nc.y, oz = pos.z - nc.z;
+          const k = r / (nc.d || 1);
+          pos.set(nc.x + ox * k, nc.y + oy * k, nc.z + oz * k);
+          pushed = new pc.Vec3(ox, oy, oz).normalize();
+          distInfo.value = `dist to path ${r.toFixed(2)} (r ${r.toFixed(2)}) · clamped`;
+        } else {
+          distInfo.value = `dist to path ${nc.d.toFixed(2)} (r ${r.toFixed(2)}) · ` +
+            (carpetWalk.value ? 'walking' : 'free-fly');
+        }
       }
-      distInfo.value = `dist to carpet ${nc.d.toFixed(2)} (r ${r.toFixed(2)}) · ` +
-        (carpetWalk.value ? 'walking' : 'free-fly');
-      return null;
+      // Floor last, so it wins: being pushed back into the tube must never push you under the
+      // ground. Applied even in free-fly — sinking through the terrain is never what was
+      // wanted, and it is the one confinement with no downside.
+      if (floorH !== null) {
+        const h = pos.dot(UP);
+        if (h < floorH) {
+          pos.add(UP.clone().mulScalar(floorH - h));
+          if (!pushed) pushed = UP.clone();
+        }
+      }
+      return pushed;
     };
     // Enabling the mode (or shrinking r) while parked outside must take effect at once, not
     // silently wait for the next keypress.
     reclamp = () => { clampToCarpet(); applyCamera(); };
     clampToCarpet();
     applyCamera();
+
+    const vel = new pc.Vec3();
+
+    // ---- step between capture poses ----
+    // The tube lets you move around WITHIN the captured volume; this puts you exactly ON a
+    // capture pose, position and heading together. It is the one movement guaranteed to show
+    // the reconstruction at its best, it is how you cross a cut (the tube deliberately does
+    // not bridge un-flown space), and on this drone capture it is the most direct reading of
+    // "move where the drone was".
+    const FW = carpet?.forwards?.length ? carpet.forwards : null;
+    camIndex.value = carpet?.start_index ?? 0;
+    // Recover yaw/pitch from a direction, inverting currentDir(): with refFwd perpendicular to
+    // UP, d = f*cos(pitch) + UP*sin(pitch) where f is refFwd yawed about UP.
+    const faceDir = (d) => {
+      const dv = new pc.Vec3(...d).normalize();
+      const s_ = dv.dot(UP);
+      pitch = Math.max(-89, Math.min(89, (Math.asin(Math.max(-1, Math.min(1, s_))) * 180) / Math.PI));
+      const flat = dv.clone().sub(UP.clone().mulScalar(s_));
+      if (flat.lengthSq() < 1e-8) return;
+      flat.normalize();
+      const cross = new pc.Vec3().cross(refFwd, flat);
+      yaw = (Math.atan2(cross.dot(UP), refFwd.dot(flat)) * 180) / Math.PI;
+    };
+    stepCam = (d) => gotoCam(camIndex.value + d);
+    camCount.value = nCam;
+    const gotoCam = (i) => {
+      if (!nCam) return;
+      const n = ((i % nCam) + nCam) % nCam;
+      camIndex.value = n;
+      pos.set(CN[n * 3], CN[n * 3 + 1], CN[n * 3 + 2]);
+      if (FW) faceDir(FW[n]);
+      vel.set(0, 0, 0);
+      applyCamera();
+    };
 
     // POC debug handle — lets me inspect/drive the camera from the console without a
     // rebuild cycle (the engine is a bundled module, so `pc` is not global).
@@ -332,7 +466,10 @@ onMounted(async () => {
     const keys = {};
     const onKeyDown = (e) => {
       keys[e.code] = true;
-      if (['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','KeyC'].includes(e.code)) e.preventDefault();
+      if (e.code === 'BracketLeft') gotoCam(camIndex.value - 1);
+      if (e.code === 'BracketRight') gotoCam(camIndex.value + 1);
+      if (['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','KeyC',
+           'BracketLeft','BracketRight'].includes(e.code)) e.preventDefault();
     };
     const onKeyUp = (e) => { keys[e.code] = false; };
     const onClick = () => canvas.requestPointerLock?.();
@@ -471,7 +608,6 @@ onMounted(async () => {
     //     Vertical is explicit (Space / C), which is also how you get a drone view.
     //  2. Velocity is accelerated and damped rather than applied per-key-press, so starting,
     //     stopping and strafing carry a little momentum instead of snapping.
-    const vel = new pc.Vec3();
     const ACCEL = 34;      // m/s^2 — reaches full speed in ~1/8 s
     const DAMP = 11;       // 1/s   — coasts a short distance after release
     const onUpdate = (dt) => {
