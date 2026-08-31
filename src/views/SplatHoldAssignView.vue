@@ -140,25 +140,114 @@
               @click="enterCleanupMode"
               title="Filter out non-hold objects"
             >Filter Holds{{ blacklistedCount ? ` (${blacklistedCount})` : '' }}</button>
-            <button class="save-btn" disabled title="Firestore save coming in next iteration">
-              💾 Save (coming soon)
-            </button>
+            <button
+              class="cluster-btn"
+              :disabled="holds.length < 2 || clusterLoading"
+              @click="openColorClusters"
+              :title="'Group holds by physical color using SAM2'"
+            >{{ clusterLoading ? 'Analyzing…' : 'Color Clusters' }}</button>
           </div>
         </template>
 
       </aside>
     </div>
+
     <!-- Hold inspection modal -->
     <Teleport to="body">
       <div v-if="inspectedHoldId !== null" class="inspect-overlay" @click.self="closeInspect">
         <div class="inspect-modal">
           <div class="inspect-hdr">
-            <span class="inspect-title">Hold #{{ inspectedHoldId }}</span>
+            <span class="inspect-title">
+              Hold #{{ inspectedHoldId }}
+              <span v-if="cropSize" class="inspect-size">{{ formatBytes(cropSize) }}</span>
+            </span>
+            <label class="sam-toggle" title="Use SAM2 to isolate hold from background">
+              <input type="checkbox" v-model="samMode" @change="reloadCrops" />
+              <span>SAM mask</span>
+            </label>
+            <button
+              class="inspect-download"
+              :disabled="!cropBlob"
+              title="Download cropped image"
+              @click="downloadCrop"
+            >↓ Download</button>
             <button class="inspect-close" @click="closeInspect">×</button>
           </div>
-          <div v-if="cropLoading" class="inspect-loading">Loading training views…</div>
+          <div v-if="cropLoading" class="inspect-loading">
+            {{ samMode ? 'Segmenting holds via SAM2…' : 'Loading training views…' }}
+          </div>
           <div v-else-if="cropError" class="inspect-error">{{ cropError }}</div>
           <img v-else-if="cropUrl" :src="cropUrl" class="inspect-grid" />
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Color cluster results modal -->
+    <Teleport to="body">
+      <div v-if="clusterModalOpen" class="cluster-overlay" @click.self="clusterModalOpen = false">
+        <div class="cluster-modal">
+          <div class="cluster-modal-hdr">
+            <span class="cluster-modal-title">
+              Color Clusters
+              <span v-if="clusterResults" class="cluster-meta">
+                — {{ clusterResults.clusters.length }} groups,
+                {{ clusterResults.n_holds_clustered }}/{{ clusterResults.n_holds_total }} holds
+                <span v-if="clusterResults.cached" class="cached-badge">cached</span>
+              </span>
+            </span>
+            <div class="cluster-modal-actions">
+              <button
+                v-if="clusterResults"
+                class="cluster-refresh-btn"
+                :disabled="clusterLoading"
+                @click="openColorClusters(true)"
+                title="Re-run SAM2 on all holds (clears cache)"
+              >Refresh</button>
+              <button
+                v-if="clusterResults"
+                class="cluster-apply-btn"
+                @click="applyClusterResults"
+              >Apply to Problems</button>
+              <button class="inspect-close" @click="clusterModalOpen = false">×</button>
+            </div>
+          </div>
+
+          <div v-if="clusterLoading" class="cluster-modal-loading">
+            <div class="spinner"></div>
+            Embedding holds via SAM2 + DINOv2… ~4 min on first run, then cached.
+          </div>
+          <div v-else-if="clusterError" class="cluster-modal-error">{{ clusterError }}</div>
+
+          <div v-else-if="clusterResults" class="cluster-table">
+            <div
+              v-for="(cluster, ci) in clusterResults.clusters"
+              :key="ci"
+              class="cluster-row"
+            >
+              <div class="cluster-row-hdr">
+                <span class="cluster-swatch" :style="{ background: cluster.physicalColor }"></span>
+                <span class="cluster-label">Group {{ ci + 1 }}</span>
+                <span class="cluster-count">{{ cluster.holdIndices.length }} holds</span>
+              </div>
+              <div class="cluster-holds-strip">
+                <div
+                  v-for="hi in cluster.holdIndices"
+                  :key="hi"
+                  class="hold-chip"
+                  @click="inspectHold(hi); clusterModalOpen = false"
+                  :title="`Click to inspect Hold #${hi}`"
+                >
+                  <img
+                    :src="thumbnailUrl(hi)"
+                    class="hold-thumb"
+                    loading="lazy"
+                    :alt="`Hold ${hi}`"
+                  />
+                  <span class="hold-chip-id">#{{ hi }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -201,20 +290,45 @@ const PROBLEM_COLORS = [
 // ── Hold inspection state ─────────────────────────────────────────────────────
 const inspectedHoldId = ref(null);
 const cropUrl = ref(null);
+const cropBlob = ref(null);
+const cropSize = ref(0);
 const cropLoading = ref(false);
 const cropError = ref('');
+const samMode = ref(false);
+
+function formatBytes(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
 
 async function inspectHold(holdId) {
   inspectedHoldId.value = holdId;
+  await _loadCrops(holdId);
+}
+
+async function reloadCrops() {
+  if (inspectedHoldId.value === null) return;
+  await _loadCrops(inspectedHoldId.value);
+}
+
+async function _loadCrops(holdId) {
   cropLoading.value = true;
   cropError.value = '';
   if (cropUrl.value) { URL.revokeObjectURL(cropUrl.value); cropUrl.value = null; }
+  cropBlob.value = null;
+  cropSize.value = 0;
   try {
     const gateway = await getGateway();
     const splatId = route.params.splatId;
-    const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/holds/${holdId}/crops`);
+    const url = `${gateway}/topowall/api/v1/video-to-splat/${splatId}/holds/${holdId}/crops${samMode.value ? '?sam=true' : ''}`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    cropUrl.value = URL.createObjectURL(await res.blob());
+    const blob = await res.blob();
+    cropBlob.value = blob;
+    cropSize.value = blob.size;
+    cropUrl.value = URL.createObjectURL(blob);
   } catch (e) {
     cropError.value = e.message;
   } finally {
@@ -222,10 +336,87 @@ async function inspectHold(holdId) {
   }
 }
 
+function downloadCrop() {
+  if (!cropBlob.value) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(cropBlob.value);
+  const ext = (cropBlob.value.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  a.download = `hold-${inspectedHoldId.value}-crops${samMode.value ? '-sam' : ''}.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 function closeInspect() {
   inspectedHoldId.value = null;
   if (cropUrl.value) { URL.revokeObjectURL(cropUrl.value); cropUrl.value = null; }
+  cropBlob.value = null;
+  cropSize.value = 0;
   cropError.value = '';
+}
+
+// ── Color clustering ──────────────────────────────────────────────────────────
+const clusterLoading = ref(false);
+const clusterModalOpen = ref(false);
+const clusterResults = ref(null);
+const clusterError = ref('');
+
+function thumbnailUrl(holdIdx) {
+  // Use a synchronous base URL — gateway is already resolved by the time this is called.
+  const splatId = route.params.splatId;
+  // We cache _gateway once resolved; fall back to relative if not yet available.
+  return `${_resolvedGateway || ''}/topowall/api/v1/video-to-splat/${splatId}/holds/${holdIdx}/thumbnail`;
+}
+
+let _resolvedGateway = '';
+
+async function openColorClusters(forceRefresh = false) {
+  clusterModalOpen.value = true;
+  clusterLoading.value = true;
+  clusterError.value = '';
+  try {
+    const gateway = await getGateway();
+    _resolvedGateway = gateway;
+    const splatId = route.params.splatId;
+    const url = new URL(`${gateway}/topowall/api/v1/video-to-splat/${splatId}/holds/cluster`);
+    if (forceRefresh) url.searchParams.set('force_refresh', 'true');
+    const res = await fetch(url.toString(), { method: 'POST' });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`HTTP ${res.status}: ${txt.slice(0, 300)}`);
+    }
+    clusterResults.value = await res.json();
+  } catch (e) {
+    clusterError.value = e.message;
+  } finally {
+    clusterLoading.value = false;
+  }
+}
+
+function applyClusterResults() {
+  if (!clusterResults.value) return;
+  // Clear existing assignments
+  for (const h of holds.value) h.problemId = null;
+  problems.value = [];
+  nextProblemNum = 1;
+
+  for (const cluster of clusterResults.value.clusters) {
+    const problem = {
+      id: nextProblemNum,
+      name: `Problem ${nextProblemNum}`,
+      color: cluster.physicalColor,
+    };
+    nextProblemNum++;
+    problems.value.push(problem);
+    for (const hi of cluster.holdIndices) {
+      if (hi >= 0 && hi < holds.value.length) {
+        holds.value[hi].problemId = problem.id;
+        holds.value[hi].color = cluster.physicalColor;
+      }
+    }
+  }
+  clusterModalOpen.value = false;
 }
 
 // ── Cleanup / blacklist state ──────────────────────────────────────────────────
@@ -1031,6 +1222,20 @@ onBeforeUnmount(() => {
 .filter-btn:hover { background: #1e1b4b; color: #a5b4fc; }
 .filter-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.cluster-btn {
+  width: 100%;
+  padding: 8px;
+  background: #052e16;
+  color: #4ade80;
+  border: 1px solid #166534;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.cluster-btn:hover { background: #14532d; color: #86efac; }
+.cluster-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+
 .save-btn {
   width: 100%;
   padding: 8px;
@@ -1068,7 +1273,7 @@ onBeforeUnmount(() => {
 .inspect-hdr {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid #1e1e1e;
   flex-shrink: 0;
@@ -1078,7 +1283,39 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
   font-weight: 600;
   color: #e5e7eb;
+  flex: 1;
 }
+
+.sam-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  cursor: pointer;
+  user-select: none;
+}
+.sam-toggle input { cursor: pointer; accent-color: #6366f1; }
+.sam-toggle:hover span { color: #e5e7eb; }
+
+.inspect-size {
+  margin-left: 8px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.inspect-download {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.inspect-download:hover:not(:disabled) { background: #334155; color: #fff; }
+.inspect-download:disabled { opacity: 0.4; cursor: default; }
 
 .inspect-close {
   background: none;
@@ -1109,5 +1346,190 @@ onBeforeUnmount(() => {
   display: block;
   max-width: 100%;
   border-radius: 0 0 10px 10px;
+}
+
+/* ── Color cluster modal ── */
+.cluster-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+
+.cluster-modal {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  width: min(960px, 100%);
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+}
+
+.cluster-modal-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.cluster-modal-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e5e7eb;
+  flex: 1;
+}
+
+.cluster-meta {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.cached-badge {
+  background: #1c3a1c;
+  color: #4ade80;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
+.cluster-modal-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cluster-refresh-btn {
+  background: #1a1a2e;
+  color: #818cf8;
+  border: 1px solid #3730a3;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.cluster-refresh-btn:hover { background: #1e1b4b; }
+.cluster-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cluster-apply-btn {
+  background: #052e16;
+  color: #4ade80;
+  border: 1px solid #166534;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.cluster-apply-btn:hover { background: #14532d; }
+
+.cluster-modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 40px;
+  color: #9ca3af;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #374151;
+  border-top-color: #4ade80;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.cluster-modal-error {
+  padding: 40px;
+  color: #f87171;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.cluster-table {
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+.cluster-row {
+  border-bottom: 1px solid #1a1a1a;
+  padding: 12px 18px;
+}
+.cluster-row:last-child { border-bottom: none; }
+
+.cluster-row-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cluster-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.12);
+  flex-shrink: 0;
+}
+
+.cluster-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.cluster-count {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.cluster-holds-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hold-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px;
+  border: 1px solid #222;
+  background: #0d0d0d;
+  transition: border-color 0.15s;
+}
+.hold-chip:hover { border-color: #4ade80; }
+
+.hold-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #1a1a1a;
+  display: block;
+}
+
+.hold-chip-id {
+  font-size: 0.68rem;
+  color: #9ca3af;
+  font-family: monospace;
+  user-select: text;
 }
 </style>
