@@ -729,6 +729,7 @@ function toggleFork(jobId) {
     if (!forkParams.value[jobId]) {
       forkParams.value[jobId] = {
         trainer: 'brush', iters: 5000, brushExtraArgs: '',
+        growthStop: 'half',
         mcmc: false, viewer: false,
         postProcessing: 'none', bilateralGridFused: false, randomBkgd: false, ssimLambda: 0.2,
         sceneName: '',
@@ -752,6 +753,7 @@ async function submitFork(jobId) {
       body: JSON.stringify({
         trainer:              p.trainer,
         iters:                p.iters,
+        growth_stop:          p.growthStop,
         mcmc:                 p.mcmc,
         post_processing:      p.postProcessing,
         bilateral_grid_fused: p.bilateralGridFused,
@@ -841,16 +843,37 @@ function formatElapsed(seconds) {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
+// The two resolution params are easy to confuse, and reading the wrong one has
+// already caused a mis-attribution (see the 840b17dc ladder). They are distinct:
+//   image_size      - MASt3R/Fast3R network input size. Consumed ONLY by init_geo*.py,
+//                     so on every COLMAP/GLOMAP/FastMap path it is INERT and its value
+//                     is meaningless. Hidden there rather than shown as a false fact.
+//   sfm_image_size  - COLMAP feature-extraction long-edge cap. The resolution keypoints
+//                     are actually detected at, on the SIFT/COLMAP paths.
+const MASTER_SFMS = ['mast3r', 'fast3r'];
+const SIFT_SFMS = ['colmap_sift', 'glomap_sift', 'fastmap'];
+
 function displayParams(params) {
   const skip = ['filenames', 'filename', 'scene', 'video_count', 'capture_info'];
+  const sfm = params.sfm;
+  // Jobs that predate --sfm-image-size carry no such key, but they DID run a feature
+  // cap: the 1600 that was hardcoded at every call site. Show that, so an old baseline
+  // and a new arm are directly comparable in the list instead of one row simply missing.
+  const entries = { ...params };
+  if (SIFT_SFMS.includes(sfm) && entries.sfm_image_size == null) entries.sfm_image_size = 1600;
   return Object.fromEntries(
-    Object.entries(params)
+    Object.entries(entries)
       .filter(([k, v]) => !skip.includes(k) && v != null)
+      // Drop each resolution param on the paths that never read it.
+      .filter(([k]) => k !== 'image_size' || MASTER_SFMS.includes(sfm))
+      .filter(([k]) => k !== 'sfm_image_size' || SIFT_SFMS.includes(sfm))
       .map(([k, v]) => {
         if (k === 'early_stop') return ['early stop', v ? 'on' : 'off'];
         if (k === 'forked_from') return ['forked from', v];
         if (k === 'image_resolution') return ['resolution', v];
         if (k === 'brush_extra_args') return ['brush args', v];
+        if (k === 'image_size') return ['mast3r input size', v];
+        if (k === 'sfm_image_size') return ['sfm feature size', v];
         return [k, v];
       })
   );

@@ -186,6 +186,11 @@ const error     = ref('');
 const params = reactive({
   iters: 5000,
   imageSize: 256,
+  // COLMAP feature-extraction long-edge cap for the SIFT SfM paths. 1600 is what
+  // the pipeline hardcoded for every run before this control existed.
+  sfmImageSize: 1600,
+  // 'half' = ITERS/2 (the ratio every 3DGS impl intends); 'brush' = the absolute 15000 literal.
+  growthStop: 'half',
   sceneName: '',
   earlyStop: false,
   sparsePairs: false,
@@ -210,6 +215,8 @@ const vastInstances = ref([]);
 const sharedParams = computed(() => ({
   iters:                params.iters,
   image_size:           params.imageSize,
+  sfm_image_size:       params.sfmImageSize,
+  growth_stop:          params.growthStop,
   early_stop:           params.earlyStop,
   sparse_pairs:         params.sparsePairs,
   sparse_ga:            params.sparseGa,
@@ -231,6 +238,8 @@ function appendSharedParams(form) {
   const p = sharedParams.value;
   form.append('iters',                p.iters);
   form.append('image_size',           p.image_size);
+  form.append('sfm_image_size',       p.sfm_image_size);
+  form.append('growth_stop',          p.growth_stop);
   form.append('early_stop',           p.early_stop);
   form.append('sparse_pairs',         p.sparse_pairs);
   form.append('sparse_ga',            p.sparse_ga);
@@ -758,6 +767,9 @@ onMounted(async () => {
   if (rp) {
     params.iters               = rp.iters ?? 1000;
     params.imageSize           = rp.image_size ?? 256;
+    params.sfmImageSize        = rp.sfm_image_size ?? 1600;
+    // Jobs predating this field ran Brush's absolute 15000.
+    params.growthStop          = rp.growth_stop ?? 'brush';
     params.earlyStop           = rp.early_stop   === true || rp.early_stop   === 'true';
     params.sparsePairs         = rp.sparse_pairs  === true || rp.sparse_pairs  === 'true';
     params.sparseGa            = rp.sparse_ga     === true || rp.sparse_ga     === 'true';
