@@ -176,6 +176,7 @@ import { getGateway } from '../config/gateway.js';
 import VideoStrip from '../components/VideoStrip.vue';
 import TrainingParams from '../components/TrainingParams.vue';
 import { batchedSelectWithThreshold } from '../utils/frameScoringUtils.js';
+import { copyJpegMetadata } from '../utils/jpegMetadata.js';
 
 const router    = useRouter();
 const splatStore = useSplatStore();
@@ -618,12 +619,24 @@ function removePhoto(i) {
 async function resizePhoto(file) {
   const bmp = await createImageBitmap(file);
   const scale = Math.min(1, PHOTO_MAX_DIM / Math.max(bmp.width, bmp.height));
+  // Already small enough: ship the ORIGINAL bytes. Re-encoding costs a generation of JPEG
+  // quality and throws the metadata away to gain nothing at all.
+  if (scale === 1 && file.type === 'image/jpeg') {
+    bmp.close();
+    return file;
+  }
   const w = Math.round(bmp.width * scale);
   const h = Math.round(bmp.height * scale);
   const canvas = new OffscreenCanvas(w, h);
   canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
   bmp.close();
-  return canvas.convertToBlob({ type: 'image/jpeg', quality: PHOTO_QUALITY });
+  const resized = await canvas.convertToBlob({ type: 'image/jpeg', quality: PHOTO_QUALITY });
+  // The canvas knows nothing about the file it came from, so its output has no EXIF and no
+  // XMP. On a DJI photo that segment holds the gimbal orientation, flight yaw, relative
+  // altitude and GPS fix -- gravity and metric scale, exactly -- and on a phone photo it holds
+  // the focal length. Dropping it means re-deriving worse versions of those numbers from the
+  // pixels afterwards, which is exactly what the drone-capture world_up bug cost us.
+  return copyJpegMetadata(file, resized, w, h);
 }
 
 async function startPhotoJob() {
