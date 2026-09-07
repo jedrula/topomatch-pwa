@@ -372,9 +372,19 @@ onMounted(async () => {
                                  `${t.clientX.toFixed(0)},${t.clientY.toFixed(0)})`;
       return hit;
     };
+    // These listeners sit on the whole view, not the canvas, so every tap on the overlay
+    // chrome bubbles through here too. Such a touch is UI, not camera input: claiming it
+    // would start a phantom look-drag, and preventDefault() on it cancels the synthesized
+    // click, which is what silently broke the back link. Tested per touch rather than on
+    // e.target because a Touch carries its own start element, so a thumb on the stick and a
+    // thumb on a button in the same event are classified independently.
+    const onChrome = (t) => !!t.target?.closest?.('.walk2-vbtns, .walk2-back-btn, .walk2-back');
     const onTouchStart = (e) => {
+      let forCamera = false;
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
+        if (onChrome(t)) continue;
+        forCamera = true;
         if (stick.id === null && inStick(t)) {
           const r = stickEl.value.getBoundingClientRect();
           stick.id = t.identifier;
@@ -388,11 +398,13 @@ onMounted(async () => {
           showHint.value = false;
         }
       }
-      if (e.cancelable && !e.target.closest?.('.walk2-vbtns')) e.preventDefault();
+      if (e.cancelable && forCamera) e.preventDefault();
     };
     const onTouchMove = (e) => {
+      let forCamera = false;
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
+        if (t.identifier === stick.id || t.identifier === lookTouch.id) forCamera = true;
         if (t.identifier === stick.id) {
           // Clamp to the ring so the stick is analogue but bounded, like a thumbstick.
           const dx = (t.clientX - stick.cx) / STICK_R;
@@ -410,7 +422,7 @@ onMounted(async () => {
           applyCamera();
         }
       }
-      if (e.cancelable) e.preventDefault();
+      if (e.cancelable && forCamera) e.preventDefault();
     };
     const onTouchEnd = (e) => {
       for (let i = 0; i < e.changedTouches.length; i++) {
