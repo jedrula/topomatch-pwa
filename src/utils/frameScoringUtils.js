@@ -15,18 +15,32 @@ export function batchedSelectMain(frames, bs, bb) {
   return selected;
 }
 
-export function batchedSelectWithThreshold(frames, bs, bb, minSharpPct) {
-  if (!frames.length) return { selected: [], removedCount: 0 };
-  if (!minSharpPct) return { selected: batchedSelectMain(frames, bs, bb), removedCount: 0 };
-  const maxScore = Math.max(...frames.map(f => f.score));
-  const threshold = maxScore * (minSharpPct / 100);
-  const passing = frames.filter(f => f.score >= threshold);
-  return { selected: batchedSelectMain(passing, bs, bb), removedCount: frames.length - passing.length };
-}
-
 export function formatTime(s) {
   if (s == null || isNaN(s)) return '—';
   const m = Math.floor(s / 60);
   const sec = (s % 60).toFixed(1);
   return m > 0 ? `${m}:${sec.padStart(4, '0')}` : `${sec}s`;
+}
+
+// batchedSelectMain picks the sharpest frame in each batch, but "sharpest of a bad batch" can
+// still be too soft to train on. This drops those, and reports how many went, so the count can
+// be shown next to the selection total.
+//
+// The filter runs AFTER batching, not before. bb ("frames skipped between groups") is temporal
+// spacing, so thinning the pool first would shift every batch boundary and leave the buffer
+// counting positions in a filtered array rather than frames in the video.
+//
+// minSharpness is a percentage of the strip's own best frame — the control is labelled
+// "% of strip max" and VideoStrip renders each frame on that same 0-100 scale. Relative rather
+// than absolute means a uniformly soft strip still yields its sharpest frames instead of
+// silently selecting nothing.
+export function batchedSelectWithThreshold(frames, bs, bb, minSharpness = 0) {
+  const selected = batchedSelectMain(frames, bs, bb);
+  if (!minSharpness || !selected.length) return { selected, removedCount: 0 };
+
+  const max = frames.reduce((m, f) => Math.max(m, f.score ?? 0), 0);
+  if (max <= 0) return { selected, removedCount: 0 };
+
+  const kept = selected.filter(f => ((f.score ?? 0) / max) * 100 >= minSharpness);
+  return { selected: kept, removedCount: selected.length - kept.length };
 }
