@@ -132,6 +132,62 @@ const router = createRouter({
       component: () => import('../views/UserProfileView.vue'),
       props: true,
     },
+    {
+      path: '/playground/splat',
+      name: 'splat-playground',
+      component: () => import('../views/SplatPlaygroundView.vue'),
+      redirect: { name: 'splat-upload' },
+      children: [
+        {
+          path: 'upload',
+          name: 'splat-upload',
+          component: () => import('../views/SplatUploadView.vue'),
+        },
+        {
+          path: 'upload/examples',
+          name: 'splat-examples',
+          component: () => import('../views/SplatExamplesView.vue'),
+        },
+        {
+          path: 'history',
+          name: 'splat-history',
+          component: () => import('../views/SplatHistoryView.vue'),
+          meta: { requiresAdmin: true },
+        },
+        {
+          path: 'prepare',
+          name: 'splat-prepare',
+          component: () => import('../views/PrepareFramesView.vue'),
+        },
+      ],
+    },
+    {
+      path: '/splat/:splatId',
+      name: 'splat-viewer',
+      component: () => import('../views/SplatView.vue'),
+    },
+    {
+      path: '/splat/:splatId/walk',
+      name: 'splat-walk',
+      // Fullscreen viewer: App.vue hides the floating chrome on these routes. The WhatsApp
+      // button (fixed bottom-left, z-40) sat exactly on the mobile thumbstick and swallowed
+      // every touch, and the analysis indicator (bottom-right, z-50) covers the up/down pad.
+      meta: { fullscreen: true },
+      component: () => import('../views/SplatWalkView.vue'),
+    },
+    {
+      // Standalone POC: same walk/fly idea on PlayCanvas + SOG (13.7x smaller download,
+      // SH preserved). Additive on purpose — walk v1 above keeps working on .ply.
+      path: '/splat/:splatId/walk2',
+      name: 'splat-walk2',
+      meta: { fullscreen: true },
+      component: () => import('../views/SplatWalk2View.vue'),
+    },
+    {
+      path: '/splat/:splatId/holds',
+      name: 'splat-hold-assign',
+      component: () => import('../views/SplatHoldAssignView.vue'),
+    },
   ],
 });
 

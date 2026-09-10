@@ -698,7 +698,6 @@ const viewImage = async (url) => {
     // Fetch image as blob to bypass Content-Disposition: attachment header
     const response = await fetch(url, {
       headers: {
-        'ngrok-skip-browser-warning': 'true'
       }
     });
     

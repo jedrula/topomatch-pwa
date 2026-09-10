@@ -1,0 +1,888 @@
+<template>
+  <div class="walk2-view">
+    <canvas ref="canvasEl" class="walk2-canvas"></canvas>
+
+    <div v-if="!isTouch" class="walk2-hud">
+      <div><b>Walk / Fly v2</b> — <code>{{ splatId }}</code> <span class="tag">SOG</span></div>
+      <div><b>WASD</b> move · <b>Shift</b> sprint · <b>Space/C</b> up/down · <b>Esc</b> release</div>
+      <div class="walk2-note">carpet-walk keeps you where the camera actually went — no wall clipping</div>
+      <div>
+        look <input type="range" min="0.02" max="0.5" step="0.01" v-model.number="sens" />
+        {{ sens.toFixed(2) }}
+      </div>
+      <div>
+        speed <input type="range" min="0.2" max="6" step="0.1" v-model.number="speed" />
+        {{ speed.toFixed(1) }}
+      </div>
+      <div>
+        <label><input type="checkbox" v-model="carpetWalk" /> carpet-walk</label>
+        r <input type="range" min="0.1" max="6" step="0.05" v-model.number="radius"
+                 :disabled="!carpetWalk" />
+        {{ radius.toFixed(2) }}
+      </div>
+      <div>
+        <label><input type="checkbox" v-model="showCarpet" /> show carpet</label>
+        <span v-if="loopLabel" class="walk2-loop">{{ loopLabel }}</span>
+      </div>
+      <div>
+        <label><input type="checkbox" v-model="carpetVideo" :disabled="!videoReady" />
+          carpet video</label>
+        <span v-if="carpetVideo" class="walk2-loop">{{ videoInfo }}</span>
+      </div>
+      <div v-if="distInfo" class="walk2-dist">{{ distInfo }}</div>
+      <div v-if="upLabel" class="walk2-up">up {{ upLabel }}</div>
+      <div v-if="sizeInfo" class="walk2-size">{{ sizeInfo }}</div>
+    </div>
+
+    <div class="walk2-status" :class="{ err: !!error }">
+      {{ error || status }}<span v-if="!error && progressLabel"> — {{ progressLabel }}</span>
+      <div v-if="!error && loading" class="walk2-progress">
+        <div class="walk2-progress-fill" :style="{ width: progressPct + '%' }"></div>
+      </div>
+    </div>
+
+    <pre v-if="debug" class="walk2-debug">{{ dbg }}</pre>
+
+    <div v-if="showHint" class="walk2-hint">
+      {{ isTouch ? 'drag to look · stick to walk' : 'click to look around' }}
+      <span class="walk2-build">build {{ buildStamp }}</span>
+    </div>
+
+    <!-- Touch layer -->
+    <div v-if="isTouch" class="walk2-touch">
+      <div ref="stickEl" class="walk2-stick">
+        <div class="walk2-stick-knob"
+             :style="{ transform: `translate(${stickKnob.x}px, ${stickKnob.y}px)` }"></div>
+      </div>
+      <div class="walk2-vbtns">
+        <button @touchstart.passive="touchUp = true" @touchend="touchUp = false"
+                @touchcancel="touchUp = false">▲</button>
+        <button @touchstart.passive="touchDown = true" @touchend="touchDown = false"
+                @touchcancel="touchDown = false">▼</button>
+      </div>
+      <div v-if="atEdge" class="walk2-edge">edge of captured area</div>
+    </div>
+    <RouterLink v-if="!isTouch" :to="{ name: 'splat-walk', params: { splatId } }"
+                class="walk2-back">← walk v1 (.ply)</RouterLink>
+    <RouterLink v-else :to="{ name: 'splat-history' }" class="walk2-back-btn"
+                aria-label="back to history">←</RouterLink>
+  </div>
+</template>
+
+<script setup>
+// Walk/Fly v2 — standalone POC on PlayCanvas + SOG.
+//
+// Why a second viewer rather than changing SplatWalkView: the mkkellogg viewer we use
+// everywhere else cannot load any compressed format we can actually produce. It accepts
+// SPZ v1-v2 only (`header.version > 2` is a hard reject in deserializePackedGaussians)
+// while @playcanvas/splat-transform writes v3/v4, and it has no .ksplat encoder in the
+// npm package. So the download stays a 150-250 MB .ply there.
+//
+// PlayCanvas reads SOG, which is the compression win without the quality loss:
+//   149.4 MB .ply -> 10.9 MB .sog (13.7x) on a 632,862-splat export, ALL 45 f_rest
+//   spherical-harmonic coefficients retained (shN_centroids + shN_labels in the zip).
+//   Measured fidelity, nearest-neighbour matched because SOG REORDERS the splats:
+//   position 0.176 mm median, colour DC 0.11% of range, scale 0.13%, opacity 0.89%,
+//   SH 3.1-3.6%, rotation 0.685 deg median.
+//
+// ORIENTATION is settled empirically (Chrome, 2026-08-11) rather than derived — see the
+// camera block below for the three things that were tried and what each did.
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { useRoute } from 'vue-router';
+import { getGateway } from '../config/gateway.js';
+
+const route = useRoute();
+const splatId = route.params.splatId;
+const canvasEl = ref(null);
+const status = ref('loading…');
+const error = ref('');
+const loading = ref(true);
+const progressPct = ref(0);
+const progressLabel = ref('');
+const showHint = ref(false);
+const speed = ref(1.5);
+const sizeInfo = ref('');
+const sens = ref(0.14);
+const upLabel = ref('');
+// carpet-walk: confine the viewer to within `radius` of a camera centre. See the clamp below.
+const carpetWalk = ref(true);
+// Back to 0.6 m. It was raised to 1.5 while chasing a stick bug on the theory that a tight
+// clamp was pinning the camera; the real cause was the hit-test, so the loosening was
+// unnecessary and it let the viewer drift close enough to walls to look wrong. 0.6 is also
+// what walk v1 shipped with.
+const radius = ref(0.6);
+// Draw where the capture actually went. The clamp below has always been invisible: you could
+// be held at the edge of the captured area with nothing on screen saying where that edge is,
+// which reads as broken controls rather than as a boundary.
+const showCarpet = ref(false);
+const loopLabel = ref('');
+// Retrace the capture: walk the path the camera walked, looking roughly where it looked.
+// The speed slider drives it, so the same control means the same thing in both modes.
+const carpetVideo = ref(false);
+const videoReady = ref(false);
+const videoInfo = ref('');
+const distInfo = ref('');
+let reclamp = () => {};
+// Touch controls. isTouch gates the whole on-screen layer: on a desktop it would just be
+// clutter over the canvas, and the keyboard path is strictly better there.
+const buildStamp = __BUILD_STAMP__;
+const debug = ref(false);
+const dbg = ref('');
+// Set while the clamp is actively holding the camera back, so being pinned is visible instead
+// of looking like dead controls.
+const atEdge = ref(false);
+const isTouch = ref(false);
+const stickEl = ref(null);
+const stickRef = ref(null);
+const stickKnob = ref({ x: 0, y: 0 });
+const touchUp = ref(false);
+const touchDown = ref(false);
+
+let app = null;
+let splatEntity = null;
+let objectUrl = null;
+let cleanupFns = [];
+
+onMounted(async () => {
+  // ?touch=1 forces the layer on: it makes the mobile control scheme testable on a desktop
+  // (and reviewable without a phone), which is otherwise only reachable via device emulation.
+  debug.value = new URLSearchParams(location.search).has('debug');
+  isTouch.value = window.matchMedia?.('(pointer: coarse)').matches
+    || navigator.maxTouchPoints > 0
+    || new URLSearchParams(location.search).has('touch');
+  try {
+    const gateway = await getGateway();
+    const base = `${gateway}/topowall/api/v1/video-to-splat/${splatId}`;
+
+    // carpet is optional here — it only seeds a sensible start pose
+    let carpet = null;
+    try {
+      const r = await fetch(`${base}/carpet`);
+      if (r.ok) carpet = await r.json();
+    } catch { /* fly from the origin instead */ }
+
+    // First request for a splat runs k-means over the SH palette (~70 s for 600k
+    // splats) then caches, so this can be slow once and instant thereafter.
+    status.value = 'downloading splat (.sog)…';
+    const res = await fetch(`${base}/sog`);
+    if (!res.ok) throw new Error(`sog ${res.status} — ${(await res.text()).slice(0, 200)}`);
+    const total = Number(res.headers.get('Content-Length')) || 0;
+    let bytes;
+    if (res.body && total) {
+      const reader = res.body.getReader();
+      const chunks = [];
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        progressPct.value = Math.round((received / total) * 100);
+        progressLabel.value = `${(received / 1e6).toFixed(1)} / ${(total / 1e6).toFixed(1)} MB`;
+      }
+      bytes = new Blob(chunks);
+    } else {
+      progressLabel.value = 'downloading…';
+      bytes = await res.blob();
+    }
+    sizeInfo.value = `${(bytes.size / 1e6).toFixed(1)} MB SOG (vs ~150 MB .ply)`;
+    objectUrl = URL.createObjectURL(bytes);
+    progressPct.value = 100;
+
+    const pc = await import('playcanvas');
+    status.value = 'processing splat…';
+
+    app = new pc.Application(canvasEl.value, {
+      graphicsDeviceOptions: { antialias: false, alpha: false },
+    });
+    app.setCanvasFillMode(pc.FILLMODE_NONE);
+    app.setCanvasResolution(pc.RESOLUTION_AUTO);
+    const resize = () => {
+      const r = canvasEl.value.getBoundingClientRect();
+      app.resizeCanvas(r.width, r.height);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    cleanupFns.push(() => window.removeEventListener('resize', resize));
+
+    const camera = new pc.Entity('camera');
+    camera.addComponent('camera', {
+      clearColor: new pc.Color(0.05, 0.05, 0.07),
+      farClip: 500,
+      fov: 65,
+    });
+    app.root.addChild(camera);
+
+    // The blob URL carries no extension, but SogBundleParser dispatches on
+    // `context.ext === 'sog'`, so the filename has to say so explicitly.
+    const asset = new pc.Asset(`splat-${splatId}`, 'gsplat', {
+      url: objectUrl,
+      filename: `${splatId}.sog`,
+    });
+    const ready = new Promise((resolve, reject) => {
+      asset.once('load', resolve);
+      asset.once('error', (e) => reject(new Error(`gsplat asset failed: ${e}`)));
+    });
+    app.assets.add(asset);
+    app.assets.load(asset);
+    await ready;
+
+    // No entity transform — see the camera block below for why rotating the splat is
+    // the wrong lever here.
+    splatEntity = new pc.Entity('splat');
+    splatEntity.addComponent('gsplat', { asset });
+    app.root.addChild(splatEntity);
+
+    app.start();
+    loading.value = false;
+    progressLabel.value = '';
+    status.value = 'ready — click to look around';
+    showHint.value = true;
+
+    // ---- camera ----
+    // Orientation comes from carpet.world_up, NOT a hardcoded roll. The earlier version
+    // pinned ROLL=180 because a lookAt(target, world_up) attempt appeared to render black —
+    // but that black was a BACKGROUNDED-TAB artefact (requestAnimationFrame is fully
+    // suspended when document.hidden, and PlayCanvas drives its loop from rAF), not a real
+    // failure. The hardcode happened to suit glomap scenes, whose estimated up is ~-Y, and
+    // it renders ARKit pose-prior scenes UPSIDE DOWN — those are in ARKit's world, which is
+    // gravity-aligned, so /carpet reports up = exactly (0,1,0) for them.
+    //
+    // yaw turns about UP; pitch about the current right vector; both applied via
+    // lookAt(target, UP), which is orientation-agnostic.
+    const UP = carpet?.world_up
+      ? new pc.Vec3(...carpet.world_up).normalize()
+      : new pc.Vec3(0, 1, 0);
+    const pos = carpet?.start_pos
+      ? new pc.Vec3(...carpet.start_pos)
+      : new pc.Vec3(0, 1.5, 4);
+    let refFwd = carpet?.start_fwd
+      ? new pc.Vec3(...carpet.start_fwd).normalize()
+      : new pc.Vec3(0, 0, -1);
+    refFwd = refFwd.sub(UP.clone().mulScalar(refFwd.dot(UP)));
+    if (refFwd.lengthSq() < 1e-6) refFwd = new pc.Vec3(1, 0, 0);
+    refFwd.normalize();
+
+    let yaw = 0;
+    let pitch = 0;
+    const _q = new pc.Quat();
+    const rotAbout = (v, axis, deg) =>
+      _q.setFromAxisAngle(axis, deg).transformVector(v, new pc.Vec3());
+    const currentDir = () => {
+      const f = rotAbout(refFwd, UP, yaw);
+      const right = new pc.Vec3().cross(f, UP).normalize();
+      return rotAbout(f, right, pitch).normalize();
+    };
+    // carpet.world_up is now trustworthy, so there is no up/flipped toggle: /carpet derives
+    // gravity from the capture's own ARKit trajectory (which is gravity-aligned by
+    // construction) and reports which branch it used. The frames all agree — the brush PLY
+    // sits in the COLMAP frame the carpet is derived in (splat->COLMAP nearest-neighbour
+    // median 0.027 vs 0.90 if x,y were negated) and the SOG preserves it — so an override
+    // would only ever be a way to make this wrong.
+    const applyCamera = () => {
+      camera.setPosition(pos);
+      camera.lookAt(pos.clone().add(currentDir()), UP);
+    };
+    upLabel.value = `(${UP.x.toFixed(2)}, ${UP.y.toFixed(2)}, ${UP.z.toFixed(2)})`;
+
+    // ---- carpet-walk: poor man's collision (ported from walk v1) ----
+    // The camera centres are the only positions we KNOW were physically occupied, so
+    // confining the viewer to within `radius` of the nearest one keeps it out of walls and
+    // out of the unobserved space behind them — where the splat has no real geometry to show
+    // anyway, only stretched gaussians and floaters. Cheaper and more robust than meshing the
+    // scene to collide against, which is why v1 had it.
+    const CN = carpet?.centers?.length ? Float32Array.from(carpet.centers.flat()) : null;
+    const nCam = CN ? (CN.length / 3) | 0 : 0;
+    const nearestCarpet = (p) => {
+      let bd = Infinity, bx = 0, by = 0, bz = 0;
+      for (let i = 0; i < nCam; i++) {
+        const cx = CN[i * 3], cy = CN[i * 3 + 1], cz = CN[i * 3 + 2];
+        const dx = p.x - cx, dy = p.y - cy, dz = p.z - cz;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < bd) { bd = d2; bx = cx; by = cy; bz = cz; }
+      }
+      return { d: Math.sqrt(bd), x: bx, y: by, z: bz };
+    };
+    // ---- what the server found about the shape of this capture ----
+    // Reported, not acted on. Opening the middle of an outward-facing ring was tried and
+    // withdrawn: the middle of such a ring is behind every camera, so it is unobserved by
+    // construction and measures empty whether or not something is standing in it. The only
+    // thing that makes a place walkable is having observed it, and the strongest observation
+    // is the camera having stood there — which is exactly what the clamp below already allows.
+    const loop = carpet?.loop;
+    if (loop?.closed) {
+      const seen = loop.interior_observed_fraction;
+      loopLabel.value = `loop: ${loop.facing}` +
+        (seen == null ? '' : `, middle ${Math.round(seen * 100)}% seen`);
+    }
+
+    // ---- height: the band the camera was actually carried at ----
+    // A ball around a camera centre lets you rise to the ceiling as long as you stay near it,
+    // and nobody was ever up there. floor and the camera-height percentiles are measured from
+    // the trajectory, so this costs no new assumption — it only removes freedom the evidence
+    // never supported.
+    const wv = carpet?.walk;
+    const HEAD_ROOM = 0.4;
+    const band = wv && wv.floor != null && wv.cam_height_max != null
+      ? { lo: wv.floor + Math.max(0, (wv.cam_height_min ?? 0)) - HEAD_ROOM,
+          hi: wv.floor + wv.cam_height_max + HEAD_ROOM }
+      : null;
+
+    // Returns the outward unit normal when it had to pull the camera back, else null, so the
+    // caller can also kill the outward velocity — otherwise holding W into a wall builds up
+    // speed that releases as a lurch the moment you turn away.
+    const clampToCarpet = () => {
+      if (!nCam) return null;
+      // Height first, so the horizontal clamp below measures from a position that is already
+      // at a plausible eye level rather than from somewhere near the ceiling.
+      let vertical = null;
+      if (carpetWalk.value && band) {
+        const h = pos.dot(UP);
+        if (h > band.hi) {
+          pos.add(UP.clone().mulScalar(band.hi - h));
+          vertical = UP.clone();
+        } else if (h < band.lo) {
+          pos.add(UP.clone().mulScalar(band.lo - h));
+          vertical = UP.clone().mulScalar(-1);
+        }
+      }
+      const nc = nearestCarpet(pos);
+      const r = radius.value;
+      if (carpetWalk.value && nc.d > r) {
+        const ox = pos.x - nc.x, oy = pos.y - nc.y, oz = pos.z - nc.z;
+        const k = r / (nc.d || 1);
+        pos.set(nc.x + ox * k, nc.y + oy * k, nc.z + oz * k);
+        distInfo.value = `dist to carpet ${r.toFixed(2)} (r ${r.toFixed(2)}) · clamped`;
+        return new pc.Vec3(ox, oy, oz).normalize();
+      }
+      distInfo.value = `dist to carpet ${nc.d.toFixed(2)} (r ${r.toFixed(2)}) · ` +
+        (vertical ? 'held at eye height' : (carpetWalk.value ? 'walking' : 'free-fly'));
+      return vertical;
+    };
+    // ---- drawing the carpet ----
+    // Immediate mode: PlayCanvas keeps no state for these, so they are re-issued every frame
+    // and cost nothing when the checkbox is off. Depth-tested, so the path is occluded by the
+    // splat like any other geometry rather than floating in front of the walls.
+    const PATH_COL = new pc.Color(0.29, 0.87, 0.5);
+    const SHADOW_COL = new pc.Color(0.29, 0.87, 0.5, 0.35);
+    const EDGE_COL = new pc.Color(1.0, 0.65, 0.2);
+    const LOOP_COL = new pc.Color(0.55, 0.95, 0.65);
+    const floorOf = (v) => {
+      const f = carpet?.walk?.floor;
+      return f == null ? null : v.clone().add(UP.clone().mulScalar(f - v.dot(UP)));
+    };
+    const drawCarpet = () => {
+      if (!showCarpet.value || !nCam) return;
+      const a = new pc.Vec3(), b = new pc.Vec3();
+      for (let i = 0; i < nCam - 1; i++) {
+        a.set(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]);
+        b.set(CN[(i + 1) * 3], CN[(i + 1) * 3 + 1], CN[(i + 1) * 3 + 2]);
+        app.drawLine(a, b, PATH_COL, true);
+        // A shadow on the floor: the path itself hangs at eye height, and a line in mid-air
+        // is very hard to place relative to the ground you are standing on.
+        const fa = floorOf(a), fb = floorOf(b);
+        if (fa && fb) app.drawLine(fa, fb, SHADOW_COL, true);
+      }
+      // The ball you are actually confined to, drawn where you are rather than everywhere:
+      // one circle you can read beats 113 you cannot.
+      if (carpetWalk.value) {
+        const nc = nearestCarpet(pos);
+        const c = new pc.Vec3(nc.x, nc.y, nc.z);
+        let ax = new pc.Vec3(1, 0, 0).sub(UP.clone().mulScalar(UP.x));
+        if (ax.length() < 1e-3) ax = new pc.Vec3(0, 1, 0).sub(UP.clone().mulScalar(UP.y));
+        ax.normalize();
+        const bx = new pc.Vec3().cross(UP, ax).normalize();
+        const r = radius.value;
+        const N = 32;
+        for (let i = 0; i < N; i++) {
+          const t0 = (i / N) * Math.PI * 2, t1 = ((i + 1) / N) * Math.PI * 2;
+          const p0 = c.clone()
+            .add(ax.clone().mulScalar(Math.cos(t0) * r))
+            .add(bx.clone().mulScalar(Math.sin(t0) * r));
+          const p1 = c.clone()
+            .add(ax.clone().mulScalar(Math.cos(t1) * r))
+            .add(bx.clone().mulScalar(Math.sin(t1) * r));
+          app.drawLine(p0, p1, EDGE_COL, true);
+        }
+      }
+      const poly = loop?.interior_walkable ? loop.interior_polygon : null;
+      if (poly && poly.length >= 3) {
+        for (let i = 0; i < poly.length; i++) {
+          const q = poly[i], w = poly[(i + 1) % poly.length];
+          app.drawLine(new pc.Vec3(q[0], q[1], q[2]), new pc.Vec3(w[0], w[1], w[2]),
+                       LOOP_COL, true);
+        }
+      }
+    };
+
+    // ---- carpet video: retrace the capture ----
+    //
+    // The path and the viewing directions are both recorded, so the tour needs no invention —
+    // it is playback, not a generated fly-through. Two things have to be handled or it is
+    // unwatchable:
+    //
+    //   jitter  A handheld capture wanders by centimetres between frames and the forwards
+    //           wobble with every step. Both are smoothed with a moving average, taken WITHIN
+    //           runs so a smoothing window never straddles a cut and drags the camera through
+    //           un-walked space.
+    //   cuts    Where recording stopped and restarted, the operator did not walk the gap.
+    //           Flying it would show space nobody photographed, so the gap is taken instantly:
+    //           a cut in the capture becomes a cut in the video.
+    const vidPts = [];
+    const vidSeg = [];
+    (() => {
+      const cs = carpet?.centers, fs = carpet?.forwards;
+      if (!Array.isArray(cs) || !Array.isArray(fs) || cs.length < 4 || fs.length !== cs.length) return;
+      const raw = cs.map((c, i) => ({
+        p: new pc.Vec3(c[0], c[1], c[2]),
+        f: new pc.Vec3(fs[i][0], fs[i][1], fs[i][2]).normalize(),
+      }));
+      const stepLen = raw.slice(1).map((q, i) => q.p.distance(raw[i].p)).sort((a, b) => a - b);
+      const med = stepLen[Math.floor(stepLen.length / 2)] || 0;
+      const isCut = (i) => med > 0 && raw[i].p.distance(raw[i + 1].p) > 10 * med;
+      // Run boundaries, so smoothing never averages across a cut.
+      const bounds = [0];
+      for (let i = 0; i < raw.length - 1; i++) if (isCut(i)) bounds.push(i + 1);
+      bounds.push(raw.length);
+      const runOf = new Array(raw.length);
+      for (let b = 0; b < bounds.length - 1; b++) {
+        for (let i = bounds[b]; i < bounds[b + 1]; i++) runOf[i] = b;
+      }
+      const W = 3;   // +-3 samples, about a metre of walking at a typical step
+      for (let i = 0; i < raw.length; i++) {
+        const p = new pc.Vec3(), f = new pc.Vec3();
+        let n = 0;
+        for (let k = -W; k <= W; k++) {
+          const j = i + k;
+          if (j < 0 || j >= raw.length || runOf[j] !== runOf[i]) continue;
+          p.add(raw[j].p); f.add(raw[j].f); n++;
+        }
+        p.mulScalar(1 / n);
+        if (f.lengthSq() < 1e-8) f.copy(raw[i].f); else f.normalize();
+        vidPts.push({ p, f });
+      }
+      for (let i = 0; i < vidPts.length - 1; i++) {
+        const cut = isCut(i);
+        vidSeg.push({ len: cut ? 0 : vidPts[i].p.distance(vidPts[i + 1].p), cut });
+      }
+      videoReady.value = vidSeg.some((sg) => sg.len > 0);
+    })();
+    const vidTotal = vidSeg.reduce((a, sg) => a + sg.len, 0);
+    let vidDist = 0;
+
+    // World direction -> the yaw/pitch this camera is actually steered with, so leaving the
+    // video hands control back pointing where the video left off rather than snapping.
+    const dirToAngles = (d) => {
+      const dn = d.clone().normalize();
+      const vert = Math.max(-1, Math.min(1, dn.dot(UP)));
+      const h = dn.clone().sub(UP.clone().mulScalar(vert));
+      const p = (Math.asin(vert) * 180) / Math.PI;
+      if (h.lengthSq() < 1e-8) return { yaw, pitch: p };
+      h.normalize();
+      const cross = new pc.Vec3().cross(refFwd, h);
+      return { yaw: (Math.atan2(cross.dot(UP), refFwd.dot(h)) * 180) / Math.PI, pitch: p };
+    };
+
+    const advanceVideo = (step) => {
+      if (!videoReady.value || vidTotal <= 0) return;
+      vidDist = (vidDist + speed.value * step) % vidTotal;
+      let d = vidDist, i = 0;
+      while (i < vidSeg.length && d > vidSeg[i].len) { d -= vidSeg[i].len; i++; }
+      if (i >= vidSeg.length) { i = vidSeg.length - 1; d = vidSeg[i].len; }
+      const t = vidSeg[i].len > 0 ? d / vidSeg[i].len : 0;
+      const a = vidPts[i], b = vidPts[i + 1];
+      pos.set(a.p.x + (b.p.x - a.p.x) * t,
+              a.p.y + (b.p.y - a.p.y) * t,
+              a.p.z + (b.p.z - a.p.z) * t);
+      const want = new pc.Vec3(a.f.x + (b.f.x - a.f.x) * t,
+                               a.f.y + (b.f.y - a.f.y) * t,
+                               a.f.z + (b.f.z - a.f.z) * t);
+      if (want.lengthSq() > 1e-8) {
+        const tgt = dirToAngles(want);
+        // Ease in angle space, and take the short way round so passing +-180 does not spin.
+        const k = Math.min(1, step * 3.5);
+        yaw += (((tgt.yaw - yaw + 540) % 360) - 180) * k;
+        pitch += (tgt.pitch - pitch) * k;
+      }
+      // The path is inside the carpet by construction; run the clamp anyway so the video
+      // obeys exactly the rule the walker does.
+      clampToCarpet();
+      applyCamera();
+      videoInfo.value = `${Math.round((vidDist / vidTotal) * 100)}% of ${vidTotal.toFixed(1)} m`;
+    };
+
+    // Enabling the mode (or shrinking r) while parked outside must take effect at once, not
+    // silently wait for the next keypress.
+    reclamp = () => { clampToCarpet(); applyCamera(); };
+    clampToCarpet();
+    applyCamera();
+
+    // POC debug handle — lets me inspect/drive the camera from the console without a
+    // rebuild cycle (the engine is a bundled module, so `pc` is not global).
+    window.__walk2 = {
+      app, camera, splatEntity, pc,
+      state: () => {
+        const mi = splatEntity.gsplat?.instance?.meshInstance;
+        return {
+          camPos: [camera.getPosition().x, camera.getPosition().y, camera.getPosition().z],
+          camFwd: [camera.forward.x, camera.forward.y, camera.forward.z],
+          UP: [UP.x, UP.y, UP.z],
+          yaw, pitch,
+          aabb: mi?.aabb
+            ? { c: [mi.aabb.center.x, mi.aabb.center.y, mi.aabb.center.z],
+                h: [mi.aabb.halfExtents.x, mi.aabb.halfExtents.y, mi.aabb.halfExtents.z] }
+            : null,
+        };
+      },
+    };
+
+    // ---- pointer-lock look + WASD fly ----
+    const canvas = canvasEl.value;
+    const keys = {};
+    const onKeyDown = (e) => {
+      keys[e.code] = true;
+      if (['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','KeyC'].includes(e.code)) e.preventDefault();
+    };
+    const onKeyUp = (e) => { keys[e.code] = false; };
+    const onClick = () => canvas.requestPointerLock?.();
+    const onMove = (e) => {
+      if (document.pointerLockElement !== canvas) return;
+      // Raw deltas, no smoothing or acceleration — 1:1 is what makes an FPS feel direct.
+      carpetVideo.value = false;
+      yaw -= e.movementX * sens.value;
+      pitch = Math.max(-89, Math.min(89, pitch - e.movementY * sens.value));
+      applyCamera();
+    };
+    const onLockChange = () => { showHint.value = document.pointerLockElement !== canvas; };
+
+    // ---- touch: look by dragging, move with the on-screen stick ----
+    // Pointer lock does not exist on mobile, and there are no keys, so the desktop path gives
+    // a viewer you can neither turn nor walk. Split by SCREEN REGION rather than by gesture
+    // count: a drag starting inside the stick moves, anything else looks. Region beats
+    // finger-counting because it stays unambiguous when a second finger lands mid-drag.
+    const lookTouch = { id: null, x: 0, y: 0 };
+    const stick = { id: null, cx: 0, cy: 0, x: 0, y: 0 };   // x/y in [-1,1]
+    const STICK_R = 58;                                     // px, matches the CSS radius
+
+    let lastGrab = 'none';
+    const inStick = (t) => {
+      const el = stickEl.value;
+      if (!el) { lastGrab = 'stickEl NULL'; return false; }
+      const r = el.getBoundingClientRect();
+      // Grab area is deliberately LARGER than the drawn circle, and open towards the screen
+      // corner. A thumb lands imprecisely and its contact patch is centimetres wide, so a
+      // hit-test on the visible 116 px circle rejects touches that plainly meant the stick —
+      // and a rejected touch silently becomes a look-drag, which is exactly the reported
+      // symptom of "look works, walking does nothing".
+      const PAD = 44;
+      const hit = t.clientX <= r.right + PAD && t.clientY >= r.top - PAD
+               && t.clientX >= 0 && t.clientY <= window.innerHeight;
+      lastGrab = hit ? 'stick' : `look (grab x<=${(r.right + PAD).toFixed(0)} ` +
+                                 `y>=${(r.top - PAD).toFixed(0)}  touch=` +
+                                 `${t.clientX.toFixed(0)},${t.clientY.toFixed(0)})`;
+      return hit;
+    };
+    // These listeners sit on the whole view, not the canvas, so every tap on the overlay
+    // chrome bubbles through here too. Such a touch is UI, not camera input: claiming it
+    // would start a phantom look-drag, and preventDefault() on it cancels the synthesized
+    // click, which is what silently broke the back link. Tested per touch rather than on
+    // e.target because a Touch carries its own start element, so a thumb on the stick and a
+    // thumb on a button in the same event are classified independently.
+    const onChrome = (t) => !!t.target?.closest?.('.walk2-vbtns, .walk2-back-btn, .walk2-back');
+    const onTouchStart = (e) => {
+      let forCamera = false;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (onChrome(t)) continue;
+        forCamera = true;
+        if (stick.id === null && inStick(t)) {
+          const r = stickEl.value.getBoundingClientRect();
+          stick.id = t.identifier;
+          stick.cx = r.left + r.width / 2;
+          stick.cy = r.top + r.height / 2;
+          stick.x = 0; stick.y = 0;
+        } else if (lookTouch.id === null) {
+          lookTouch.id = t.identifier;
+          lookTouch.x = t.clientX;
+          lookTouch.y = t.clientY;
+          showHint.value = false;
+        }
+      }
+      if (e.cancelable && forCamera) e.preventDefault();
+    };
+    const onTouchMove = (e) => {
+      let forCamera = false;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (t.identifier === stick.id || t.identifier === lookTouch.id) forCamera = true;
+        if (t.identifier === stick.id) {
+          // Clamp to the ring so the stick is analogue but bounded, like a thumbstick.
+          const dx = (t.clientX - stick.cx) / STICK_R;
+          const dy = (t.clientY - stick.cy) / STICK_R;
+          const m = Math.hypot(dx, dy) || 1;
+          const k = Math.min(1, m) / m;
+          stick.x = dx * k; stick.y = dy * k;
+          stickKnob.value = { x: stick.x * STICK_R, y: stick.y * STICK_R };
+        } else if (t.identifier === lookTouch.id) {
+          // Touch look wants ~3x the mouse sensitivity: a thumb swipe covers far less
+          // distance than a mouse drag, so 1:1 leaves you unable to turn around.
+          carpetVideo.value = false;
+          yaw -= (t.clientX - lookTouch.x) * sens.value * 3;
+          pitch = Math.max(-89, Math.min(89, pitch - (t.clientY - lookTouch.y) * sens.value * 3));
+          lookTouch.x = t.clientX; lookTouch.y = t.clientY;
+          applyCamera();
+        }
+      }
+      if (e.cancelable && forCamera) e.preventDefault();
+    };
+    const onTouchEnd = (e) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (t.identifier === stick.id) {
+          stick.id = null; stick.x = 0; stick.y = 0;
+          stickKnob.value = { x: 0, y: 0 };
+        }
+        if (t.identifier === lookTouch.id) lookTouch.id = null;
+      }
+    };
+    // Non-passive: these must be able to preventDefault, or the page pans and rubber-bands
+    // under the drag instead of the camera turning.
+    const noGesture = (e) => { if (e.cancelable) e.preventDefault(); };
+    for (const ev of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick']) {
+      canvas.addEventListener(ev, noGesture, { passive: false });
+    }
+    cleanupFns.push(() => {
+      for (const ev of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick']) {
+        canvas.removeEventListener(ev, noGesture);
+      }
+    });
+
+    const topts = { passive: false };
+    const touchRoot = canvas.parentElement || canvas;
+    touchRoot.addEventListener('touchstart', onTouchStart, topts);
+    touchRoot.addEventListener('touchmove', onTouchMove, topts);
+    touchRoot.addEventListener('touchend', onTouchEnd);
+    touchRoot.addEventListener('touchcancel', onTouchEnd);
+    stickRef.value = stick;
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    canvas.addEventListener('click', onClick);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('pointerlockchange', onLockChange);
+    cleanupFns.push(() => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      canvas.removeEventListener('click', onClick);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('pointerlockchange', onLockChange);
+      touchRoot.removeEventListener('touchstart', onTouchStart);
+      touchRoot.removeEventListener('touchmove', onTouchMove);
+      touchRoot.removeEventListener('touchend', onTouchEnd);
+      touchRoot.removeEventListener('touchcancel', onTouchEnd);
+    });
+
+    // The gsplat sorter only runs when the camera transform changes AFTER the splat is
+    // ready. Setting the pose once at load leaves it unsorted and the canvas renders
+    // BLACK, with a provably correct camera — re-applying the IDENTICAL position and
+    // angles from the console was enough to make the scene appear, which is how this was
+    // pinned down. So re-assert the pose for the first few frames to kick the sort.
+    // FPS movement, not free-flight. Two things make it feel like a game rather than a
+    // debug camera:
+    //  1. W/S travel along the view direction PROJECTED ONTO THE GROUND PLANE, so looking up
+    //     no longer lifts you off the floor — that was the main thing making it feel wrong.
+    //     Vertical is explicit (Space / C), which is also how you get a drone view.
+    //  2. Velocity is accelerated and damped rather than applied per-key-press, so starting,
+    //     stopping and strafing carry a little momentum instead of snapping.
+    const vel = new pc.Vec3();
+    const ACCEL = 34;      // m/s^2 — reaches full speed in ~1/8 s
+    const DAMP = 11;       // 1/s   — coasts a short distance after release
+    const onUpdate = (dt) => {
+      const step = Math.min(dt, 0.05);   // a stalled tab must not teleport the camera
+      if (carpetVideo.value) {
+        // Touching a movement control takes the wheel — no need to find the checkbox again.
+        const st0 = stickRef.value;
+        const wants = keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.Space ||
+          keys.KeyC || keys.ControlLeft || touchUp.value || touchDown.value ||
+          (st0 && (st0.x || st0.y));
+        if (wants) carpetVideo.value = false;
+        else { advanceVideo(step); return; }
+      }
+      const up = UP;
+      const d = currentDir();
+      // ground-plane basis
+      let fwd = d.clone().sub(up.clone().mulScalar(d.dot(up)));
+      if (fwd.lengthSq() < 1e-8) fwd = new pc.Vec3().cross(up, new pc.Vec3(1, 0, 0));
+      fwd.normalize();
+      const right = new pc.Vec3().cross(fwd, up).normalize();
+
+      const want = new pc.Vec3();
+      if (keys.KeyW) want.add(fwd);
+      if (keys.KeyS) want.sub(fwd);
+      if (keys.KeyD) want.add(right);
+      if (keys.KeyA) want.sub(right);
+      if (keys.Space || touchUp.value) want.add(up);
+      if (keys.KeyC || keys.ControlLeft || touchDown.value) want.sub(up);
+      // Analogue stick, added before normalise so a half-pushed stick still walks slowly
+      // once the vector is scaled by its own length below.
+      const st = stickRef.value;
+      if (st && (st.x || st.y)) {
+        want.add(fwd.clone().mulScalar(-st.y));
+        want.add(right.clone().mulScalar(st.x));
+      }
+      if (want.lengthSq() > 1e-8) {
+        const stMag = st ? Math.min(1, Math.hypot(st.x, st.y)) : 0;
+        const analogue = stMag > 0 ? Math.max(0.15, stMag) : 1;
+        want.normalize().mulScalar(speed.value * analogue *
+                                  (keys.ShiftLeft || keys.ShiftRight ? 3 : 1));
+        vel.add(want.sub(vel).mulScalar(Math.min(1, ACCEL * step / Math.max(speed.value, 0.001))));
+      } else {
+        vel.mulScalar(Math.max(0, 1 - DAMP * step));
+      }
+      if (vel.lengthSq() > 1e-9) {
+        pos.add(vel.clone().mulScalar(step));
+        const n = clampToCarpet();
+        atEdge.value = !!n;
+        if (n) {
+          const outward = vel.dot(n);
+          if (outward > 0) vel.sub(n.mulScalar(outward));
+        }
+        applyCamera();
+      } else if (atEdge.value && !want.lengthSq()) {
+        atEdge.value = false;
+      }
+      drawCarpet();
+      if (debug.value) {
+        const st2 = stickRef.value || { id: null, x: 0, y: 0 };
+        dbg.value =
+          `build ${buildStamp}\n` +
+          `isTouch ${isTouch.value}  stickEl ${stickEl.value ? 'ok' : 'NULL'}\n` +
+          `lastTouch ${lastGrab}\n` +
+          `stick id=${st2.id} x=${st2.x.toFixed(2)} y=${st2.y.toFixed(2)}\n` +
+          `vel ${vel.length().toFixed(3)} m/s  speed ${speed.value}\n` +
+          `carpetWalk ${carpetWalk.value} r=${radius.value}  atEdge ${atEdge.value}\n` +
+          `${distInfo.value}`;
+      }
+    };
+    app.on('update', onUpdate);
+    cleanupFns.push(() => app.off('update', onUpdate));
+  } catch (e) {
+    error.value = e?.message || String(e);
+    loading.value = false;
+  }
+});
+
+watch([carpetWalk, radius], () => reclamp());
+
+onBeforeUnmount(() => {
+  cleanupFns.forEach((fn) => { try { fn(); } catch { /* ignore */ } });
+  cleanupFns = [];
+  if (document.pointerLockElement) document.exitPointerLock?.();
+  if (app) { try { app.destroy(); } catch { /* ignore */ } app = null; }
+  if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+});
+</script>
+
+<style scoped>
+.walk2-view {
+  position: fixed; inset: 0; background: #0b0b0f; overflow: hidden;
+  /* Nothing here is text to be selected, and a long-press selection or magnifier over the
+     canvas is pure obstruction. */
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+.walk2-canvas {
+  width: 100%; height: 100%; display: block;
+  /* Every touch on the canvas is camera input, so the browser must not claim any of it for
+     scrolling, pinch-zoom or double-tap zoom. */
+  touch-action: none;
+}
+.walk2-hud {
+  position: absolute; top: 12px; left: 12px; z-index: 5;
+  background: rgba(0,0,0,.62); color: #e8e8ef; padding: 10px 13px;
+  border-radius: 8px; font: 12px/1.55 ui-monospace, monospace; max-width: 340px;
+  backdrop-filter: blur(6px);
+}
+.walk2-hud code { color: #8fd3ff; }
+.tag { background: #1f6f43; color: #d8ffe8; padding: 1px 6px; border-radius: 4px; font-size: 10px; }
+.walk2-orient { margin-top: 6px; }
+.walk2-orient button {
+  background: #23232c; color: #cfcfe0; border: 1px solid #3a3a48; border-radius: 4px;
+  font: 11px ui-monospace, monospace; padding: 2px 7px; margin-right: 4px; cursor: pointer;
+}
+.walk2-orient button.on { background: #2f6fd0; color: #fff; border-color: #2f6fd0; }
+.walk2-note { color: #9aa; font-size: 10.5px; }
+.walk2-build { display: block; margin-top: 3px; font-size: 10px; opacity: .6; }
+.walk2-debug {
+  position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 10px; z-index: 62;
+  margin: 0; padding: 7px 9px; border-radius: 7px; max-width: 68vw;
+  background: rgba(0,0,0,.72); color: #9fe89f;
+  font: 10px/1.45 ui-monospace, monospace; white-space: pre-wrap;
+}
+.walk2-edge {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(160px + env(safe-area-inset-bottom)); z-index: 62;
+  background: rgba(0,0,0,.66); color: #ffd9a0; padding: 6px 12px; border-radius: 999px;
+  font: 11px system-ui; pointer-events: none;
+}
+/* Above the app's floating chrome (WhatsApp z-40, analysis indicator z-50): those are
+   hidden on this route, but the stick must win even if something new appears. */
+.walk2-touch { position: fixed; inset: 0; pointer-events: none; z-index: 60; touch-action: none; }
+.walk2-back-btn {
+  position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 14px; z-index: 61;
+  width: 42px; height: 42px; border-radius: 50%; text-decoration: none;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); color: #e8e8ef; font-size: 20px;
+  border: 1px solid rgba(255,255,255,.2);
+}
+.walk2-stick {
+  position: absolute; left: 18px; bottom: calc(30px + env(safe-area-inset-bottom));
+  width: 116px; height: 116px;
+  border-radius: 50%; background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.22); pointer-events: auto;
+  display: flex; align-items: center; justify-content: center;
+}
+.walk2-stick-knob {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(255,255,255,.34); border: 1px solid rgba(255,255,255,.5);
+}
+.walk2-vbtns {
+  position: absolute; right: 18px; bottom: calc(30px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 10px;
+}
+.walk2-vbtns button {
+  pointer-events: auto; width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.24);
+  color: #e8e8ef; font-size: 17px;
+}
+/* The HUD eats most of a phone screen at desktop sizing. */
+@media (max-width: 760px) {
+  .walk2-hud { font-size: 10.5px; max-width: 62vw; padding: 7px 9px; }
+  .walk2-hud input[type=range] { width: 78px; }
+}
+.walk2-loop {
+  margin-left: 8px;
+  opacity: 0.75;
+}
+.walk2-dist { color: #cfcfe0; font-size: 11px; }
+.walk2-up { color: #9aa; font-size: 10.5px; }
+.walk2-size { margin-top: 6px; color: #9be89b; }
+.walk2-status {
+  position: absolute; bottom: 14px; left: 12px; right: 12px; z-index: 5;
+  background: rgba(0,0,0,.62); color: #e8e8ef; padding: 9px 13px; border-radius: 8px;
+  font: 12px ui-monospace, monospace;
+}
+.walk2-status.err { background: rgba(120,20,20,.85); color: #ffdada; }
+.walk2-progress { height: 4px; background: #2a2a33; border-radius: 2px; margin-top: 7px; overflow: hidden; }
+.walk2-progress-fill { height: 100%; background: #2f6fd0; transition: width .15s linear; }
+.walk2-hint {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 4;
+  color: #fff; background: rgba(0,0,0,.5); padding: 9px 15px; border-radius: 8px;
+  font: 13px ui-monospace, monospace; pointer-events: none;
+}
+.walk2-back {
+  position: absolute; top: 12px; right: 12px; z-index: 5; color: #8fd3ff;
+  background: rgba(0,0,0,.62); padding: 7px 11px; border-radius: 8px;
+  font: 12px ui-monospace, monospace; text-decoration: none;
+}
+</style>
