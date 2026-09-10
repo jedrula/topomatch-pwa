@@ -293,58 +293,51 @@ onMounted(async () => {
       }
       return { d: Math.sqrt(bd), x: bx, y: by, z: bz };
     };
-    // ---- the middle of an outward-facing loop ----
-    // A union of balls around the camera centres is an ANNULUS when the path is a ring, so
-    // walking a circle round a room leaves the viewer rail-guided round the ring and shut out
-    // of the open floor in the middle — the part of the room a person would actually cross.
-    // The server decides whether that middle is safe (see loop_analysis): it is, when the
-    // cameras faced OUTWARD from the ring, because everything visible from in there was shot
-    // from the ring between you and it. On an INWARD loop the middle is the object you
-    // orbited, and standing in it means standing inside the boulder.
+    // ---- what the server found about the shape of this capture ----
+    // Reported, not acted on. Opening the middle of an outward-facing ring was tried and
+    // withdrawn: the middle of such a ring is behind every camera, so it is unobserved by
+    // construction and measures empty whether or not something is standing in it. The only
+    // thing that makes a place walkable is having observed it, and the strongest observation
+    // is the camera having stood there — which is exactly what the clamp below already allows.
     const loop = carpet?.loop;
-    let insideLoop = () => false;
-    if (loop?.interior_walkable && loop.interior_polygon?.length >= 3) {
-      // Floor-plane basis, matching the one carpet_geometry projects the polygon with.
-      let ax = new pc.Vec3(1, 0, 0).sub(UP.clone().mulScalar(UP.x));
-      if (ax.length() < 1e-3) ax = new pc.Vec3(0, 1, 0).sub(UP.clone().mulScalar(UP.y));
-      ax.normalize();
-      const bx = new pc.Vec3().cross(UP, ax).normalize();
-      const poly = loop.interior_polygon.map((q) => {
-        const v = new pc.Vec3(q[0], q[1], q[2]);
-        return [v.dot(ax), v.dot(bx)];
-      });
-      const floorH = carpet?.walk?.floor ?? 0;
-      const ceilH = carpet?.walk?.ceiling ?? (floorH + 3);
-      insideLoop = (p) => {
-        const h = p.dot(UP);
-        if (h < floorH - 0.2 || h > ceilH) return false;
-        const px = p.dot(ax), py = p.dot(bx);
-        let inside = false;
-        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-          const [xi, yi] = poly[i], [xj, yj] = poly[j];
-          if ((yi > py) !== (yj > py)) {
-            const xint = ((xj - xi) * (py - yi)) / ((yj - yi) || 1e-12) + xi;
-            if (px < xint) inside = !inside;
-          }
-        }
-        return inside;
-      };
-      loopLabel.value = `loop: ${loop.facing}, middle open`;
-    } else if (loop?.closed) {
-      loopLabel.value = `loop: ${loop.facing}, middle closed`;
+    if (loop?.closed) {
+      const seen = loop.interior_observed_fraction;
+      loopLabel.value = `loop: ${loop.facing}` +
+        (seen == null ? '' : `, middle ${Math.round(seen * 100)}% seen`);
     }
+
+    // ---- height: the band the camera was actually carried at ----
+    // A ball around a camera centre lets you rise to the ceiling as long as you stay near it,
+    // and nobody was ever up there. floor and the camera-height percentiles are measured from
+    // the trajectory, so this costs no new assumption — it only removes freedom the evidence
+    // never supported.
+    const wv = carpet?.walk;
+    const HEAD_ROOM = 0.4;
+    const band = wv && wv.floor != null && wv.cam_height_max != null
+      ? { lo: wv.floor + Math.max(0, (wv.cam_height_min ?? 0)) - HEAD_ROOM,
+          hi: wv.floor + wv.cam_height_max + HEAD_ROOM }
+      : null;
 
     // Returns the outward unit normal when it had to pull the camera back, else null, so the
     // caller can also kill the outward velocity — otherwise holding W into a wall builds up
     // speed that releases as a lurch the moment you turn away.
     const clampToCarpet = () => {
       if (!nCam) return null;
+      // Height first, so the horizontal clamp below measures from a position that is already
+      // at a plausible eye level rather than from somewhere near the ceiling.
+      let vertical = null;
+      if (carpetWalk.value && band) {
+        const h = pos.dot(UP);
+        if (h > band.hi) {
+          pos.add(UP.clone().mulScalar(band.hi - h));
+          vertical = UP.clone();
+        } else if (h < band.lo) {
+          pos.add(UP.clone().mulScalar(band.lo - h));
+          vertical = UP.clone().mulScalar(-1);
+        }
+      }
       const nc = nearestCarpet(pos);
       const r = radius.value;
-      if (carpetWalk.value && nc.d > r && insideLoop(pos)) {
-        distInfo.value = `inside the loop (${nc.d.toFixed(2)} from the ring) · walking`;
-        return null;
-      }
       if (carpetWalk.value && nc.d > r) {
         const ox = pos.x - nc.x, oy = pos.y - nc.y, oz = pos.z - nc.z;
         const k = r / (nc.d || 1);
@@ -353,8 +346,8 @@ onMounted(async () => {
         return new pc.Vec3(ox, oy, oz).normalize();
       }
       distInfo.value = `dist to carpet ${nc.d.toFixed(2)} (r ${r.toFixed(2)}) · ` +
-        (carpetWalk.value ? 'walking' : 'free-fly');
-      return null;
+        (vertical ? 'held at eye height' : (carpetWalk.value ? 'walking' : 'free-fly'));
+      return vertical;
     };
     // ---- drawing the carpet ----
     // Immediate mode: PlayCanvas keeps no state for these, so they are re-issued every frame
