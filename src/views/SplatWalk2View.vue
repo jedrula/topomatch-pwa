@@ -24,6 +24,11 @@
         <label><input type="checkbox" v-model="showCarpet" /> show carpet</label>
         <span v-if="loopLabel" class="walk2-loop">{{ loopLabel }}</span>
       </div>
+      <div>
+        <label><input type="checkbox" v-model="carpetVideo" :disabled="!videoReady" />
+          carpet video</label>
+        <span v-if="carpetVideo" class="walk2-loop">{{ videoInfo }}</span>
+      </div>
       <div v-if="distInfo" class="walk2-dist">{{ distInfo }}</div>
       <div v-if="upLabel" class="walk2-up">up {{ upLabel }}</div>
       <div v-if="sizeInfo" class="walk2-size">{{ sizeInfo }}</div>
@@ -111,6 +116,11 @@ const radius = ref(0.6);
 // which reads as broken controls rather than as a boundary.
 const showCarpet = ref(false);
 const loopLabel = ref('');
+// Retrace the capture: walk the path the camera walked, looking roughly where it looked.
+// The speed slider drives it, so the same control means the same thing in both modes.
+const carpetVideo = ref(false);
+const videoReady = ref(false);
+const videoInfo = ref('');
 const distInfo = ref('');
 let reclamp = () => {};
 // Touch controls. isTouch gates the whole on-screen layer: on a desktop it would just be
@@ -405,6 +415,102 @@ onMounted(async () => {
       }
     };
 
+    // ---- carpet video: retrace the capture ----
+    //
+    // The path and the viewing directions are both recorded, so the tour needs no invention —
+    // it is playback, not a generated fly-through. Two things have to be handled or it is
+    // unwatchable:
+    //
+    //   jitter  A handheld capture wanders by centimetres between frames and the forwards
+    //           wobble with every step. Both are smoothed with a moving average, taken WITHIN
+    //           runs so a smoothing window never straddles a cut and drags the camera through
+    //           un-walked space.
+    //   cuts    Where recording stopped and restarted, the operator did not walk the gap.
+    //           Flying it would show space nobody photographed, so the gap is taken instantly:
+    //           a cut in the capture becomes a cut in the video.
+    const vidPts = [];
+    const vidSeg = [];
+    (() => {
+      const cs = carpet?.centers, fs = carpet?.forwards;
+      if (!Array.isArray(cs) || !Array.isArray(fs) || cs.length < 4 || fs.length !== cs.length) return;
+      const raw = cs.map((c, i) => ({
+        p: new pc.Vec3(c[0], c[1], c[2]),
+        f: new pc.Vec3(fs[i][0], fs[i][1], fs[i][2]).normalize(),
+      }));
+      const stepLen = raw.slice(1).map((q, i) => q.p.distance(raw[i].p)).sort((a, b) => a - b);
+      const med = stepLen[Math.floor(stepLen.length / 2)] || 0;
+      const isCut = (i) => med > 0 && raw[i].p.distance(raw[i + 1].p) > 10 * med;
+      // Run boundaries, so smoothing never averages across a cut.
+      const bounds = [0];
+      for (let i = 0; i < raw.length - 1; i++) if (isCut(i)) bounds.push(i + 1);
+      bounds.push(raw.length);
+      const runOf = new Array(raw.length);
+      for (let b = 0; b < bounds.length - 1; b++) {
+        for (let i = bounds[b]; i < bounds[b + 1]; i++) runOf[i] = b;
+      }
+      const W = 3;   // +-3 samples, about a metre of walking at a typical step
+      for (let i = 0; i < raw.length; i++) {
+        const p = new pc.Vec3(), f = new pc.Vec3();
+        let n = 0;
+        for (let k = -W; k <= W; k++) {
+          const j = i + k;
+          if (j < 0 || j >= raw.length || runOf[j] !== runOf[i]) continue;
+          p.add(raw[j].p); f.add(raw[j].f); n++;
+        }
+        p.mulScalar(1 / n);
+        if (f.lengthSq() < 1e-8) f.copy(raw[i].f); else f.normalize();
+        vidPts.push({ p, f });
+      }
+      for (let i = 0; i < vidPts.length - 1; i++) {
+        const cut = isCut(i);
+        vidSeg.push({ len: cut ? 0 : vidPts[i].p.distance(vidPts[i + 1].p), cut });
+      }
+      videoReady.value = vidSeg.some((sg) => sg.len > 0);
+    })();
+    const vidTotal = vidSeg.reduce((a, sg) => a + sg.len, 0);
+    let vidDist = 0;
+
+    // World direction -> the yaw/pitch this camera is actually steered with, so leaving the
+    // video hands control back pointing where the video left off rather than snapping.
+    const dirToAngles = (d) => {
+      const dn = d.clone().normalize();
+      const vert = Math.max(-1, Math.min(1, dn.dot(UP)));
+      const h = dn.clone().sub(UP.clone().mulScalar(vert));
+      const p = (Math.asin(vert) * 180) / Math.PI;
+      if (h.lengthSq() < 1e-8) return { yaw, pitch: p };
+      h.normalize();
+      const cross = new pc.Vec3().cross(refFwd, h);
+      return { yaw: (Math.atan2(cross.dot(UP), refFwd.dot(h)) * 180) / Math.PI, pitch: p };
+    };
+
+    const advanceVideo = (step) => {
+      if (!videoReady.value || vidTotal <= 0) return;
+      vidDist = (vidDist + speed.value * step) % vidTotal;
+      let d = vidDist, i = 0;
+      while (i < vidSeg.length && d > vidSeg[i].len) { d -= vidSeg[i].len; i++; }
+      if (i >= vidSeg.length) { i = vidSeg.length - 1; d = vidSeg[i].len; }
+      const t = vidSeg[i].len > 0 ? d / vidSeg[i].len : 0;
+      const a = vidPts[i], b = vidPts[i + 1];
+      pos.set(a.p.x + (b.p.x - a.p.x) * t,
+              a.p.y + (b.p.y - a.p.y) * t,
+              a.p.z + (b.p.z - a.p.z) * t);
+      const want = new pc.Vec3(a.f.x + (b.f.x - a.f.x) * t,
+                               a.f.y + (b.f.y - a.f.y) * t,
+                               a.f.z + (b.f.z - a.f.z) * t);
+      if (want.lengthSq() > 1e-8) {
+        const tgt = dirToAngles(want);
+        // Ease in angle space, and take the short way round so passing +-180 does not spin.
+        const k = Math.min(1, step * 3.5);
+        yaw += (((tgt.yaw - yaw + 540) % 360) - 180) * k;
+        pitch += (tgt.pitch - pitch) * k;
+      }
+      // The path is inside the carpet by construction; run the clamp anyway so the video
+      // obeys exactly the rule the walker does.
+      clampToCarpet();
+      applyCamera();
+      videoInfo.value = `${Math.round((vidDist / vidTotal) * 100)}% of ${vidTotal.toFixed(1)} m`;
+    };
+
     // Enabling the mode (or shrinking r) while parked outside must take effect at once, not
     // silently wait for the next keypress.
     reclamp = () => { clampToCarpet(); applyCamera(); };
@@ -442,6 +548,7 @@ onMounted(async () => {
     const onMove = (e) => {
       if (document.pointerLockElement !== canvas) return;
       // Raw deltas, no smoothing or acceleration — 1:1 is what makes an FPS feel direct.
+      carpetVideo.value = false;
       yaw -= e.movementX * sens.value;
       pitch = Math.max(-89, Math.min(89, pitch - e.movementY * sens.value));
       applyCamera();
@@ -519,6 +626,7 @@ onMounted(async () => {
         } else if (t.identifier === lookTouch.id) {
           // Touch look wants ~3x the mouse sensitivity: a thumb swipe covers far less
           // distance than a mouse drag, so 1:1 leaves you unable to turn around.
+          carpetVideo.value = false;
           yaw -= (t.clientX - lookTouch.x) * sens.value * 3;
           pitch = Math.max(-89, Math.min(89, pitch - (t.clientY - lookTouch.y) * sens.value * 3));
           lookTouch.x = t.clientX; lookTouch.y = t.clientY;
@@ -591,6 +699,15 @@ onMounted(async () => {
     const DAMP = 11;       // 1/s   — coasts a short distance after release
     const onUpdate = (dt) => {
       const step = Math.min(dt, 0.05);   // a stalled tab must not teleport the camera
+      if (carpetVideo.value) {
+        // Touching a movement control takes the wheel — no need to find the checkbox again.
+        const st0 = stickRef.value;
+        const wants = keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.Space ||
+          keys.KeyC || keys.ControlLeft || touchUp.value || touchDown.value ||
+          (st0 && (st0.x || st0.y));
+        if (wants) carpetVideo.value = false;
+        else { advanceVideo(step); return; }
+      }
       const up = UP;
       const d = currentDir();
       // ground-plane basis
