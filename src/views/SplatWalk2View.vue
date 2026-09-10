@@ -20,6 +20,10 @@
                  :disabled="!carpetWalk" />
         {{ radius.toFixed(2) }}
       </div>
+      <div>
+        <label><input type="checkbox" v-model="showCarpet" /> show carpet</label>
+        <span v-if="loopLabel" class="walk2-loop">{{ loopLabel }}</span>
+      </div>
       <div v-if="distInfo" class="walk2-dist">{{ distInfo }}</div>
       <div v-if="upLabel" class="walk2-up">up {{ upLabel }}</div>
       <div v-if="sizeInfo" class="walk2-size">{{ sizeInfo }}</div>
@@ -102,6 +106,11 @@ const carpetWalk = ref(true);
 // unnecessary and it let the viewer drift close enough to walls to look wrong. 0.6 is also
 // what walk v1 shipped with.
 const radius = ref(0.6);
+// Draw where the capture actually went. The clamp below has always been invisible: you could
+// be held at the edge of the captured area with nothing on screen saying where that edge is,
+// which reads as broken controls rather than as a boundary.
+const showCarpet = ref(false);
+const loopLabel = ref('');
 const distInfo = ref('');
 let reclamp = () => {};
 // Touch controls. isTouch gates the whole on-screen layer: on a desktop it would just be
@@ -284,6 +293,47 @@ onMounted(async () => {
       }
       return { d: Math.sqrt(bd), x: bx, y: by, z: bz };
     };
+    // ---- the middle of an outward-facing loop ----
+    // A union of balls around the camera centres is an ANNULUS when the path is a ring, so
+    // walking a circle round a room leaves the viewer rail-guided round the ring and shut out
+    // of the open floor in the middle — the part of the room a person would actually cross.
+    // The server decides whether that middle is safe (see loop_analysis): it is, when the
+    // cameras faced OUTWARD from the ring, because everything visible from in there was shot
+    // from the ring between you and it. On an INWARD loop the middle is the object you
+    // orbited, and standing in it means standing inside the boulder.
+    const loop = carpet?.loop;
+    let insideLoop = () => false;
+    if (loop?.interior_walkable && loop.interior_polygon?.length >= 3) {
+      // Floor-plane basis, matching the one carpet_geometry projects the polygon with.
+      let ax = new pc.Vec3(1, 0, 0).sub(UP.clone().mulScalar(UP.x));
+      if (ax.length() < 1e-3) ax = new pc.Vec3(0, 1, 0).sub(UP.clone().mulScalar(UP.y));
+      ax.normalize();
+      const bx = new pc.Vec3().cross(UP, ax).normalize();
+      const poly = loop.interior_polygon.map((q) => {
+        const v = new pc.Vec3(q[0], q[1], q[2]);
+        return [v.dot(ax), v.dot(bx)];
+      });
+      const floorH = carpet?.walk?.floor ?? 0;
+      const ceilH = carpet?.walk?.ceiling ?? (floorH + 3);
+      insideLoop = (p) => {
+        const h = p.dot(UP);
+        if (h < floorH - 0.2 || h > ceilH) return false;
+        const px = p.dot(ax), py = p.dot(bx);
+        let inside = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const [xi, yi] = poly[i], [xj, yj] = poly[j];
+          if ((yi > py) !== (yj > py)) {
+            const xint = ((xj - xi) * (py - yi)) / ((yj - yi) || 1e-12) + xi;
+            if (px < xint) inside = !inside;
+          }
+        }
+        return inside;
+      };
+      loopLabel.value = `loop: ${loop.facing}, middle open`;
+    } else if (loop?.closed) {
+      loopLabel.value = `loop: ${loop.facing}, middle closed`;
+    }
+
     // Returns the outward unit normal when it had to pull the camera back, else null, so the
     // caller can also kill the outward velocity — otherwise holding W into a wall builds up
     // speed that releases as a lurch the moment you turn away.
@@ -291,6 +341,10 @@ onMounted(async () => {
       if (!nCam) return null;
       const nc = nearestCarpet(pos);
       const r = radius.value;
+      if (carpetWalk.value && nc.d > r && insideLoop(pos)) {
+        distInfo.value = `inside the loop (${nc.d.toFixed(2)} from the ring) · walking`;
+        return null;
+      }
       if (carpetWalk.value && nc.d > r) {
         const ox = pos.x - nc.x, oy = pos.y - nc.y, oz = pos.z - nc.z;
         const k = r / (nc.d || 1);
@@ -302,6 +356,62 @@ onMounted(async () => {
         (carpetWalk.value ? 'walking' : 'free-fly');
       return null;
     };
+    // ---- drawing the carpet ----
+    // Immediate mode: PlayCanvas keeps no state for these, so they are re-issued every frame
+    // and cost nothing when the checkbox is off. Depth-tested, so the path is occluded by the
+    // splat like any other geometry rather than floating in front of the walls.
+    const PATH_COL = new pc.Color(0.29, 0.87, 0.5);
+    const SHADOW_COL = new pc.Color(0.29, 0.87, 0.5, 0.35);
+    const EDGE_COL = new pc.Color(1.0, 0.65, 0.2);
+    const LOOP_COL = new pc.Color(0.55, 0.95, 0.65);
+    const floorOf = (v) => {
+      const f = carpet?.walk?.floor;
+      return f == null ? null : v.clone().add(UP.clone().mulScalar(f - v.dot(UP)));
+    };
+    const drawCarpet = () => {
+      if (!showCarpet.value || !nCam) return;
+      const a = new pc.Vec3(), b = new pc.Vec3();
+      for (let i = 0; i < nCam - 1; i++) {
+        a.set(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]);
+        b.set(CN[(i + 1) * 3], CN[(i + 1) * 3 + 1], CN[(i + 1) * 3 + 2]);
+        app.drawLine(a, b, PATH_COL, true);
+        // A shadow on the floor: the path itself hangs at eye height, and a line in mid-air
+        // is very hard to place relative to the ground you are standing on.
+        const fa = floorOf(a), fb = floorOf(b);
+        if (fa && fb) app.drawLine(fa, fb, SHADOW_COL, true);
+      }
+      // The ball you are actually confined to, drawn where you are rather than everywhere:
+      // one circle you can read beats 113 you cannot.
+      if (carpetWalk.value) {
+        const nc = nearestCarpet(pos);
+        const c = new pc.Vec3(nc.x, nc.y, nc.z);
+        let ax = new pc.Vec3(1, 0, 0).sub(UP.clone().mulScalar(UP.x));
+        if (ax.length() < 1e-3) ax = new pc.Vec3(0, 1, 0).sub(UP.clone().mulScalar(UP.y));
+        ax.normalize();
+        const bx = new pc.Vec3().cross(UP, ax).normalize();
+        const r = radius.value;
+        const N = 32;
+        for (let i = 0; i < N; i++) {
+          const t0 = (i / N) * Math.PI * 2, t1 = ((i + 1) / N) * Math.PI * 2;
+          const p0 = c.clone()
+            .add(ax.clone().mulScalar(Math.cos(t0) * r))
+            .add(bx.clone().mulScalar(Math.sin(t0) * r));
+          const p1 = c.clone()
+            .add(ax.clone().mulScalar(Math.cos(t1) * r))
+            .add(bx.clone().mulScalar(Math.sin(t1) * r));
+          app.drawLine(p0, p1, EDGE_COL, true);
+        }
+      }
+      const poly = loop?.interior_walkable ? loop.interior_polygon : null;
+      if (poly && poly.length >= 3) {
+        for (let i = 0; i < poly.length; i++) {
+          const q = poly[i], w = poly[(i + 1) % poly.length];
+          app.drawLine(new pc.Vec3(q[0], q[1], q[2]), new pc.Vec3(w[0], w[1], w[2]),
+                       LOOP_COL, true);
+        }
+      }
+    };
+
     // Enabling the mode (or shrinking r) while parked outside must take effect at once, not
     // silently wait for the next keypress.
     reclamp = () => { clampToCarpet(); applyCamera(); };
@@ -531,6 +641,7 @@ onMounted(async () => {
       } else if (atEdge.value && !want.lengthSq()) {
         atEdge.value = false;
       }
+      drawCarpet();
       if (debug.value) {
         const st2 = stickRef.value || { id: null, x: 0, y: 0 };
         dbg.value =
@@ -638,6 +749,10 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .walk2-hud { font-size: 10.5px; max-width: 62vw; padding: 7px 9px; }
   .walk2-hud input[type=range] { width: 78px; }
+}
+.walk2-loop {
+  margin-left: 8px;
+  opacity: 0.75;
 }
 .walk2-dist { color: #cfcfe0; font-size: 11px; }
 .walk2-up { color: #9aa; font-size: 10.5px; }
