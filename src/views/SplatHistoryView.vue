@@ -3,7 +3,23 @@
     <div class="header">
 
       <h1>Splat History</h1>
+      <button
+        v-if="starredCount > 1"
+        class="refresh-btn compare-btn"
+        :class="{ on: compareOpen }"
+        :title="starredCount > 8 ? `Comparing the first 8 of ${starredCount} starred runs` : 'Overlay the training curves of the starred runs'"
+        @click="toggleCompare"
+      >{{ compareOpen ? 'Hide curves ✕' : `Compare curves 📈 (${Math.min(starredCount, 8)})` }}</button>
       <button class="refresh-btn" @click="load">↻ Refresh</button>
+    </div>
+
+    <div v-if="compareOpen" class="compare-panel">
+      <div class="compare-head">
+        <span>Starred runs — training curves</span>
+        <span v-if="starredCount > 8" class="compare-warn">showing 8 of {{ starredCount }}</span>
+      </div>
+      <div v-if="compareLoading" class="state-msg muted">Loading curves…</div>
+      <TrainingCurve v-else :series="compareSeries" />
     </div>
 
     <HistoryFilters
@@ -187,6 +203,9 @@
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
           </button>
+          <button class="view-btn curve-btn" @click="toggleCurve(job.job_id)">
+            {{ expandedCurves.has(job.job_id) ? 'Hide Curve ✕' : 'Curve 📈' }}
+          </button>
           <button v-if="job.image_count > 0" class="view-btn img-btn" @click="toggleImages(job.job_id)">
             {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
           </button>
@@ -303,6 +322,9 @@
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
           </button>
+          <button class="view-btn curve-btn" @click="toggleCurve(job.job_id)">
+            {{ expandedCurves.has(job.job_id) ? 'Hide Curve ✕' : 'Curve 📈' }}
+          </button>
           <button v-if="job.image_count > 0" class="view-btn img-btn" @click="toggleImages(job.job_id)">
             {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
           </button>
@@ -317,6 +339,10 @@
         <div v-if="expandedLogs.has(job.job_id)" class="log-expand">
           <pre v-if="jobLogs.get(job.job_id)?.length" class="log-pre-history" :data-job-id="job.job_id">{{ jobLogs.get(job.job_id).join('\n') }}</pre>
           <p v-else class="log-empty-history">No log output available.</p>
+        </div>
+
+        <div v-if="expandedCurves.has(job.job_id)" class="curve-expand">
+          <TrainingCurve :series="seriesFor([job])" />
         </div>
 
         <!-- Images grid -->
@@ -394,6 +420,7 @@ import { thumbGet, thumbDelete } from '../utils/thumbDb.js';
 import PointCloudViewer from '../components/PointCloudViewer.vue';
 import HistoryFilters from '../components/HistoryFilters.vue';
 import TrainingParams from '../components/TrainingParams.vue';
+import TrainingCurve from '../components/TrainingCurve.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -425,6 +452,33 @@ const loading = ref(true);
 const error = ref('');
 const expandedCapture = ref(new Set());
 const expandedLogs = ref(new Set());
+const expandedCurves = ref(new Set());
+const jobCurves = ref(new Map());
+const compareOpen = ref(false);
+const compareLoading = ref(false);
+
+// A run's scene name already carries whatever the launcher wanted to call the arm
+// ("hires_C_sfmnative_3664983e"); strip the job-id suffix the server appends and it reads as a
+// label. Falls back to the job id, which is what every hand-launched run has.
+function curveLabel(job) {
+  const scene = job.params?.scene;
+  if (!scene) return job.job_id;
+  const trimmed = scene.endsWith(`_${job.job_id}`) ? scene.slice(0, -(job.job_id.length + 1)) : scene;
+  return trimmed || job.job_id;
+}
+
+// 8 is the categorical palette's length; a 9th run would have to reuse a colour, which reads as
+// "same run" and is worse than not showing it.
+const comparedJobs = computed(() => jobs.value.filter(j => j.starred).slice(0, 8));
+const starredCount = computed(() => jobs.value.filter(j => j.starred).length);
+
+function seriesFor(list) {
+  return list.map(j => ({
+    label: curveLabel(j),
+    ...(jobCurves.value.get(j.job_id) ?? { eval: [], splats: [] }),
+  }));
+}
+const compareSeries = computed(() => seriesFor(comparedJobs.value));
 const expandedFork = ref(new Set());
 const forkParams = ref({});  // job_id → training params object + submitting/error state
 const expandedImages = ref(new Set());
@@ -613,6 +667,51 @@ async function deleteJob(job) {
   jobs.value = jobs.value.filter(j => j.job_id !== job.job_id);
 }
 
+// One fetch for both the log pane and the training curve — the curve is parsed out of the
+// same 02_train.log the /logs endpoint already returns, so no extra endpoint is needed and
+// every pod ever trained has a curve retroactively.
+async function logLinesFor(jobId) {
+  if (jobLogs.value.has(jobId)) return jobLogs.value.get(jobId);
+  const gateway = await resolvedGateway();
+  const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/logs`);
+  if (!res.ok) throw new Error(`logs ${res.status}`);
+  const lines = (await res.json()).log_lines ?? [];
+  const m = new Map(jobLogs.value);
+  m.set(jobId, lines);
+  jobLogs.value = m;
+  return lines;
+}
+
+const EVAL_RE = /Eval iter (\d+): PSNR ([0-9.]+), ssim ([0-9.]+)/;
+const REFINE_RE = /Refine iter (\d+), (\d+) splats/;
+
+// /logs concatenates 02_train.log AND output.log, and Brush's stdout is tee'd into both, so every
+// point arrives twice. Key by iteration (last wins, which is also what a re-trained pod should
+// show) and sort, or the polyline folds back on itself.
+function dedupe(map) {
+  return [...map.values()].sort((a, b) => a.i - b.i);
+}
+
+function parseCurve(lines) {
+  const evalPts = new Map(), splatPts = new Map();
+  for (const line of lines) {
+    const e = EVAL_RE.exec(line);
+    if (e) { evalPts.set(+e[1], { i: +e[1], psnr: +e[2], ssim: +e[3] }); continue; }
+    const r = REFINE_RE.exec(line);
+    if (r) splatPts.set(+r[1], { i: +r[1], n: +r[2] });
+  }
+  return { eval: dedupe(evalPts), splats: dedupe(splatPts) };
+}
+
+async function curveFor(jobId) {
+  if (jobCurves.value.has(jobId)) return jobCurves.value.get(jobId);
+  const curve = parseCurve(await logLinesFor(jobId));
+  const m = new Map(jobCurves.value);
+  m.set(jobId, curve);
+  jobCurves.value = m;
+  return curve;
+}
+
 async function toggleLogs(jobId) {
   const s = new Set(expandedLogs.value);
   if (s.has(jobId)) {
@@ -622,22 +721,36 @@ async function toggleLogs(jobId) {
   }
   s.add(jobId);
   expandedLogs.value = s;
-  if (!jobLogs.value.has(jobId)) {
-    try {
-      const gateway = await resolvedGateway();
-      const res = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/logs`);
-      if (res.ok) {
-        const data = await res.json();
-        const m = new Map(jobLogs.value);
-        m.set(jobId, data.log_lines ?? []);
-        jobLogs.value = m;
-        nextTick(() => {
-          const el = document.querySelector(`.log-pre-history[data-job-id="${jobId}"]`);
-          if (el) el.scrollTop = el.scrollHeight;
-        });
-      }
-    } catch { /* silent */ }
+  try {
+    await logLinesFor(jobId);
+    nextTick(() => {
+      const el = document.querySelector(`.log-pre-history[data-job-id="${jobId}"]`);
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  } catch { /* silent */ }
+}
+
+async function toggleCurve(jobId) {
+  const s = new Set(expandedCurves.value);
+  if (s.has(jobId)) {
+    s.delete(jobId);
+    expandedCurves.value = s;
+    return;
   }
+  s.add(jobId);
+  expandedCurves.value = s;
+  try { await curveFor(jobId); } catch { /* silent */ }
+}
+
+// Comparing runs is the whole point of a curve: one run's PSNR line says little, two say which
+// change helped. Starred runs are the existing "these are the ones I care about" set, so reuse it
+// rather than inventing a second selection mechanism.
+async function toggleCompare() {
+  compareOpen.value = !compareOpen.value;
+  if (!compareOpen.value) return;
+  compareLoading.value = true;
+  await Promise.all(comparedJobs.value.map(j => curveFor(j.job_id).catch(() => null)));
+  compareLoading.value = false;
 }
 
 function startNoteEdit(jobId, currentNote) {
@@ -1287,6 +1400,29 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .pc-expand { margin-top: 8px; }
 .log-btn { background: #374151; }
 .log-btn:hover { background: #4b5563; }
+.curve-btn { background: #1f3a5f; }
+.curve-btn:hover { background: #2b5183; }
+
+.compare-btn.on { background: rgba(57,135,229,0.18); border-color: #3987e5; color: #cfe2fb; }
+
+.compare-panel {
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  background: #171717;
+  padding: 14px 16px 12px;
+  margin-bottom: 20px;
+}
+.compare-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 0.85rem; color: #bbb; margin-bottom: 8px;
+}
+.compare-warn { color: #c98500; font-size: 0.75rem; }
+
+.curve-expand {
+  border-top: 1px solid #262626;
+  margin-top: 10px;
+  padding-top: 10px;
+}
 
 .log-expand { margin-top: 8px; }
 .log-pre-history {
