@@ -361,10 +361,11 @@
               @click="openFrameLightbox(job.job_id, fn)"
             >
               <img
-                :src="imageUrl(job.job_id, fn)"
+                :src="thumbUrl(job.job_id, fn)"
                 class="frame-thumb"
                 :alt="fn"
                 loading="lazy"
+                decoding="async"
               />
               <img
                 v-if="maskEnabled.has(job.job_id)"
@@ -391,7 +392,13 @@
       <div v-if="lightboxSrc" class="lightbox-overlay" @click="closeLightbox">
         <button class="lightbox-close" @click.stop="closeLightbox">✕</button>
         <button v-if="lightboxList.length > 1" class="lightbox-arrow lightbox-prev" @click.stop="lightboxStep(-1)">‹</button>
-        <img :src="lightboxSrc" class="lightbox-img" alt="full size" @click.stop />
+        <img
+          :src="lightboxDisplaySrc"
+          class="lightbox-img"
+          :class="{ 'lightbox-img-preview': !lightboxFullReady }"
+          alt="full size"
+          @click.stop
+        />
         <button v-if="lightboxList.length > 1" class="lightbox-arrow lightbox-next" @click.stop="lightboxStep(1)">›</button>
         <div v-if="lightboxList.length > 1" class="lightbox-counter">{{ lightboxIndex + 1 }} / {{ lightboxList.length }}</div>
         <div v-if="lightboxJob" class="lightbox-params" @click.stop>
@@ -498,24 +505,49 @@ async function resolvedGateway() {
 }
 
 // ── Lightbox ─────────────────────────────────────────────────────────────────
-const lightboxList = ref([]);   // array of { src, jobId, filename }
+const lightboxList = ref([]);   // array of { src, thumb, jobId, filename }
 const lightboxIndex = ref(0);
 const lightboxSrc = computed(() => lightboxList.value[lightboxIndex.value]?.src ?? null);
+// The full frame can be 8 MB. Show the already-cached thumbnail upscaled (and blurred,
+// so nobody mistakes it for the real thing) until the full image has decoded.
+const lightboxFullReady = ref(false);
+const lightboxDisplaySrc = computed(() => {
+  const item = lightboxList.value[lightboxIndex.value];
+  if (!item) return null;
+  return lightboxFullReady.value ? item.src : (item.thumb ?? item.src);
+});
 const lightboxJob = computed(() => {
   const item = lightboxList.value[lightboxIndex.value];
   return item ? jobs.value.find(j => j.job_id === item.jobId) ?? null : null;
 });
 
+// Bumped on every open/step so a slow full image that arrives after the user has
+// moved on cannot un-blur the frame they are now looking at.
+let lightboxToken = 0;
+
+function loadFullImage() {
+  const item = lightboxList.value[lightboxIndex.value];
+  const token = ++lightboxToken;
+  if (!item?.thumb) { lightboxFullReady.value = true; return; }
+  lightboxFullReady.value = false;
+  const preload = new Image();
+  preload.onload = () => { if (token === lightboxToken) lightboxFullReady.value = true; };
+  preload.src = item.src;
+}
+
 function openLightbox(list, index) {
   lightboxList.value = list;
   lightboxIndex.value = index;
+  loadFullImage();
   const item = list[index];
   router.replace({ query: { ...route.query, img: `${item.jobId}/${item.filename}` } });
 }
 
 function closeLightbox() {
+  lightboxToken++;
   lightboxList.value = [];
   lightboxIndex.value = 0;
+  lightboxFullReady.value = false;
   const q = { ...route.query };
   delete q.img;
   router.replace({ query: q });
@@ -525,6 +557,7 @@ function lightboxStep(dir) {
   const n = lightboxList.value.length;
   if (n < 2) return;
   lightboxIndex.value = (lightboxIndex.value + dir + n) % n;
+  loadFullImage();
   const item = lightboxList.value[lightboxIndex.value];
   router.replace({ query: { ...route.query, img: `${item.jobId}/${item.filename}` } });
 }
@@ -539,7 +572,7 @@ function onKeydown(e) {
 // Open frame images for a job card
 function openFrameLightbox(jobId, filename) {
   const frames = jobImages.value.get(jobId) ?? [];
-  const list = frames.map(fn => ({ src: imageUrl(jobId, fn), jobId, filename: fn }));
+  const list = frames.map(fn => ({ src: imageUrl(jobId, fn), thumb: thumbUrl(jobId, fn), jobId, filename: fn }));
   const idx = Math.max(0, list.findIndex(x => x.filename === filename));
   openLightbox(list, idx);
 }
@@ -597,6 +630,13 @@ async function toggleImages(jobId) {
 
 function imageUrl(jobId, filename) {
   return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/images/${filename}`;
+}
+
+// Grid cells are ~100px wide but the frames behind them are up to 12 MP / 8 MB each,
+// so a 785-frame pod would pull 7+ GB to draw the grid. The server caches a 320px
+// JPEG per frame; the lightbox still opens the full image via imageUrl().
+function thumbUrl(jobId, filename) {
+  return `${imageUrl(jobId, filename)}?thumb=1`;
 }
 
 function maskUrl(jobId, filename) {
@@ -1666,6 +1706,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   border-radius: 6px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.8);
   cursor: default;
+  filter: none;
+  transition: filter 0.2s ease-out;
+}
+.lightbox-img-preview {
+  /* 320px thumbnail stretched to full-screen — blur it so it reads as "still loading" */
+  filter: blur(6px);
 }
 
 .lightbox-close {
