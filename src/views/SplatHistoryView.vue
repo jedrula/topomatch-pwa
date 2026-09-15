@@ -22,9 +22,17 @@
       <TrainingCurve v-else :series="compareSeries" />
     </div>
 
+    <section v-if="!loading && !error && jobs.length > 0" class="cost-panel">
+      <button class="cost-toggle" @click="showCost = !showCost">
+        {{ showCost ? 'Hide' : 'Show' }} training cost — time vs iterations
+      </button>
+      <TrainingCost v-if="showCost" :jobs="jobs" />
+    </section>
+
     <HistoryFilters
       v-if="!loading && !error && jobs.length > 0"
       v-model="filters"
+      :initial="initialFilters"
       :jobs="jobs"
       :total-count="jobs.length"
       :match-count="filteredJobs.length"
@@ -35,8 +43,22 @@
     <div v-else-if="jobs.length === 0" class="state-msg muted">No jobs yet.</div>
     <div v-else-if="filteredJobs.length === 0" class="state-msg muted">No jobs match the current filters.</div>
 
+    <nav v-if="!loading && !error && filteredJobs.length > pageSize" class="pager" aria-label="History pages">
+      <button class="pg" :disabled="page <= 1" @click="goPage(1)" aria-label="First page">&laquo;</button>
+      <button class="pg" :disabled="page <= 1" @click="goPage(page - 1)">Prev</button>
+      <span class="pg-mid">
+        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ filteredJobs.length }}
+        <span v-if="filteredJobs.length !== jobs.length" class="pg-filtered">filtered from {{ jobs.length }}</span>
+        <span class="pg-page">page {{ page }} / {{ pageCount }}</span>
+      </span>
+      <button class="pg" :disabled="page >= pageCount" @click="goPage(page + 1)">Next</button>
+      <button class="pg" :disabled="page >= pageCount" @click="goPage(pageCount)" aria-label="Last page">&raquo;</button>
+      <select v-model.number="pageSize" class="pg-size" aria-label="Runs per page">
+        <option v-for="n in PAGE_SIZES" :key="n" :value="n">{{ n }} / page</option>
+      </select>
+    </nav>
     <div v-else class="job-list">
-      <div v-for="job in filteredJobs" :key="job.job_id" class="job-card" :class="job.status">
+      <div v-for="job in pagedJobs" :key="job.job_id" class="job-card" :class="job.status">
         <div class="job-top">
           <div class="job-left">
             <span class="job-id">{{ job.job_id }}</span>
@@ -135,7 +157,16 @@
           <span v-if="job.metrics.gaussian_count != null" class="metric muted" title="Number of Gaussians in splat">
             G {{ (job.metrics.gaussian_count / 1000).toFixed(0) }}k
           </span>
+          <span v-if="job.metrics.gps_within_5m_pct != null" class="metric" :class="gpsClass(job.metrics)"
+                :title="`Cameras agreeing with their own EXIF GPS within 5 m (median error ${job.metrics.gps_median_err_m} m, ${job.metrics.gps_prior_frames} frames with a prior). Only shown for captures that carry GPS.`">
+            GPS {{ job.metrics.gps_within_5m_pct.toFixed(0) }}%
+          </span>
+          <span v-if="job.metrics.gps_scale_spread != null" class="metric" :class="gpsClass(job.metrics)"
+                :title="`Scale consistency: p90/p10 of metres-per-unit over camera pairs, measured without fitting anything. 1.0 = one consistent scene; a large value means blocks welded at different scales (arm D of the Plac Staszica ablation read 18.6 while looking fine on every other metric). Scene scale ${job.metrics.gps_scale_m_per_unit} m/unit.`">
+            scale ×{{ job.metrics.gps_scale_spread.toFixed(2) }}
+          </span>
         </div>
+
 
         <!-- Note -->
         <div class="note-section">
@@ -185,6 +216,14 @@
             title="POC: PlayCanvas + SOG — 13.7x smaller download, spherical harmonics preserved"
           >
             Walk v2 ⚡
+          </RouterLink>
+          <RouterLink
+            v-if="job.metrics && job.metrics.registered_images"
+            class="view-btn compare-btn"
+            :to="{ name: 'splat-compare', params: { jobId: job.job_id } }"
+            title="Open the comparison page: render this splat from the camera poses of several real photos and wipe between them. Tells you whether blurry detail was already blurry in the photo (capture) or lost in training (synthesis). Rendering uses the GPU, so it only runs when you ask for specific frames."
+          >
+            Compare to Photos 🔬
           </RouterLink>
           <button class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
           <button class="view-btn fork-btn" @click="toggleFork(job.job_id)">
@@ -387,6 +426,21 @@
       </div>
     </div>
 
+    <nav v-if="!loading && !error && filteredJobs.length > pageSize" class="pager" aria-label="History pages">
+      <button class="pg" :disabled="page <= 1" @click="goPage(1)" aria-label="First page">&laquo;</button>
+      <button class="pg" :disabled="page <= 1" @click="goPage(page - 1)">Prev</button>
+      <span class="pg-mid">
+        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ filteredJobs.length }}
+        <span v-if="filteredJobs.length !== jobs.length" class="pg-filtered">filtered from {{ jobs.length }}</span>
+        <span class="pg-page">page {{ page }} / {{ pageCount }}</span>
+      </span>
+      <button class="pg" :disabled="page >= pageCount" @click="goPage(page + 1)">Next</button>
+      <button class="pg" :disabled="page >= pageCount" @click="goPage(pageCount)" aria-label="Last page">&raquo;</button>
+      <select v-model.number="pageSize" class="pg-size" aria-label="Runs per page">
+        <option v-for="n in PAGE_SIZES" :key="n" :value="n">{{ n }} / page</option>
+      </select>
+    </nav>
+
     <!-- Lightbox overlay -->
     <Teleport to="body">
       <div v-if="lightboxSrc" class="lightbox-overlay" @click="closeLightbox">
@@ -428,12 +482,39 @@ import PointCloudViewer from '../components/PointCloudViewer.vue';
 import HistoryFilters from '../components/HistoryFilters.vue';
 import TrainingParams from '../components/TrainingParams.vue';
 import TrainingCurve from '../components/TrainingCurve.vue';
+import TrainingCost from '../components/TrainingCost.vue';
 
 const router = useRouter();
 const route = useRoute();
 const jobs = ref([]);
+const showCost = ref(false);
 
-const filters = ref({ statuses: null, minPsnr: null, starredOnly: false });
+// Filters and page live in the URL: a filtered view can be linked, reloaded and reached with
+// the back button. Sets do not survive a query string, so they travel as comma-joined lists.
+function filtersFromQuery(q) {
+  const list = v => (typeof v === 'string' && v ? v.split(',').filter(Boolean) : null);
+  const num  = v => (v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : null);
+  return {
+    query: typeof q.q === 'string' && q.q ? q.q : null,
+    statuses: list(q.status), trainers: list(q.trainer), sources: list(q.source),
+    minPsnr: num(q.psnr), maxIters: num(q.iters), starredOnly: q.starred === '1',
+  };
+}
+const initialFilters = filtersFromQuery(route.query);
+
+const filters = ref({
+  query: initialFilters.query,
+  statuses: initialFilters.statuses ? new Set(initialFilters.statuses) : null,
+  trainers: initialFilters.trainers ? new Set(initialFilters.trainers) : null,
+  sources: initialFilters.sources ? new Set(initialFilters.sources) : null,
+  minPsnr: initialFilters.minPsnr,
+  maxIters: initialFilters.maxIters,
+  starredOnly: initialFilters.starredOnly,
+});
+
+const PAGE_SIZES = [25, 50, 100];
+const page = ref(Math.max(1, Number(route.query.page) || 1));
+const pageSize = ref(PAGE_SIZES.includes(Number(route.query.per)) ? Number(route.query.per) : 25);
 
 const filteredJobs = computed(() => {
   const { statuses, trainers, sources, minPsnr, maxIters, query, starredOnly } = filters.value;
@@ -455,6 +536,43 @@ const filteredJobs = computed(() => {
     return true;
   });
 });
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredJobs.value.length / pageSize.value)));
+const pagedJobs = computed(() => {
+  const start = (page.value - 1) * pageSize.value;
+  return filteredJobs.value.slice(start, start + pageSize.value);
+});
+const pageStart = computed(() => (filteredJobs.value.length ? (page.value - 1) * pageSize.value + 1 : 0));
+const pageEnd = computed(() => Math.min(page.value * pageSize.value, filteredJobs.value.length));
+
+// Changing a filter must send you back to page 1 — otherwise narrowing 300 jobs to 4 while on
+// page 6 shows an empty list that looks like "no results".
+watch(filters, () => { page.value = 1; }, { deep: true });
+// And if the set shrinks under you for any other reason, clamp rather than show nothing.
+watch(pageCount, n => { if (page.value > n) page.value = n; });
+
+function goPage(n) {
+  page.value = Math.min(Math.max(1, n), pageCount.value);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Mirror filters + page into the query string. replace(), not push(), so paging does not bury
+// the back button under one entry per page.
+watch([filters, page, pageSize], () => {
+  const f = filters.value;
+  const q = { ...route.query };
+  const set = (k, v) => { if (v == null || v === '' || v === false) delete q[k]; else q[k] = String(v); };
+  set('q', f.query);
+  set('status', f.statuses ? [...f.statuses].join(',') : null);
+  set('trainer', f.trainers ? [...f.trainers].join(',') : null);
+  set('source', f.sources ? [...f.sources].join(',') : null);
+  set('psnr', f.minPsnr);
+  set('iters', f.maxIters);
+  set('starred', f.starredOnly ? '1' : null);
+  set('page', page.value > 1 ? page.value : null);
+  set('per', pageSize.value !== 25 ? pageSize.value : null);
+  router.replace({ query: q });
+}, { deep: true });
+
 const loading = ref(true);
 const error = ref('');
 const expandedCapture = ref(new Set());
@@ -862,6 +980,8 @@ async function cropAndView(jobId) {
   }
 }
 
+// Splat vs photo from the same camera pose, inline. The component does the fetching; this
+// only decides which rows are open, so opening one does not re-render the whole list.
 function rerunJob(job) {
   sessionStorage.setItem('splat-rerun', JSON.stringify({
     jobId: job.job_id,
@@ -980,6 +1100,19 @@ function formatDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
     + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+// GPS agreement and scale consistency are one verdict: a reconstruction that disagrees with
+// its own GPS, or that holds more than one scale, is wrong regardless of how good PSNR looks.
+// Thresholds from the 2026-09-11 Plac Staszica ablation: healthy arms 96-99.7% and spread
+// 1.04-1.05; the broken arm 29.7% and 18.6.
+function gpsClass(m) {
+  const pct = m.gps_within_5m_pct, spread = m.gps_scale_spread;
+  if (pct != null && pct < 80) return 'metric-poor';
+  if (spread != null && spread > 1.5) return 'metric-poor';
+  if (pct != null && pct < 95) return 'metric-ok';
+  if (spread != null && spread > 1.15) return 'metric-ok';
+  return 'metric-good';
 }
 
 function psnrClass(psnr) {
@@ -1299,6 +1432,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   border: 1px solid #334155;
   color: #94a3b8;
 }
+.view-btn.compare-btn { border-color: #2F7D6B; color: #6FC8B0; }
+.view-btn.compare-btn:disabled { opacity: .55; cursor: progress; }
 .metric.muted { opacity: 0.65; }
 .metric.metric-good { color: #4ade80; border-color: #166534; background: #052e16; }
 .metric.metric-ok   { color: #fbbf24; border-color: #78350f; background: #1c1000; }
@@ -1858,5 +1993,29 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   border: 1px solid #14532d;
   border-radius: 6px;
   padding: 8px 12px;
+}
+.cost-panel { margin: 10px 0 14px; }
+.cost-toggle {
+  background: transparent; border: 1px solid #2b3a36; color: #9fb0aa; border-radius: 3px;
+  font-size: .78rem; padding: 5px 12px; cursor: pointer;
+}
+.cost-toggle:hover { border-color: #6FC8B0; color: #cfe; }
+.pager {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 12px auto; max-width: 760px; font-size: .82rem;
+}
+.pg {
+  background: #151d1b; color: #cfd8d4; border: 1px solid #2b3a36; border-radius: 3px;
+  padding: 4px 11px; cursor: pointer; font-size: .8rem;
+}
+.pg:hover:not(:disabled) { border-color: #6FC8B0; color: #fff; }
+.pg:disabled { opacity: .35; cursor: default; }
+.pg-mid { color: #8a9a95; font-variant-numeric: tabular-nums; margin: 0 4px; }
+.pg-mid b { color: #e9eeeb; }
+.pg-filtered { margin-left: 6px; font-style: italic; }
+.pg-page { margin-left: 10px; }
+.pg-size {
+  margin-left: auto; background: #151d1b; color: #cfd8d4;
+  border: 1px solid #2b3a36; border-radius: 3px; padding: 4px 8px; font-size: .78rem;
 }
 </style>

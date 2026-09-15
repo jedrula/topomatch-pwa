@@ -117,6 +117,9 @@ const props = defineProps({
   jobs:       { type: Array,  default: () => [] },
   totalCount: { type: Number, default: 0 },
   matchCount: { type: Number, default: 0 },
+  // Seed from the URL so a filtered view can be linked, reloaded and navigated back to.
+  // Applied once; after that this component owns the state and pushes changes upward.
+  initial:    { type: Object, default: null },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -207,6 +210,19 @@ function buildFilters() {
     maxIters: itersEnabled.value ? itersValue.value  : null,
     starredOnly: starredOnly.value,
   };
+}
+
+if (props.initial) {
+  const i = props.initial;
+  if (i.query) query.value = i.query;
+  if (i.statuses?.length) activeStatuses.value = new Set(i.statuses);
+  if (i.trainers?.length) activeTrainers.value = new Set(i.trainers);
+  if (i.sources?.length)  activeSources.value  = new Set(i.sources);
+  if (i.starredOnly) starredOnly.value = true;
+  if (i.minPsnr  != null) { psnrEnabled.value  = true; psnrValue.value  = i.minPsnr; }
+  if (i.maxIters != null) { itersEnabled.value = true; itersValue.value = i.maxIters; }
+  // Hand the seeded state up immediately; the watcher below only fires on later edits.
+  emit('update:modelValue', buildFilters());
 }
 
 watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrValue, itersEnabled, itersValue, starredOnly], () => {
