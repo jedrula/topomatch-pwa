@@ -38,11 +38,6 @@
       :match-count="filteredJobs.length"
     />
 
-    <div v-if="loading" class="state-msg">Loading…</div>
-    <div v-else-if="error" class="state-msg error">{{ error }}</div>
-    <div v-else-if="jobs.length === 0" class="state-msg muted">No jobs yet.</div>
-    <div v-else-if="filteredJobs.length === 0" class="state-msg muted">No jobs match the current filters.</div>
-
     <nav v-if="!loading && !error && filteredJobs.length > pageSize" class="pager" aria-label="History pages">
       <button class="pg" :disabled="page <= 1" @click="goPage(1)" aria-label="First page">&laquo;</button>
       <button class="pg" :disabled="page <= 1" @click="goPage(page - 1)">Prev</button>
@@ -57,6 +52,11 @@
         <option v-for="n in PAGE_SIZES" :key="n" :value="n">{{ n }} / page</option>
       </select>
     </nav>
+    <div v-if="loading" class="state-msg">Loading…</div>
+    <div v-else-if="error" class="state-msg error">{{ error }}</div>
+    <div v-else-if="jobs.length === 0" class="state-msg muted">No jobs yet.</div>
+    <div v-else-if="filteredJobs.length === 0" class="state-msg muted">No jobs match the current filters.</div>
+
     <div v-else class="job-list">
       <div v-for="job in pagedJobs" :key="job.job_id" class="job-card" :class="job.status">
         <div class="job-top">
@@ -472,7 +472,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getDocs, collection, orderBy, query as fsQuery, doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { db } from '../services/firebase.js';
