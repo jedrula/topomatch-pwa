@@ -21,10 +21,11 @@
       <label>sfm feature size</label>
       <div style="display:flex;flex-direction:column;gap:4px">
         <div class="toggle-group">
-          <button v-for="s in [1600, 1920]" :key="s" :class="{ active: p.sfmImageSize === s }" @click="p.sfmImageSize = s">
-            {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ s === 1600 ? 'default' : 'native' }}</span>
+          <button v-for="s in sfmImageSizes" :key="s" :class="{ active: p.sfmImageSize === s }" @click="p.sfmImageSize = s">
+            {{ s }}px<span style="font-size:0.75rem;opacity:0.7;margin-left:4px">{{ sfmImageSizeTag(s) }}</span>
           </button>
         </div>
+        <small v-if="p.sfm === 'glomap_loma'" class="param-note">LoMa on the local 8 GB GPU: 1024px is the max — 1600 runs out of memory even in bf16.</small>
         <small class="param-note">COLMAP feature-extraction long-edge cap — the resolution keypoints are actually detected at. 1600 is the long-standing default; 1920 matches our native upload size, so no downscale before SIFT. Applies to the SIFT/COLMAP paths only.</small>
       </div>
     </div>
@@ -53,7 +54,7 @@
     <div v-if="sfmVisible" class="param-row">
       <label>sfm</label>
       <div class="toggle-group">
-        <button v-for="s in ['mast3r','fast3r','colmap_sift','glomap_sift','glomap_aliked','glomap_disk','glomap_superpoint','glomap_loftr','colmap_aliked','fastmap','realityscan','onthefly']"
+        <button v-for="s in ['mast3r','fast3r','colmap_sift','glomap_sift','glomap_loma','glomap_aliked','glomap_disk','glomap_superpoint','glomap_loftr','colmap_aliked','fastmap','realityscan','onthefly']"
           :key="s" :class="{ active: p.sfm === s }" @click="p.sfm = s">{{ s }}</button>
       </div>
     </div>
@@ -162,14 +163,25 @@
           <span class="toggle-label">{{ p.colmapBa ? 'on' : 'off' }}</span>
         </label>
       </div>
-      <div class="param-row" v-if="p.sfm === 'colmap_sift' || p.sfm === 'glomap_sift' || p.sfm === 'fastmap'">
+      <div class="param-row" v-if="p.sfm === 'colmap_sift' || p.sfm === 'glomap_sift' || p.sfm === 'glomap_loma' || p.sfm === 'fastmap'">
         <label>matcher</label>
         <div class="toggle-group">
-          <button v-for="m in ['auto','sequential','exhaustive','vocab_tree']" :key="m"
+          <button v-for="m in matchers" :key="m"
             :class="{ active: p.colmapMatcher === m }" @click="p.colmapMatcher = m">{{ m }}</button>
         </div>
       </div>
-      <div class="param-row" v-if="p.sfm === 'glomap_sift'">
+      <div class="param-row" v-if="p.sfm === 'glomap_loma'">
+        <label>loma features</label>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div class="toggle-group">
+            <button v-for="n in [2048, 4096, 8192]" :key="n" :class="{ active: p.lomaMaxFeatures === n }" @click="p.lomaMaxFeatures = n">
+              {{ n }}<span v-if="n === 2048" style="font-size:0.75rem;opacity:0.7;margin-left:4px">default</span>
+            </button>
+          </div>
+          <small class="param-note">LoMa keypoints per image. At 2048 it seeds ~58% fewer SfM points than SIFT, and the splat ends up with ~27% fewer gaussians (4f280a9e, 2026-09-29). Matching time grows with this.</small>
+        </div>
+      </div>
+      <div class="param-row" v-if="p.sfm === 'glomap_sift' || p.sfm === 'glomap_loma'">
         <label>VGC</label>
         <label class="toggle">
           <input type="checkbox" v-model="p.viewGraphCalibrator" />
@@ -192,7 +204,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 
 const props = defineProps({
   modelValue:    { type: Object, required: true },
@@ -210,7 +222,27 @@ const sfmVisible = computed(() => !isFork && !p.selectedVastInstance);
 // The feature cap reaches COLMAP only on the SIFT/COLMAP feature-extraction paths
 // (video_to_splat.sh call sites: colmap_sift, glomap_sift, fastmap). The hloc
 // variants and the neural SfMs size their own inputs, so showing it there would lie.
-const sfmFeatureCapVisible = computed(() => ['colmap_sift', 'glomap_sift', 'fastmap'].includes(p.sfm));
+const sfmFeatureCapVisible = computed(() => ['colmap_sift', 'glomap_sift', 'glomap_loma', 'fastmap'].includes(p.sfm));
+const sfmImageSizes = computed(() => (p.sfm === 'glomap_loma' ? [1024, 1600] : [1600, 1920]));
+function sfmImageSizeTag(s) {
+  if (p.sfm === 'glomap_loma') return s === 1024 ? '8 GB max' : 'needs >8 GB';
+  return s === 1600 ? 'default' : 'native';
+}
+// The faiss vocab tree is SIFT-only (128-d); the pipeline hard-errors on it with LoMa's 256-d
+// descriptors, and its auto matcher picks exhaustive there instead.
+const matchers = computed(() => (p.sfm === 'glomap_loma'
+  ? ['auto', 'sequential', 'exhaustive']
+  : ['auto', 'sequential', 'exhaustive', 'vocab_tree']));
+// Switching into LoMa moves the visible settings to ones that can run on the local card; the
+// buttons show it, so nothing changes behind the user's back.
+watch(() => p.sfm, (sfm, prev) => {
+  if (sfm === 'glomap_loma') {
+    if (p.sfmImageSize > 1024) p.sfmImageSize = 1024;
+    if (p.colmapMatcher === 'vocab_tree') p.colmapMatcher = 'auto';
+  } else if (prev === 'glomap_loma' && p.sfmImageSize === 1024) {
+    p.sfmImageSize = 1600;
+  }
+});
 
 function setPostProcessing(pp) {
   p.postProcessing = pp;

@@ -1137,7 +1137,7 @@ function formatElapsed(seconds) {
 //   sfm_image_size  - COLMAP feature-extraction long-edge cap. The resolution keypoints
 //                     are actually detected at, on the SIFT/COLMAP paths.
 const MASTER_SFMS = ['mast3r', 'fast3r'];
-const SIFT_SFMS = ['colmap_sift', 'glomap_sift', 'fastmap'];
+const SIFT_SFMS = ['colmap_sift', 'glomap_sift', 'glomap_loma', 'fastmap'];
 
 function displayParams(params) {
   const skip = ['filenames', 'filename', 'scene', 'video_count', 'capture_info'];
@@ -1153,6 +1153,7 @@ function displayParams(params) {
       // Drop each resolution param on the paths that never read it.
       .filter(([k]) => k !== 'image_size' || MASTER_SFMS.includes(sfm))
       .filter(([k]) => k !== 'sfm_image_size' || SIFT_SFMS.includes(sfm))
+      .filter(([k]) => k !== 'loma_max_features' || sfm === 'glomap_loma')
       .map(([k, v]) => {
         if (k === 'early_stop') return ['early stop', v ? 'on' : 'off'];
         if (k === 'forked_from') return ['forked from', v];
@@ -1160,6 +1161,7 @@ function displayParams(params) {
         if (k === 'brush_extra_args') return ['brush args', v];
         if (k === 'image_size') return ['mast3r input size', v];
         if (k === 'sfm_image_size') return ['sfm feature size', v];
+        if (k === 'loma_max_features') return ['loma features', v];
         return [k, v];
       })
   );
