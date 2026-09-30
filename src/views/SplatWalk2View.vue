@@ -330,7 +330,20 @@ onMounted(async () => {
     // First request for a splat runs k-means over the SH palette (~70 s for 600k
     // splats) then caches, so this can be slow once and instant thereafter.
     status.value = 'downloading splat (.sog)…';
-    const res = await fetch(`${base}/sog`);
+    // The server converts .ply -> .sog INSIDE this request the first time (k-means, ~70 s per 600k splats) and
+    // only then starts sending, so a silent wait means "converting", not "stuck". Say so after 3 s, with a clock.
+    const t0 = performance.now();
+    const prepTimer = setInterval(() => {
+      const s = Math.round((performance.now() - t0) / 1000);
+      if (s >= 3) {
+        status.value = 'preparing the web version of this splat — the first open converts it (usually 1–2 min)';
+        progressLabel.value = `${s} s`;
+      }
+    }, 1000);
+    let res;
+    try { res = await fetch(`${base}/sog`); } finally { clearInterval(prepTimer); }
+    status.value = 'downloading splat (.sog)…';
+    progressLabel.value = '';
     if (!res.ok) throw new Error(`sog ${res.status} — ${(await res.text()).slice(0, 200)}`);
     const total = Number(res.headers.get('Content-Length')) || 0;
     let bytes;
