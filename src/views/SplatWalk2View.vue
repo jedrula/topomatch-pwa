@@ -90,6 +90,14 @@
 
     <CaptureJudgeReport v-if="judgeOpen" :job-id="splatId" @close="judgeOpen = false" />
 
+    <!-- What am I looking at? The job's note (PRE / POST), from GET .../note -->
+    <div v-if="jobNote && noteShown" class="walk2-note-box" :class="{ open: noteOpen }">
+      <div class="nb-head"><b>Note</b>
+        <button v-if="noteLong" @click="noteOpen = !noteOpen">{{ noteOpen ? 'less' : 'more' }}</button>
+        <button title="hide" @click="noteShown = false">×</button></div>
+      <div class="nb-body"><p v-for="(l, i) in noteLines" :key="i"><em v-if="l.tag" :class="l.tag">{{ l.tag }}</em>{{ l.text }}</p></div>
+    </div>
+
     <div class="walk2-status" :class="{ err: !!error }">
       {{ error || status }}<span v-if="!error && progressLabel"> — {{ progressLabel }}</span>
       <div v-if="!error && loading" class="walk2-progress">
@@ -191,6 +199,14 @@ const showCarpet = ref(false);
 const showCams = ref(false);
 const hudOpen = ref(true);
 const menuOpen = ref(false);
+const jobNote = ref('');
+const noteShown = ref(true);
+const noteOpen = ref(false);
+const noteLines = computed(() => jobNote.value.split('\n').filter(Boolean).map((l) => {
+  const m = l.match(/^(PRE|POST):\s*(.*)$/);
+  return m ? { tag: m[1], text: m[2] } : { tag: '', text: l };
+}));
+const noteLong = computed(() => jobNote.value.length > 220 || noteLines.value.length > 2);
 const seeCount = ref(0);
 // "capture FOV": view with the capture camera's own vertical FOV and see its frame (4:3 guide).
 const captureFov = ref(false);
@@ -518,6 +534,7 @@ onMounted(async () => {
       },
     };
     loadFlags();
+    fetch(`${base}/note`).then((r) => (r.ok ? r.json() : null)).then((d) => { jobNote.value = d?.note || ''; }).catch(() => {});
 
     // ---- carpet-walk: poor man's collision (ported from walk v1) ----
     // The camera centres are the only positions we KNOW were physically occupied, so
@@ -1329,4 +1346,16 @@ onBeforeUnmount(() => {
 .walk2-menu-list a { color: #dfe5ee; text-decoration: none; padding: 6px 10px; border-radius: 5px; }
 .walk2-menu-list a:hover { background: #1e3a66; }
 .walk2-menu-list hr { border: none; border-top: 1px solid rgba(255,255,255,.1); margin: 3px 4px; }
+.walk2-note-box { position: absolute; left: 12px; bottom: 58px; z-index: 6; max-width: 520px; background: rgba(0,0,0,.66);
+  color: #dfe5ee; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; padding: 7px 10px; font: 12px/1.45 system-ui, sans-serif;
+  backdrop-filter: blur(6px); }
+.nb-head { display: flex; align-items: center; gap: 6px; color: #8a93a3; font-size: 11px; margin-bottom: 3px; }
+.nb-head b { font-weight: 600; letter-spacing: .06em; text-transform: uppercase; font-size: 10px; margin-right: auto; }
+.nb-head button { background: none; border: none; color: #8fb8ff; cursor: pointer; font-size: 11px; padding: 0 2px; }
+.nb-body { max-height: 4.4em; overflow: hidden; }
+.walk2-note-box.open .nb-body { max-height: 40vh; overflow-y: auto; }
+.nb-body p { margin: 0 0 3px; }
+.nb-body em { font-style: normal; font-weight: 700; font-size: 10px; margin-right: 6px; padding: 0 5px; border-radius: 3px;
+  background: #1e3a66; color: #cfe0ff; }
+.nb-body em.POST { background: #14532d; color: #c9f7d8; }
 </style>
