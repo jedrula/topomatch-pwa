@@ -15,6 +15,12 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    // Build-time clock stamp. __APP_VERSION__ comes from package.json and does not change
+    // between deploys, so it cannot answer "is the bundle in front of me the one I just
+    // shipped" — which has now cost three debugging cycles to stale service-worker caches.
+    __BUILD_STAMP__: JSON.stringify(
+      new Date().toISOString().slice(5, 16).replace('T', ' ')
+    ),
   },
   assetsInclude: ['**/*.onnx'],
   optimizeDeps: {
@@ -190,6 +196,23 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
+    watch: {
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/ios/**',
+        '**/backups/**',
+        '**/playwright-report/**',
+        '**/test-data/**',
+        '**/firebase-emulator-data/**',
+        '**/capacitor-plugin-ios-video-editor/**',
+        '**/.vite/**',
+        '**/coverage/**',
+        '**/__pycache__/**',
+      ],
+    },
     cors: true,
     mimeTypes: {
       'application/wasm': ['wasm'],

@@ -44,6 +44,12 @@
           >
             🔔 Push Notification Test
           </router-link>
+          <router-link
+            to="/playground/splat"
+            class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
+          >
+            🌐 Splat Playground
+          </router-link>
         </div>
       </div>
 
