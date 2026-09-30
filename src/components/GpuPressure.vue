@@ -28,6 +28,10 @@
         peak {{ (peak / 1024).toFixed(1) }} / {{ (totalMb / 1024).toFixed(0) }} GB
         ({{ peakPct.toFixed(0) }}%)
       </span>
+      <span v-if="disk" class="gp-peak" :class="{ hot: disk.free_gb < 30 }"
+            :title="`Pods volume: ${disk.used_pct}% of ${disk.total_gb.toFixed(0)} GB used. Renders, pods and caches all land here.`">
+        disk {{ disk.free_gb.toFixed(0) }} GB free
+      </span>
       <span class="gp-range">
         <button
           v-for="r in RANGES"
@@ -75,6 +79,7 @@ const W = 600, H = 120, PAD = 6;
 const series = ref([]);
 const totalMb = ref(0);
 const peak = ref(0);
+const disk = ref(null);          // { free_gb, total_gb, used_pct } of the pods volume
 const everyS = ref(30);
 const hours = ref(1);
 const loading = ref(true);
@@ -147,6 +152,7 @@ async function load() {
     totalMb.value = d.total_mb ?? 0;
     peak.value = d.peak_mb ?? 0;
     everyS.value = d.sample_s ?? 30;
+    disk.value = d.disk ?? null;
   } catch {
     series.value = [];          // the splat server is optional; the page still works
   } finally {
