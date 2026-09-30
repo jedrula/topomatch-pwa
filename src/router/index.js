@@ -164,6 +164,12 @@ const router = createRouter({
     {
       // Splat vs photo, several frames at once. A page rather than an inline card: rendering
       // a comparison runs gsplat on the same GPU as training, so it must be deliberate.
+      path: '/splat/:jobId/frames',
+      name: 'splat-frames',
+      component: () => import('../views/SplatFramesView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
       path: '/splat/:jobId/compare',
       name: 'splat-compare',
       component: () => import('../views/SplatCompareView.vue'),

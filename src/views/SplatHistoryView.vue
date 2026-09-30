@@ -30,6 +30,8 @@
       <TrainingCost v-if="showCost" :jobs="jobs" />
     </section>
 
+    <GpuPressure v-if="gatewayCache" :api-base="gatewayCache" />
+
     <HistoryFilters
       v-if="!loading && !error && jobs.length > 0"
       v-model="filters"
@@ -145,10 +147,29 @@
 
         <div v-if="job.error" class="job-error">{{ job.error }}</div>
 
+        <!-- Shared-exam score. Read this one, not PSNR: a capture that covers only part of
+             the scene writes itself an easy held-out split. The coverage-driven walk scored
+             32.45 dB on its own views and 19.67 on a shared set of novel views nobody
+             captured. In-block % is the fold check — PSNR cannot see a fold at all. -->
+        <div v-if="job.exam" class="metrics-row exam-row">
+          <span class="exam-label" title="Scored against EXAM_CITY: 149 novel views across the whole region, at poses no capture used">EXAM</span>
+          <span v-if="job.exam.psnr != null" class="metric" :class="psnrClass(job.exam.psnr)"
+                title="PSNR on the shared city exam — comparable between captures, unlike own held-out PSNR">
+            {{ job.exam.psnr.toFixed(2) }} dB
+          </span>
+          <span v-else class="metric metric-poor" title="Cameras could not be fitted to the true poses in one block, so the model is folded and shape cannot be scored">
+            FOLDED
+          </span>
+          <span class="metric" :class="job.exam.in_block_pct >= 95 ? 'metric-good' : job.exam.in_block_pct >= 80 ? 'metric-ok' : 'metric-poor'"
+                title="Share of cameras that fit the true poses in one consistent block. Below ~95% means part of the map is welded in the wrong place.">
+            in-block {{ job.exam.in_block_pct.toFixed(1) }}%
+          </span>
+        </div>
+
         <!-- Quality metrics -->
         <div v-if="job.metrics && (job.metrics.psnr != null || job.metrics.registered_images != null)" class="metrics-row">
-          <span v-if="job.metrics.psnr != null" class="metric" :class="psnrClass(job.metrics.psnr)" title="PSNR — higher is better. >24 dB = good, >22 = ok, <20 = poor">
-            PSNR {{ job.metrics.psnr.toFixed(1) }} dB
+          <span v-if="job.metrics.psnr != null" class="metric" :class="psnrClass(job.metrics.psnr)" title="PSNR on this capture's OWN held-out views. Not comparable between captures — a capture covering less ground scores higher here. Use the EXAM row.">
+            own {{ job.metrics.psnr.toFixed(1) }} dB
           </span>
           <span v-if="job.metrics.ssim != null" class="metric" title="SSIM — structural similarity, 0–1, higher better">
             SSIM {{ job.metrics.ssim.toFixed(3) }}
@@ -244,8 +265,9 @@
           >
             {{ expandedCapture.has(job.job_id) ? 'Hide Capture ✕' : 'View Capture 🖼' }}
           </button>
-          <button v-if="job.has_pointcloud" class="view-btn pc-btn" @click="togglePointCloud(job.job_id)">
-            {{ expandedPointCloud.has(job.job_id) ? 'Hide Cloud ✕' : 'Point Cloud ✦' }}
+          <button v-if="job.has_colmap_sparse" class="view-btn pc-btn" @click="toggleSfm(job.job_id)"
+                  title="Reconstruction stats and the pairwise match graph — where a fold is visible and a point cloud is not">
+            {{ expandedSfm.has(job.job_id) ? 'Hide SfM ✕' : 'Inspect SfM 🔍' }}
           </button>
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
@@ -360,8 +382,9 @@
           >
             {{ cancellingJobs.has(job.job_id) ? 'Cancelling…' : 'Cancel ✕' }}
           </button>
-          <button v-if="job.has_pointcloud" class="view-btn pc-btn" @click="togglePointCloud(job.job_id)">
-            {{ expandedPointCloud.has(job.job_id) ? 'Hide Cloud ✕' : 'Point Cloud ✦' }}
+          <button v-if="job.has_colmap_sparse" class="view-btn pc-btn" @click="toggleSfm(job.job_id)"
+                  title="Reconstruction stats and the pairwise match graph — where a fold is visible and a point cloud is not">
+            {{ expandedSfm.has(job.job_id) ? 'Hide SfM ✕' : 'Inspect SfM 🔍' }}
           </button>
           <template v-if="job.status === 'queued'">
             <span class="queue-pos">Queue position: #{{ job.queue_position }}</span>
@@ -378,9 +401,9 @@
           <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
         </div>
 
-        <!-- Point cloud viewer -->
-        <div v-if="expandedPointCloud.has(job.job_id)" class="pc-expand">
-          <PointCloudViewer :url="pointcloudUrl(job.job_id)" />
+        <div v-if="expandedSfm.has(job.job_id)" class="sfm-expand">
+          <SfmInspector v-if="topowallBase" :job-id="job.job_id" :api-base="topowallBase" />
+          <p v-else class="sfm-waiting">Resolving API gateway…</p>
         </div>
 
         <div v-if="expandedLogs.has(job.job_id)" class="log-expand">
@@ -394,36 +417,20 @@
 
         <!-- Images grid -->
         <div v-if="expandedImages.has(job.job_id)" class="images-expand">
-          <div v-if="job.has_masks" class="mask-toggle-row">
-            <label class="mask-toggle-label">
-              <input type="checkbox" :checked="maskEnabled.has(job.job_id)" @change="toggleMask(job.job_id)" />
-              Apply mask
-            </label>
+          <div class="images-mode-row">
+            <RouterLink class="mode-btn" :to="{ name: 'splat-frames', params: { jobId: job.job_id } }">
+              ◎ camera poses &amp; full view ↗
+            </RouterLink>
           </div>
-          <div v-if="jobImages.get(job.job_id)?.length" class="images-grid">
-            <div
-              v-for="fn in jobImages.get(job.job_id)"
-              :key="fn"
-              class="thumb-cell"
-              @click="openFrameLightbox(job.job_id, fn)"
-            >
-              <img
-                :src="thumbUrl(job.job_id, fn)"
-                class="frame-thumb"
-                :alt="fn"
-                loading="lazy"
-                decoding="async"
-              />
-              <img
-                v-if="maskEnabled.has(job.job_id)"
-                :src="maskUrl(job.job_id, fn)"
-                class="mask-overlay"
-                :alt="'mask-' + fn"
-                loading="lazy"
-              />
-            </div>
-          </div>
-          <p v-else class="log-empty-history">No images available.</p>
+          <FrameGrid
+            :frames="jobImages.get(job.job_id) ?? []"
+            :thumb-url="(fn) => thumbUrl(job.job_id, fn)"
+            :mask-url="(fn) => maskUrl(job.job_id, fn)"
+            :has-masks="!!job.has_masks"
+            :mask-on="maskEnabled.has(job.job_id)"
+            @pick="fn => openFrameLightbox(job.job_id, fn)"
+            @toggle-mask="toggleMask(job.job_id)"
+          />
         </div>
 
 
@@ -481,17 +488,19 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import SfmInspector from '../components/SfmInspector.vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getDocs, collection, orderBy, query as fsQuery, doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { db } from '../services/firebase.js';
 import { getGateway } from '../config/gateway.js';
 import { thumbGet, thumbDelete } from '../utils/thumbDb.js';
-import PointCloudViewer from '../components/PointCloudViewer.vue';
 import HistoryFilters from '../components/HistoryFilters.vue';
+import GpuPressure from '../components/GpuPressure.vue';
 import TrainingParams from '../components/TrainingParams.vue';
 import CaptureJudgeReport from '../components/CaptureJudgeReport.vue';
 import TrainingCurve from '../components/TrainingCurve.vue';
 import TrainingCost from '../components/TrainingCost.vue';
+import FrameGrid from '../components/FrameGrid.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -616,7 +625,6 @@ const compareSeries = computed(() => seriesFor(comparedJobs.value));
 const expandedFork = ref(new Set());
 const forkParams = ref({});  // job_id → training params object + submitting/error state
 const expandedImages = ref(new Set());
-const expandedPointCloud = ref(new Set());
 const cropDist = ref({});    // job_id → distance in metres (default 7)
 const cropState = ref({});   // job_id → { status, variant, error }
 const maskEnabled = ref(new Set());
@@ -627,8 +635,15 @@ const judgeJob = ref(null);   // job whose capture-judge report is open
 const editingNotes = ref(new Set());
 const pendingNotes = ref({});
 let gatewayCache = null;
+// A reactive mirror of the resolved gateway. gatewayCache itself is a plain `let`, so a
+// template reading it only updates when something else happens to re-render -- fine for a
+// panel that mounts late, wrong for one that must render as soon as the base is known.
+const topowallBase = ref('');
 async function resolvedGateway() {
   if (!gatewayCache) gatewayCache = await getGateway();
+  if (topowallBase.value !== `${gatewayCache}/topowall`) {
+    topowallBase.value = `${gatewayCache}/topowall`;
+  }
   return gatewayCache;
 }
 
@@ -790,18 +805,25 @@ function plyUrl(jobId) {
   return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/ply`;
 }
 
-function pointcloudUrl(jobId) {
-  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/pointcloud`;
+// The point-cloud button showed a PLY: a picture of the reconstruction. This shows the
+// reconstruction itself — track length and the pairwise match graph — which is what you need
+// when the question is WHY a capture folded rather than what it looks like. A fold is
+// invisible in a point cloud and obvious in the match graph.
+const expandedSfm = ref(new Set());
+
+async function toggleSfm(jobId) {
+  // Resolve the gateway HERE rather than relying on some other action having done it.
+  // topowallBase was only ever set as a side effect of resolvedGateway(), which runs when
+  // images or logs are opened -- so on a fresh page load it was empty, the v-if hid the
+  // panel, and the button appeared to do nothing at all.
+  await resolvedGateway();
+  const s = new Set(expandedSfm.value);
+  s.has(jobId) ? s.delete(jobId) : s.add(jobId);
+  expandedSfm.value = s;
 }
 
 function colmapDatasetUrl(jobId) {
   return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/colmap-dataset`;
-}
-
-function togglePointCloud(jobId) {
-  const s = new Set(expandedPointCloud.value);
-  s.has(jobId) ? s.delete(jobId) : s.add(jobId);
-  expandedPointCloud.value = s;
 }
 
 async function cancelJob(job) {
@@ -1483,6 +1505,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .metric.metric-ok   { color: #fbbf24; border-color: #78350f; background: #1c1000; }
 .metric.metric-poor { color: #f87171; border-color: #7f1d1d; background: #1c0a0a; }
 
+/* The shared-exam row sits above the per-capture metrics because it is the comparable
+   number. Own held-out PSNR below it is kept, dimmed, for continuity with older runs. */
+.exam-row { margin-bottom: 2px; }
+.exam-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  color: #93c5fd; border: 1px solid #1e3a8a; background: #0b1220;
+  border-radius: 3px; padding: 2px 6px; align-self: center;
+}
+
 .param.early-stop .param-val { color: #fbbf24; }
 .param.full-run .param-val { color: #6ee7b7; }
 
@@ -1751,6 +1782,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 }
 
 .images-expand { margin-top: 8px; }
+.images-mode-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.mode-btn { font-size: 11px; padding: 3px 9px; border-radius: 6px; cursor: pointer;
+  border: 1px solid #39404f; background: #191d25; color: #cfd6e4; }
+.mode-btn.active { background: #2b3444; border-color: #5a6478; color: #fff; }
+.mode-hint { font-size: 11px; color: #7b8496; }
 .mask-toggle-row {
   margin-bottom: 6px;
 }
