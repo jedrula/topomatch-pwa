@@ -397,6 +397,12 @@
           </button>
           <template v-if="job.status === 'queued'">
             <span class="queue-pos">Queue position: #{{ job.queue_position }}</span>
+            <span class="queue-move">
+              <button title="Run next (after the job that is running now)" :disabled="job.queue_position === 1" @click="queueMove(job, 'front')">⤒</button>
+              <button title="Move up one" :disabled="job.queue_position === 1" @click="queueMove(job, 'up')">↑</button>
+              <button title="Move down one" @click="queueMove(job, 'down')">↓</button>
+            </span>
+            <span v-if="queueMoveError[job.job_id]" class="crop-error">{{ queueMoveError[job.job_id] }}</span>
           </template>
           <button class="details-link" @click="toggleDetails(job.job_id)">{{ expandedDetails.has(job.job_id) ? 'less ▴' : 'details ▾' }}</button>
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
@@ -863,6 +869,24 @@ async function toggleSfm(jobId) {
 
 function colmapDatasetUrl(jobId) {
   return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/colmap-dataset`;
+}
+
+// Reorder the GPU queue without cancelling: the server returns the new order of queued jobs.
+const queueMoveError = ref({});
+async function queueMove(job, to) {
+  queueMoveError.value = { ...queueMoveError.value, [job.job_id]: '' };
+  try {
+    const gateway = await resolvedGateway();
+    const r = await fetch(`${gateway}/topowall/api/v1/video-to-splat/${job.job_id}/queue-move`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `move ${r.status}`);
+    const { order } = await r.json();
+    const pos = Object.fromEntries(order.map((id, i) => [id, i + 1]));
+    jobs.value = jobs.value.map(j => (j.status === 'queued' && pos[j.job_id] ? { ...j, queue_position: pos[j.job_id] } : j));
+  } catch (e) {
+    queueMoveError.value = { ...queueMoveError.value, [job.job_id]: `Not moved: ${e.message}` };
+  }
 }
 
 async function cancelJob(job) {
@@ -1875,6 +1899,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
 .capture-img { cursor: pointer; }
 
+.queue-move { display: inline-flex; gap: 2px; margin-left: 4px; }
+.queue-move button { font-size: 12px; background: #1f2937; color: #d1d5db; border: 1px solid #374151; border-radius: 4px; padding: 1px 7px; cursor: pointer; }
+.queue-move button:disabled { opacity: .35; cursor: default; }
+.queue-move button:hover:not(:disabled) { border-color: #60a5fa; }
 .camera-line { font-size: 12px; color: #9ca3af; margin: 1px 0 4px; }
 .details-link { background: none; border: none; color: #60a5fa; font-size: 12px; cursor: pointer; padding: 4px 6px; }
 .details-link:hover { text-decoration: underline; }
