@@ -73,8 +73,8 @@
           </div>
           <div class="job-right">
             <img v-if="job.thumbnail" :src="job.thumbnail" class="job-thumb" alt="splat preview" @click="openCaptureLightbox(job.job_id, job.thumbnail)" style="cursor:pointer" />
-            <span class="time" :title="`queued ${formatDate(job.created_at)}`">{{ formatDate(job.created_at) }}</span>
-            <span v-if="job.finished_at" class="time finished" :title="`finished ${formatDate(job.finished_at)}`">→ {{ formatFinish(job.created_at, job.finished_at) }}</span>
+            <span class="time" :title="timesTitle(job)">{{ timeLabel(job) }}</span>
+            <span v-if="job.finished_at" class="time finished" :title="timesTitle(job)">→ {{ formatFinish(startedAt(job) || job.created_at, job.finished_at) }}</span>
             <span v-if="job.elapsed_s != null" class="elapsed">{{ formatElapsed(job.elapsed_s) }}</span>
           </div>
         </div>
@@ -1096,7 +1096,28 @@ async function load() {
   }
 }
 
-// Finish time next to the queued time: just the clock when it is the same day, the full date otherwise.
+// When a job actually started (after waiting for the GPU). New pods record started_at; older ones derive
+// it exactly as finished_at - elapsed_s (elapsed_s is timed from the start of the run).
+function startedAt(job) {
+  if (job.started_at) return job.started_at;
+  if (job.finished_at && job.elapsed_s != null) return new Date(new Date(job.finished_at) - job.elapsed_s * 1000).toISOString();
+  return null;
+}
+
+function timeLabel(job) {
+  if (job.status === 'queued') return `queued ${formatDate(job.created_at)}`;
+  const st = startedAt(job);
+  if (job.status === 'running') return st ? `started ${formatDate(st)}` : `queued ${formatDate(job.created_at)}`;
+  return formatDate(st || job.created_at);
+}
+
+function timesTitle(job) {
+  const st = startedAt(job);
+  return [`queued ${formatDate(job.created_at)}`, st && `started ${formatDate(st)}`,
+          job.finished_at && `finished ${formatDate(job.finished_at)}`].filter(Boolean).join(' · ');
+}
+
+// Finish time next to the start time: just the clock when it is the same day, the full date otherwise.
 function formatFinish(startIso, endIso) {
   if (!endIso) return '';
   const a = new Date(startIso), b = new Date(endIso);
