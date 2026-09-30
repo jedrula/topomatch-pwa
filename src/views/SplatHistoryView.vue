@@ -1,5 +1,6 @@
 <template>
   <div class="history-page">
+    <CaptureJudgeReport v-if="judgeJob" :job-id="judgeJob" @close="judgeJob = null" />
     <div class="header">
 
       <h1>Splat History</h1>
@@ -70,6 +71,12 @@
               :title="job.starred ? 'Starred — click to unstar' : 'Star this run'"
               @click="toggleStar(job)"
             >{{ job.starred ? '★' : '☆' }}</button>
+            <button
+              v-if="job.status === 'done'"
+              class="star-btn judge-btn"
+              title="Judge this capture: every photo checked for texture, links to its neighbours and duplicates"
+              @click="judgeJob = job.job_id"
+            >⚖</button>
           </div>
           <div class="job-right">
             <img v-if="job.thumbnail" :src="job.thumbnail" class="job-thumb" alt="splat preview" @click="openCaptureLightbox(job.job_id, job.thumbnail)" style="cursor:pointer" />
@@ -482,6 +489,7 @@ import { thumbGet, thumbDelete } from '../utils/thumbDb.js';
 import PointCloudViewer from '../components/PointCloudViewer.vue';
 import HistoryFilters from '../components/HistoryFilters.vue';
 import TrainingParams from '../components/TrainingParams.vue';
+import CaptureJudgeReport from '../components/CaptureJudgeReport.vue';
 import TrainingCurve from '../components/TrainingCurve.vue';
 import TrainingCost from '../components/TrainingCost.vue';
 
@@ -615,6 +623,7 @@ const maskEnabled = ref(new Set());
 const jobLogs = ref(new Map());
 const jobImages = ref(new Map());
 const cancellingJobs = ref(new Set());
+const judgeJob = ref(null);   // job whose capture-judge report is open
 const editingNotes = ref(new Set());
 const pendingNotes = ref({});
 let gatewayCache = null;

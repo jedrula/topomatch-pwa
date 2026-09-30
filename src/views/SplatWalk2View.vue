@@ -88,6 +88,8 @@
       </div>
     </div>
 
+    <CaptureJudgeReport v-if="judgeOpen" :job-id="splatId" @close="judgeOpen = false" />
+
     <div class="walk2-status" :class="{ err: !!error }">
       {{ error || status }}<span v-if="!error && progressLabel"> — {{ progressLabel }}</span>
       <div v-if="!error && loading" class="walk2-progress">
@@ -123,6 +125,8 @@
       <nav v-if="menuOpen" class="walk2-menu-list" @click="menuOpen = false">
         <RouterLink :to="{ name: 'splat-viewer', params: { splatId } }">Splat viewer</RouterLink>
         <RouterLink :to="{ name: 'splat-walk', params: { splatId } }">Walk v1 (.ply)</RouterLink>
+        <a href="#" title="post-SfM judge of every photo: texture, links to neighbours, duplicates" @click.prevent="openJudge">
+          Judge capture</a>
         <a href="#" title="opens Compare with every capture camera that sees part of your current view" @click.prevent="compareSeen">
           Compare what I see</a>
         <RouterLink :to="{ name: 'splat-compare', params: { jobId: splatId } }">Compare (all frames)</RouterLink>
@@ -153,9 +157,10 @@
 //
 // ORIENTATION is settled empirically (Chrome, 2026-08-11) rather than derived — see the
 // camera block below for the three things that were tried and what each did.
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getGateway } from '../config/gateway.js';
+import CaptureJudgeReport from '../components/CaptureJudgeReport.vue';
 
 const route = useRoute();
 const splatId = route.params.splatId;
@@ -277,6 +282,13 @@ async function flagView() {
   } catch (err) {
     flagMsg.value = 'Flag failed: ' + err.message;
   } finally { flagging.value = false; }
+}
+
+// ---- capture judge report (component shared with /history) ----
+const judgeOpen = ref(false);
+function openJudge() {
+  menuOpen.value = false; judgeOpen.value = true;
+  if (document.pointerLockElement) document.exitPointerLock?.();
 }
 
 async function compareSeen() {
