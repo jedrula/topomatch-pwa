@@ -91,61 +91,7 @@
         </div>
 
         <div class="scene-name">{{ job.scene || '—' }}</div>
-
-        <div v-if="job.params" class="params">
-          <div v-for="(val, key) in displayParams(job.params)" :key="key" class="param">
-            <span class="param-key">{{ key }}</span>
-            <span class="param-val">{{ val }}</span>
-          </div>
-          <!-- Early stop outcome -->
-          <div class="param" :class="job.early_stopped ? 'early-stop' : 'full-run'">
-            <span class="param-key">stopped at</span>
-            <span class="param-val">
-              {{ job.early_stopped ? `iter ${job.stopped_at_iter} (early)` : (job.status === 'done' ? `iter ${job.params?.iters} (full)` : '—') }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Multi-video filenames are shown inside each video-info row above -->
-
-        <!-- Video info: one row per video -->
-        <div v-if="job.video_infos.length" class="info-section">
-          <span class="info-label">{{ job.video_infos.length === 1 ? 'Video' : `Videos (${job.video_infos.length})` }}</span>
-          <div class="video-info-rows">
-            <div v-for="(vi, idx) in job.video_infos" :key="idx" class="video-info-row">
-              <span v-if="vi.filename" class="video-fname">{{ vi.filename }}</span>
-              <div class="info-chips">
-                <span v-if="vi.width && vi.height" class="chip">{{ vi.width }}×{{ vi.height }}</span>
-                <span v-if="vi.duration_s != null" class="chip">{{ vi.duration_s }}s</span>
-                <span v-if="vi.fps" class="chip">{{ vi.fps }} fps</span>
-                <span v-if="vi.codec" class="chip codec">{{ vi.codec }}</span>
-                <span v-if="vi.size_bytes" class="chip">{{ formatBytes(vi.size_bytes) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step timings -->
-        <div v-if="job.pipeline_stats" class="info-section">
-          <span class="info-label">Steps</span>
-          <div class="steps">
-            <div class="step">
-              <span class="step-name">{{ job.pipeline_stats.sfm || job.params?.sfm || 'sfm' }}</span>
-              <span class="step-bar-wrap"><span class="step-bar mast3r" :style="stepWidth(job.pipeline_stats.sfm_s, totalPipelineS(job))"></span></span>
-              <span class="step-time">{{ formatElapsed(job.pipeline_stats.sfm_s) }}</span>
-            </div>
-            <div class="step">
-              <span class="step-name">3DGS train</span>
-              <span class="step-bar-wrap"><span class="step-bar train" :style="stepWidth(job.pipeline_stats.train_s, totalPipelineS(job))"></span></span>
-              <span class="step-time">{{ formatElapsed(job.pipeline_stats.train_s) }}</span>
-            </div>
-            <div v-if="job.pipeline_stats.ply2splat_s != null" class="step">
-              <span class="step-name">PLY→splat</span>
-              <span class="step-bar-wrap"><span class="step-bar ply2splat" :style="stepWidth(job.pipeline_stats.ply2splat_s, totalPipelineS(job))"></span></span>
-              <span class="step-time">{{ formatElapsed(job.pipeline_stats.ply2splat_s) }}</span>
-            </div>
-          </div>
-        </div>
+        <div v-if="job.camera" class="camera-line" title="What took the photos: sim camera, AR-app intrinsics, or EXIF">📷 {{ job.camera }}</div>
 
         <div v-if="job.error" class="job-error">{{ job.error }}</div>
 
@@ -168,36 +114,22 @@
           </span>
         </div>
 
-        <!-- Quality metrics -->
+        <!-- Headline numbers only; the rest is under "details". Warnings surface here even when details are closed. -->
         <div v-if="job.metrics && (job.metrics.psnr != null || job.metrics.registered_images != null)" class="metrics-row">
           <span v-if="job.metrics.psnr != null" class="metric" :class="psnrClass(job.metrics.psnr)" title="PSNR on this capture's OWN held-out views. Not comparable between captures — a capture covering less ground scores higher here. Use the EXAM row.">
             own {{ job.metrics.psnr.toFixed(1) }} dB
           </span>
-          <span v-if="job.metrics.ssim != null" class="metric" title="SSIM — structural similarity, 0–1, higher better">
-            SSIM {{ job.metrics.ssim.toFixed(3) }}
+          <span v-if="job.metrics.registered_images != null" class="metric muted" title="SfM: registered images / submitted">
+            {{ job.metrics.registered_images }}{{ job.image_count ? '/' + job.image_count : '' }} photos
           </span>
-          <span v-if="job.metrics.lpips != null" class="metric" title="LPIPS — perceptual loss, lower better">
-            LPIPS {{ job.metrics.lpips.toFixed(3) }}
+          <span v-if="(job.metrics.n_gaussians ?? job.metrics.gaussian_count) != null" class="metric muted" title="Gaussians in the splat">
+            {{ ((job.metrics.n_gaussians ?? job.metrics.gaussian_count) / 1e6).toFixed(2) }}M splats
           </span>
-          <span v-if="job.metrics.registered_images != null" class="metric muted" title="SfM: registered images / sparse points">
-            📷 {{ job.metrics.registered_images }}{{ job.image_count ? '/' + job.image_count : '' }}
-          </span>
-          <span v-if="job.metrics.sfm_points != null" class="metric muted" title="Sparse point count from SfM">
-            pts {{ job.metrics.sfm_points.toLocaleString() }}
-          </span>
-          <span v-if="job.metrics.gaussian_count != null" class="metric muted" title="Number of Gaussians in splat">
-            G {{ (job.metrics.gaussian_count / 1000).toFixed(0) }}k
-          </span>
-          <span v-if="job.metrics.gps_within_5m_pct != null" class="metric" :class="gpsClass(job.metrics)"
-                :title="`Cameras agreeing with their own EXIF GPS within 5 m (median error ${job.metrics.gps_median_err_m} m, ${job.metrics.gps_prior_frames} frames with a prior). Only shown for captures that carry GPS.`">
-            GPS {{ job.metrics.gps_within_5m_pct.toFixed(0) }}%
-          </span>
-          <span v-if="job.metrics.gps_scale_spread != null" class="metric" :class="gpsClass(job.metrics)"
-                :title="`Scale consistency: p90/p10 of metres-per-unit over camera pairs, measured without fitting anything. 1.0 = one consistent scene; a large value means blocks welded at different scales (arm D of the Plac Staszica ablation read 18.6 while looking fine on every other metric). Scene scale ${job.metrics.gps_scale_m_per_unit} m/unit.`">
-            scale ×{{ job.metrics.gps_scale_spread.toFixed(2) }}
+          <span v-if="gpsClass(job.metrics) === 'metric-poor'" class="metric metric-poor"
+                :title="`GPS/scale check failed: ${job.metrics.gps_within_5m_pct?.toFixed(0)}% of cameras within 5 m of their GPS, scale spread ×${job.metrics.gps_scale_spread?.toFixed(2)} (1.0 = one consistent scene). Details for more.`">
+            ⚠ geometry
           </span>
         </div>
-
 
         <!-- Note -->
         <div class="note-section">
@@ -228,26 +160,19 @@
 
         <div v-if="job.status === 'done'" class="action-row">
           <RouterLink
-            class="view-btn"
-            :to="{ name: 'splat-viewer', params: { splatId: job.job_id } }"
-            target="_blank"
-          >
-            View Splat →<span v-if="job.splat_size_bytes" class="splat-size-inline"> {{ (job.splat_size_bytes / 1024 / 1024).toFixed(1) }} MB</span>
-          </RouterLink>
-          <RouterLink
-            class="view-btn walk-btn"
-            :to="{ name: 'splat-walk', params: { splatId: job.job_id } }"
-            target="_blank"
-          >
-            Walk / Fly 🚶
-          </RouterLink>
-          <RouterLink
             class="view-btn walk2-btn"
             :to="{ name: 'splat-walk2', params: { splatId: job.job_id } }"
             target="_blank"
             title="POC: PlayCanvas + SOG — 13.7x smaller download, spherical harmonics preserved"
           >
             Walk v2 ⚡
+          </RouterLink>
+          <RouterLink
+            class="view-btn"
+            :to="{ name: 'splat-viewer', params: { splatId: job.job_id } }"
+            target="_blank"
+          >
+            View Splat →<span v-if="job.splat_size_bytes" class="splat-size-inline"> {{ (job.splat_size_bytes / 1024 / 1024).toFixed(1) }} MB</span>
           </RouterLink>
           <RouterLink
             v-if="job.metrics && job.metrics.registered_images"
@@ -257,61 +182,142 @@
           >
             Compare to Photos 🔬
           </RouterLink>
-          <button class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
-          <button class="view-btn fork-btn" @click="toggleFork(job.job_id)">
-            {{ expandedFork.has(job.job_id) ? 'Cancel ✕' : 'Fork Training ⑂' }}
-          </button>
-          <button
-            v-if="job.thumbnail"
-            class="view-btn capture-btn"
-            @click="toggleCapture(job.job_id)"
-          >
-            {{ expandedCapture.has(job.job_id) ? 'Hide Capture ✕' : 'View Capture 🖼' }}
-          </button>
-          <button v-if="job.has_colmap_sparse" class="view-btn pc-btn" @click="toggleSfm(job.job_id)"
-                  title="Reconstruction stats and the pairwise match graph — where a fold is visible and a point cloud is not">
-            {{ expandedSfm.has(job.job_id) ? 'Hide SfM ✕' : 'Inspect SfM 🔍' }}
-          </button>
-          <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
-            {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
-          </button>
-          <button class="view-btn curve-btn" @click="toggleCurve(job.job_id)">
-            {{ expandedCurves.has(job.job_id) ? 'Hide Curve ✕' : 'Curve 📈' }}
-          </button>
-          <button v-if="job.image_count > 0" class="view-btn img-btn" @click="toggleImages(job.job_id)">
-            {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
-          </button>
-          <span v-else class="no-images">no images</span>
-          <a :href="splatUrl(job.job_id)" class="view-btn dl-splat-btn" download>⬇ .splat</a>
-          <a :href="plyUrl(job.job_id)" class="view-btn dl-ply-btn" download>⬇ .ply</a>
-          <a v-if="job.has_colmap_sparse" :href="colmapDatasetUrl(job.job_id)" class="view-btn dl-colmap-btn" download>⬇ COLMAP</a>
-          <template v-for="v in job.stored_videos" :key="v.stored">
-            <a :href="videoUrl(job.job_id, v.stored)" class="view-btn vid-btn" download>⬇ {{ v.filename }}</a>
-          </template>
-          <button class="view-btn assign-toggle-btn" @click="toggleAssign(job.job_id)">
-            {{ expandedAssign.has(job.job_id) ? 'Cancel' : 'Assign 📍' }}
-          </button>
-          <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
-          <span class="crop-inline">
-            <button
-              class="view-btn crop-btn"
-              :disabled="cropState[job.job_id]?.status === 'running'"
-              @click="cropAndView(job.job_id)"
-            >{{ cropState[job.job_id]?.status === 'running' ? 'Cropping…' : 'Crop ✂' }}</button>
-            <input
-              class="crop-dist-input"
-              type="number" min="1" max="50" step="0.5"
-              :value="cropDist[job.job_id] ?? 7"
-              @change="cropDist[job.job_id] = +$event.target.value"
-            />m
-            <RouterLink
-              v-if="cropState[job.job_id]?.variant"
-              class="view-btn crop-view-btn"
-              :to="{ name: 'splat-viewer', params: { splatId: job.job_id }, query: { variant: cropState[job.job_id].variant } }"
-              target="_blank"
-            >View Cropped →</RouterLink>
-            <span v-if="cropState[job.job_id]?.error" class="crop-error">{{ cropState[job.job_id].error }}</span>
+          <button class="details-link" @click="toggleDetails(job.job_id)">{{ expandedDetails.has(job.job_id) ? 'less ▴' : 'details & tools ▾' }}</button>
+        </div>
+        <div v-if="expandedDetails.has(job.job_id)" class="details-panel">
+        <div v-if="job.params" class="params">
+          <div v-for="(val, key) in displayParams(job.params)" :key="key" class="param">
+            <span class="param-key">{{ key }}</span>
+            <span class="param-val">{{ val }}</span>
+          </div>
+          <!-- Early stop outcome -->
+          <div class="param" :class="job.early_stopped ? 'early-stop' : 'full-run'">
+            <span class="param-key">stopped at</span>
+            <span class="param-val">
+              {{ job.early_stopped ? `iter ${job.stopped_at_iter} (early)` : (job.status === 'done' ? `iter ${job.params?.iters} (full)` : '—') }}
+            </span>
+          </div>
+        </div>
+        <!-- Video info: one row per video -->
+        <div v-if="job.video_infos.length" class="info-section">
+          <span class="info-label">{{ job.video_infos.length === 1 ? 'Video' : `Videos (${job.video_infos.length})` }}</span>
+          <div class="video-info-rows">
+            <div v-for="(vi, idx) in job.video_infos" :key="idx" class="video-info-row">
+              <span v-if="vi.filename" class="video-fname">{{ vi.filename }}</span>
+              <div class="info-chips">
+                <span v-if="vi.width && vi.height" class="chip">{{ vi.width }}×{{ vi.height }}</span>
+                <span v-if="vi.duration_s != null" class="chip">{{ vi.duration_s }}s</span>
+                <span v-if="vi.fps" class="chip">{{ vi.fps }} fps</span>
+                <span v-if="vi.codec" class="chip codec">{{ vi.codec }}</span>
+                <span v-if="vi.size_bytes" class="chip">{{ formatBytes(vi.size_bytes) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Step timings -->
+        <div v-if="job.pipeline_stats" class="info-section">
+          <span class="info-label">Steps</span>
+          <div class="steps">
+            <div class="step">
+              <span class="step-name">{{ job.pipeline_stats.sfm || job.params?.sfm || 'sfm' }}</span>
+              <span class="step-bar-wrap"><span class="step-bar mast3r" :style="stepWidth(job.pipeline_stats.sfm_s, totalPipelineS(job))"></span></span>
+              <span class="step-time">{{ formatElapsed(job.pipeline_stats.sfm_s) }}</span>
+            </div>
+            <div class="step">
+              <span class="step-name">3DGS train</span>
+              <span class="step-bar-wrap"><span class="step-bar train" :style="stepWidth(job.pipeline_stats.train_s, totalPipelineS(job))"></span></span>
+              <span class="step-time">{{ formatElapsed(job.pipeline_stats.train_s) }}</span>
+            </div>
+            <div v-if="job.pipeline_stats.ply2splat_s != null" class="step">
+              <span class="step-name">PLY→splat</span>
+              <span class="step-bar-wrap"><span class="step-bar ply2splat" :style="stepWidth(job.pipeline_stats.ply2splat_s, totalPipelineS(job))"></span></span>
+              <span class="step-time">{{ formatElapsed(job.pipeline_stats.ply2splat_s) }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-if="job.metrics" class="metrics-row">
+          <span v-if="job.metrics.ssim != null" class="metric" title="SSIM — structural similarity, 0–1, higher better">SSIM {{ job.metrics.ssim.toFixed(3) }}</span>
+          <span v-if="job.metrics.lpips != null" class="metric" title="LPIPS — perceptual loss, lower better">LPIPS {{ job.metrics.lpips.toFixed(3) }}</span>
+          <span v-if="job.metrics.sfm_points != null" class="metric muted" title="Sparse point count from SfM">pts {{ job.metrics.sfm_points.toLocaleString() }}</span>
+          <span v-if="job.metrics.track_len_mean != null" class="metric muted" title="Mean SfM track length: how many photos see each point (co-visibility)">track {{ job.metrics.track_len_mean.toFixed(1) }}</span>
+          <span v-if="job.metrics.floater_frac_pct != null" class="metric muted" title="Share of splats flagged as floaters">floaters {{ job.metrics.floater_frac_pct.toFixed(1) }}%</span>
+          <span v-if="job.metrics.gps_within_5m_pct != null" class="metric" :class="gpsClass(job.metrics)"
+                :title="`Cameras agreeing with their own EXIF GPS within 5 m (median error ${job.metrics.gps_median_err_m} m, ${job.metrics.gps_prior_frames} frames with a prior). Only shown for captures that carry GPS.`">
+            GPS {{ job.metrics.gps_within_5m_pct.toFixed(0) }}%
           </span>
+          <span v-if="job.metrics.gps_scale_spread != null" class="metric" :class="gpsClass(job.metrics)"
+                :title="`Scale consistency: p90/p10 of metres-per-unit over camera pairs, measured without fitting anything. 1.0 = one consistent scene; a large value means blocks welded at different scales (arm D of the Plac Staszica ablation read 18.6 while looking fine on every other metric). Scene scale ${job.metrics.gps_scale_m_per_unit} m/unit.`">
+            scale ×{{ job.metrics.gps_scale_spread.toFixed(2) }}
+          </span>
+        </div>
+          <div v-if="job.status === 'done'" class="action-row">
+          <RouterLink
+            class="view-btn walk-btn"
+            :to="{ name: 'splat-walk', params: { splatId: job.job_id } }"
+            target="_blank"
+          >
+            Walk / Fly 🚶
+          </RouterLink>
+
+
+
+
+              <button class="view-btn rerun-btn" @click="rerunJob(job)">Run Again ↩</button>
+            <button class="view-btn fork-btn" @click="toggleFork(job.job_id)">
+              {{ expandedFork.has(job.job_id) ? 'Cancel ✕' : 'Fork Training ⑂' }}
+            </button>
+            <button
+              v-if="job.thumbnail"
+              class="view-btn capture-btn"
+              @click="toggleCapture(job.job_id)"
+            >
+              {{ expandedCapture.has(job.job_id) ? 'Hide Capture ✕' : 'View Capture 🖼' }}
+            </button>
+            <button v-if="job.has_colmap_sparse" class="view-btn pc-btn" @click="toggleSfm(job.job_id)"
+                    title="Reconstruction stats and the pairwise match graph — where a fold is visible and a point cloud is not">
+              {{ expandedSfm.has(job.job_id) ? 'Hide SfM ✕' : 'Inspect SfM 🔍' }}
+            </button>
+            <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
+              {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
+            </button>
+            <button class="view-btn curve-btn" @click="toggleCurve(job.job_id)">
+              {{ expandedCurves.has(job.job_id) ? 'Hide Curve ✕' : 'Curve 📈' }}
+            </button>
+            <button v-if="job.image_count > 0" class="view-btn img-btn" @click="toggleImages(job.job_id)">
+              {{ expandedImages.has(job.job_id) ? 'Hide Images ✕' : `Images 🗂 (${job.image_count})` }}
+            </button>
+            <span v-else class="no-images">no images</span>
+            <a :href="splatUrl(job.job_id)" class="view-btn dl-splat-btn" download>⬇ .splat</a>
+            <a :href="plyUrl(job.job_id)" class="view-btn dl-ply-btn" download>⬇ .ply</a>
+            <a v-if="job.has_colmap_sparse" :href="colmapDatasetUrl(job.job_id)" class="view-btn dl-colmap-btn" download>⬇ COLMAP</a>
+            <template v-for="v in job.stored_videos" :key="v.stored">
+              <a :href="videoUrl(job.job_id, v.stored)" class="view-btn vid-btn" download>⬇ {{ v.filename }}</a>
+            </template>
+            <button class="view-btn assign-toggle-btn" @click="toggleAssign(job.job_id)">
+              {{ expandedAssign.has(job.job_id) ? 'Cancel' : 'Assign 📍' }}
+            </button>
+            <button class="view-btn del-btn" @click="deleteJob(job)">Delete 🗑</button>
+            <span class="crop-inline">
+              <button
+                class="view-btn crop-btn"
+                :disabled="cropState[job.job_id]?.status === 'running'"
+                @click="cropAndView(job.job_id)"
+              >{{ cropState[job.job_id]?.status === 'running' ? 'Cropping…' : 'Crop ✂' }}</button>
+              <input
+                class="crop-dist-input"
+                type="number" min="1" max="50" step="0.5"
+                :value="cropDist[job.job_id] ?? 7"
+                @change="cropDist[job.job_id] = +$event.target.value"
+              />m
+              <RouterLink
+                v-if="cropState[job.job_id]?.variant"
+                class="view-btn crop-view-btn"
+                :to="{ name: 'splat-viewer', params: { splatId: job.job_id }, query: { variant: cropState[job.job_id].variant } }"
+                target="_blank"
+              >View Cropped →</RouterLink>
+              <span v-if="cropState[job.job_id]?.error" class="crop-error">{{ cropState[job.job_id].error }}</span>
+            </span>
+          </div>
         </div>
 
         <!-- Fork training panel -->
@@ -392,6 +398,7 @@
           <template v-if="job.status === 'queued'">
             <span class="queue-pos">Queue position: #{{ job.queue_position }}</span>
           </template>
+          <button class="details-link" @click="toggleDetails(job.job_id)">{{ expandedDetails.has(job.job_id) ? 'less ▴' : 'details ▾' }}</button>
           <button class="view-btn log-btn" @click="toggleLogs(job.job_id)">
             {{ expandedLogs.has(job.job_id) ? 'Hide Logs ✕' : 'Logs 📄' }}
           </button>
@@ -620,6 +627,13 @@ const loading = ref(true);
 const error = ref('');
 const expandedCapture = ref(new Set());
 const expandedLogs = ref(new Set());
+// "details & tools": parameters, timings, secondary metrics and the rarely used buttons, one click away.
+const expandedDetails = ref(new Set());
+function toggleDetails(jobId) {
+  const next = new Set(expandedDetails.value);
+  next.has(jobId) ? next.delete(jobId) : next.add(jobId);
+  expandedDetails.value = next;
+}
 const expandedCurves = ref(new Set());
 const jobCurves = ref(new Map());
 const compareOpen = ref(false);
@@ -1861,6 +1875,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
 .capture-img { cursor: pointer; }
 
+.camera-line { font-size: 12px; color: #9ca3af; margin: 1px 0 4px; }
+.details-link { background: none; border: none; color: #60a5fa; font-size: 12px; cursor: pointer; padding: 4px 6px; }
+.details-link:hover { text-decoration: underline; }
+.details-panel { margin-top: 6px; padding: 8px; border: 1px dashed #2a3547; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
 .note-section { margin-top: 2px; }
 
 .note-display {

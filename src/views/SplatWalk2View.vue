@@ -128,6 +128,9 @@
     </div>
     <!-- Top-right: a hamburger menu for navigation, with the flag controls stacked BELOW it (they used to
          sit on top of the old "walk v1" link). -->
+    <button class="walk2-menu-btn walk2-star-btn" :class="{ on: starred }" :disabled="starBusy"
+            :title="starred == null ? 'Star state not loaded yet' : starred ? 'Starred — click to unstar' : 'Star this run'"
+            @click="toggleStar">{{ starred ? '★' : starred == null ? '☆?' : '☆' }}</button>
     <div v-if="!isTouch" class="walk2-menu" @keydown.esc="menuOpen = false">
       <button class="walk2-menu-btn" :class="{ open: menuOpen }" aria-label="menu" @click="menuOpen = !menuOpen">☰</button>
       <nav v-if="menuOpen" class="walk2-menu-list" @click="menuOpen = false">
@@ -200,6 +203,25 @@ const showCams = ref(false);
 const hudOpen = ref(true);
 const menuOpen = ref(false);
 const jobNote = ref('');
+// Star, same marker as /history (PUT .../star). null = not known yet (GET .../{job} failed or pending).
+const starred = ref(null);
+const starBusy = ref(false);
+let starBase = '';
+async function toggleStar() {
+  if (!starBase) return;
+  const next = !starred.value;
+  starBusy.value = true;
+  try {
+    const r = await fetch(`${starBase}/star`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                                               body: JSON.stringify({ starred: next }) });
+    if (!r.ok) throw new Error(`star ${r.status}`);
+    starred.value = next;
+  } catch (e) {
+    console.warn('[walk2] star failed', e);      // keep the old state: a star that did not persist must not show
+  } finally {
+    starBusy.value = false;
+  }
+}
 const noteShown = ref(true);
 const noteOpen = ref(false);
 const noteLines = computed(() => jobNote.value.split('\n').filter(Boolean).map((l) => {
@@ -535,6 +557,8 @@ onMounted(async () => {
     };
     loadFlags();
     fetch(`${base}/note`).then((r) => (r.ok ? r.json() : null)).then((d) => { jobNote.value = d?.note || ''; }).catch(() => {});
+    starBase = base;
+    fetch(base).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && 'starred' in d) starred.value = d.starred; }).catch(() => {});
 
     // ---- carpet-walk: poor man's collision (ported from walk v1) ----
     // The camera centres are the only positions we KNOW were physically occupied, so
@@ -1338,6 +1362,8 @@ onBeforeUnmount(() => {
 .hud-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 5px;
   border-top: 1px solid rgba(255,255,255,.08); color: #7d8696; font: 10px ui-monospace, monospace; }
 .walk2-menu { position: absolute; top: 12px; right: 12px; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; }
+.walk2-star-btn { position: absolute; top: 12px; right: 54px; z-index: 40; font-size: 16px; color: #d1d5db; }
+.walk2-star-btn.on { color: #fbbf24; border-color: #92400e; }
 .walk2-menu-btn { width: 34px; height: 32px; border-radius: 6px; border: 1px solid #3a4250; background: rgba(0,0,0,.62);
   color: #e8e8ef; font-size: 17px; cursor: pointer; backdrop-filter: blur(6px); }
 .walk2-menu-btn.open { border-color: #6ea8ff; }
