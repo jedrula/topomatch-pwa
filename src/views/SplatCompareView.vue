@@ -79,6 +79,8 @@ const jobId = route.params.jobId;
 // one frame already chosen, so "look at this camera" and "see what the splat
 // made of it" are one click apart instead of a filename hunt.
 const deepFrame = String(route.query.frame || '');
+// ...or several: /compare?frames=0003,0017,0042 (walk2 sends every camera that sees part of your view).
+const deepFrames = String(route.query.frames || '').split(',').filter(Boolean);
 
 const frames = ref([]);
 const framesError = ref('');
@@ -113,6 +115,10 @@ async function load() {
     frames.value = body.frames || [];
     if (deepFrame && frames.value.some(f => f.key === deepFrame)) {
       selected.value = new Set([deepFrame]);
+    }
+    if (deepFrames.length) {
+      const have = new Set(frames.value.map(f => f.key));
+      selected.value = new Set(deepFrames.filter(k => have.has(k)));
     }
   } catch (e) {
     framesError.value = String(e);

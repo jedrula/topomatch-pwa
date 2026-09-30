@@ -1,58 +1,91 @@
 <template>
   <div class="walk2-view">
     <canvas ref="canvasEl" class="walk2-canvas"></canvas>
+    <div v-if="captureFov && camIntr" class="walk2-capframe"
+         :style="{ aspectRatio: `${camIntr.width} / ${camIntr.height}` }"></div>
 
-    <div v-if="!isTouch" class="walk2-hud">
-      <div><b>Walk / Fly v2</b> — <code>{{ splatId }}</code> <span class="tag">SOG</span></div>
-      <div><b>WASD</b> move · <b>Shift</b> sprint · <b>Space/C</b> up/down · <b>Esc</b> release</div>
-      <div class="walk2-note">carpet-walk keeps you where the camera actually went — no wall clipping</div>
-      <div>
-        look <input type="range" min="0.02" max="0.5" step="0.01" v-model.number="sens" />
-        {{ sens.toFixed(2) }}
+    <div v-if="!isTouch" class="walk2-hud" :class="{ collapsed: !hudOpen }">
+      <div class="hud-head">
+        <span class="hud-title">Walk</span>
+        <code class="hud-id">{{ splatId }}</code>
+        <span class="tag">SOG</span>
+        <span v-if="sizeInfo" class="hud-size">{{ sizeInfo.split(' (')[0] }}</span>
+        <button class="hud-toggle" :title="hudOpen ? 'hide panel' : 'show panel'" @click="hudOpen = !hudOpen">
+          {{ hudOpen ? '–' : '+' }}</button>
       </div>
-      <div>
-        speed <input type="range" min="0.2" max="6" step="0.1" v-model.number="speed" />
-        {{ speed.toFixed(1) }}
+
+      <template v-if="hudOpen">
+        <div class="hud-keys"><kbd>WASD</kbd> move <kbd>Shift</kbd> sprint <kbd>Space</kbd>/<kbd>C</kbd> up/down <kbd>Esc</kbd> release</div>
+
+        <section class="hud-sec">
+          <h4>Move</h4>
+          <label class="hud-slider"><span>Look</span>
+            <input type="range" min="0.02" max="0.5" step="0.01" v-model.number="sens" /><em>{{ sens.toFixed(2) }}</em></label>
+          <label class="hud-slider"><span>Speed</span>
+            <input type="range" min="0.2" max="6" step="0.1" v-model.number="speed" /><em>{{ speed.toFixed(1) }}</em></label>
+        </section>
+
+        <section class="hud-sec">
+          <h4>Carpet <small title="carpet-walk keeps you where the capture camera actually went -- no wall clipping">ⓘ</small></h4>
+          <div class="hud-chips">
+            <label class="chip" :class="{ on: carpetWalk }"><input type="checkbox" v-model="carpetWalk" />Stay on path</label>
+            <label class="chip" :class="{ on: showCarpet }"><input type="checkbox" v-model="showCarpet" />Show path</label>
+            <label class="chip" :class="{ on: carpetVideo, off: !videoReady }" :title="videoReady ? 'replay the capture' : 'not available'">
+              <input type="checkbox" v-model="carpetVideo" :disabled="!videoReady" />Replay</label>
+          </div>
+          <label v-if="carpetWalk" class="hud-slider"><span>Radius</span>
+            <input type="range" min="0.1" max="6" step="0.05" v-model.number="radius" /><em>{{ radius.toFixed(2) }}</em></label>
+          <div v-if="carpetVideo && videoReady" class="walk2-transport">
+            <button @click="tourStep(-1)" title="previous photograph">⏮</button>
+            <button class="play" @click="playing = !playing">{{ playing ? '⏸' : '▶' }}</button>
+            <button @click="tourStep(1)" title="next photograph">⏭</button>
+            <button v-for="r in RATES" :key="r" :class="{ on: rate === r }" @click="rate = r">{{ r }}×</button>
+            <span class="walk2-count">{{ videoInfo }}</span>
+          </div>
+          <input v-if="carpetVideo && videoReady" class="walk2-scrub" type="range" min="0"
+                 :max="Math.max(tourTotal - 1, 0)" :value="tourIdx" @input="tourSeek(+$event.target.value)" />
+        </section>
+
+        <section class="hud-sec">
+          <h4>View</h4>
+          <div class="hud-chips">
+            <label class="chip" :class="{ on: showCams }" title="capture cameras; orange = they see what you look at; click one to open it in Compare">
+              <input type="checkbox" v-model="showCams" />Cameras<b v-if="showCams" class="badge" title="cameras that see what you are looking at">{{ seeCount }}</b></label>
+            <label class="chip" :class="{ on: captureFov, off: !camIntr }"
+                   :title="camIntr ? `view through the capture lens: ${camIntr.vfov_deg.toFixed(1)}° vertical, ${camIntr.width}×${camIntr.height}` : 'no intrinsics for this splat'">
+              <input type="checkbox" v-model="captureFov" :disabled="!camIntr" />Capture lens</label>
+            <label class="chip" :class="{ on: showSky }"><input type="checkbox" v-model="showSky" />Sky</label>
+          </div>
+          <span v-if="loopLabel" class="walk2-loop">{{ loopLabel }}</span>
+        </section>
+
+        <div class="hud-foot">
+          <span v-if="distInfo">{{ distInfo }}</span>
+          <span v-if="upLabel">up {{ upLabel }}</span>
+        </div>
+      </template>
+    </div>
+
+    <!-- Flag a POOR view (Andrzej 2026-09-30): saved with camera + screenshot, reopenable, analysed by
+         experiments/smallarea/analyze_flags.py. The camera here is in the COLMAP frame (see applyCamera). -->
+    <div class="walk2-flags">
+      <button class="walk2-flag-btn" :disabled="flagging" @click="flagOpen = !flagOpen">
+        {{ flagging ? 'Flagging…' : '⚑ Flag view' }}</button>
+      <select v-if="flags.length" class="walk2-flag-list" @change="openFlag($event.target.value); $event.target.value = ''">
+        <option value="">⚑ {{ flags.length }} flagged</option>
+        <option v-for="f in flags" :key="f.id" :value="f.id">#{{ f.id }} {{ f.note || '(no note)' }}</option>
+      </select>
+      <div v-if="flagOpen" class="walk2-flag-panel">
+        <input v-model="flagNote" class="walk2-flag-note" placeholder="What looks wrong? (optional)"
+               @keydown.stop @keyup.stop @keyup.enter="flagView" />
+        <button :disabled="flagging" @click="flagView">Save flag</button>
+        <button @click="flagOpen = false">Cancel</button>
       </div>
-      <div>
-        <label><input type="checkbox" v-model="carpetWalk" /> carpet-walk</label>
-        r <input type="range" min="0.1" max="6" step="0.05" v-model.number="radius"
-                 :disabled="!carpetWalk" />
-        {{ radius.toFixed(2) }}
+      <span v-if="flagMsg" class="walk2-flag-msg">{{ flagMsg }}</span>
+      <div v-if="shownFlag" class="walk2-flag-shown">
+        <div>⚑ #{{ shownFlag.id }} — {{ shownFlag.note || '(no note)' }} <button @click="shownFlag = null">×</button></div>
+        <img v-if="shownFlagImg" :src="shownFlagImg" alt="what was flagged" />
       </div>
-      <div>
-        <label><input type="checkbox" v-model="showCarpet" /> show carpet</label>
-        <label><input type="checkbox" v-model="showSky" /> sky</label>
-        <span v-if="loopLabel" class="walk2-loop">{{ loopLabel }}</span>
-      </div>
-      <div>
-        <label><input type="checkbox" v-model="carpetVideo" :disabled="!videoReady" />
-          carpet video</label>
-        <span v-if="carpetVideo" class="walk2-count">{{ videoInfo }}</span>
-      </div>
-      <div v-if="carpetVideo && videoReady" class="walk2-transport">
-        <button @click="tourStep(-1)" title="previous photograph">⏮</button>
-        <button class="play" @click="playing = !playing">{{ playing ? '⏸' : '▶' }}</button>
-        <button @click="tourStep(1)" title="next photograph">⏭</button>
-        <button
-          v-for="r in RATES"
-          :key="r"
-          :class="{ on: rate === r }"
-          @click="rate = r"
-        >{{ r }}×</button>
-      </div>
-      <input
-        v-if="carpetVideo && videoReady"
-        class="walk2-scrub"
-        type="range"
-        min="0"
-        :max="Math.max(tourTotal - 1, 0)"
-        :value="tourIdx"
-        @input="tourSeek(+$event.target.value)"
-      />
-      <div v-if="distInfo" class="walk2-dist">{{ distInfo }}</div>
-      <div v-if="upLabel" class="walk2-up">up {{ upLabel }}</div>
-      <div v-if="sizeInfo" class="walk2-size">{{ sizeInfo }}</div>
     </div>
 
     <div class="walk2-status" :class="{ err: !!error }">
@@ -83,8 +116,21 @@
       </div>
       <div v-if="atEdge" class="walk2-edge">edge of captured area</div>
     </div>
-    <RouterLink v-if="!isTouch" :to="{ name: 'splat-walk', params: { splatId } }"
-                class="walk2-back">← walk v1 (.ply)</RouterLink>
+    <!-- Top-right: a hamburger menu for navigation, with the flag controls stacked BELOW it (they used to
+         sit on top of the old "walk v1" link). -->
+    <div v-if="!isTouch" class="walk2-menu" @keydown.esc="menuOpen = false">
+      <button class="walk2-menu-btn" :class="{ open: menuOpen }" aria-label="menu" @click="menuOpen = !menuOpen">☰</button>
+      <nav v-if="menuOpen" class="walk2-menu-list" @click="menuOpen = false">
+        <RouterLink :to="{ name: 'splat-viewer', params: { splatId } }">Splat viewer</RouterLink>
+        <RouterLink :to="{ name: 'splat-walk', params: { splatId } }">Walk v1 (.ply)</RouterLink>
+        <a href="#" title="opens Compare with every capture camera that sees part of your current view" @click.prevent="compareSeen">
+          Compare what I see</a>
+        <RouterLink :to="{ name: 'splat-compare', params: { jobId: splatId } }">Compare (all frames)</RouterLink>
+        <RouterLink :to="{ name: 'splat-frames', params: { jobId: splatId } }">Frames</RouterLink>
+        <hr />
+        <RouterLink :to="{ name: 'splat-history' }">← History</RouterLink>
+      </nav>
+    </div>
     <RouterLink v-else :to="{ name: 'splat-history' }" class="walk2-back-btn"
                 aria-label="back to history">←</RouterLink>
   </div>
@@ -109,11 +155,12 @@
 // ORIENTATION is settled empirically (Chrome, 2026-08-11) rather than derived — see the
 // camera block below for the three things that were tried and what each did.
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { getGateway } from '../config/gateway.js';
 
 const route = useRoute();
 const splatId = route.params.splatId;
+const router = useRouter();
 const canvasEl = ref(null);
 const status = ref('loading…');
 const error = ref('');
@@ -136,6 +183,15 @@ const radius = ref(0.6);
 // be held at the edge of the captured area with nothing on screen saying where that edge is,
 // which reads as broken controls rather than as a boundary.
 const showCarpet = ref(false);
+// Capture cameras as frustums; clicking one opens /splat/:id/compare?frame=<key> for that frame.
+const showCams = ref(false);
+const hudOpen = ref(true);
+const menuOpen = ref(false);
+const seeCount = ref(0);
+// "capture FOV": view with the capture camera's own vertical FOV and see its frame (4:3 guide).
+const captureFov = ref(false);
+const camIntr = ref(null);      // {width, height, fx, fy, vfov_deg, hfov_deg} from /intrinsics
+const VIEW_FOV = 65;
 // Drawn sky instead of captured sky: free, and it costs no geometry.
 const showSky = ref(true);
 const loopLabel = ref('');
@@ -172,6 +228,73 @@ const touchDown = ref(false);
 
 let app = null;
 let splatEntity = null;
+let flagCam = null;             // {get, set} into the camera state below, for flagging
+let camPick = null;             // {pick, open}: click-a-camera -> Compare
+
+const flagOpen = ref(false);
+const flagNote = ref('');
+const flagging = ref(false);
+const flagMsg = ref('');
+const flags = ref([]);
+const shownFlag = ref(null);
+const shownFlagImg = ref('');
+
+async function flagsUrl(suffix = '') {
+  return `${await getGateway()}/topowall/api/v1/video-to-splat/${splatId}/flags${suffix}`;
+}
+
+async function loadFlags() {
+  try {
+    const res = await fetch(await flagsUrl());
+    if (res.ok) flags.value = await res.json();
+  } catch (err) { console.warn('[flags] could not load:', err); }
+}
+
+// PlayCanvas does not preserve the drawing buffer, so the screenshot is taken at frame end.
+function grabFrame() {
+  return new Promise((resolve) => {
+    if (!app) return resolve(null);
+    app.once('frameend', () => {
+      try { resolve(canvasEl.value.toDataURL('image/jpeg', 0.9)); } catch { resolve(null); }
+    });
+    app.renderNextFrame = true;
+  });
+}
+
+async function flagView() {
+  if (!flagCam || flagging.value) return;
+  flagging.value = true; flagMsg.value = '';
+  try {
+    // format is the viewer's numeric scene format on the server; walk2's frame is in camera.frame ('colmap').
+    const body = { camera: { ...flagCam.get(), viewer: 'walk2-sog' }, note: flagNote.value, format: null, image: await grabFrame() };
+    const res = await fetch(await flagsUrl(), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rec = await res.json();
+    flags.value = [...flags.value, rec];
+    flagMsg.value = `Flag #${rec.id} saved`; flagNote.value = '';
+    setTimeout(() => { flagOpen.value = false; flagMsg.value = ''; }, 1500);
+  } catch (err) {
+    flagMsg.value = 'Flag failed: ' + err.message;
+  } finally { flagging.value = false; }
+}
+
+async function compareSeen() {
+  menuOpen.value = false;
+  if (!camPick) return;
+  const keys = (await camPick.keys(camPick.seen())).slice(0, 12);     // Compare renders each one: keep it snappy
+  if (document.pointerLockElement) document.exitPointerLock?.();
+  router.push({ name: 'splat-compare', params: { jobId: splatId }, query: keys.length ? { frames: keys.join(',') } : {} });
+}
+
+async function openFlag(id) {
+  const f = flags.value.find((x) => String(x.id) === String(id));
+  if (!f || !flagCam) return;
+  flagCam.set(f.camera);
+  shownFlag.value = f;
+  shownFlagImg.value = f.image ? await flagsUrl(`/${f.id}/image`) : '';
+}
 let objectUrl = null;
 let cleanupFns = [];
 
@@ -355,6 +478,22 @@ onMounted(async () => {
       camera.lookAt(pos.clone().add(currentDir()), UP);
     };
     upLabel.value = `(${UP.x.toFixed(2)}, ${UP.y.toFixed(2)}, ${UP.z.toFixed(2)})`;
+    flagCam = {
+      get: () => {
+        const d = currentDir();
+        return {
+          frame: 'colmap', position: [pos.x, pos.y, pos.z], forward: [d.x, d.y, d.z], up: [UP.x, UP.y, UP.z],
+          yaw, pitch, fov_deg: camera.camera.fov,
+          width: canvasEl.value?.width, height: canvasEl.value?.height,
+        };
+      },
+      set: (c) => {
+        pos.set(c.position[0], c.position[1], c.position[2]);
+        yaw = c.yaw; pitch = c.pitch;
+        applyCamera();
+      },
+    };
+    loadFlags();
 
     // ---- carpet-walk: poor man's collision (ported from walk v1) ----
     // The camera centres are the only positions we KNOW were physically occupied, so
@@ -442,6 +581,129 @@ onMounted(async () => {
       const f = carpet?.walk?.floor;
       return f == null ? null : v.clone().add(UP.clone().mulScalar(f - v.dot(UP)));
     };
+    // ---- capture cameras: frustums you can click to open that frame in Compare ----
+    const CF = carpet?.forwards?.length ? carpet.forwards : null;
+    const CAM_COL = new pc.Color(0.2, 0.75, 1.0);
+    const FS = 0.11;                                        // frustum depth in scene units
+    const SEE_COL = new pc.Color(1.0, 0.6, 0.1);            // cameras that see what you are looking at
+    const camCorners = (i) => {
+      const c = new pc.Vec3(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]);
+      const f = new pc.Vec3(...CF[i]).normalize();
+      let r = new pc.Vec3().cross(f, UP);
+      if (r.lengthSq() < 1e-8) r = new pc.Vec3(1, 0, 0);
+      r.normalize();
+      const u = new pc.Vec3().cross(r, f).normalize();
+      const m = c.clone().add(f.clone().mulScalar(FS));
+      const q = (a, b) => m.clone().add(r.clone().mulScalar(a * FS * 0.62)).add(u.clone().mulScalar(b * FS * 0.46));
+      return [c, q(-1, -1), q(1, -1), q(1, 1), q(-1, 1)];
+    };
+    // A capture camera "sees what you see" when the point you are looking at -- probed at 2/4/8/16 m
+    // along your view ray, since there is no scene depth here -- lies inside its field of view for at
+    // least two of those depths. Half-angles come from the pod's real intrinsics (/intrinsics).
+    const seesMine = (i, dir) => {
+      const c = new pc.Vec3(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]);
+      const f = new pc.Vec3(...CF[i]).normalize();
+      let r = new pc.Vec3().cross(f, UP); if (r.lengthSq() < 1e-8) r = new pc.Vec3(1, 0, 0); r.normalize();
+      const u = new pc.Vec3().cross(r, f).normalize();
+      const th = Math.tan((camIntr.value?.hfov_deg ?? 0) * Math.PI / 360);
+      const tv = Math.tan((camIntr.value?.vfov_deg ?? 0) * Math.PI / 360);
+      if (!th || !tv) return false;
+      let hits = 0;
+      for (const d of [2, 4, 8, 16]) {
+        const q = pos.clone().add(dir.clone().mulScalar(d)).sub(c);
+        const z = q.dot(f);
+        if (z <= 0.1) continue;
+        if (Math.abs(q.dot(r)) <= z * th && Math.abs(q.dot(u)) <= z * tv) hits++;
+      }
+      return hits >= 2;
+    };
+    const drawCams = () => {
+      if (!showCams.value || !nCam || !CF) return;
+      const dir = currentDir();
+      let nSee = 0;
+      for (let i = 0; i < nCam; i++) {
+        const col = seesMine(i, dir) ? (nSee++, SEE_COL) : CAM_COL;
+        const [c, a, b, d, e] = camCorners(i);
+        for (const k of [a, b, d, e]) app.drawLine(c, k, col, true);
+        app.drawLine(a, b, col, true); app.drawLine(b, d, col, true);
+        app.drawLine(d, e, col, true); app.drawLine(e, a, col, true);
+      }
+      seeCount.value = nSee;
+    };
+    const pickCam = (sx, sy) => {
+      const cp = camera.getPosition(), cf = camera.forward;
+      let best = -1, bd = 24 * 24;
+      const sc = new pc.Vec3(), w = new pc.Vec3();
+      for (let i = 0; i < nCam; i++) {
+        w.set(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]);
+        if (w.clone().sub(cp).dot(cf) <= 0.05) continue;    // behind the viewer
+        camera.camera.worldToScreen(w, sc);
+        const d2 = (sc.x - sx) ** 2 + (sc.y - sy) ** 2;
+        if (d2 < bd) { bd = d2; best = i; }
+      }
+      return best;
+    };
+    let compareKeys = null;
+    const openCompare = async (i) => {
+      const name = carpet?.names?.[i];
+      if (!name) return;
+      if (!compareKeys) {
+        try {
+          const r = await fetch(`${base}/compare-frames`);
+          compareKeys = r.ok ? Object.fromEntries(((await r.json()).frames || []).map((f) => [f.name, f.key])) : {};
+        } catch { compareKeys = {}; }
+      }
+      const key = compareKeys[name] ?? (name.match(/_(\d{4})\.[A-Za-z]+$/) || [])[1];
+      if (!key) { console.warn('[cams] no compare key for', name); return; }
+      if (document.pointerLockElement) document.exitPointerLock?.();
+      window.open(router.resolve({ path: `/splat/${splatId}/compare`, query: { frame: key } }).href, '_blank');
+    };
+    // Every capture camera that sees ANY part of the current view: probe a 5x4 grid of rays across the
+    // screen at 2/4/8/16 m and count, per camera, the probe points inside its field of view.
+    const seenCams = () => {
+      if (!nCam || !CF || !camIntr.value) return [];
+      const vf = camera.camera.fov * Math.PI / 180, asp = (canvasEl.value?.width || 16) / (canvasEl.value?.height || 9);
+      const f0 = currentDir();
+      let r0 = new pc.Vec3().cross(f0, UP); if (r0.lengthSq() < 1e-8) r0 = new pc.Vec3(1, 0, 0); r0.normalize();
+      const u0 = new pc.Vec3().cross(r0, f0).normalize();
+      const P = [];
+      for (let gx = 0; gx < 5; gx++) for (let gy = 0; gy < 4; gy++) {
+        const sx = (gx / 4 - 0.5) * 2 * Math.tan(vf / 2) * asp, sy = (gy / 3 - 0.5) * 2 * Math.tan(vf / 2);
+        const d = f0.clone().add(r0.clone().mulScalar(sx)).add(u0.clone().mulScalar(sy)).normalize();
+        for (const t of [2, 4, 8, 16]) P.push(pos.clone().add(d.clone().mulScalar(t)));
+      }
+      const th = Math.tan(camIntr.value.hfov_deg * Math.PI / 360), tv = Math.tan(camIntr.value.vfov_deg * Math.PI / 360);
+      const out = [];
+      for (let i = 0; i < nCam; i++) {
+        const c = new pc.Vec3(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]), f = new pc.Vec3(...CF[i]).normalize();
+        let r = new pc.Vec3().cross(f, UP); if (r.lengthSq() < 1e-8) r = new pc.Vec3(1, 0, 0); r.normalize();
+        const u = new pc.Vec3().cross(r, f).normalize();
+        let k = 0;
+        for (const p of P) {
+          const q = p.clone().sub(c), z = q.dot(f);
+          if (z > 0.1 && Math.abs(q.dot(r)) <= z * th && Math.abs(q.dot(u)) <= z * tv) k++;
+        }
+        if (k >= 3) out.push([i, k]);
+      }
+      return out.sort((a, b) => b[1] - a[1]).map(([i]) => i);
+    };
+    const compareKeysFor = async (idx) => {
+      if (!compareKeys) {
+        try {
+          const r = await fetch(`${base}/compare-frames`);
+          compareKeys = r.ok ? Object.fromEntries(((await r.json()).frames || []).map((f) => [f.name, f.key])) : {};
+        } catch { compareKeys = {}; }
+      }
+      return idx.map((i) => carpet?.names?.[i]).filter(Boolean)
+        .map((n) => compareKeys[n] ?? (n.match(/_(\d{4})\.[A-Za-z]+$/) || [])[1]).filter(Boolean);
+    };
+    camPick = { pick: pickCam, open: openCompare, seen: seenCams, keys: compareKeysFor };
+    try {
+      const ri = await fetch(`${base}/intrinsics`);
+      if (ri.ok) camIntr.value = await ri.json();
+    } catch (err) { console.warn('[intrinsics]', err); }
+    watch(captureFov, (on) => { camera.camera.fov = on && camIntr.value ? camIntr.value.vfov_deg : VIEW_FOV; });
+
     const drawCarpet = () => {
       if (!showCarpet.value || !nCam) return;
       const a = new pc.Vec3(), b = new pc.Vec3();
@@ -632,7 +894,17 @@ onMounted(async () => {
       if (['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','KeyC'].includes(e.code)) e.preventDefault();
     };
     const onKeyUp = (e) => { keys[e.code] = false; };
-    const onClick = () => canvas.requestPointerLock?.();
+    const onClick = (e) => {
+      // With cameras shown, a click ON a camera opens it in Compare (screen centre when the pointer
+      // is locked, the mouse position otherwise); anywhere else it grabs the mouse as before.
+      if (showCams.value && camPick) {
+        const rect = canvas.getBoundingClientRect();
+        const locked = document.pointerLockElement === canvas;
+        const i = camPick.pick(locked ? rect.width / 2 : e.clientX - rect.left, locked ? rect.height / 2 : e.clientY - rect.top);
+        if (i >= 0) { camPick.open(i); return; }
+      }
+      canvas.requestPointerLock?.();
+    };
     const onMove = (e) => {
       if (document.pointerLockElement !== canvas) return;
       // Raw deltas, no smoothing or acceleration — 1:1 is what makes an FPS feel direct.
@@ -841,6 +1113,7 @@ onMounted(async () => {
         atEdge.value = false;
       }
       drawCarpet();
+      drawCams();
       if (debug.value) {
         const st2 = stickRef.value || { id: null, x: 0, y: 0 };
         dbg.value =
@@ -981,4 +1254,55 @@ onBeforeUnmount(() => {
   background: rgba(0,0,0,.62); padding: 7px 11px; border-radius: 8px;
   font: 12px ui-monospace, monospace; text-decoration: none;
 }
+.walk2-flags { position: absolute; top: 52px; right: 12px; z-index: 30; display: flex; flex-direction: column;
+  align-items: flex-end; gap: 6px; font: 13px system-ui, sans-serif; }
+.walk2-flag-btn, .walk2-flag-panel button, .walk2-flag-shown button { padding: 5px 10px; border: none; border-radius: 6px;
+  cursor: pointer; background: #b45309; color: #fff; font-weight: 600; }
+.walk2-flag-list { padding: 4px 8px; border-radius: 6px; background: #1f2937; color: #fbbf24; border: 1px solid #b45309; }
+.walk2-flag-panel { display: flex; gap: 6px; background: rgba(17, 24, 39, 0.92); padding: 6px; border-radius: 8px; }
+.walk2-flag-note { width: 260px; padding: 4px 8px; border-radius: 6px; border: 1px solid #374151; background: #111827; color: #f3f4f6; }
+.walk2-flag-msg { color: #fbbf24; }
+.walk2-flag-shown { max-width: 340px; background: rgba(17, 24, 39, 0.92); border: 1px solid #b45309; border-radius: 8px;
+  padding: 6px; color: #fbbf24; }
+.walk2-flag-shown img { width: 100%; margin-top: 6px; border-radius: 4px; }
+.walk2-capframe { position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); height: 100%;
+  border-left: 2px solid rgba(255, 170, 40, 0.85); border-right: 2px solid rgba(255, 170, 40, 0.85);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45); pointer-events: none; z-index: 5; }
+/* HUD layout (2026-09-30 cleanup): sections, labelled sliders, toggle chips, muted footer. */
+.walk2-hud { font: 12px/1.45 system-ui, -apple-system, sans-serif; width: 300px; max-width: 300px; padding: 10px 12px 8px; }
+.walk2-hud.collapsed { width: auto; }
+.hud-head { display: flex; align-items: center; gap: 6px; }
+.hud-title { font-weight: 700; font-size: 13px; }
+.hud-id { font: 11px ui-monospace, monospace; color: #8fd3ff; }
+.hud-size { margin-left: auto; color: #8a93a3; font-size: 11px; }
+.hud-toggle { background: #2a2f3a; color: #cfd6e2; border: 1px solid #3a4250; border-radius: 4px; width: 22px; height: 20px;
+  line-height: 16px; cursor: pointer; padding: 0; margin-left: 4px; }
+.hud-head .hud-size + .hud-toggle, .hud-head .tag + .hud-toggle { margin-left: auto; }
+.hud-keys { color: #8a93a3; font-size: 11px; margin: 6px 0 2px; }
+.hud-keys kbd { background: #2a2f3a; border: 1px solid #3a4250; border-radius: 3px; padding: 0 4px; font: 10px ui-monospace, monospace; color: #dfe5ee; }
+.hud-sec { border-top: 1px solid rgba(255,255,255,.08); margin-top: 8px; padding-top: 6px; }
+.hud-sec h4 { margin: 0 0 5px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8a93a3; font-weight: 600; }
+.hud-sec h4 small { cursor: help; text-transform: none; }
+.hud-slider { display: grid; grid-template-columns: 52px 1fr 38px; align-items: center; gap: 8px; margin: 2px 0; }
+.hud-slider span { color: #c3cad6; }
+.hud-slider input { width: 100%; accent-color: #6ea8ff; }
+.hud-slider em { font: 11px ui-monospace, monospace; font-style: normal; color: #dfe5ee; text-align: right; }
+.hud-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; cursor: pointer;
+  background: #232833; border: 1px solid #3a4250; color: #c3cad6; user-select: none; }
+.chip input { display: none; }
+.chip.on { background: #1e3a66; border-color: #6ea8ff; color: #fff; }
+.chip.off { opacity: .45; cursor: not-allowed; }
+.badge { background: #f59e0b; color: #111; border-radius: 999px; padding: 0 6px; font-size: 10px; font-weight: 700; }
+.hud-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 5px;
+  border-top: 1px solid rgba(255,255,255,.08); color: #7d8696; font: 10px ui-monospace, monospace; }
+.walk2-menu { position: absolute; top: 12px; right: 12px; z-index: 40; display: flex; flex-direction: column; align-items: flex-end; }
+.walk2-menu-btn { width: 34px; height: 32px; border-radius: 6px; border: 1px solid #3a4250; background: rgba(0,0,0,.62);
+  color: #e8e8ef; font-size: 17px; cursor: pointer; backdrop-filter: blur(6px); }
+.walk2-menu-btn.open { border-color: #6ea8ff; }
+.walk2-menu-list { margin-top: 6px; min-width: 170px; background: rgba(17, 24, 39, 0.96); border: 1px solid #3a4250;
+  border-radius: 8px; padding: 4px; display: flex; flex-direction: column; font: 13px system-ui, sans-serif; }
+.walk2-menu-list a { color: #dfe5ee; text-decoration: none; padding: 6px 10px; border-radius: 5px; }
+.walk2-menu-list a:hover { background: #1e3a66; }
+.walk2-menu-list hr { border: none; border-top: 1px solid rgba(255,255,255,.1); margin: 3px 4px; }
 </style>
