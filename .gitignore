@@ -81,3 +81,5 @@ firebase.json
 .DS_Store
 src/.DS_Store
 test-results/.last-run.json
+firestore.rules
+firestore.indexes.json

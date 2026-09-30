@@ -31,6 +31,8 @@
     </section>
 
     <GpuPressure v-if="gatewayCache" :api-base="gatewayCache" />
+    <JobChat v-if="isAdmin" job-id="_general" :messages="chatByJob._general || []" :agent="agentMeta"
+             placeholder="Anything not about one job: ideas, challenges, what next… (Enter to send)" />
 
     <HistoryFilters
       v-if="!loading && !error && jobs.length > 0"
@@ -222,6 +224,7 @@
             :title="job.note ? 'Click to edit note' : 'Click to add note'"
           >{{ job.note || 'Add note…' }}</div>
         </div>
+        <JobChat v-if="isAdmin" :job-id="job.job_id" :messages="chatByJob[job.job_id] || []" :agent="agentMeta" />
 
         <div v-if="job.status === 'done'" class="action-row">
           <RouterLink
@@ -490,7 +493,9 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import SfmInspector from '../components/SfmInspector.vue';
 import { useRouter, useRoute } from 'vue-router';
-import { getDocs, collection, orderBy, query as fsQuery, doc, updateDoc, FieldPath } from 'firebase/firestore';
+import { getDocs, collection, orderBy, query as fsQuery, doc, updateDoc, FieldPath, onSnapshot, limit } from 'firebase/firestore';
+import JobChat from '../components/JobChat.vue';
+import { useUserStore } from '../stores/userStore.js';
 import { db } from '../services/firebase.js';
 import { getGateway } from '../config/gateway.js';
 import { thumbGet, thumbDelete } from '../utils/thumbDb.js';
@@ -503,6 +508,26 @@ import TrainingCost from '../components/TrainingCost.vue';
 import FrameGrid from '../components/FrameGrid.vue';
 
 const router = useRouter();
+
+// Per-job chat with the agent (admin only; Firestore rules enforce it). One live query for the whole page,
+// grouped by job, so a reply shows up without a refresh. jobChatMeta/agent says when the agent next checks in.
+const userStore = useUserStore();
+const isAdmin = computed(() => userStore.isAdmin);
+const chatByJob = ref({});
+const agentMeta = ref(null);
+let chatUnsubs = [];
+function subscribeChat() {
+  if (chatUnsubs.length) return;
+  chatUnsubs.push(onSnapshot(fsQuery(collection(db, 'jobChat'), orderBy('createdAt', 'desc'), limit(1000)), (snap) => {
+    const by = {};
+    snap.docs.slice().reverse().forEach(d => { const m = { id: d.id, ...d.data() }; (by[m.jobId] ||= []).push(m); });
+    chatByJob.value = by;
+  }, (e) => console.warn('[jobChat]', e.code || e.message)));
+  chatUnsubs.push(onSnapshot(doc(db, 'jobChatMeta', 'agent'), (d) => { agentMeta.value = d.exists() ? d.data() : null; },
+    (e) => console.warn('[jobChatMeta]', e.code || e.message)));
+}
+watch(isAdmin, (v) => { if (v) subscribeChat(); }, { immediate: true });
+onUnmounted(() => chatUnsubs.forEach(u => u()));
 const route = useRoute();
 const jobs = ref([]);
 const showCost = ref(false);
