@@ -22,13 +22,34 @@
       </div>
       <div>
         <label><input type="checkbox" v-model="showCarpet" /> show carpet</label>
+        <label><input type="checkbox" v-model="showSky" /> sky</label>
         <span v-if="loopLabel" class="walk2-loop">{{ loopLabel }}</span>
       </div>
       <div>
         <label><input type="checkbox" v-model="carpetVideo" :disabled="!videoReady" />
           carpet video</label>
-        <span v-if="carpetVideo" class="walk2-loop">{{ videoInfo }}</span>
+        <span v-if="carpetVideo" class="walk2-count">{{ videoInfo }}</span>
       </div>
+      <div v-if="carpetVideo && videoReady" class="walk2-transport">
+        <button @click="tourStep(-1)" title="previous photograph">⏮</button>
+        <button class="play" @click="playing = !playing">{{ playing ? '⏸' : '▶' }}</button>
+        <button @click="tourStep(1)" title="next photograph">⏭</button>
+        <button
+          v-for="r in RATES"
+          :key="r"
+          :class="{ on: rate === r }"
+          @click="rate = r"
+        >{{ r }}×</button>
+      </div>
+      <input
+        v-if="carpetVideo && videoReady"
+        class="walk2-scrub"
+        type="range"
+        min="0"
+        :max="Math.max(tourTotal - 1, 0)"
+        :value="tourIdx"
+        @input="tourSeek(+$event.target.value)"
+      />
       <div v-if="distInfo" class="walk2-dist">{{ distInfo }}</div>
       <div v-if="upLabel" class="walk2-up">up {{ upLabel }}</div>
       <div v-if="sizeInfo" class="walk2-size">{{ sizeInfo }}</div>
@@ -115,12 +136,23 @@ const radius = ref(0.6);
 // be held at the edge of the captured area with nothing on screen saying where that edge is,
 // which reads as broken controls rather than as a boundary.
 const showCarpet = ref(false);
+// Drawn sky instead of captured sky: free, and it costs no geometry.
+const showSky = ref(true);
 const loopLabel = ref('');
 // Retrace the capture: walk the path the camera walked, looking roughly where it looked.
 // The speed slider drives it, so the same control means the same thing in both modes.
 const carpetVideo = ref(false);
 const videoReady = ref(false);
 const videoInfo = ref('');
+// Transport for the pose tour. The tour visits every photograph in capture order:
+// glide to the next pose, then sit on it long enough to actually look at it.
+const playing = ref(true);
+const rate = ref(1);
+const RATES = [0.5, 1, 2, 4, 8];
+const tourIdx = ref(0);
+const tourTotal = ref(0);
+let tourSeek = () => {};
+let tourStep = () => {};
 const distInfo = ref('');
 let reclamp = () => {};
 // Touch controls. isTouch gates the whole on-screen layer: on a desktop it would just be
@@ -212,6 +244,45 @@ onMounted(async () => {
       fov: 65,
     });
     app.root.addChild(camera);
+
+    // A splat only contains what a camera saw, and every aerial pose we fly points DOWN, so
+    // the upper hemisphere is empty and looking up is black: measured 18.8% black at +45 deg
+    // and 44.5% at +80 on the drone capture. Capturing it instead is not free -- adding 80
+    // upward frames filled the dome but folded the reconstruction from 99.6% to 71.3% of
+    // cameras in one consistent block, because sky sits at infinity and carries no parallax.
+    // So the background is drawn, not reconstructed. Horizon colour below, sky above, chosen
+    // to sit behind the splat rather than compete with it.
+    const skyTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 4; c.height = 256;
+      const g = c.getContext('2d').createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0.00, '#7fa6d0');     // zenith
+      g.addColorStop(0.55, '#b9cbdd');
+      g.addColorStop(0.80, '#cfd6da');     // haze at the horizon
+      g.addColorStop(1.00, '#5d6068');     // below the horizon, ground-ish
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, 4, 256);
+      const t = new pc.Texture(app.graphicsDevice, { width: 4, height: 256, mipmaps: false });
+      t.setSource(c);
+      t.addressU = pc.ADDRESS_CLAMP_TO_EDGE;
+      t.addressV = pc.ADDRESS_CLAMP_TO_EDGE;
+      return t;
+    })();
+
+    const sky = new pc.Entity('sky');
+    sky.addComponent('render', { type: 'sphere' });
+    sky.setLocalScale(-900, -900, -900);      // inverted: we are inside it
+    const skyMat = new pc.StandardMaterial();
+    skyMat.useLighting = false;
+    skyMat.emissiveMap = skyTex;
+    skyMat.emissive = new pc.Color(1, 1, 1);
+    skyMat.diffuse = new pc.Color(0, 0, 0);
+    skyMat.depthWrite = false;
+    skyMat.cull = pc.CULLFACE_NONE;
+    skyMat.update();
+    sky.render.material = skyMat;
+    app.root.addChild(sky);
+    watch(showSky, (on) => { sky.enabled = on; }, { immediate: true });
 
     // The blob URL carries no extension, but SogBundleParser dispatches on
     // `context.ext === 'sog'`, so the filename has to say so explicitly.
@@ -428,47 +499,39 @@ onMounted(async () => {
     //   cuts    Where recording stopped and restarted, the operator did not walk the gap.
     //           Flying it would show space nobody photographed, so the gap is taken instantly:
     //           a cut in the capture becomes a cut in the video.
-    const vidPts = [];
-    const vidSeg = [];
+    // The tour visits the photographs themselves, in capture order: every camera pose is a
+    // stop, not a point on a smoothed path. Poses are therefore taken RAW — the whole point
+    // is to sit on the exact pose a photograph was taken from, so averaging neighbours in
+    // would put the camera where no photograph was ever taken.
+    const tour = [];
     (() => {
       const cs = carpet?.centers, fs = carpet?.forwards;
-      if (!Array.isArray(cs) || !Array.isArray(fs) || cs.length < 4 || fs.length !== cs.length) return;
+      if (!Array.isArray(cs) || !Array.isArray(fs) || cs.length < 2 || fs.length !== cs.length) return;
       const raw = cs.map((c, i) => ({
         p: new pc.Vec3(c[0], c[1], c[2]),
         f: new pc.Vec3(fs[i][0], fs[i][1], fs[i][2]).normalize(),
       }));
+      // A cut is where recording stopped and restarted: nobody walked that gap, so gliding it
+      // would fly through un-photographed space. Cuts are taken instantly, like a video cut.
       const stepLen = raw.slice(1).map((q, i) => q.p.distance(raw[i].p)).sort((a, b) => a - b);
       const med = stepLen[Math.floor(stepLen.length / 2)] || 0;
-      const isCut = (i) => med > 0 && raw[i].p.distance(raw[i + 1].p) > 10 * med;
-      // Run boundaries, so smoothing never averages across a cut.
-      const bounds = [0];
-      for (let i = 0; i < raw.length - 1; i++) if (isCut(i)) bounds.push(i + 1);
-      bounds.push(raw.length);
-      const runOf = new Array(raw.length);
-      for (let b = 0; b < bounds.length - 1; b++) {
-        for (let i = bounds[b]; i < bounds[b + 1]; i++) runOf[i] = b;
+      // Capture order, exactly as shot. An earlier version re-ordered the poses into a
+      // walkable path, which made a scattered capture LOOK fine and hid the defect: if
+      // consecutive photographs teleport, the plan teleports, and that is the thing worth
+      // seeing. Overlap between neighbours belongs in the planner, not in the viewer.
+      const order = raw.map((_, i) => i);
+      for (let n = 0; n < order.length; n++) {
+        const a = raw[order[n]], b = raw[order[(n + 1) % order.length]];
+        tour.push({ p: a.p, f: a.f, cutAfter: med > 0 && a.p.distance(b.p) > 10 * med });
       }
-      const W = 3;   // +-3 samples, about a metre of walking at a typical step
-      for (let i = 0; i < raw.length; i++) {
-        const p = new pc.Vec3(), f = new pc.Vec3();
-        let n = 0;
-        for (let k = -W; k <= W; k++) {
-          const j = i + k;
-          if (j < 0 || j >= raw.length || runOf[j] !== runOf[i]) continue;
-          p.add(raw[j].p); f.add(raw[j].f); n++;
-        }
-        p.mulScalar(1 / n);
-        if (f.lengthSq() < 1e-8) f.copy(raw[i].f); else f.normalize();
-        vidPts.push({ p, f });
-      }
-      for (let i = 0; i < vidPts.length - 1; i++) {
-        const cut = isCut(i);
-        vidSeg.push({ len: cut ? 0 : vidPts[i].p.distance(vidPts[i + 1].p), cut });
-      }
-      videoReady.value = vidSeg.some((sg) => sg.len > 0);
+      videoReady.value = tour.length >= 2;
+      tourTotal.value = tour.length;
     })();
-    const vidTotal = vidSeg.reduce((a, sg) => a + sg.len, 0);
-    let vidDist = 0;
+
+    const MOVE_S = 1.0;    // glide between consecutive poses
+    const HOLD_S = 0.5;    // dwell on each photograph
+    let phase = 'hold';    // 'hold' on tour[tourIdx], or 'move' from it to the next
+    let phaseT = 0;
 
     // World direction -> the yaw/pitch this camera is actually steered with, so leaving the
     // video hands control back pointing where the video left off rather than snapping.
@@ -483,33 +546,58 @@ onMounted(async () => {
       return { yaw: (Math.atan2(cross.dot(UP), refFwd.dot(h)) * 180) / Math.PI, pitch: p };
     };
 
-    const advanceVideo = (step) => {
-      if (!videoReady.value || vidTotal <= 0) return;
-      vidDist = (vidDist + speed.value * step) % vidTotal;
-      let d = vidDist, i = 0;
-      while (i < vidSeg.length && d > vidSeg[i].len) { d -= vidSeg[i].len; i++; }
-      if (i >= vidSeg.length) { i = vidSeg.length - 1; d = vidSeg[i].len; }
-      const t = vidSeg[i].len > 0 ? d / vidSeg[i].len : 0;
-      const a = vidPts[i], b = vidPts[i + 1];
+    const ease = (t) => t * t * (3 - 2 * t);   // smoothstep: leaves and arrives gently
+
+    const poseAngles = new Array(1024);
+    const anglesAt = (i) => (poseAngles[i] ||= dirToAngles(tour[i].f));
+
+    const applyTour = () => {
+      const i = tourIdx.value, j = (i + 1) % tour.length;
+      const t = phase === 'move' && !tour[i].cutAfter ? ease(Math.min(1, phaseT / MOVE_S)) : 0;
+      const a = tour[i], b = tour[j];
       pos.set(a.p.x + (b.p.x - a.p.x) * t,
               a.p.y + (b.p.y - a.p.y) * t,
               a.p.z + (b.p.z - a.p.z) * t);
-      const want = new pc.Vec3(a.f.x + (b.f.x - a.f.x) * t,
-                               a.f.y + (b.f.y - a.f.y) * t,
-                               a.f.z + (b.f.z - a.f.z) * t);
-      if (want.lengthSq() > 1e-8) {
-        const tgt = dirToAngles(want);
-        // Ease in angle space, and take the short way round so passing +-180 does not spin.
-        const k = Math.min(1, step * 3.5);
-        yaw += (((tgt.yaw - yaw + 540) % 360) - 180) * k;
-        pitch += (tgt.pitch - pitch) * k;
-      }
-      // The path is inside the carpet by construction; run the clamp anyway so the video
+      const ga = anglesAt(i), gb = anglesAt(j);
+      // Take the short way round so passing +-180 does not spin the camera.
+      yaw = ga.yaw + (((gb.yaw - ga.yaw + 540) % 360) - 180) * t;
+      pitch = ga.pitch + (gb.pitch - ga.pitch) * t;
+      // The poses are inside the carpet by construction; run the clamp anyway so the tour
       // obeys exactly the rule the walker does.
       clampToCarpet();
       applyCamera();
-      videoInfo.value = `${Math.round((vidDist / vidTotal) * 100)}% of ${vidTotal.toFixed(1)} m`;
+      videoInfo.value = `${tourIdx.value + 1} / ${tour.length}`;
     };
+
+    const advanceVideo = (step) => {
+      if (!videoReady.value || tour.length < 2) return;
+      if (playing.value) {
+        phaseT += step * rate.value;
+        for (;;) {
+          const dur = phase === 'hold' ? HOLD_S
+                    : (tour[tourIdx.value].cutAfter ? 0 : MOVE_S);
+          if (phaseT < dur) break;
+          phaseT -= dur;
+          if (phase === 'hold') {
+            phase = 'move';
+          } else {
+            phase = 'hold';
+            tourIdx.value = (tourIdx.value + 1) % tour.length;
+          }
+        }
+      }
+      applyTour();
+    };
+
+    // Transport, driven from the template. Seeking or stepping always lands ON a pose
+    // rather than mid-glide, so the frame counter and what you see never disagree.
+    tourSeek = (i) => {
+      if (!tour.length) return;
+      tourIdx.value = ((i % tour.length) + tour.length) % tour.length;
+      phase = 'hold'; phaseT = 0;
+      if (carpetVideo.value) applyTour();
+    };
+    tourStep = (d) => { playing.value = false; tourSeek(tourIdx.value + d); };
 
     // Enabling the mode (or shrinking r) while parked outside must take effect at once, not
     // silently wait for the next keypress.
@@ -698,6 +786,7 @@ onMounted(async () => {
     const ACCEL = 34;      // m/s^2 — reaches full speed in ~1/8 s
     const DAMP = 11;       // 1/s   — coasts a short distance after release
     const onUpdate = (dt) => {
+      sky.setPosition(camera.getPosition());   // always centred on the viewer
       const step = Math.min(dt, 0.05);   // a stalled tab must not teleport the camera
       if (carpetVideo.value) {
         // Touching a movement control takes the wheel — no need to find the checkbox again.
@@ -860,6 +949,13 @@ onBeforeUnmount(() => {
   .walk2-hud { font-size: 10.5px; max-width: 62vw; padding: 7px 9px; }
   .walk2-hud input[type=range] { width: 78px; }
 }
+.walk2-count { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.walk2-transport { display: flex; gap: 4px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+.walk2-transport button { background: rgba(0,0,0,.45); border: 1px solid #3a4250; color: #cfd6e2;
+  border-radius: 4px; padding: 2px 7px; font-size: 12px; cursor: pointer; line-height: 1.4; }
+.walk2-transport button.on { border-color: #6ea8ff; color: #6ea8ff; }
+.walk2-transport button.play { min-width: 34px; }
+.walk2-scrub { width: 100%; margin-top: 5px; accent-color: #6ea8ff; }
 .walk2-loop {
   margin-left: 8px;
   opacity: 0.75;

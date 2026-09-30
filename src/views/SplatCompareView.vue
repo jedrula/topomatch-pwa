@@ -71,9 +71,14 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import SplatCompare from '../components/SplatCompare.vue';
 import { getGateway } from '../config/gateway.js';
+import { renderCompareView } from '../composables/useCompareRender.js';
 
 const route = useRoute();
 const jobId = route.params.jobId;
+// Deep link from the frames page: /splat/:jobId/compare?frame=0123 arrives with
+// one frame already chosen, so "look at this camera" and "see what the splat
+// made of it" are one click apart instead of a filename hunt.
+const deepFrame = String(route.query.frame || '');
 
 const frames = ref([]);
 const framesError = ref('');
@@ -106,6 +111,9 @@ async function load() {
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { framesError.value = body.detail || `Could not list frames (${res.status})`; return; }
     frames.value = body.frames || [];
+    if (deepFrame && frames.value.some(f => f.key === deepFrame)) {
+      selected.value = new Set([deepFrame]);
+    }
   } catch (e) {
     framesError.value = String(e);
   }
@@ -120,13 +128,8 @@ async function renderSelected() {
   // 8 GB card at once, which is how five training runs were lost to GPU contention before.
   for (const view of [...selected.value]) {
     try {
-      const res = await fetch(`${gw}/topowall/api/v1/video-to-splat/${jobId}/compare-view`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ view }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) { renderError.value = body.detail || `frame ${view} failed (${res.status})`; continue; }
-      out.push({ view, cached: !!body.cached });
+      const { cached } = await renderCompareView(jobId, view);
+      out.push({ view, cached });
       const f = frames.value.find(x => x.key === view);
       if (f) f.rendered = true;
     } catch (e) {
