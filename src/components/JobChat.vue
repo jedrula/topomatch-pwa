@@ -13,6 +13,13 @@
           <span v-if="m.status && m.status !== 'info'" class="jc-status" :class="`jc-st-${m.status}`">{{ m.status.replace('_', ' ') }}</span>
         </div>
         <div class="jc-text">{{ m.text }}</div>
+        <div v-if="m.actions?.length" class="jc-actions">
+          <button v-for="a in m.actions" :key="a.id" class="jc-action"
+                  :class="{ 'jc-chosen': m.chosen === a.id, 'jc-not-chosen': m.chosen && m.chosen !== a.id }"
+                  :disabled="!!m.chosen || sending" :title="a.detail || a.label" @click="choose(m, a)">
+            {{ m.chosen === a.id ? '✓ ' : '▶ ' }}{{ a.label }}
+          </button>
+        </div>
       </div>
       <div v-if="pendingAck" class="jc-msg jc-system">
         <div class="jc-text">{{ pendingAck }}</div>
@@ -32,7 +39,7 @@
 // The agent reads open messages at each check-in, first checking them against what has happened since
 // (stale / already resolved requests are closed with a reason), and replies here.
 import { ref, computed } from 'vue';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase.js';
 
 const props = defineProps({
@@ -70,6 +77,23 @@ const pendingAck = computed(() => {
   if (mins >= 0) return `Received. Claude checks in at ~${hhmm(next)} (in ${mins} min).`;
   return `Received. Claude's check-in was due at ${hhmm(next)}${seen ? ` (last seen ${hhmm(seen)})` : ''} — it may be busy or offline; it will be read at the next session.`;
 });
+
+// A suggestion's button: posts "▶ label" as an open request tied to the suggestion (the agent runs it at its next
+// check-in, after checking it is not stale) and records the choice so the other options grey out.
+async function choose(m, a) {
+  sending.value = true; error.value = '';
+  try {
+    await addDoc(collection(db, 'jobChat'), {
+      jobId: props.jobId, author: 'admin', text: `▶ ${a.label}`, kind: 'message', status: 'open',
+      action: a.id, replyTo: m.id, createdAt: serverTimestamp(),
+    });
+    await updateDoc(doc(db, 'jobChat', m.id), { chosen: a.id });
+  } catch (e) {
+    error.value = `Not sent: ${e.code || e.message}`;
+  } finally {
+    sending.value = false;
+  }
+}
 
 async function send() {
   const text = draft.value.trim();
@@ -116,4 +140,10 @@ async function send() {
 .jc-send { font-size: 12px; background: #1d4ed8; color: white; border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
 .jc-send:disabled { opacity: 0.4; cursor: default; }
 .jc-error { color: #fca5a5; font-size: 12px; }
+.jc-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.jc-action { font-size: 12px; background: #064e3b; color: #d1fae5; border: 1px solid #047857; border-radius: 14px; padding: 4px 10px; cursor: pointer; }
+.jc-action:hover:not(:disabled) { background: #065f46; }
+.jc-action:disabled { cursor: default; }
+.jc-chosen { background: #047857; border-color: #6ee7b7; }
+.jc-not-chosen { opacity: 0.35; }
 </style>
