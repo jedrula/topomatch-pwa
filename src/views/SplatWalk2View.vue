@@ -126,7 +126,6 @@
         <a href="#" title="opens Compare with every capture camera that sees part of your current view" @click.prevent="compareSeen">
           Compare what I see</a>
         <RouterLink :to="{ name: 'splat-compare', params: { jobId: splatId } }">Compare (all frames)</RouterLink>
-        <RouterLink :to="{ name: 'splat-frames', params: { jobId: splatId } }">Frames</RouterLink>
         <hr />
         <RouterLink :to="{ name: 'splat-history' }">← History</RouterLink>
       </nav>
