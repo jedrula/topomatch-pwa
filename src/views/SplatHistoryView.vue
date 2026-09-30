@@ -73,7 +73,8 @@
           </div>
           <div class="job-right">
             <img v-if="job.thumbnail" :src="job.thumbnail" class="job-thumb" alt="splat preview" @click="openCaptureLightbox(job.job_id, job.thumbnail)" style="cursor:pointer" />
-            <span class="time">{{ formatDate(job.created_at) }}</span>
+            <span class="time" :title="`queued ${formatDate(job.created_at)}`">{{ formatDate(job.created_at) }}</span>
+            <span v-if="job.finished_at" class="time finished" :title="`finished ${formatDate(job.finished_at)}`">→ {{ formatFinish(job.created_at, job.finished_at) }}</span>
             <span v-if="job.elapsed_s != null" class="elapsed">{{ formatElapsed(job.elapsed_s) }}</span>
           </div>
         </div>
@@ -1095,6 +1096,16 @@ async function load() {
   }
 }
 
+// Finish time next to the queued time: just the clock when it is the same day, the full date otherwise.
+function formatFinish(startIso, endIso) {
+  if (!endIso) return '';
+  const a = new Date(startIso), b = new Date(endIso);
+  if (a.toDateString() === b.toDateString()) {
+    return b.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+  return formatDate(endIso);
+}
+
 function formatDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -1366,6 +1377,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .badge.vast { background: #312e81; color: #a5b4fc; }
 
 .time { color: #6b7280; }
+.time.finished { margin-left: -2px; }
 .elapsed {
   color: #9ca3af;
   background: #1f2937;
