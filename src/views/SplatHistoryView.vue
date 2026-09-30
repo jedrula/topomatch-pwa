@@ -186,7 +186,7 @@
         </div>
         <div v-if="expandedDetails.has(job.job_id)" class="details-panel">
         <div v-if="job.params" class="params">
-          <div v-for="(val, key) in displayParams(job.params)" :key="key" class="param">
+          <div v-for="(val, key) in displayParams(job.params, job.pipeline_stats)" :key="key" class="param">
             <span class="param-key">{{ key }}</span>
             <span class="param-val">{{ val }}</span>
           </div>
@@ -219,7 +219,7 @@
           <span class="info-label">Steps</span>
           <div class="steps">
             <div class="step">
-              <span class="step-name">{{ job.pipeline_stats.sfm || job.params?.sfm || 'sfm' }}</span>
+              <span class="step-name">{{ job.pipeline_stats.sfm || job.params?.sfm || 'sfm' }}{{ job.pipeline_stats.matcher ? ` · ${job.pipeline_stats.matcher}` : '' }}</span>
               <span class="step-bar-wrap"><span class="step-bar mast3r" :style="stepWidth(job.pipeline_stats.sfm_s, totalPipelineS(job))"></span></span>
               <span class="step-time">{{ formatElapsed(job.pipeline_stats.sfm_s) }}</span>
             </div>
@@ -488,7 +488,7 @@
         <div v-if="lightboxList.length > 1" class="lightbox-counter">{{ lightboxIndex + 1 }} / {{ lightboxList.length }}</div>
         <div v-if="lightboxJob" class="lightbox-params" @click.stop>
           <span class="lightbox-job-id">{{ lightboxJob.job_id }}</span>
-          <div v-for="(val, key) in displayParams(lightboxJob.params ?? {})" :key="key" class="param">
+          <div v-for="(val, key) in displayParams(lightboxJob.params ?? {}, lightboxJob.pipeline_stats)" :key="key" class="param">
             <span class="param-key">{{ key }}</span>
             <span class="param-val">{{ val }}</span>
           </div>
@@ -1265,7 +1265,7 @@ function formatElapsed(seconds) {
 const MASTER_SFMS = ['mast3r', 'fast3r'];
 const SIFT_SFMS = ['colmap_sift', 'glomap_sift', 'glomap_loma', 'fastmap'];
 
-function displayParams(params) {
+function displayParams(params, stats) {
   const skip = ['filenames', 'filename', 'scene', 'video_count', 'capture_info'];
   const sfm = params.sfm;
   // Jobs that predate --sfm-image-size carry no such key, but they DID run a feature
@@ -1273,6 +1273,8 @@ function displayParams(params) {
   // and a new arm are directly comparable in the list instead of one row simply missing.
   const entries = { ...params };
   if (SIFT_SFMS.includes(sfm) && entries.sfm_image_size == null) entries.sfm_image_size = 1600;
+  // "" = the pipeline auto-picked (<=150 photos exhaustive, else vocab_tree); show what actually ran when known.
+  if ('colmap_matcher' in entries && !entries.colmap_matcher) entries.colmap_matcher = stats?.matcher ? `auto → ${stats.matcher}` : 'auto';
   return Object.fromEntries(
     Object.entries(entries)
       .filter(([k, v]) => !skip.includes(k) && v != null)
