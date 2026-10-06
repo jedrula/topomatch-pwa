@@ -176,6 +176,13 @@ const router = createRouter({
       meta: { requiresAdmin: true },
     },
     {
+      // Two jobs from the same photo poses, wiped against each other and the photo.
+      path: '/splat/:jobId/vs/:otherId',
+      name: 'splat-vs',
+      component: () => import('../views/SplatVsView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
       path: '/splat/:splatId',
       name: 'splat-viewer',
       component: () => import('../views/SplatView.vue'),
