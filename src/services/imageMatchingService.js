@@ -196,7 +196,6 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true'
       },
       body: JSON.stringify(requestBody)
     });
@@ -247,8 +246,8 @@ export async function matchImagesOnServer(videoFrame, locationImage, outputFilen
  * @returns {Promise<{result_image: string, width: number, height: number, inlier_ratio: number, inlier_matches: number, match_quality: string}>}
  */
 export async function stitchPanoramaOnServer(imageUrls, outputFormat = 'jpeg') {
-  if (!Array.isArray(imageUrls) || imageUrls.length !== 2) {
-    throw new Error('stitchPanoramaOnServer requires exactly 2 image URLs.');
+  if (!Array.isArray(imageUrls) || imageUrls.length < 2) {
+    throw new Error('stitchPanoramaOnServer requires at least 2 image URLs.');
   }
 
   const apiBaseUrl = await getHoldDetectionServerUrl();
@@ -256,7 +255,6 @@ export async function stitchPanoramaOnServer(imageUrls, outputFormat = 'jpeg') {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
     },
     body: JSON.stringify({
       image_urls: imageUrls,
@@ -333,9 +331,45 @@ export function getProcessingRecommendation(result) {
   }
 }
 
+export async function stitchPanoramaVideoOnServer(videoUrl, { maxFrames = 20, outputFormat = 'jpeg' } = {}) {
+  if (!videoUrl) throw new Error('stitchPanoramaVideoOnServer requires a video URL.');
+
+  // Use dedicated topowall-splat server; fall back to hold-detection server if not configured
+  let apiBaseUrl
+  try {
+    const { getTopowallServerUrl } = await import('@/services/appConfigService')
+    apiBaseUrl = await getTopowallServerUrl()
+  } catch {
+    apiBaseUrl = await getHoldDetectionServerUrl()
+  }
+  const response = await fetch(`${apiBaseUrl}/api/v1/stitch-panorama-video`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      video_url: videoUrl,
+      max_frames: maxFrames,
+      output_format: outputFormat,
+    }),
+  });
+
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error(`HTTP ${response.status}: response body is not valid JSON`);
+  }
+  if (!response.ok) {
+    throw new Error(payload?.detail || `HTTP ${response.status}: ${response.statusText}`);
+  }
+  return payload;
+}
+
 export default {
   matchImagesOnServer,
   matchImagesOnServerAsync,
   stitchPanoramaOnServer,
+  stitchPanoramaVideoOnServer,
   getProcessingRecommendation
 };

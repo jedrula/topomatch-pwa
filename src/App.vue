@@ -134,7 +134,7 @@ provide('authModal', {
     </main>
 
     <!-- Bottom Tab Bar (native only) -->
-    <BottomTabBar @open-reporter="handleOpenReporter" />
+    <BottomTabBar v-if="!$route.meta?.fullscreen" @open-reporter="handleOpenReporter" />
 
     <!-- Global Auth Modal - direct child of app root -->
     <AuthModal 
@@ -150,9 +150,9 @@ provide('authModal', {
     />
 
     <!-- Global Video Analysis Indicator - persists across routes -->
-    <VideoAnalysisIndicator />
+    <VideoAnalysisIndicator v-if="!$route.meta?.fullscreen" />
 
     <!-- WhatsApp Support Button - app-wide -->
-    <WhatsAppFloatingButton />
+    <WhatsAppFloatingButton v-if="!$route.meta?.fullscreen" />
   </div>
 </template>

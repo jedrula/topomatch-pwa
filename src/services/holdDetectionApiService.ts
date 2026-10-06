@@ -41,7 +41,6 @@ export async function checkApiHealth(): Promise<boolean> {
     const response = await fetch(`${baseUrl}/health`, {
       method: 'GET',
       headers: {
-        'ngrok-skip-browser-warning': 'true' // Required for ngrok tunnels
       }
     })
     
@@ -83,7 +82,6 @@ export async function uploadImageForProcessing(
     const response = await fetch(`${baseUrl}/api/v1/process`, {
       method: 'POST',
       headers: {
-        'ngrok-skip-browser-warning': 'true' // Required for ngrok tunnels
         // Note: Don't set Content-Type, let browser set it with boundary for FormData
       },
       body: formData
@@ -129,7 +127,6 @@ export async function pollForJobResults(
     
     const response = await fetch(`${baseUrl}/api/v1/status/${jobId}`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true'
       }
     })
     

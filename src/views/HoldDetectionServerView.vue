@@ -1409,7 +1409,6 @@ const callServerMagicWand = async (holdId) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
     },
     body: JSON.stringify({ imageId, holdId }),
   });
@@ -1574,7 +1573,6 @@ const fetchDrafts = async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
       },
       body: JSON.stringify({ imageId }),
     });
@@ -2828,7 +2826,6 @@ const runWallComparison = async () => {
     const serverUrl = await getHoldDetectionServerUrl();
     const matchRes = await fetch(`${serverUrl}/api/v1/general-matching`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
       body: JSON.stringify({
         image1: dataUrl1.split(',')[1],
         image2: dataUrl2.split(',')[1],
