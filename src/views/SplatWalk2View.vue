@@ -50,7 +50,7 @@
           <h4>View</h4>
           <div class="hud-chips">
             <label class="chip" :class="{ on: showCams }" title="capture cameras; orange = they see what you look at; click one to open it in Compare">
-              <input type="checkbox" v-model="showCams" />Cameras<b v-if="showCams" class="badge" title="cameras that see what you are looking at">{{ seeCount }}</b></label>
+              <input type="checkbox" v-model="showCams" />Cameras<b v-if="showCams" class="badge" :title="covisErr ? `cannot tell which cameras see this: ${covisErr}` : 'cameras that share what you see (SfM points visible to you that they observed)'">{{ covisErr ? '!' : seeCount }}</b></label>
             <label class="chip" :class="{ on: captureFov, off: !camIntr }"
                    :title="camIntr ? `view through the capture lens: ${camIntr.vfov_deg.toFixed(1)}° vertical, ${camIntr.width}×${camIntr.height}` : 'no intrinsics for this splat'">
               <input type="checkbox" v-model="captureFov" :disabled="!camIntr" />Capture lens</label>
@@ -139,7 +139,7 @@
         <a href="#" title="post-SfM judge of every photo: texture, links to neighbours, duplicates" @click.prevent="openJudge">
           Judge capture</a>
         <a href="#" title="opens Compare with every capture camera that sees part of your current view" @click.prevent="compareSeen">
-          Compare what I see</a>
+          Compare what I see<template v-if="showCams"> ({{ seeCount > COMPARE_MAX ? `${COMPARE_MAX} of ${seeCount}` : seeCount }})</template></a>
         <RouterLink :to="{ name: 'splat-compare', params: { jobId: splatId } }">Compare (all frames)</RouterLink>
         <hr />
         <RouterLink :to="{ name: 'splat-history' }">← History</RouterLink>
@@ -230,6 +230,8 @@ const noteLines = computed(() => jobNote.value.split('\n').filter(Boolean).map((
 }));
 const noteLong = computed(() => jobNote.value.length > 220 || noteLines.value.length > 2);
 const seeCount = ref(0);
+const covisErr = ref('');           // /covis failed: the badge says so instead of showing a count
+const COMPARE_MAX = 12;             // "Compare what I see" opens the best-seeing N: Compare renders each one, keep it snappy
 // "capture FOV": view with the capture camera's own vertical FOV and see its frame (4:3 guide).
 const captureFov = ref(false);
 const camIntr = ref(null);      // {width, height, fx, fy, vfov_deg, hfov_deg} from /intrinsics
@@ -332,9 +334,11 @@ function openJudge() {
 async function compareSeen() {
   menuOpen.value = false;
   if (!camPick) return;
-  const keys = (await camPick.keys(camPick.seen())).slice(0, 12);     // Compare renders each one: keep it snappy
   if (document.pointerLockElement) document.exitPointerLock?.();
-  router.push({ name: 'splat-compare', params: { jobId: splatId }, query: keys.length ? { frames: keys.join(',') } : {} });
+  const tab = window.open('', '_blank');      // open now, inside the click: after the await a popup blocker would refuse it
+  await camPick.load();
+  const keys = (await camPick.keys(camPick.seen().slice(0, COMPARE_MAX)));
+  tab.location.href = router.resolve({ name: 'splat-compare', params: { jobId: splatId }, query: keys.length ? { frames: keys.join(',') } : {} }).href;
 }
 
 async function openFlag(id) {
@@ -662,38 +666,74 @@ onMounted(async () => {
       const q = (a, b) => m.clone().add(r.clone().mulScalar(a * FS * 0.62)).add(u.clone().mulScalar(b * FS * 0.46));
       return [c, q(-1, -1), q(1, -1), q(1, 1), q(-1, 1)];
     };
-    // A capture camera "sees what you see" when the point you are looking at -- probed at 2/4/8/16 m
-    // along your view ray, since there is no scene depth here -- lies inside its field of view for at
-    // least two of those depths. Half-angles come from the pod's real intrinsics (/intrinsics).
-    const seesMine = (i, dir) => {
-      const c = new pc.Vec3(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]);
-      const f = new pc.Vec3(...CF[i]).normalize();
-      let r = new pc.Vec3().cross(f, UP); if (r.lengthSq() < 1e-8) r = new pc.Vec3(1, 0, 0); r.normalize();
-      const u = new pc.Vec3().cross(r, f).normalize();
-      const th = Math.tan((camIntr.value?.hfov_deg ?? 0) * Math.PI / 360);
-      const tv = Math.tan((camIntr.value?.vfov_deg ?? 0) * Math.PI / 360);
-      if (!th || !tv) return false;
-      let hits = 0;
-      for (const d of [2, 4, 8, 16]) {
-        const q = pos.clone().add(dir.clone().mulScalar(d)).sub(c);
-        const z = q.dot(f);
-        if (z <= 0.1) continue;
-        if (Math.abs(q.dot(r)) <= z * th && Math.abs(q.dot(u)) <= z * tv) hits++;
-      }
-      return hits >= 2;
+    // A capture camera "sees what you see" when it observed enough of the SfM points you can see right
+    // now -- the co-visibility a feature matcher (LoFTR) would find between its photo and your view.
+    // Visible = inside your frustum and not behind a nearer SfM point on a coarse screen grid (the
+    // wall hides what is behind it). One definition drives the orange frustums, the badge and
+    // "Compare what I see". /covis is the SfM tracks, camera indices in carpet order.
+    const COVIS_MIN_SHARED = 30;            // shared visible points for a camera to count, or half of
+                                            // what you see when you see less (close to a bare wall)
+    const COVIS_GRID_W = 64;                // occlusion grid columns (rows follow the aspect)
+    const COVIS_DEPTH_SLACK = 1.15;         // a point survives within 15% of its cell's nearest depth
+    let covis = null;
+    const loadCovis = async () => {
+      if (covis) return covis;
+      const r = await fetch(`${base}/covis`);
+      if (!r.ok) throw new Error(`/covis ${r.status}`);
+      const buf = await r.arrayBuffer();
+      const [n, nc, no] = new Uint32Array(buf, 0, 3);
+      if (nc !== nCam) throw new Error(`/covis has ${nc} cameras, carpet has ${nCam}`);
+      const xyz = new Float32Array(buf, 12, n * 3);
+      const off = new Uint32Array(buf, 12 + n * 12, n + 1);
+      const cam = new Uint16Array(buf, 12 + n * 12 + (n + 1) * 4, no);
+      covis = { n, xyz, off, cam, cell: new Int32Array(n), z: new Float32Array(n), shared: new Uint32Array(nCam) };
+      return covis;
     };
+    const seenCams = () => {
+      if (!covis) return [];
+      const { n, xyz, off, cam, cell, z, shared } = covis;
+      const p = camera.getPosition(), f = camera.forward, r = camera.right, u = camera.up;
+      const ty = Math.tan(camera.camera.fov * Math.PI / 360);
+      const asp = (canvasEl.value?.width || 16) / (canvasEl.value?.height || 9), tx = ty * asp;
+      const GW = COVIS_GRID_W, GH = Math.max(1, Math.round(GW / asp));
+      const zb = new Float32Array(GW * GH).fill(Infinity);
+      for (let i = 0; i < n; i++) {
+        const qx = xyz[i * 3] - p.x, qy = xyz[i * 3 + 1] - p.y, qz = xyz[i * 3 + 2] - p.z;
+        const d = qx * f.x + qy * f.y + qz * f.z;
+        cell[i] = -1;
+        if (d <= 0) continue;
+        const sx = (qx * r.x + qy * r.y + qz * r.z) / (d * tx), sy = (qx * u.x + qy * u.y + qz * u.z) / (d * ty);
+        if (sx <= -1 || sx >= 1 || sy <= -1 || sy >= 1) continue;
+        const c = (((sy + 1) / 2 * GH) | 0) * GW + (((sx + 1) / 2 * GW) | 0);
+        cell[i] = c; z[i] = d;
+        if (d < zb[c]) zb[c] = d;
+      }
+      shared.fill(0);
+      let nVis = 0;
+      for (let i = 0; i < n; i++) {
+        if (cell[i] < 0 || z[i] > zb[cell[i]] * COVIS_DEPTH_SLACK) continue;
+        nVis++;
+        for (let k = off[i]; k < off[i + 1]; k++) shared[cam[k]]++;
+      }
+      const out = [];
+      const need = Math.max(1, Math.min(COVIS_MIN_SHARED, nVis / 2));
+      for (let i = 0; i < nCam; i++) if (shared[i] >= need) out.push(i);
+      return out.sort((x, y) => shared[y] - shared[x]);
+    };
+    // A full pass is ~O(SfM points): run it a few times a second, not every frame.
+    let seenCache = [], seenAt = 0;
     const drawCams = () => {
       if (!showCams.value || !nCam || !CF) return;
-      const dir = currentDir();
-      let nSee = 0;
+      if (performance.now() - seenAt > 200) { seenCache = seenCams(); seenAt = performance.now(); }
+      const seen = new Set(seenCache);
       for (let i = 0; i < nCam; i++) {
-        const col = seesMine(i, dir) ? (nSee++, SEE_COL) : CAM_COL;
+        const col = seen.has(i) ? SEE_COL : CAM_COL;
         const [c, a, b, d, e] = camCorners(i);
         for (const k of [a, b, d, e]) app.drawLine(c, k, col, true);
         app.drawLine(a, b, col, true); app.drawLine(b, d, col, true);
         app.drawLine(d, e, col, true); app.drawLine(e, a, col, true);
       }
-      seeCount.value = nSee;
+      seeCount.value = seen.size;
     };
     const pickCam = (sx, sy) => {
       const cp = camera.getPosition(), cf = camera.forward;
@@ -723,35 +763,6 @@ onMounted(async () => {
       if (document.pointerLockElement) document.exitPointerLock?.();
       window.open(router.resolve({ path: `/splat/${splatId}/compare`, query: { frame: key } }).href, '_blank');
     };
-    // Every capture camera that sees ANY part of the current view: probe a 5x4 grid of rays across the
-    // screen at 2/4/8/16 m and count, per camera, the probe points inside its field of view.
-    const seenCams = () => {
-      if (!nCam || !CF || !camIntr.value) return [];
-      const vf = camera.camera.fov * Math.PI / 180, asp = (canvasEl.value?.width || 16) / (canvasEl.value?.height || 9);
-      const f0 = currentDir();
-      let r0 = new pc.Vec3().cross(f0, UP); if (r0.lengthSq() < 1e-8) r0 = new pc.Vec3(1, 0, 0); r0.normalize();
-      const u0 = new pc.Vec3().cross(r0, f0).normalize();
-      const P = [];
-      for (let gx = 0; gx < 5; gx++) for (let gy = 0; gy < 4; gy++) {
-        const sx = (gx / 4 - 0.5) * 2 * Math.tan(vf / 2) * asp, sy = (gy / 3 - 0.5) * 2 * Math.tan(vf / 2);
-        const d = f0.clone().add(r0.clone().mulScalar(sx)).add(u0.clone().mulScalar(sy)).normalize();
-        for (const t of [2, 4, 8, 16]) P.push(pos.clone().add(d.clone().mulScalar(t)));
-      }
-      const th = Math.tan(camIntr.value.hfov_deg * Math.PI / 360), tv = Math.tan(camIntr.value.vfov_deg * Math.PI / 360);
-      const out = [];
-      for (let i = 0; i < nCam; i++) {
-        const c = new pc.Vec3(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]), f = new pc.Vec3(...CF[i]).normalize();
-        let r = new pc.Vec3().cross(f, UP); if (r.lengthSq() < 1e-8) r = new pc.Vec3(1, 0, 0); r.normalize();
-        const u = new pc.Vec3().cross(r, f).normalize();
-        let k = 0;
-        for (const p of P) {
-          const q = p.clone().sub(c), z = q.dot(f);
-          if (z > 0.1 && Math.abs(q.dot(r)) <= z * th && Math.abs(q.dot(u)) <= z * tv) k++;
-        }
-        if (k >= 3) out.push([i, k]);
-      }
-      return out.sort((a, b) => b[1] - a[1]).map(([i]) => i);
-    };
     const compareKeysFor = async (idx) => {
       if (!compareKeys) {
         try {
@@ -762,7 +773,10 @@ onMounted(async () => {
       return idx.map((i) => carpet?.names?.[i]).filter(Boolean)
         .map((n) => compareKeys[n] ?? (n.match(/_(\d{4})\.[A-Za-z]+$/) || [])[1]).filter(Boolean);
     };
-    camPick = { pick: pickCam, open: openCompare, seen: seenCams, keys: compareKeysFor };
+    camPick = { pick: pickCam, open: openCompare, seen: seenCams, keys: compareKeysFor, load: loadCovis };
+    watch(showCams, (on) => {
+      if (on) loadCovis().catch((e) => { covisErr.value = String(e.message || e); console.error('[covis]', e); });
+    }, { immediate: true });
     try {
       const ri = await fetch(`${base}/intrinsics`);
       if (ri.ok) camIntr.value = await ri.json();

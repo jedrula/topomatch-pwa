@@ -40,7 +40,7 @@ let blinkTimer = null;
 const layers = computed(() => (data.value ? ['photo', ...data.value.arms] : ['photo']));
 const base = computed(() =>
   `${gateway.value}/topowall/api/v1/video-to-splat/${props.jobId}/compare/${data.value?.view}`);
-const src = (layer, crop) => `${base.value}/${layer}${crop ? '_crop' : ''}.jpg`;
+const src = (layer, crop) => `${base.value}/${layer}${crop ? '_crop' : ''}.jpg?v=${data.value?.rev}`;
 
 // share of the photo's gradient energy this render kept — the "capture or synthesis" number
 function pct(layer, crop) {
@@ -125,18 +125,27 @@ const overStyle = computed(() => {
         <span class="cmp-view">frame {{ data.view }}</span>
       </div>
 
-      <div class="cmp-stage">
-        <img :src="src(right)" :alt="`Right layer: ${right}`" />
-        <div class="cmp-over" :style="overStyle">
-          <img :src="src(left)" :alt="`Left layer: ${left}`" />
+      <!-- The wipe pair (photo and render, both at the render's width) and, beside it, the source
+           frame at full resolution: click it to inspect at 100%. -->
+      <div class="cmp-pair">
+        <div class="cmp-stage">
+          <img :src="src(right)" :alt="`Right layer: ${right}`" />
+          <div class="cmp-over" :style="overStyle">
+            <img :src="src(left)" :alt="`Left layer: ${left}`" />
+          </div>
+          <span class="cmp-tag cmp-l">{{ left }}</span>
+          <span class="cmp-tag cmp-r">{{ right }}</span>
+          <div v-if="mode !== 'blink'" class="cmp-rule"
+               :style="{ left: (mode === 'split' ? 50 : wipe) + '%' }"></div>
+          <input v-if="mode === 'wipe'" v-model.number="wipe" class="cmp-slider" type="range"
+                 min="0" max="100" step="0.5" :id="`wipe-${jobId}`"
+                 aria-label="Wipe between the two selected layers" />
         </div>
-        <span class="cmp-tag cmp-l">{{ left }}</span>
-        <span class="cmp-tag cmp-r">{{ right }}</span>
-        <div v-if="mode !== 'blink'" class="cmp-rule"
-             :style="{ left: (mode === 'split' ? 50 : wipe) + '%' }"></div>
-        <input v-if="mode === 'wipe'" v-model.number="wipe" class="cmp-slider" type="range"
-               min="0" max="100" step="0.5" :id="`wipe-${jobId}`"
-               aria-label="Wipe between the two selected layers" />
+
+        <a class="cmp-orig" :href="src('original')" target="_blank" title="Open the source photo at 100%">
+          <img :src="src('original')" alt="Source photo, full resolution" />
+          <span class="cmp-tag cmp-l">original · full res ↗</span>
+        </a>
       </div>
 
       <p v-if="verdict" class="cmp-verdict" :class="verdict.tone">{{ verdict.text }}</p>
@@ -168,11 +177,13 @@ const overStyle = computed(() => {
 .cmp-btns button:last-child { border-right: 0; }
 .cmp-btns button[aria-pressed='true'] { background: #6FC8B0; color: #0d1412; }
 .cmp-btns button:focus-visible { outline: 2px solid #6FC8B0; outline-offset: -2px; }
-.cmp-stage {
+.cmp-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px; align-items: start; }
+.cmp-stage, .cmp-orig {
   position: relative; border: 1px solid #2b3a36; border-radius: 3px; overflow: hidden;
-  line-height: 0; background: #0d1412;
+  line-height: 0; background: #0d1412; width: fit-content; max-width: 100%; margin: 0 auto;
 }
-.cmp-stage img { display: block; width: 100%; height: auto; }
+/* Portrait captures arrive upright (the server turns them): fit the screen height, not the width. */
+.cmp-stage img, .cmp-orig img { display: block; max-width: 100%; max-height: 85vh; width: auto; height: auto; }
 .cmp-over { position: absolute; inset: 0; }
 .cmp-over img { width: 100%; height: 100%; object-fit: cover; }
 .cmp-rule {

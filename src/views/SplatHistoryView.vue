@@ -125,6 +125,10 @@
           <span v-if="(job.metrics.n_gaussians ?? job.metrics.gaussian_count) != null" class="metric muted" title="Gaussians in the splat">
             {{ ((job.metrics.n_gaussians ?? job.metrics.gaussian_count) / 1e6).toFixed(2) }}M splats
           </span>
+          <span v-if="job.params?.iters != null" class="metric muted"
+                :title="job.early_stopped ? 'Early-stopped: iterations run / requested' : 'Training iterations'">
+            {{ job.early_stopped ? `${job.stopped_at_iter}/${job.params.iters} iters (early)` : `${job.params.iters} iters` }}
+          </span>
           <span v-if="gpsClass(job.metrics) === 'metric-poor'" class="metric metric-poor"
                 :title="`GPS/scale check failed: ${job.metrics.gps_within_5m_pct?.toFixed(0)}% of cameras within 5 m of their GPS, scale spread ×${job.metrics.gps_scale_spread?.toFixed(2)} (1.0 = one consistent scene). Details for more.`">
             ⚠ geometry
@@ -197,13 +201,6 @@
           <div v-for="(val, key) in displayParams(job.params, job.pipeline_stats)" :key="key" class="param">
             <span class="param-key">{{ key }}</span>
             <span class="param-val">{{ val }}</span>
-          </div>
-          <!-- Early stop outcome -->
-          <div class="param" :class="job.early_stopped ? 'early-stop' : 'full-run'">
-            <span class="param-key">stopped at</span>
-            <span class="param-val">
-              {{ job.early_stopped ? `iter ${job.stopped_at_iter} (early)` : (job.status === 'done' ? `iter ${job.params?.iters} (full)` : '—') }}
-            </span>
           </div>
         </div>
         <!-- Video info: one row per video -->
@@ -1278,7 +1275,7 @@ const MASTER_SFMS = ['mast3r', 'fast3r'];
 const SIFT_SFMS = ['colmap_sift', 'glomap_sift', 'glomap_loma', 'fastmap'];
 
 function displayParams(params, stats) {
-  const skip = ['filenames', 'filename', 'scene', 'video_count', 'capture_info'];
+  const skip = ['filenames', 'filename', 'scene', 'video_count', 'capture_info', 'iters'];
   const sfm = params.sfm;
   // Jobs that predate --sfm-image-size carry no such key, but they DID run a feature
   // cap: the 1600 that was hardcoded at every call site. Show that, so an old baseline

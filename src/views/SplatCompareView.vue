@@ -128,14 +128,16 @@ onMounted(load);
 
 async function renderSelected() {
   busy.value = true; done.value = 0; renderError.value = '';
-  const gw = await getGateway();
-  const out = [];
+  panels.value = [];
   // Strictly one at a time. Firing these in parallel would put several gsplat renders on an
   // 8 GB card at once, which is how five training runs were lost to GPU contention before.
-  for (const view of [...selected.value]) {
+  // Cached frames go first and each panel shows the moment its frame is ready, so the
+  // instant ones are on screen while the GPU works through the rest.
+  const isCached = (k) => frames.value.find(x => x.key === k)?.rendered ? 0 : 1;
+  for (const view of [...selected.value].sort((a, b) => isCached(a) - isCached(b))) {
     try {
       const { cached } = await renderCompareView(jobId, view);
-      out.push({ view, cached });
+      panels.value.push({ view, cached });
       const f = frames.value.find(x => x.key === view);
       if (f) f.rendered = true;
     } catch (e) {
@@ -143,7 +145,6 @@ async function renderSelected() {
     }
     done.value += 1;
   }
-  panels.value = out;
   busy.value = false;
 }
 </script>
