@@ -12,7 +12,6 @@
 */
 import { ref, shallowRef, computed } from 'vue'
 import { parseCamerasBin, parseImagesBin, parsePoints3DBin } from './parse-bin'
-import { parseCamerasTxt, parseImagesTxt, parsePoints3DTxt } from './parse-text'
 import { parseDatabase } from './parse-db'
 import { cameraCenter } from './geometry'
 
@@ -65,11 +64,6 @@ export function useColmap() {
           images.value = parseImagesBin(await grab('images.bin'))
         }
         points3D.value = parsePoints3DBin(await grab('points3D.bin'))
-      } else if (have.has('cameras.txt')) {
-        const dec = new TextDecoder()
-        cameras.value = parseCamerasTxt(dec.decode(await grab('cameras.txt')))
-        images.value = parseImagesTxt(dec.decode(await grab('images.txt')))
-        points3D.value = parsePoints3DTxt(dec.decode(await grab('points3D.txt')))
       } else {
         throw new Error('No cameras/images/points3D in this pod')
       }

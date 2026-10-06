@@ -223,8 +223,8 @@ const sharedParams = computed(() => ({
   early_stop:           params.earlyStop,
   sparse_pairs:         params.sparsePairs,
   sparse_ga:            params.sparseGa,
-  sfm:                  params.selectedVastInstance ? 'megasam'  : params.sfm,
-  trainer:              params.selectedVastInstance ? 'pgsr'     : params.trainer,
+  sfm:                  params.sfm,
+  trainer:              params.trainer,
   mcmc:                 params.mcmc,
   viewer:               params.viewer,
   post_processing:      params.postProcessing,
@@ -781,8 +781,8 @@ onMounted(async () => {
     params.colmapBa              = rp.colmap_ba            === true || rp.colmap_ba            === 'true';
     params.colmapMatcher         = rp.colmap_matcher || 'auto';
     params.viewGraphCalibrator   = rp.view_graph_calibrator === true || rp.view_graph_calibrator === 'true';
-    params.sfm                 = rp.sfm ?? (rp.engine === 'pgsr' ? 'mast3r' : rp.engine) ?? 'mast3r';
-    params.trainer             = rp.trainer ?? (rp.engine === 'pgsr' ? 'pgsr' : 'instantsplat') ?? 'instantsplat';
+    params.sfm                 = rp.sfm ?? rp.engine ?? 'mast3r';
+    params.trainer             = rp.trainer ?? 'instantsplat';
     params.mcmc                = rp.mcmc   === true || rp.mcmc   === 'true';
     params.viewer              = rp.viewer !== false && rp.viewer !== 'false';
     params.postProcessing      = rp.post_processing || 'none';

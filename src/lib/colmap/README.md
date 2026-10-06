@@ -3,7 +3,7 @@
 Cherry-picked from the `colmap-treasure-chest` sibling repo (a standalone React COLMAP
 debugger), not vendored wholesale. What came across is the part with no framework in it:
 
-    types.ts  geometry.ts  parse-bin.ts  parse-text.ts  parse-db.ts
+    types.ts  geometry.ts  parse-bin.ts  parse-db.ts
 
 Its React UI did not, because we already have the 3D half: `CameraPoses3D.vue` draws frustums
 and the sparse cloud with three.js, batched into one LineSegments and one Points buffer. What

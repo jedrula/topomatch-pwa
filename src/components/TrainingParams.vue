@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <div v-if="(isFork || !p.selectedVastInstance) && p.trainer === 'brush'" class="param-row">
+    <div v-if="p.trainer === 'brush'" class="param-row">
       <label>growth stop</label>
       <div style="display:flex;flex-direction:column;gap:4px">
         <div class="toggle-group">
@@ -59,22 +59,22 @@
       </div>
     </div>
 
-    <div v-if="(isFork || !p.selectedVastInstance) && p.sfm !== 'onthefly'" class="param-row">
+    <div v-if="p.sfm !== 'onthefly'" class="param-row">
       <label>trainer</label>
       <div class="toggle-group">
-        <button v-for="t in ['instantsplat','pgsr','splatfacto','gsplat','2dgs','brush']"
+        <button v-for="t in ['instantsplat','splatfacto','gsplat','2dgs','brush']"
           :key="t" :class="{ active: p.trainer === t }" @click="p.trainer = t">{{ t }}</button>
       </div>
     </div>
 
-    <div v-if="(isFork || !p.selectedVastInstance) && p.trainer === 'brush'" class="param-row">
+    <div v-if="p.trainer === 'brush'" class="param-row">
       <label>brush extra</label>
       <input type="text" v-model="p.brushExtraArgs"
         placeholder="e.g. --opac-loss-weight 1e-7 --mean-noise-weight 80"
         style="font-family:monospace;font-size:0.78rem" />
     </div>
 
-    <div v-if="(isFork || !p.selectedVastInstance) && p.trainer === 'gsplat'" class="param-row">
+    <div v-if="p.trainer === 'gsplat'" class="param-row">
       <label>MCMC</label>
       <label class="toggle">
         <input type="checkbox" v-model="p.mcmc" />
@@ -82,7 +82,7 @@
       </label>
     </div>
 
-    <div v-if="(isFork || !p.selectedVastInstance) && (p.trainer === 'gsplat' || p.trainer === '2dgs')" class="param-row">
+    <div v-if="(p.trainer === 'gsplat' || p.trainer === '2dgs')" class="param-row">
       <label>live viewer</label>
       <label class="toggle">
         <input type="checkbox" v-model="p.viewer" />
@@ -90,7 +90,7 @@
       </label>
     </div>
 
-    <div v-if="(isFork || !p.selectedVastInstance) && p.trainer === 'gsplat'" class="param-row">
+    <div v-if="p.trainer === 'gsplat'" class="param-row">
       <label>post-process</label>
       <div class="toggle-group">
         <button v-for="pp in ['none','bilateral_grid','ppisp']" :key="pp"
@@ -98,7 +98,7 @@
       </div>
     </div>
 
-    <div v-if="(isFork || !p.selectedVastInstance) && p.trainer === 'gsplat' && p.postProcessing === 'bilateral_grid'" class="param-row">
+    <div v-if="p.trainer === 'gsplat' && p.postProcessing === 'bilateral_grid'" class="param-row">
       <label>bilagrid fused</label>
       <label class="toggle">
         <input type="checkbox" v-model="p.bilateralGridFused" />
@@ -106,7 +106,7 @@
       </label>
     </div>
 
-    <div v-if="(isFork || !p.selectedVastInstance) && p.trainer === 'gsplat'" class="param-row">
+    <div v-if="p.trainer === 'gsplat'" class="param-row">
       <label>random bkgd</label>
       <label class="toggle">
         <input type="checkbox" v-model="p.randomBkgd" />
@@ -114,7 +114,7 @@
       </label>
     </div>
 
-    <div v-if="(isFork || !p.selectedVastInstance) && (p.trainer === 'gsplat' || p.trainer === '2dgs')" class="param-row">
+    <div v-if="(p.trainer === 'gsplat' || p.trainer === '2dgs')" class="param-row">
       <label>ssim λ</label>
       <input type="number" v-model.number="p.ssimLambda" min="0" max="0.5" step="0.05" />
     </div>
@@ -122,11 +122,6 @@
     <div v-if="sfmVisible && p.sfm === 'onthefly'" class="param-row">
       <label>trainer</label>
       <span style="opacity:0.5;font-size:0.85em">combined with sfm (no separate trainer)</span>
-    </div>
-
-    <div v-if="!isFork && p.selectedVastInstance" class="param-row">
-      <label>pipeline</label>
-      <span class="vast-pipeline-label">MegaSaM + PGSR</span>
     </div>
 
     <div class="param-row">
@@ -217,8 +212,8 @@ const props = defineProps({
 const p = props.modelValue;
 
 const isFork = props.mode === 'fork';
-// SfM-related controls are hidden in fork mode and when a vast instance is selected
-const sfmVisible = computed(() => !isFork && !p.selectedVastInstance);
+// SfM-related controls are hidden in fork mode (a fork reuses its parent's SfM)
+const sfmVisible = computed(() => !isFork);
 // The feature cap reaches COLMAP only on the SIFT/COLMAP feature-extraction paths
 // (video_to_splat.sh call sites: colmap_sift, glomap_sift, fastmap). The hloc
 // variants and the neural SfMs size their own inputs, so showing it there would lie.
@@ -301,10 +296,5 @@ function setPostProcessing(pp) {
   background: #1f2937; color: #e5e7eb;
   border: 1px solid #374151; border-radius: 6px;
   padding: 4px 8px; font-size: 0.85rem; cursor: pointer;
-}
-.vast-pipeline-label {
-  font-size: 0.85rem; color: #a5b4fc;
-  background: #312e81; padding: 3px 10px;
-  border-radius: 6px; border: 1px solid #4338ca;
 }
 </style>
