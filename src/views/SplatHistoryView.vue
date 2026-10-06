@@ -182,6 +182,14 @@
           >
             Compare to Photos 🔬
           </RouterLink>
+          <RouterLink
+            v-if="vsTarget(job)"
+            class="view-btn compare-btn"
+            :to="{ name: 'splat-vs', params: { jobId: job.job_id, otherId: vsTarget(job) } }"
+            :title="`Render this splat and the starred job ${vsTarget(job)} from the same real photo poses, and wipe between them and the photo. Star a different job to change the pairing.`"
+          >
+            Compare with ★ {{ vsTarget(job) }} ⇄
+          </RouterLink>
           <button class="details-link" @click="toggleDetails(job.job_id)">{{ expandedDetails.has(job.job_id) ? 'less ▴' : 'details & tools ▾' }}</button>
         </div>
         <div v-if="expandedDetails.has(job.job_id)" class="details-panel">
@@ -658,6 +666,10 @@ function curveLabel(job) {
 // 8 is the categorical palette's length; a 9th run would have to reuse a colour, which reads as
 // "same run" and is worse than not showing it.
 const comparedJobs = computed(() => jobs.value.filter(j => j.starred).slice(0, 8));
+// "Compare with ★" on each card: the job to put this one against on the splat-vs page — the
+// first starred job other than this one. Offered only when both could have a sparse model.
+const vsTarget = (job) => (job.metrics && job.metrics.registered_images
+  ? jobs.value.find(j => j.starred && j.job_id !== job.job_id && j.job_id)?.job_id : null);
 const starredCount = computed(() => jobs.value.filter(j => j.starred).length);
 
 function seriesFor(list) {
