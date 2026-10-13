@@ -595,8 +595,21 @@ const filteredJobs = computed(() => {
       if (!haystack.includes(needle)) return false;
     }
     return true;
-  });
+  }).sort(byCompletion);
 });
+
+// Order by when a job finishes (Andrzej, 2026-10-13): running on top (it will finish after every
+// finished job), then queued in queue order, then finished jobs (done, error, cancelled) newest
+// finish first — not by when they were queued, which put long runs far below newer short ones.
+const STATUS_RANK = { running: 0, queued: 1 };
+const ms = (t) => (t ? new Date(t).getTime() : 0);
+function byCompletion(a, b) {
+  const ra = STATUS_RANK[a.status] ?? 2, rb = STATUS_RANK[b.status] ?? 2;
+  if (ra !== rb) return ra - rb;
+  if (ra === 0) return ms(startedAt(b)) - ms(startedAt(a));
+  if (ra === 1) return (a.queue_position ?? Infinity) - (b.queue_position ?? Infinity);
+  return ms(b.finished_at || b.created_at) - ms(a.finished_at || a.created_at);
+}
 const pageCount = computed(() => Math.max(1, Math.ceil(filteredJobs.value.length / pageSize.value)));
 const pagedJobs = computed(() => {
   const start = (page.value - 1) * pageSize.value;
