@@ -238,8 +238,10 @@ const COMPARE_MAX = 12;             // "Compare what I see" opens the best-seein
 const captureFov = ref(false);
 const camIntr = ref(null);      // {width, height, fx, fy, vfov_deg, hfov_deg} from /intrinsics
 const VIEW_FOV = 65;
-// Drawn sky instead of captured sky: free, and it costs no geometry.
-const showSky = ref(true);
+// Drawn sky instead of captured sky: free, and it costs no geometry. OFF by default since 2026-10-14: indoors the bright
+// painted sky shows through thin or semi-transparent splats and reads as fog near the floor (Andrzej, 996784c9); turn
+// it on for outdoor scenes.
+const showSky = ref(false);
 const loopLabel = ref('');
 // Retrace the capture: walk the path the camera walked, looking roughly where it looked.
 // The speed slider drives it, so the same control means the same thing in both modes.
