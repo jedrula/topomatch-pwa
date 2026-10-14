@@ -193,7 +193,9 @@ const carpetWalk = ref(true);
 // clamp was pinning the camera; the real cause was the hit-test, so the loosening was
 // unnecessary and it let the viewer drift close enough to walls to look wrong. 0.6 is also
 // what walk v1 shipped with.
-const radius = ref(0.6);
+// 2026-10-14: 1.2 m by default (Andrzej: more freedom to move in RAW room scans); watch for drifting too close to walls,
+// the reason it went back from 1.5 to 0.6 before.
+const radius = ref(1.2);
 // Draw where the capture actually went. The clamp below has always been invisible: you could
 // be held at the edge of the captured area with nothing on screen saying where that edge is,
 // which reads as broken controls rather than as a boundary.
