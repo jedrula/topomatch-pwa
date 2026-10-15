@@ -249,6 +249,7 @@ function appendSharedParams(form) {
   form.append('sparse_ga',            p.sparse_ga);
   form.append('sfm',                  p.sfm);
   form.append('trainer',              p.trainer);
+  if (p.brush_extra_args) form.append('brush_extra_args', p.brush_extra_args);   // Brush / Spirula / LichtFeld flags
   form.append('mcmc',                 p.trainer === 'gsplat' ? p.mcmc : false);
   form.append('viewer',               (p.trainer === 'gsplat' || p.trainer === '2dgs') ? p.viewer : false);
   if (p.trainer === 'gsplat') {

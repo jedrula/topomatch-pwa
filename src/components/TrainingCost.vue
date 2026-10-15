@@ -80,7 +80,7 @@ const W = 900, H = 300;
 const M = { l: 56, r: 20, t: 14, b: 34 };
 const hover = ref(null);
 
-const COLORS = { brush: '#6FC8B0', gsplat: '#E0A062', instantsplat: '#8FA8E0', pgsr: '#C98FD0' };
+const COLORS = { brush: '#6FC8B0', gsplat: '#E0A062', instantsplat: '#8FA8E0', pgsr: '#C98FD0', spirula: '#D08F8F', lichtfeld: '#B8C86F' };
 
 const pts = computed(() => props.jobs
   .filter(j => j.status === 'done' && j.pipeline_stats?.train_s > 0 && j.params?.iters > 0)

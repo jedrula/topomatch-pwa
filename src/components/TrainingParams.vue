@@ -62,15 +62,17 @@
     <div v-if="p.sfm !== 'onthefly'" class="param-row">
       <label>trainer</label>
       <div class="toggle-group">
-        <button v-for="t in ['instantsplat','splatfacto','gsplat','2dgs','brush']"
+        <button v-for="t in ['instantsplat','splatfacto','gsplat','2dgs','brush','spirula','lichtfeld']"
           :key="t" :class="{ active: p.trainer === t }" @click="p.trainer = t">{{ t }}</button>
       </div>
     </div>
 
-    <div v-if="p.trainer === 'brush'" class="param-row">
-      <label>brush extra</label>
+    <!-- Extra trainer flags: the API field is still brush_extra_args, and the pipeline hands it to Brush, Spirula
+         and LichtFeld alike. Spirula also takes our own --precompute-geometry normals|depth (MoGe priors). -->
+    <div v-if="['brush','spirula','lichtfeld'].includes(p.trainer)" class="param-row">
+      <label>{{ p.trainer }} extra</label>
       <input type="text" v-model="p.brushExtraArgs"
-        placeholder="e.g. --opac-loss-weight 1e-7 --mean-noise-weight 80"
+        :placeholder="EXTRA_PLACEHOLDER[p.trainer]"
         style="font-family:monospace;font-size:0.78rem" />
     </div>
 
@@ -200,6 +202,14 @@
 
 <script setup>
 import { computed, watch } from 'vue';
+
+// Examples for the extra-flags box, per trainer. Spirula's are the RAW recipe's (PPISP + colour grid) plus our MoGe
+// surface-direction priors; LichtFeld's are its CLI flags.
+const EXTRA_PLACEHOLDER = {
+  brush: 'e.g. --opac-loss-weight 1e-7 --mean-noise-weight 80',
+  spirula: 'e.g. --use-bilateral-grid 1 --use-ppisp 1 --precompute-geometry normals',
+  lichtfeld: 'e.g. --strategy mcmc --max-cap 1000000',
+};
 
 const props = defineProps({
   modelValue:    { type: Object, required: true },
