@@ -38,6 +38,13 @@ const router = createRouter({
       meta: { requiresAdmin: true },
     },
     {
+      // Splat regression suite: frozen datasets through the standard recipe vs accepted baselines (GPU box)
+      path: '/test',
+      name: 'regression-test',
+      component: () => import('../views/RegressionTestView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
       path: '/admin/diagnostics',
       name: 'admin-diagnostics',
       component: () => import('../views/AdminDiagnosticsView.vue'),
