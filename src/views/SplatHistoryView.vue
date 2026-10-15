@@ -959,6 +959,11 @@ async function logLinesFor(jobId) {
 
 const EVAL_RE = /Eval iter (\d+): PSNR ([0-9.]+), ssim ([0-9.]+)/;
 const REFINE_RE = /Refine iter (\d+), (\d+) splats/;
+// Spirula (2026-10-15: its jobs showed no curve): a progress line every 100 steps, separated by \r, e.g.
+// "step   7901/15000 ( 52%)  splats 1000000  [...]  rgb_loss=0.05486  ssim=0.8115  psnr=29.34". Its psnr is one
+// training photo's (noisy), so it is smoothed over SPIRULA_SMOOTH points (~1000 steps) before drawing.
+const SPIRULA_RE = /step\s+(\d+)\/\d+.*?splats (\d+).*?ssim=([0-9.]+)\s+psnr=([0-9.]+)/;
+const SPIRULA_SMOOTH = 10;
 
 // /logs concatenates 02_train.log AND output.log, and Brush's stdout is tee'd into both, so every
 // point arrives twice. Key by iteration (last wins, which is also what a re-trained pod should
@@ -968,12 +973,25 @@ function dedupe(map) {
 }
 
 function parseCurve(lines) {
-  const evalPts = new Map(), splatPts = new Map();
-  for (const line of lines) {
-    const e = EVAL_RE.exec(line);
-    if (e) { evalPts.set(+e[1], { i: +e[1], psnr: +e[2], ssim: +e[3] }); continue; }
-    const r = REFINE_RE.exec(line);
-    if (r) splatPts.set(+r[1], { i: +r[1], n: +r[2] });
+  const evalPts = new Map(), splatPts = new Map(), spirula = new Map();
+  for (const raw of lines) {
+    for (const line of raw.split('\r')) {
+      const e = EVAL_RE.exec(line);
+      if (e) { evalPts.set(+e[1], { i: +e[1], psnr: +e[2], ssim: +e[3] }); continue; }
+      const r = REFINE_RE.exec(line);
+      if (r) { splatPts.set(+r[1], { i: +r[1], n: +r[2] }); continue; }
+      const sp = SPIRULA_RE.exec(line);
+      if (sp && +sp[4] > 0) spirula.set(+sp[1], { i: +sp[1], n: +sp[2], ssim: +sp[3], psnr: +sp[4] });
+    }
+  }
+  // Spirula only when the log has no Brush evals: smoothed training PSNR, and its splat count.
+  if (!evalPts.size && spirula.size) {
+    const pts = dedupe(spirula);
+    pts.forEach((p, k) => {
+      const w = pts.slice(Math.max(0, k - SPIRULA_SMOOTH + 1), k + 1);
+      evalPts.set(p.i, { i: p.i, psnr: w.reduce((a, q) => a + q.psnr, 0) / w.length, ssim: w.reduce((a, q) => a + q.ssim, 0) / w.length });
+      splatPts.set(p.i, { i: p.i, n: p.n });
+    });
   }
   return { eval: dedupe(evalPts), splats: dedupe(splatPts) };
 }
