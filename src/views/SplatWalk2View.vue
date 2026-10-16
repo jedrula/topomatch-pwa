@@ -55,6 +55,18 @@
                    :title="camIntr ? `view through the capture lens: ${camIntr.vfov_deg.toFixed(1)}° vertical, ${camIntr.width}×${camIntr.height}` : 'no intrinsics for this splat'">
               <input type="checkbox" v-model="captureFov" :disabled="!camIntr" />Capture lens</label>
             <label class="chip" :class="{ on: showSky }"><input type="checkbox" v-model="showSky" />Sky</label>
+            <label v-if="showCams && camGroups.length" class="chip" :class="{ on: camAdvanced }"
+                   title="show cameras by what each photo was taken for (first pass, stations, exam…), coloured by group">
+              <input type="checkbox" v-model="camAdvanced" />Advanced</label>
+          </div>
+          <div v-if="showCams && camAdvanced && camGroups.length" class="cam-groups">
+            <label v-for="g in camGroups" :key="g.key" class="cam-group" :title="g.title">
+              <input type="checkbox" :checked="camGroupOn[g.key] !== false"
+                     @change="camGroupOn = { ...camGroupOn, [g.key]: $event.target.checked }" />
+              <i :style="{ background: g.css }"></i>{{ g.label }}<em>{{ g.count }}</em></label>
+            <div class="cam-group-btns">
+              <button @click="setAllGroups(true)">all</button><button @click="setAllGroups(false)">none</button>
+            </div>
           </div>
           <span v-if="loopLabel" class="walk2-loop">{{ loopLabel }}</span>
         </section>
@@ -202,6 +214,42 @@ const radius = ref(1.2);
 const showCarpet = ref(false);
 // Capture cameras as frustums; clicking one opens /splat/:id/compare?frame=<key> for that frame.
 const showCams = ref(false);
+// "Advanced" camera filter (LiveFusion Lab scans): GET .../photo-roles says what each photo was taken for
+// (first_pass, station_N, between, extra, scan) plus the exam photos' poses. With Advanced on, only ticked
+// groups are drawn, coloured by group; with it off (or no roles) the cameras show exactly as before.
+const camRoles = ref(null);         // /photo-roles + camGroup: the group key of each carpet camera
+const camAdvanced = ref(false);
+const camGroupOn = ref({});         // group key -> false when unticked (missing = ticked)
+const STATION_CSS = ['#4ade80', '#f472b6', '#facc15', '#a78bfa', '#fb923c', '#2dd4bf', '#f87171', '#a3e635'];
+const GROUP_META = {
+  first_pass: { label: 'First pass', css: '#38bdf8', title: 'the first walk round the room' },
+  between: { label: 'Between spots', css: '#9ca3af', title: 'taken walking between stations' },
+  extra: { label: 'Extra', css: '#ef4444', title: 'taken with the Photo button' },
+  scan: { label: 'Scan (Walk)', css: '#22d3ee', title: 'Walk-mode scan photos' },
+  exam: { label: 'Exam', css: '#ffffff', title: 'exam photos (never trained on), placed from their ARKit poses; not clickable' },
+};
+const groupOf = (role) => (/^station_\d+$/.test(role) ? role : role in GROUP_META ? role : 'other');
+const groupMeta = (key) => {
+  const m = key.match(/^station_(\d+)$/);
+  if (m) return { label: `Station ${m[1]}`, css: STATION_CSS[(+m[1] - 1) % STATION_CSS.length], title: `photos taken at spot ${m[1]}` };
+  if (key === 'other') return { label: 'No role', css: '#d1d5db', title: 'cameras whose photo has no recorded role' };
+  return GROUP_META[key] || { label: key, css: '#d1d5db', title: key };
+};
+// Groups in the order the scan happened: first pass, stations by number, between, extra, scan, exam.
+const camGroups = computed(() => {
+  const r = camRoles.value;
+  if (!r) return [];
+  const counts = {};
+  for (const g of r.camGroup) counts[g] = (counts[g] || 0) + 1;     // the cameras actually drawn (carpet order)
+  if (r.exam?.length) counts.exam = r.exam.length;
+  const rank = (k) => {
+    const m = k.match(/^station_(\d+)$/);
+    return m ? 1 + +m[1] / 1000 : { first_pass: 0, between: 2, extra: 3, scan: 4, exam: 5 }[k] ?? 6;
+  };
+  return Object.keys(counts).sort((a, b) => rank(a) - rank(b))
+    .map((k) => ({ key: k, count: counts[k], ...groupMeta(k) }));
+});
+function setAllGroups(on) { camGroupOn.value = Object.fromEntries(camGroups.value.map((g) => [g.key, on])); }
 const hudOpen = ref(true);
 const menuOpen = ref(false);
 const jobNote = ref('');
@@ -659,9 +707,9 @@ onMounted(async () => {
     const CAM_COL = new pc.Color(0.2, 0.75, 1.0);
     const FS = 0.11;                                        // frustum depth in scene units
     const SEE_COL = new pc.Color(1.0, 0.6, 0.1);            // cameras that see what you are looking at
-    const camCorners = (i) => {
-      const c = new pc.Vec3(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]);
-      const f = new pc.Vec3(...CF[i]).normalize();
+    const camCorners = (i) => frustum(new pc.Vec3(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]), new pc.Vec3(...CF[i]));
+    const frustum = (c, f) => {
+      f.normalize();
       let r = new pc.Vec3().cross(f, UP);
       if (r.lengthSq() < 1e-8) r = new pc.Vec3(1, 0, 0);
       r.normalize();
@@ -726,24 +774,40 @@ onMounted(async () => {
     };
     // A full pass is ~O(SfM points): run it a few times a second, not every frame.
     let seenCache = [], seenAt = 0;
+    // Advanced filter: is camera i in a ticked group, and its group's colour. Off (or no roles) = every
+    // camera, coloured by "sees what you see" as before.
+    const groupCol = {};
+    const colOf = (key) => (groupCol[key] ||= new pc.Color().fromString(groupMeta(key).css));
+    const filtering = () => camAdvanced.value && !!camRoles.value;
+    const camShown = (i) => !filtering() || camGroupOn.value[camRoles.value.camGroup[i]] !== false;
+    const drawFrustum = ([c, a, b, d, e], col) => {
+      for (const k of [a, b, d, e]) app.drawLine(c, k, col, true);
+      app.drawLine(a, b, col, true); app.drawLine(b, d, col, true);
+      app.drawLine(d, e, col, true); app.drawLine(e, a, col, true);
+    };
     const drawCams = () => {
       if (!showCams.value || !nCam || !CF) return;
       if (performance.now() - seenAt > 200) { seenCache = seenCams(); seenAt = performance.now(); }
       const seen = new Set(seenCache);
+      const byGroup = filtering();
+      let nSeen = 0;
       for (let i = 0; i < nCam; i++) {
-        const col = seen.has(i) ? SEE_COL : CAM_COL;
-        const [c, a, b, d, e] = camCorners(i);
-        for (const k of [a, b, d, e]) app.drawLine(c, k, col, true);
-        app.drawLine(a, b, col, true); app.drawLine(b, d, col, true);
-        app.drawLine(d, e, col, true); app.drawLine(e, a, col, true);
+        if (!camShown(i)) continue;
+        if (seen.has(i)) nSeen++;
+        drawFrustum(camCorners(i), byGroup ? colOf(camRoles.value.camGroup[i]) : seen.has(i) ? SEE_COL : CAM_COL);
       }
-      seeCount.value = seen.size;
+      // Exam photos are not in the SfM model: drawn from the poses /photo-roles carried over from ARKit.
+      if (byGroup && camGroupOn.value.exam !== false) {
+        for (const ex of camRoles.value.exam || []) drawFrustum(frustum(new pc.Vec3(...ex.center), new pc.Vec3(...ex.forward)), colOf('exam'));
+      }
+      seeCount.value = nSeen;
     };
     const pickCam = (sx, sy) => {
       const cp = camera.getPosition(), cf = camera.forward;
       let best = -1, bd = 24 * 24;
       const sc = new pc.Vec3(), w = new pc.Vec3();
       for (let i = 0; i < nCam; i++) {
+        if (!camShown(i)) continue;                          // a hidden camera is not clickable
         w.set(CN[i * 3], CN[i * 3 + 1], CN[i * 3 + 2]);
         if (w.clone().sub(cp).dot(cf) <= 0.05) continue;    // behind the viewer
         camera.camera.worldToScreen(w, sc);
@@ -777,7 +841,14 @@ onMounted(async () => {
       return idx.map((i) => carpet?.names?.[i]).filter(Boolean)
         .map((n) => compareKeys[n] ?? (n.match(/_(\d{4})\.[A-Za-z]+$/) || [])[1]).filter(Boolean);
     };
-    camPick = { pick: pickCam, open: openCompare, seen: seenCams, keys: compareKeysFor, load: loadCovis };
+    // What each photo was taken for (LiveFusion Lab scans only; 404 elsewhere = no Advanced toggle).
+    fetch(`${base}/photo-roles`).then((r) => (r.ok ? r.json() : null)).then((pr) => {
+      if (!pr?.roles || !carpet?.names?.length) return;
+      const camGroup = carpet.names.slice(0, nCam).map((n) => (pr.roles[n] ? groupOf(pr.roles[n]) : 'other'));
+      if (camGroup.every((g) => g === 'other')) return;     // names did not match: nothing to filter by
+      camRoles.value = { ...pr, camGroup };
+    }).catch((err) => console.warn('[photo-roles]', err));
+    camPick = { pick: pickCam, open: openCompare, seen: () => seenCams().filter(camShown), keys: compareKeysFor, load: loadCovis };
     watch(showCams, (on) => {
       if (on) loadCovis().catch((e) => { covisErr.value = String(e.message || e); console.error('[covis]', e); });
     }, { immediate: true });
@@ -1376,6 +1447,13 @@ onBeforeUnmount(() => {
 .chip input { display: none; }
 .chip.on { background: #1e3a66; border-color: #6ea8ff; color: #fff; }
 .chip.off { opacity: .45; cursor: not-allowed; }
+.cam-groups { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding: 5px 7px; border-radius: 6px; background: rgba(255,255,255,.04); }
+.cam-group { display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: pointer; }
+.cam-group input { margin: 0; }
+.cam-group i { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.cam-group em { margin-left: auto; font-style: normal; color: #8a93a3; font-variant-numeric: tabular-nums; }
+.cam-group-btns { display: flex; gap: 4px; margin-top: 3px; }
+.cam-group-btns button { font-size: 10px; padding: 1px 7px; border-radius: 4px; border: 1px solid rgba(255,255,255,.15); background: transparent; color: #cbd2dc; cursor: pointer; }
 .badge { background: #f59e0b; color: #111; border-radius: 999px; padding: 0 6px; font-size: 10px; font-weight: 700; }
 .hud-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 5px;
   border-top: 1px solid rgba(255,255,255,.08); color: #7d8696; font: 10px ui-monospace, monospace; }
