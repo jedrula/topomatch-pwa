@@ -275,6 +275,7 @@ async function toggleStar() {
     starred.value = next;
   } catch (e) {
     console.warn('[walk2] star failed', e);      // keep the old state: a star that did not persist must not show
+    flagMsg.value = `Star failed: ${e.message}`; setTimeout(() => { flagMsg.value = ''; }, 4000);
   } finally {
     starBusy.value = false;
   }
@@ -439,6 +440,10 @@ onMounted(async () => {
   try {
     const gateway = await getGateway();
     const base = `${gateway}/topowall/api/v1/video-to-splat/${splatId}`;
+    // Star works from the first second (2026-10-17: it used to wait for the whole splat download, so a click while
+    // a big splat loaded did nothing at all).
+    starBase = base;
+    fetch(base).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && 'starred' in d) starred.value = d.starred; }).catch(() => {});
 
     // carpet is optional here — it only seeds a sensible start pose
     let carpet = null;
@@ -639,8 +644,6 @@ onMounted(async () => {
     };
     loadFlags();
     fetch(`${base}/note`).then((r) => (r.ok ? r.json() : null)).then((d) => { jobNote.value = d?.note || ''; }).catch(() => {});
-    starBase = base;
-    fetch(base).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && 'starred' in d) starred.value = d.starred; }).catch(() => {});
 
     // ---- carpet-walk: poor man's collision (ported from walk v1) ----
     // The camera centres are the only positions we KNOW were physically occupied, so
