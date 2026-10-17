@@ -140,3 +140,74 @@ export async function setClusterServerUrl(serverUrl) {
 
   return normalizedUrl
 }
+
+// ── Topowall-splat (panorama stitching service) ──────────────────────────────
+
+let cachedTopowallServerUrl = null
+let cachedTopowallAtMs = 0
+let inFlightTopowallPromise = null
+
+export async function getTopowallServerUrl({ forceRefresh = false } = {}) {
+  const now = Date.now()
+
+  if (!forceRefresh && cachedTopowallServerUrl && now - cachedTopowallAtMs < CACHE_TTL_MS) {
+    return cachedTopowallServerUrl
+  }
+
+  if (!forceRefresh && inFlightTopowallPromise) {
+    return inFlightTopowallPromise
+  }
+
+  inFlightTopowallPromise = (async () => {
+    const data = await getBackendAppConfig({ forceRefresh: true })
+    const url = data?.topowall?.serverUrl
+
+    if (url && typeof url === 'string') {
+      cachedTopowallServerUrl = url
+      cachedTopowallAtMs = Date.now()
+      return url
+    }
+
+    // Default: derive from hold-detection URL + '/topowall' (gateway prefix)
+    const holdUrl = data?.holdDetection?.serverUrl
+    if (!holdUrl || typeof holdUrl !== 'string') {
+      throw new Error(
+        "Topowall server URL not configured and no hold detection URL to derive from."
+      )
+    }
+    const derived = holdUrl.replace(/\/+$/, '') + '/topowall'
+    cachedTopowallServerUrl = derived
+    cachedTopowallAtMs = Date.now()
+    return derived
+  })()
+
+  try {
+    return await inFlightTopowallPromise
+  } finally {
+    inFlightTopowallPromise = null
+  }
+}
+
+export async function setTopowallServerUrl(serverUrl) {
+  const normalizedUrl = typeof serverUrl === 'string' ? serverUrl.trim().replace(/\/+$/, '') : ''
+
+  await setDoc(
+    CONFIG_DOC,
+    {
+      topowall: {
+        serverUrl: normalizedUrl || null,
+        updatedAt: serverTimestamp(),
+      },
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  )
+
+  await getDocFromServer(CONFIG_DOC)
+
+  cachedTopowallServerUrl = normalizedUrl
+  cachedTopowallAtMs = Date.now()
+  inFlightTopowallPromise = null
+
+  return normalizedUrl
+}

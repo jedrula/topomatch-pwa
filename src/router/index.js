@@ -38,6 +38,13 @@ const router = createRouter({
       meta: { requiresAdmin: true },
     },
     {
+      // Splat regression suite: frozen datasets through the standard recipe vs accepted baselines (GPU box)
+      path: '/test',
+      name: 'regression-test',
+      component: () => import('../views/RegressionTestView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
       path: '/admin/diagnostics',
       name: 'admin-diagnostics',
       component: () => import('../views/AdminDiagnosticsView.vue'),
@@ -131,6 +138,83 @@ const router = createRouter({
       name: 'user-profile',
       component: () => import('../views/UserProfileView.vue'),
       props: true,
+    },
+    {
+      path: '/playground/splat',
+      name: 'splat-playground',
+      component: () => import('../views/SplatPlaygroundView.vue'),
+      redirect: { name: 'splat-upload' },
+      children: [
+        {
+          path: 'upload',
+          name: 'splat-upload',
+          component: () => import('../views/SplatUploadView.vue'),
+        },
+        {
+          path: 'upload/examples',
+          name: 'splat-examples',
+          component: () => import('../views/SplatExamplesView.vue'),
+        },
+        {
+          path: 'history',
+          name: 'splat-history',
+          component: () => import('../views/SplatHistoryView.vue'),
+          meta: { requiresAdmin: true },
+        },
+        {
+          path: 'prepare',
+          name: 'splat-prepare',
+          component: () => import('../views/PrepareFramesView.vue'),
+        },
+      ],
+    },
+    {
+      // Splat vs photo, several frames at once. A page rather than an inline card: rendering
+      // a comparison runs gsplat on the same GPU as training, so it must be deliberate.
+      path: '/splat/:jobId/frames',
+      name: 'splat-frames',
+      component: () => import('../views/SplatFramesView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
+      path: '/splat/:jobId/compare',
+      name: 'splat-compare',
+      component: () => import('../views/SplatCompareView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
+      // Two jobs from the same photo poses, wiped against each other and the photo.
+      path: '/splat/:jobId/vs/:otherId',
+      name: 'splat-vs',
+      component: () => import('../views/SplatVsView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
+      path: '/splat/:splatId',
+      name: 'splat-viewer',
+      component: () => import('../views/SplatView.vue'),
+    },
+    {
+      path: '/splat/:splatId/walk',
+      name: 'splat-walk',
+      // Fullscreen viewer: App.vue hides the floating chrome on these routes. The WhatsApp
+      // button (fixed bottom-left, z-40) sat exactly on the mobile thumbstick and swallowed
+      // every touch, and the analysis indicator (bottom-right, z-50) covers the up/down pad.
+      meta: { fullscreen: true },
+      component: () => import('../views/SplatWalkView.vue'),
+    },
+    {
+      // Standalone POC: same walk/fly idea on PlayCanvas + SOG (13.7x smaller download,
+      // SH preserved). Additive on purpose — walk v1 above keeps working on .ply.
+      path: '/splat/:splatId/walk2',
+      name: 'splat-walk2',
+      meta: { fullscreen: true },
+      component: () => import('../views/SplatWalk2View.vue'),
+    },
+    {
+      path: '/splat/:splatId/holds',
+      name: 'splat-hold-assign',
+      component: () => import('../views/SplatHoldAssignView.vue'),
     },
   ],
 });

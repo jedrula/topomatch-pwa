@@ -141,5 +141,16 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.followerId == request.auth.uid;
       allow update: if false;
     }
+
+    // Per-job chat between the admin and the agent (/history). Admin-only both ways; the agent writes with the
+    // service account, which bypasses rules. One flat collection: {jobId, author, text, createdAt, status, kind, replyTo}.
+    match /jobChat/{msgId} {
+      allow read, write: if isAdmin();
+    }
+    // When the agent next checks in -- the chat's instant "Received, read at ~HH:MM". Only the agent writes it.
+    match /jobChatMeta/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
   }
 }

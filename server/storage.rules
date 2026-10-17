@@ -91,6 +91,14 @@ service firebase.storage {
       allow delete: if isOwner(userId) || isAdmin();
     }
 
+    // Panorama wall-scan videos - admins can upload for stitching
+    match /panorama-videos/{locationId}/{filename} {
+      allow write: if isAdmin() &&
+        request.resource.size < 500 * 1024 * 1024 && // 500MB limit
+        request.resource.contentType.matches('video/.*');
+      allow delete: if isAdmin();
+    }
+
     // Analysis diagnostic images - any authenticated user can write their own,
     // anyone can read (covered by the global read rule above).
     match /diagnostics/{ascentId}/{filename} {
