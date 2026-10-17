@@ -100,10 +100,21 @@
              32.45 dB on its own views and 19.67 on a shared set of novel views nobody
              captured. In-block % is the fold check — PSNR cannot see a fold at all. -->
         <div v-if="job.exam" class="metrics-row exam-row">
-          <span class="exam-label" title="Scored against EXAM_CITY: 149 novel views across the whole region, at poses no capture used">EXAM</span>
+          <span class="exam-label" title="Scored on exam photos: views taken after the scan, never used for training">EXAM</span>
           <span v-if="job.exam.psnr != null" class="metric" :class="psnrClass(job.exam.psnr)"
-                title="PSNR on the shared city exam — comparable between captures, unlike own held-out PSNR">
+                title="PSNR on the exam photos (never trained on) — comparable between captures, unlike own held-out PSNR">
             {{ job.exam.psnr.toFixed(2) }} dB
+          </span>
+          <!-- Colour-matched (2026-10-17, Andrzej: "seems important"): each exam photo's brightness and white balance
+               fitted to the render first (gain + offset per channel), so a phone that exposed the exam differently
+               from the scan is not counted as a splat error. Closest to "how good is the splat itself". -->
+          <span v-if="job.exam.psnr_colorfit != null" class="metric" :class="psnrClass(job.exam.psnr_colorfit)"
+                title="PSNR after matching each exam photo's brightness and colour balance to the render — the splat's own error, without exposure differences between the scan and the exam">
+            {{ job.exam.psnr_colorfit.toFixed(2) }} dB colour-matched
+          </span>
+          <span v-if="job.exam.lpips != null" class="metric" :class="job.exam.lpips <= 0.35 ? 'metric-good' : job.exam.lpips <= 0.45 ? 'metric-ok' : 'metric-poor'"
+                title="LPIPS on the exam photos: how different the render looks to a person (0 = identical; lower is better)">
+            LPIPS {{ job.exam.lpips.toFixed(3) }}
           </span>
           <span v-else class="metric metric-poor" title="Cameras could not be fitted to the true poses in one block, so the model is folded and shape cannot be scored">
             FOLDED
