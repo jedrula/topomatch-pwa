@@ -390,7 +390,7 @@
               </button>
 
               <div v-if="assignSelections[job.job_id]?.done" class="assign-success">
-                ✓ Assigned! Users will now see "View in 3D" on that routesetting.
+                ✓ Assigned! It opens first under "View in 3D" on that routesetting (earlier scans stay as Scan 2, 3…).
               </div>
             </template>
           </template>
@@ -1421,8 +1421,14 @@ async function saveAssignment(jobId) {
   try {
     const gateway = gatewayCache ?? await resolvedGateway();
     const ref = doc(db, 'locations', sel.locationId);
+    // A routesetting holds a LIST of splats (2026-10-17; a plain string is the old single-splat form): this one goes
+    // first, the others stay. boulder-map-view scripts/assign-splat.js does the same from a terminal.
+    const loc = locationsList.value.find((l) => l.id === sel.locationId);
+    const cur = loc?.splatJobs?.[sel.routesetting];
+    const list = [jobId, ...(Array.isArray(cur) ? cur : cur ? [cur] : []).filter((j) => j !== jobId)];
     // FieldPath handles ISO timestamp keys that contain dots/colons
-    await updateDoc(ref, new FieldPath('splatJobs', sel.routesetting), jobId, 'splatGatewayUrl', gateway);
+    await updateDoc(ref, new FieldPath('splatJobs', sel.routesetting), list, 'splatGatewayUrl', gateway);
+    if (loc) loc.splatJobs = { ...(loc.splatJobs || {}), [sel.routesetting]: list };
     sel.done = true;
     // Auto-close panel after 3s
     setTimeout(() => {
