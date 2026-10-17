@@ -95,7 +95,14 @@
       </div>
       <span v-if="flagMsg" class="walk2-flag-msg">{{ flagMsg }}</span>
       <div v-if="shownFlag" class="walk2-flag-shown">
-        <div>⚑ #{{ shownFlag.id }} — {{ shownFlag.note || '(no note)' }} <button @click="shownFlag = null">×</button></div>
+        <div v-if="editNote === null">⚑ #{{ shownFlag.id }} — {{ shownFlag.note || '(no note)' }}
+          <button title="Edit the note" @click="editNote = shownFlag.note || ''">✎</button>
+          <button @click="shownFlag = null">×</button></div>
+        <div v-else class="walk2-flag-edit">
+          <input v-model="editNote" class="walk2-flag-note" @keydown.stop @keyup.stop @keyup.enter="saveNote" @keyup.esc="editNote = null" />
+          <button :disabled="flagging" @click="saveNote">Save</button>
+          <button @click="editNote = null">Cancel</button>
+        </div>
         <img v-if="shownFlagImg" :src="shownFlagImg" alt="what was flagged" />
       </div>
     </div>
@@ -397,8 +404,27 @@ async function openFlag(id) {
   const f = flags.value.find((x) => String(x.id) === String(id));
   if (!f || !flagCam) return;
   flagCam.set(f.camera);
-  shownFlag.value = f;
+  shownFlag.value = f; editNote.value = null;
   shownFlagImg.value = f.image ? await flagsUrl(`/${f.id}/image`) : '';
+}
+
+// Edit a flag's note (Andrzej 2026-10-17); the camera and screenshot stay as flagged.
+const editNote = ref(null);       // null = not editing
+async function saveNote() {
+  const f = shownFlag.value;
+  if (!f || flagging.value) return;
+  flagging.value = true; flagMsg.value = '';
+  try {
+    const res = await fetch(await flagsUrl(`/${f.id}`), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note: editNote.value }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rec = await res.json();
+    flags.value = flags.value.map((x) => (x.id === rec.id ? { ...x, ...rec } : x));
+    shownFlag.value = { ...f, ...rec }; editNote.value = null;
+  } catch (err) {
+    flagMsg.value = 'Edit failed: ' + err.message;
+  } finally { flagging.value = false; }
 }
 let objectUrl = null;
 let cleanupFns = [];
@@ -1416,6 +1442,8 @@ onBeforeUnmount(() => {
 .walk2-flag-panel { display: flex; gap: 6px; background: rgba(17, 24, 39, 0.92); padding: 6px; border-radius: 8px; }
 .walk2-flag-note { width: 260px; padding: 4px 8px; border-radius: 6px; border: 1px solid #374151; background: #111827; color: #f3f4f6; }
 .walk2-flag-msg { color: #fbbf24; }
+.walk2-flag-edit { display: flex; gap: 6px; }
+.walk2-flag-edit .walk2-flag-note { width: auto; flex: 1; min-width: 0; }
 .walk2-flag-shown { max-width: 340px; background: rgba(17, 24, 39, 0.92); border: 1px solid #b45309; border-radius: 8px;
   padding: 6px; color: #fbbf24; }
 .walk2-flag-shown img { width: 100%; margin-top: 6px; border-radius: 4px; }
