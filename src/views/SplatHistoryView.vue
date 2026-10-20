@@ -1429,6 +1429,8 @@ async function saveAssignment(jobId) {
     // FieldPath handles ISO timestamp keys that contain dots/colons
     await updateDoc(ref, new FieldPath('splatJobs', sel.routesetting), list, 'splatGatewayUrl', gateway);
     if (loc) loc.splatJobs = { ...(loc.splatJobs || {}), [sel.routesetting]: list };
+    // Build its 3D view now (202 = building, ~3 min), so the gym's first visitor does not wait - as assign-splat.js
+    fetch(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/viewer/settings.json`).catch(() => {});
     sel.done = true;
     // Auto-close panel after 3s
     setTimeout(() => {
