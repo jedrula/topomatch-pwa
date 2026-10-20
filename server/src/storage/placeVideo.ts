@@ -53,7 +53,7 @@ export async function requestPlacement(filePath: string, event: any): Promise<vo
         const r = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Place-Video-Secret": placeVideoSecret.value() },
-          body: JSON.stringify({ url, id: ascentId, uid }),
+          body: JSON.stringify({ url, id: ascentId, uid, climber: ascent.userName ?? null }),
         });
         if (r.ok) break;
         // a 4xx is the request's fault (no 3D view, a bad id): asking again does not help
