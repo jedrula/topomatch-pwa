@@ -40,8 +40,10 @@ export async function requestPlacement(filePath: string, event: any): Promise<vo
 
     const location = (await db.collection("locations").doc(String(ascent.locationId)).get()).data();
     const gateway: unknown = location?.splatGatewayUrl;
-    const jobs = Object.values(location?.splatJobs ?? {}).flat();
-    if (typeof gateway !== "string" || !jobs.includes(jobId)) {
+    // the routesetting's list holding this scan: its other scans are tried too (a gym scanned in parts, 2026-10-21)
+    const lists = Object.values(location?.splatJobs ?? {}).map((v) => (Array.isArray(v) ? v : [v]) as string[]);
+    const also = (lists.find((l) => l.includes(jobId)) ?? []).filter((j) => j !== jobId);
+    if (typeof gateway !== "string" || !lists.some((l) => l.includes(jobId))) {
       logger.warn(`place3d: ${ascentId} - job ${jobId} is not a scan of location ${ascent.locationId}`);
       return;
     }
@@ -53,7 +55,7 @@ export async function requestPlacement(filePath: string, event: any): Promise<vo
         const r = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Place-Video-Secret": placeVideoSecret.value() },
-          body: JSON.stringify({ url, id: ascentId, uid, climber: ascent.userName ?? null }),
+          body: JSON.stringify({ url, id: ascentId, uid, climber: ascent.userName ?? null, also }),
         });
         if (r.ok) break;
         // a 4xx is the request's fault (no 3D view, a bad id): asking again does not help
