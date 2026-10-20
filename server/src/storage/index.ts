@@ -2,6 +2,7 @@ import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as logger from "firebase-functions/logger";
 import { handleRawVideoUpload, handleTranscodedVideo } from "./videoHandlers";
 import { handleLocationImageUpload } from "./imageHandlers";
+import { placeVideoSecret, requestPlacement } from "./placeVideo";
 
 /**
  * 🎯 UNIFIED STORAGE TRIGGER
@@ -9,7 +10,7 @@ import { handleLocationImageUpload } from "./imageHandlers";
  * Single Cloud Function that routes to specialized handlers based on file path
  * 
  * Handles:
- * 1. videos/raw/{userId}/{videoId}.{ext}          → Start transcoding
+ * 1. videos/raw/{userId}/{videoId}.{ext}          → Start transcoding + place it in the gym's 3D scan (place3d)
  * 2. videos/transcoded/{userId}/{ascentId}/*.mp4  → Update Firestore + generate thumbnail
  * 3. location-images/{locationId}/{imageId}/*     → Detect holds
  * 
@@ -24,7 +25,7 @@ export const onStorageFileCreated = onObjectFinalized(
     region: "europe-west1",
     memory: "512MiB", // Enough for image buffers + API calls (videos use disk, not RAM)
     timeoutSeconds: 540, // TODO: 9 min for polling hold detection (legacy) - replace with webhook callback
-    secrets: [], // Add secrets if needed
+    secrets: [placeVideoSecret],
   },
   async (event) => {
     const filePath = event.data.name;
@@ -34,8 +35,12 @@ export const onStorageFileCreated = onObjectFinalized(
 
     // Route 1: Raw video upload → Start transcoding
     if (filePath.startsWith("videos/raw/") && contentType.startsWith("video/")) {
-      logger.info("🎬 Route: Raw video upload → transcoding");
-      return handleRawVideoUpload(filePath, event);
+      logger.info("🎬 Route: Raw video upload → transcoding + 3D placement");
+      const [result] = await Promise.all([
+        handleRawVideoUpload(filePath, event),
+        requestPlacement(filePath, event), // catches its own errors
+      ]);
+      return result;
     }
 
     // Route 2: Transcoded video → Update Firestore + thumbnail
