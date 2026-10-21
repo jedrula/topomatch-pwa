@@ -182,6 +182,13 @@
           >
             Walk v2 ⚡
           </RouterLink>
+          <button
+            class="view-btn copy-link-btn"
+            title="Copy a link to this splat's walk view - anyone can open it"
+            @click="copyWalkLink(job.job_id)"
+          >
+            {{ copiedId === job.job_id ? 'Copied ✓' : 'Copy link 🔗' }}
+          </button>
           <RouterLink
             class="view-btn"
             :to="{ name: 'splat-viewer', params: { splatId: job.job_id } }"
@@ -537,6 +544,22 @@ import TrainingCost from '../components/TrainingCost.vue';
 import FrameGrid from '../components/FrameGrid.vue';
 
 const router = useRouter();
+
+// Share a splat (2026-10-21, Andrzej: "easy way to share walk2 splats ... a copy url button in the list"): the walk v2
+// page needs no login, so its link works for anyone
+const copiedId = ref(null);
+async function copyWalkLink(jobId) {
+  const url = window.location.origin + router.resolve({ name: 'splat-walk2', params: { splatId: jobId } }).href;
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    window.prompt('Copy this link:', url); // no clipboard permission (old browser, http): show it to copy by hand
+  }
+  copiedId.value = jobId;
+  setTimeout(() => {
+    if (copiedId.value === jobId) copiedId.value = null;
+  }, 1500);
+}
 
 // Per-job chat with the agent (admin only; Firestore rules enforce it). One live query for the whole page,
 // grouped by job, so a reply shows up without a refresh. jobChatMeta/agent says when the agent next checks in.
@@ -1840,6 +1863,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .rerun-btn:hover { background: #6d28d9; }
 .walk2-btn { background: #1f6f43; }
 .walk2-btn:hover { background: #185835; }
+.copy-link-btn { background: #374151; }
+.copy-link-btn:hover { background: #1f2937; }
 
 .no-images {
   font-size: 0.78rem;
