@@ -526,6 +526,7 @@
 </template>
 
 <script setup>
+import { tokenQuery } from '@/services/gatewayAuth';
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import SfmInspector from '../components/SfmInspector.vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -924,7 +925,8 @@ async function toggleSfm(jobId) {
 }
 
 function colmapDatasetUrl(jobId) {
-  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/colmap-dataset`;
+  // a plain link carries no header: the admin token rides in the query (gatewayAuth.js)
+  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/colmap-dataset${tokenQuery()}`;
 }
 
 // Reorder the GPU queue without cancelling: the server returns the new order of queued jobs.

@@ -12,6 +12,9 @@ import router from './router';
 import { initPushNotificationListener, consumePendingRoute, setRouter } from './services/deepLinkHandler';
 import { loadInferenceStore } from './stores/inferenceStoreLoader';
 import { diagnostics } from './services/diagnostics';
+import { installGatewayAuth } from './services/gatewayAuth';
+
+installGatewayAuth();   // the splat server needs the signed-in user's token
 
 // Initialize push notification listener BEFORE app mounts
 // This captures notifications that launched the app

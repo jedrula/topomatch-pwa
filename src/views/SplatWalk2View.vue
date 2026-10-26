@@ -80,7 +80,7 @@
 
     <!-- Flag a POOR view (Andrzej 2026-09-30): saved with camera + screenshot, reopenable, analysed by
          experiments/smallarea/analyze_flags.py. The camera here is in the COLMAP frame (see applyCamera). -->
-    <div class="walk2-flags">
+    <div v-if="!appMode" class="walk2-flags">
       <button class="walk2-flag-btn" :disabled="flagging" @click="flagOpen = !flagOpen">
         {{ flagging ? 'Flagging…' : '⚑ Flag view' }}</button>
       <select v-if="flags.length" class="walk2-flag-list" @change="openFlag($event.target.value); $event.target.value = ''">
@@ -110,14 +110,14 @@
     <CaptureJudgeReport v-if="judgeOpen" :job-id="splatId" @close="judgeOpen = false" />
 
     <!-- What am I looking at? The job's note (PRE / POST), from GET .../note -->
-    <div v-if="jobNote && noteShown" class="walk2-note-box" :class="{ open: noteOpen }">
+    <div v-if="jobNote && noteShown && !appMode" class="walk2-note-box" :class="{ open: noteOpen }">
       <div class="nb-head"><b>Note</b>
         <button v-if="noteLong" @click="noteOpen = !noteOpen">{{ noteOpen ? 'less' : 'more' }}</button>
         <button title="hide" @click="noteShown = false">×</button></div>
       <div class="nb-body"><p v-for="(l, i) in noteLines" :key="i"><em v-if="l.tag" :class="l.tag">{{ l.tag }}</em>{{ l.text }}</p></div>
     </div>
 
-    <div class="walk2-status" :class="{ err: !!error }">
+    <div v-if="!appMode || error || loading" class="walk2-status" :class="{ err: !!error }">
       {{ error || status }}<span v-if="!error && progressLabel"> — {{ progressLabel }}</span>
       <div v-if="!error && loading" class="walk2-progress">
         <div class="walk2-progress-fill" :style="{ width: progressPct + '%' }"></div>
@@ -128,7 +128,7 @@
 
     <div v-if="showHint" class="walk2-hint">
       {{ isTouch ? 'drag to look · stick to walk' : 'click to look around' }}
-      <span class="walk2-build">build {{ buildStamp }}</span>
+      <span v-if="!appMode" class="walk2-build">build {{ buildStamp }}</span>
     </div>
 
     <!-- Touch layer -->
@@ -147,7 +147,7 @@
     </div>
     <!-- Top-right: a hamburger menu for navigation, with the flag controls stacked BELOW it (they used to
          sit on top of the old "walk v1" link). -->
-    <button class="walk2-menu-btn walk2-star-btn" :class="{ on: starred }" :disabled="starBusy"
+    <button v-if="!appMode" class="walk2-menu-btn walk2-star-btn" :class="{ on: starred }" :disabled="starBusy"
             :title="starred == null ? 'Star state not loaded yet' : starred ? 'Starred — click to unstar' : 'Star this run'"
             @click="toggleStar">{{ starred ? '★' : starred == null ? '☆?' : '☆' }}</button>
     <div v-if="!isTouch" class="walk2-menu" @keydown.esc="menuOpen = false">
@@ -164,7 +164,7 @@
         <RouterLink :to="{ name: 'splat-history' }">← History</RouterLink>
       </nav>
     </div>
-    <RouterLink v-else :to="{ name: 'splat-history' }" class="walk2-back-btn"
+    <RouterLink v-else-if="!appMode" :to="{ name: 'splat-history' }" class="walk2-back-btn"
                 aria-label="back to history">←</RouterLink>
   </div>
 </template>
@@ -193,6 +193,9 @@ import { getGateway } from '../config/gateway.js';
 import CaptureJudgeReport from '../components/CaptureJudgeReport.vue';
 
 const route = useRoute();
+// ?app=1 (2026-10-26): inside the LiveFusion iPhone app, for the person who scanned the room - the splat and the
+// walk controls only; no flags, star, job note, build stamp or links to the lab pages (the app has its own close).
+const appMode = route.query.app === '1';
 const splatId = route.params.splatId;
 const router = useRouter();
 const canvasEl = ref(null);
