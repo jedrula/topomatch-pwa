@@ -4,7 +4,7 @@
     <div v-if="captureFov && camIntr" class="walk2-capframe"
          :style="{ aspectRatio: `${camIntr.width} / ${camIntr.height}` }"></div>
 
-    <div v-if="!isTouch" class="walk2-hud" :class="{ collapsed: !hudOpen }">
+    <div v-if="!isTouch && !appMode" class="walk2-hud" :class="{ collapsed: !hudOpen }">
       <div class="hud-head">
         <span class="hud-title">Walk</span>
         <code class="hud-id">{{ splatId }}</code>
@@ -217,7 +217,9 @@ const carpetWalk = ref(true);
 // what walk v1 shipped with.
 // 2026-10-14: 1.2 m by default (Andrzej: more freedom to move in RAW room scans); watch for drifting too close to walls,
 // the reason it went back from 1.5 to 0.6 before.
-const radius = ref(1.2);
+// ?r= sets it; the LiveFusion app and the landing page's embed (?app=1) stay closer to where the photos were taken: 0.75 m
+// (2026-10-26, Andrzej) - the view is sharpest there.
+const radius = ref(Number(route.query.r) || (appMode ? 0.75 : 1.2));
 // Draw where the capture actually went. The clamp below has always been invisible: you could
 // be held at the edge of the captured area with nothing on screen saying where that edge is,
 // which reads as broken controls rather than as a boundary.
