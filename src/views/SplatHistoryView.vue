@@ -146,6 +146,14 @@
           </span>
         </div>
 
+        <!-- Whose phone scan this is, and its upload (the job that placed the photos; its row is folded into this one) -->
+        <div v-if="job.upload_job || job.owner?.email" class="scan-origin">
+          📱 <span v-if="job.owner?.email">{{ job.owner.email }}</span>
+          <template v-if="job.upload_job"> · upload <code>{{ job.upload_job }}</code>
+            <a :href="`${gatewayCache}/topowall/api/v1/video-to-splat/${job.upload_job}/logs${tokenQuery()}`" target="_blank" rel="noopener">pipeline log ↗</a>
+          </template>
+        </div>
+
         <!-- The scanner's own verdict, from the LiveFusion app's result screen (POST /my/scans/<id>/feedback) -->
         <div v-if="job.feedback" class="tester-feedback" :title="`${job.feedback.email || 'tester'} · ${job.feedback.at}`">
           <span v-if="job.feedback.rating" class="tf-stars">{{ '★'.repeat(job.feedback.rating) }}{{ '☆'.repeat(5 - job.feedback.rating) }}</span>
@@ -619,10 +627,15 @@ const PAGE_SIZES = [25, 50, 100];
 const page = ref(Math.max(1, Number(route.query.page) || 1));
 const pageSize = ref(PAGE_SIZES.includes(Number(route.query.per)) ? Number(route.query.per) : 25);
 
+// A phone scan is two jobs - the upload (places the photos, waits) and its splat (trains). One row: the splat's, with
+// the upload linked from it (server _scan_pair, 2026-10-26).
+const shownUploads = computed(() => new Set(jobs.value.map(j => j.upload_job).filter(Boolean)));
+
 const filteredJobs = computed(() => {
   const { statuses, trainers, sources, minPsnr, maxIters, query, starredOnly } = filters.value;
   const needle = query?.trim().toLowerCase();
   return jobs.value.filter(job => {
+    if (shownUploads.value.has(job.job_id))              return false;
     if (starredOnly && !job.starred)                     return false;
     if (statuses  && !statuses.has(job.status))          return false;
     if (trainers  && !trainers.has(job.params?.trainer)) return false;
@@ -633,7 +646,7 @@ const filteredJobs = computed(() => {
       if (psnr == null || psnr < minPsnr) return false;
     }
     if (needle) {
-      const haystack = (job.scene ?? '').toLowerCase();
+      const haystack = [job.scene, job.upload_job, job.owner?.email].filter(Boolean).join(' ').toLowerCase();
       if (!haystack.includes(needle)) return false;
     }
     return true;
@@ -2003,6 +2016,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .details-link:hover { text-decoration: underline; }
 .details-panel { margin-top: 6px; padding: 8px; border: 1px dashed #2a3547; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
 .note-section { margin-top: 2px; }
+.scan-origin { margin: 4px 0 2px; font-size: 12px; opacity: .85; }
+.scan-origin code { font-size: 11px; }
+.scan-origin a { margin-left: 6px; }
 .tester-feedback { margin: 4px 0; padding: 6px 9px; border-radius: 7px; background: rgba(250, 204, 21, .08);
   border: 1px solid rgba(250, 204, 21, .25); font-size: 13px; line-height: 1.4; }
 .tf-stars { color: #facc15; letter-spacing: 1px; margin-right: 6px; }
