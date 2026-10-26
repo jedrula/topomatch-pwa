@@ -150,7 +150,7 @@
     <button v-if="!appMode" class="walk2-menu-btn walk2-star-btn" :class="{ on: starred }" :disabled="starBusy"
             :title="starred == null ? 'Star state not loaded yet' : starred ? 'Starred — click to unstar' : 'Star this run'"
             @click="toggleStar">{{ starred ? '★' : starred == null ? '☆?' : '☆' }}</button>
-    <div v-if="!isTouch" class="walk2-menu" @keydown.esc="menuOpen = false">
+    <div v-if="!isTouch && !appMode" class="walk2-menu" @keydown.esc="menuOpen = false">
       <button class="walk2-menu-btn" :class="{ open: menuOpen }" aria-label="menu" @click="menuOpen = !menuOpen">☰</button>
       <nav v-if="menuOpen" class="walk2-menu-list" @click="menuOpen = false">
         <RouterLink :to="{ name: 'splat-viewer', params: { splatId } }">Splat viewer</RouterLink>
