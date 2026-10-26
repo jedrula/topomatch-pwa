@@ -146,6 +146,13 @@
           </span>
         </div>
 
+        <!-- The scanner's own verdict, from the LiveFusion app's result screen (POST /my/scans/<id>/feedback) -->
+        <div v-if="job.feedback" class="tester-feedback" :title="`${job.feedback.email || 'tester'} · ${job.feedback.at}`">
+          <span v-if="job.feedback.rating" class="tf-stars">{{ '★'.repeat(job.feedback.rating) }}{{ '☆'.repeat(5 - job.feedback.rating) }}</span>
+          <span v-if="job.feedback.comment" class="tf-comment">“{{ job.feedback.comment }}”</span>
+          <span class="tf-who">— {{ job.feedback.email || 'tester' }}</span>
+        </div>
+
         <!-- Note -->
         <div class="note-section">
           <template v-if="editingNotes.has(job.job_id)">
@@ -1996,6 +2003,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .details-link:hover { text-decoration: underline; }
 .details-panel { margin-top: 6px; padding: 8px; border: 1px dashed #2a3547; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
 .note-section { margin-top: 2px; }
+.tester-feedback { margin: 4px 0; padding: 6px 9px; border-radius: 7px; background: rgba(250, 204, 21, .08);
+  border: 1px solid rgba(250, 204, 21, .25); font-size: 13px; line-height: 1.4; }
+.tf-stars { color: #facc15; letter-spacing: 1px; margin-right: 6px; }
+.tf-comment { color: inherit; }
+.tf-who { opacity: .6; margin-left: 6px; font-size: 12px; }
 
 .note-display {
   font-size: 0.82rem;
