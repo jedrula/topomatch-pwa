@@ -147,8 +147,11 @@
         </div>
 
         <!-- Whose phone scan this is, and its upload (the job that placed the photos; its row is folded into this one) -->
-        <div v-if="job.upload_job || job.owner?.email" class="scan-origin">
+        <div v-if="job.upload_job || job.run_job || job.owner?.email" class="scan-origin">
           📱 <span v-if="job.owner?.email">{{ job.owner.email }}</span>
+          <template v-if="job.run_job"> · run <code>{{ job.run_job }}</code>
+            <a :href="`${gatewayCache}/topowall/api/v1/video-to-splat/${job.run_job}/logs${tokenQuery()}`" target="_blank" rel="noopener">run log ↗</a>
+          </template>
           <template v-if="job.upload_job"> · upload <code>{{ job.upload_job }}</code>
             <a :href="`${gatewayCache}/topowall/api/v1/video-to-splat/${job.upload_job}/logs${tokenQuery()}`" target="_blank" rel="noopener">pipeline log ↗</a>
           </template>
@@ -629,7 +632,8 @@ const pageSize = ref(PAGE_SIZES.includes(Number(route.query.per)) ? Number(route
 
 // A phone scan is two jobs - the upload (places the photos, waits) and its splat (trains). One row: the splat's, with
 // the upload linked from it (server _scan_pair, 2026-10-26).
-const shownUploads = computed(() => new Set(jobs.value.map(j => j.upload_job).filter(Boolean)));
+// A run (a queued pipeline / experiment script) folds into the splat it made, like an upload (2026-10-27).
+const shownUploads = computed(() => new Set(jobs.value.flatMap(j => [j.upload_job, j.run_job]).filter(Boolean)));
 
 const filteredJobs = computed(() => {
   const { statuses, trainers, sources, minPsnr, maxIters, query, starredOnly } = filters.value;
@@ -646,7 +650,7 @@ const filteredJobs = computed(() => {
       if (psnr == null || psnr < minPsnr) return false;
     }
     if (needle) {
-      const haystack = [job.scene, job.upload_job, job.owner?.email].filter(Boolean).join(' ').toLowerCase();
+      const haystack = [job.scene, job.upload_job, job.run_job, job.owner?.email].filter(Boolean).join(' ').toLowerCase();
       if (!haystack.includes(needle)) return false;
     }
     return true;
