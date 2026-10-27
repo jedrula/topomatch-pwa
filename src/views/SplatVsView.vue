@@ -12,6 +12,13 @@
     <div v-if="framesError" class="msg err">{{ framesError }}</div>
     <section v-else class="picker">
       <div class="picker-row">
+        <span class="lbl">From</span>
+        <span class="views">
+          <button v-for="o in OFFSETS" :key="o.v" class="chip" :class="{ on: offset === o.v }" :disabled="busy"
+                  @click="setOffset(o.v)">{{ o.label }}</button>
+        </span>
+      </div>
+      <div class="picker-row">
         <span class="lbl">Frame</span>
         <span class="hint">{{ frames.length }} photos. Each render runs on the training GPU — one at a time.</span>
       </div>
@@ -21,7 +28,8 @@
       </div>
     </section>
 
-    <p v-if="busy" class="msg">Rendering both splats for frame {{ view }}…</p>
+    <p v-if="busy" class="msg">Rendering both splats for frame {{ view }}{{ offset ? ', stepped back' : '' }}…</p>
+    <p v-if="data && offset && !busy" class="msg">Stepped back from where photo {{ view }} was taken: no photo saw this view, so the photo layer only shows roughly what is there. This is where smears and floaters show.</p>
     <p v-if="error" class="msg err">{{ error }}</p>
 
     <section v-if="data && !busy" class="stage-wrap">
@@ -54,6 +62,8 @@
 
 <script setup>
 /*
+ * Two jobs, one photo - from where it was taken, or stepped back and turned (`?from=0.15,15`): at a photo's own pose
+ * every splat looks good, so differences (smears on plain white furniture, 2026-10-27) show only in between.
  * Two jobs, one photo. The server's compare-view already renders extra pods (`also`) at each
  * one's own solved pose for the same photo, and renders a lens-fitted pod back through its lens
  * (compare_views.py), so this page only has to ask for both and wipe between any two layers.
@@ -69,6 +79,9 @@ const otherId = route.params.otherId;
 const frames = ref([]);
 const framesError = ref('');
 const view = ref(String(route.query.frame || ''));
+// Viewpoints: the photo's own, or back by a share of the scene's radius and turned (compare_views.py --offset).
+const OFFSETS = [{ v: '', label: "Photo's own view" }, { v: '0.15,15', label: 'A step back, turned 15°' }, { v: '0.3,25', label: 'Further back, turned 25°' }];
+const offset = ref(String(route.query.from || ''));
 const data = ref(null);
 const busy = ref(false);
 const error = ref('');
@@ -81,7 +94,7 @@ const showCrop = ref(false);
 const layers = computed(() => (data.value ? ['photo', ...data.value.arms] : []));
 const otherLabel = otherId.slice(0, 6);
 const name = (l) => (l === 'this' ? jobId : l === otherLabel ? otherId : l);
-const src = (l) => `${gw.value}/topowall/api/v1/video-to-splat/${jobId}/compare/${data.value.view}/${l}${showCrop.value ? '_crop' : ''}.jpg?v=${data.value.rev}-${data.value.stamp}`;
+const src = (l) => `${gw.value}/topowall/api/v1/video-to-splat/${jobId}/compare/${data.value.folder || data.value.view}/${l}${showCrop.value ? '_crop' : ''}.jpg?v=${data.value.rev}-${data.value.stamp}`;
 function pct(l, crop) {
   const d = crop ? data.value?.detail_crop : data.value?.detail;
   if (!d || !d.photo || d[l] == null) return '—';
@@ -102,18 +115,23 @@ async function load() {
 }
 onMounted(load);
 
+function setOffset(v) {
+  offset.value = v;
+  if (view.value) pick(view.value);
+}
+
 async function pick(k) {
   view.value = k; busy.value = true; error.value = '';
   try {
     const res = await fetch(`${gw.value}/topowall/api/v1/video-to-splat/${jobId}/compare-view`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ view: k, also: [otherId] }),
+      body: JSON.stringify({ view: k, also: [otherId], offset: offset.value }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { error.value = body.detail || `Render failed (${res.status})`; return; }
     if (!body.arms.includes(otherLabel)) error.value = `${otherId} did not solve this photo — only ${jobId} is shown.`;
     // splat counts come from the manifest the renders were written with
-    const m = await fetch(`${gw.value}/topowall/api/v1/video-to-splat/${jobId}/compare/${body.view}/manifest.json?t=${Date.now()}`)
+    const m = await fetch(`${gw.value}/topowall/api/v1/video-to-splat/${jobId}/compare/${body.folder || body.view}/manifest.json?t=${Date.now()}`)
       .then(r => (r.ok ? r.json() : null)).catch(() => null);
     body.splats = Object.fromEntries((m?.arms || []).map(a => [a.label, a.splats]));
     body.stamp = Date.now();       // a re-render with `also` keeps the same rev; never show a stale arm
@@ -138,6 +156,7 @@ async function pick(k) {
 .picker-row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin-bottom: 8px; }
 .lbl { font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; color: #8a9a95; }
 .hint { font-size: .76rem; color: #8a9a95; }
+.views { display: flex; flex-wrap: wrap; gap: 4px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; max-height: 132px; overflow-y: auto; }
 .chip { border: 1px solid #2b3a36; background: #151d1b; color: #9fb0aa; border-radius: 3px; font-size: .72rem; padding: 3px 7px; cursor: pointer; font-variant-numeric: tabular-nums; }
 .chip.on { background: #6FC8B0; color: #0d1412; border-color: #6FC8B0; font-weight: 600; }
