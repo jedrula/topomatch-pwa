@@ -85,8 +85,8 @@
           <div class="job-right">
             <img v-if="job.thumbnail" :src="job.thumbnail" class="job-thumb" alt="splat preview" @click="openCaptureLightbox(job.job_id, job.thumbnail)" style="cursor:pointer" />
             <span class="time" :title="timesTitle(job)">{{ timeLabel(job) }}</span>
-            <span v-if="job.finished_at" class="time finished" :title="timesTitle(job)">→ {{ formatFinish(startedAt(job) || job.created_at, job.finished_at) }}</span>
-            <span v-if="job.elapsed_s != null" class="elapsed">{{ formatElapsed(job.elapsed_s) }}</span>
+            <span v-if="job.finished_at" class="time finished" :title="timesTitle(job)">→ {{ formatFinish(job.photos_at || startedAt(job) || job.created_at, job.finished_at) }}</span>
+            <span v-if="waitS(job) != null" class="elapsed" :title="timesTitle(job)">{{ formatElapsed(waitS(job)) }}</span>
           </div>
         </div>
 
@@ -1294,7 +1294,15 @@ function startedAt(job) {
   return null;
 }
 
+// A phone scan's (or a script's) job: timed from when its photos arrived, so the wait shown is the whole wait -
+// placing the photos and depth included - not just training (2026-10-27: a 6 min 21 s run showed as 4m 36s).
+function waitS(job) {
+  if (job.photos_at && job.finished_at) return Math.round((new Date(job.finished_at) - new Date(job.photos_at)) / 1000);
+  return job.elapsed_s;
+}
+
 function timeLabel(job) {
+  if (job.photos_at) return `photos ${formatDate(job.photos_at)}`;
   if (job.status === 'queued') return `queued ${formatDate(job.created_at)}`;
   const st = startedAt(job);
   if (job.status === 'running') return st ? `started ${formatDate(st)}` : `queued ${formatDate(job.created_at)}`;
@@ -1303,8 +1311,9 @@ function timeLabel(job) {
 
 function timesTitle(job) {
   const st = startedAt(job);
-  return [`queued ${formatDate(job.created_at)}`, st && `started ${formatDate(st)}`,
-          job.finished_at && `finished ${formatDate(job.finished_at)}`].filter(Boolean).join(' · ');
+  return [job.photos_at && `photos arrived ${formatDate(job.photos_at)}`, `queued ${formatDate(job.created_at)}`,
+          st && `started ${formatDate(st)}`, job.finished_at && `finished ${formatDate(job.finished_at)}`,
+          job.photos_at && job.elapsed_s != null && `training job ${formatElapsed(job.elapsed_s)}`].filter(Boolean).join(' · ');
 }
 
 // Finish time next to the start time: just the clock when it is the same day, the full date otherwise.
