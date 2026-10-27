@@ -42,13 +42,30 @@
       </span>
     </div>
 
-    <svg v-if="series.length > 1" class="gp-chart" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none">
-      <!-- the ceiling is the point of the chart on an 8 GB card -->
-      <line :x1="0" :x2="W" :y1="y(totalMb)" :y2="y(totalMb)" class="gp-ceil" />
-      <line v-for="g in grid" :key="g" :x1="0" :x2="W" :y1="y(g)" :y2="y(g)" class="gp-grid" />
-      <path :d="areaPath" class="gp-area" />
-      <path :d="linePath" class="gp-line" />
-    </svg>
+    <div v-if="series.length > 1" class="gp-plot">
+      <!-- GB labels outside the stretched SVG, so the text keeps its shape -->
+      <div class="gp-yaxis">
+        <span v-for="g in yTicks" :key="g" :style="{ top: `${(y(g) / H) * 100}%` }">{{ (g / 1024).toFixed(0) }} GB</span>
+      </div>
+      <div class="gp-chart-wrap" @mousemove="hover" @mouseleave="hoverIdx = null">
+        <svg class="gp-chart" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none">
+          <!-- the ceiling is the point of the chart on an 8 GB card -->
+          <line :x1="0" :x2="W" :y1="y(totalMb)" :y2="y(totalMb)" class="gp-ceil" />
+          <line v-for="g in grid" :key="g" :x1="0" :x2="W" :y1="y(g)" :y2="y(g)" class="gp-grid" />
+          <path :d="areaPath" class="gp-area" />
+          <path :d="linePath" class="gp-line" />
+          <line v-if="hoverIdx !== null" :x1="xs(hoverIdx)" :x2="xs(hoverIdx)" :y1="PAD" :y2="H - PAD" class="gp-rule" />
+        </svg>
+        <span v-if="hoverIdx !== null" class="gp-dot"
+              :style="{ left: `${(xs(hoverIdx) / W) * 100}%`, top: `${(y(series[hoverIdx][1]) / H) * 100}%` }"></span>
+        <div v-if="hoverIdx !== null" class="gp-tip" :class="{ flip: hoverIdx > series.length * 0.7 }"
+             :style="{ left: `${(xs(hoverIdx) / W) * 100}%` }">
+          <span class="gp-tip-t">{{ fmt(series[hoverIdx][0]) }}</span>
+          <b>{{ (series[hoverIdx][1] / 1024).toFixed(2) }} GB</b>
+          <span class="gp-tip-t">of {{ (totalMb / 1024).toFixed(0) }} GB · {{ ((series[hoverIdx][1] / totalMb) * 100).toFixed(0) }}%</span>
+        </div>
+      </div>
+    </div>
     <p v-else class="gp-empty">{{ loading ? 'reading…' : 'no samples yet' }}</p>
 
     <div v-if="series.length > 1" class="gp-axis">
@@ -98,6 +115,17 @@ const peakPct = computed(() =>
 const top = computed(() => Math.max(totalMb.value || 1, peak.value || 1));
 const y = (mb) => H - PAD - (mb / top.value) * (H - 2 * PAD);
 const xs = (i) => PAD + (i / Math.max(series.value.length - 1, 1)) * (W - 2 * PAD);
+
+// Labelled y ticks: every grid line plus the ceiling.
+const yTicks = computed(() => [...grid.value, totalMb.value].filter(Boolean));
+// The sample under the mouse (nearest by x), for the tooltip.
+const hoverIdx = ref(null);
+function hover(ev) {
+  const r = ev.currentTarget.getBoundingClientRect();
+  const fx = ((ev.clientX - r.left) / r.width) * W;
+  const n = series.value.length;
+  hoverIdx.value = Math.min(n - 1, Math.max(0, Math.round(((fx - PAD) / (W - 2 * PAD)) * (n - 1))));
+}
 
 const grid = computed(() => {
   const step = top.value > 16000 ? 8192 : 2048;
@@ -195,13 +223,27 @@ onUnmounted(() => clearInterval(timer));
   border-radius: 4px; padding: 3px 9px; font-size: 11.5px; cursor: pointer;
   font-family: ui-monospace, monospace; }
 .gp-range button.on { border-color: #6ea8ff; color: #6ea8ff; }
+.gp-plot { display: flex; gap: 6px; }
+.gp-yaxis { position: relative; width: 38px; height: 120px; flex: none; }
+.gp-yaxis span { position: absolute; right: 0; transform: translateY(-50%); font-family: ui-monospace, monospace;
+  font-size: 10.5px; color: #8b94a7; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gp-chart-wrap { position: relative; flex: 1; min-width: 0; cursor: crosshair; }
 .gp-chart { width: 100%; height: 120px; display: block; }
+.gp-rule { stroke: #8b94a7; stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .6; }
+.gp-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #6ea8ff;
+  box-shadow: 0 0 0 2px #161a22; transform: translate(-50%, -50%); pointer-events: none; }
+.gp-tip { position: absolute; top: 4px; transform: translateX(10px); background: #0f1218; border: 1px solid #2f3746;
+  border-radius: 5px; padding: 4px 7px; font-family: ui-monospace, monospace; font-size: 11px; color: #dfe5ef;
+  display: flex; flex-direction: column; gap: 1px; pointer-events: none; white-space: nowrap;
+  font-variant-numeric: tabular-nums; }
+.gp-tip.flip { transform: translateX(calc(-100% - 10px)); }
+.gp-tip-t { color: #8b94a7; }
 .gp-grid { stroke: #262c38; stroke-width: 1; }
 .gp-ceil { stroke: #e0655f; stroke-width: 1; stroke-dasharray: 4 4; opacity: .65; }
 .gp-line { fill: none; stroke: #6ea8ff; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
 .gp-area { fill: rgba(110, 168, 255, .16); stroke: none; }
 .gp-axis { display: flex; justify-content: space-between; font-family: ui-monospace, monospace;
-  font-size: 10.5px; color: #5c6773; margin-top: 3px; }
+  font-size: 10.5px; color: #5c6773; margin-top: 3px; padding-left: 44px; }
 .gp-mid { color: #4a5563; }
 .gp-empty { font-size: 12px; color: #5c6773; margin: 14px 0; text-align: center; }
 </style>
