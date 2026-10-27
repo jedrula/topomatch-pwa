@@ -183,6 +183,13 @@ const router = createRouter({
       meta: { requiresAdmin: true },
     },
     {
+      // Blind A/B: two jobs as clips from the same path, sides shuffled, votes and a tally (2026-10-27).
+      path: '/splat/:jobId/blind/:otherId',
+      name: 'splat-blind',
+      component: () => import('../views/SplatBlindView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
       // Two jobs from the same photo poses, wiped against each other and the photo.
       path: '/splat/:jobId/vs/:otherId',
       name: 'splat-vs',
