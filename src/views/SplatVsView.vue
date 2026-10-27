@@ -39,7 +39,7 @@
         <label class="grow">Wipe <input v-model.number="wipe" type="range" min="0" max="100" /></label>
         <label><input v-model="showCrop" type="checkbox" /> busiest crop</label>
       </div>
-      <div class="stage">
+      <div class="stage" @pointerdown="dragStart" @pointermove="dragMove" @pointerup="dragEnd" @pointercancel="dragEnd">
         <img :src="src(right)" :alt="name(right)" />
         <img class="over" :src="src(left)" :alt="name(left)" :style="{ clipPath: `inset(0 ${100 - wipe}% 0 0)` }" />
         <div class="bar" :style="{ left: `${wipe}%` }"></div>
@@ -115,6 +115,17 @@ async function load() {
 }
 onMounted(load);
 
+// Drag the wipe anywhere on the image, not only with the slider (Andrzej, 2026-10-27: "make the whole vertical bar
+// draggable"): press sets the bar where you press, then it follows the pointer until release.
+let dragging = false;
+function wipeAt(ev) {
+  const r = ev.currentTarget.getBoundingClientRect();
+  wipe.value = Math.round(Math.min(100, Math.max(0, ((ev.clientX - r.left) / r.width) * 100)) * 10) / 10;
+}
+function dragStart(ev) { dragging = true; ev.currentTarget.setPointerCapture?.(ev.pointerId); wipeAt(ev); ev.preventDefault(); }
+function dragMove(ev) { if (dragging) wipeAt(ev); }
+function dragEnd() { dragging = false; }
+
 function setOffset(v) {
   offset.value = v;
   if (view.value) pick(view.value);
@@ -167,10 +178,12 @@ async function pick(k) {
 .controls select { background: #151d1b; color: #e9eeeb; border: 1px solid #2b3a36; border-radius: 3px; padding: 3px 6px; margin-left: 4px; }
 .controls .grow { flex: 1 1 200px; display: flex; gap: 8px; align-items: center; }
 .controls .grow input { flex: 1; }
-.stage { position: relative; line-height: 0; border: 1px solid #2b3a36; }
+.stage { position: relative; line-height: 0; border: 1px solid #2b3a36; cursor: ew-resize; touch-action: none; user-select: none; }
+.stage img { -webkit-user-drag: none; pointer-events: none; }
 .stage img { width: 100%; height: auto; display: block; }
 .stage .over { position: absolute; inset: 0; }
 .bar { position: absolute; top: 0; bottom: 0; width: 2px; background: #6FC8B0; transform: translateX(-1px); pointer-events: none; }
+.bar::after { content: ""; position: absolute; top: 50%; left: 50%; width: 14px; height: 34px; transform: translate(-50%, -50%); border-radius: 7px; background: #6FC8B0; box-shadow: 0 0 0 2px #0d1513; }
 .tag { position: absolute; top: 8px; font: 600 .7rem ui-monospace, monospace; background: rgba(13,20,18,.75); padding: 3px 6px; border-radius: 3px; line-height: 1.2; }
 .tag.l { left: 8px; } .tag.r { right: 8px; }
 .nums { margin-top: 10px; border-collapse: collapse; font-size: .8rem; font-variant-numeric: tabular-nums; }
