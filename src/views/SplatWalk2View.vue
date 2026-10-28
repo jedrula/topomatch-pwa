@@ -124,6 +124,10 @@
       </div>
     </div>
 
+    <div v-if="live && !loading && !error" class="walk2-live">
+      Still training · {{ Math.round((live.step / live.of) * 100) }}% — it sharpens as it learns
+    </div>
+
     <pre v-if="debug" class="walk2-debug">{{ dbg }}</pre>
 
     <div v-if="showHint" class="walk2-hint">
@@ -207,6 +211,8 @@ const progressLabel = ref('');
 const showHint = ref(false);
 const speed = ref(1.5);
 const sizeInfo = ref('');
+// {step, of} while the job still trains and shows its newest preview (server /live); null otherwise.
+const live = ref(null);
 const sens = ref(0.14);
 const upLabel = ref('');
 // carpet-walk: confine the viewer to within `radius` of a camera centre. See the clamp below.
@@ -470,8 +476,15 @@ onMounted(async () => {
         progressLabel.value = `${s} s`;
       }
     }, 1000);
+    // A job still training shows its newest preview (a small flat-colour .sog every 1000 steps) and swaps in each
+    // newer one, then the finished splat (2026-10-28: the phone watches it sharpen instead of a progress bar).
+    const liveInfo = await fetch(`${base}/live`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     let res;
-    try { res = await fetch(`${base}/sog`); } finally { clearInterval(prepTimer); }
+    try {
+      if (liveInfo) res = await fetch(`${base}/live.sog`, { cache: 'no-store' });
+      if (!res?.ok) res = await fetch(`${base}/sog`);       // training finished meanwhile
+    } finally { clearInterval(prepTimer); }
+    const fromLive = !!liveInfo && res.url.includes('/live.sog');
     status.value = 'downloading splat (.sog)…';
     progressLabel.value = '';
     if (!res.ok) throw new Error(`sog ${res.status} — ${(await res.text()).slice(0, 200)}`);
@@ -586,6 +599,57 @@ onMounted(async () => {
     progressLabel.value = '';
     status.value = 'ready — click to look around';
     showHint.value = true;
+
+    if (fromLive) {
+      // Every 5 s: a newer preview replaces the splat in place (same frame, so the camera stays put); once /live is
+      // gone the job has finished, and its final splat replaces the last preview.
+      live.value = liveInfo;
+      let current = asset;
+      let busy = false;
+      const swap = async (path) => {
+        const r = await fetch(`${base}/${path}`, { cache: 'no-store' });
+        if (!r.ok || !app) return false;
+        const url = URL.createObjectURL(await r.blob());
+        const next = new pc.Asset(`splat-${splatId}-${Date.now()}`, 'gsplat', { url, filename: `${splatId}.sog` });
+        await new Promise((resolve, reject) => {
+          next.once('load', resolve);
+          next.once('error', (e) => reject(new Error(`gsplat asset failed: ${e}`)));
+          app.assets.add(next);
+          app.assets.load(next);
+        });
+        if (!app) return false;
+        splatEntity.gsplat.asset = next;
+        app.assets.remove(current);
+        current.unload();
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = url;
+        current = next;
+        sizeInfo.value = `${(r.headers.get('Content-Length') / 1e6 || 0).toFixed(1)} MB SOG`;
+        return true;
+      };
+      let timer = null;
+      const tick = async () => {
+        if (busy || !app) return;
+        busy = true;
+        try {
+          const r = await fetch(`${base}/live`, { cache: 'no-store' });
+          if (r.ok) {
+            const n = await r.json();
+            if (n.step > live.value.step && await swap('live.sog')) live.value = n;
+          } else if (r.status === 404) {
+            const job = await fetch(base, { cache: 'no-store' }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+            if (job?.status === 'done') {
+              if (await swap('sog')) { live.value = null; clearInterval(timer); }
+            } else if (job && job.status !== 'running') {
+              live.value = null;
+              clearInterval(timer);
+            }
+          }
+        } catch { /* try again on the next tick */ } finally { busy = false; }
+      };
+      timer = setInterval(tick, 5000);
+      cleanupFns.push(() => clearInterval(timer));
+    }
 
     // ---- camera ----
     // Orientation comes from carpet.world_up, NOT a hardcoded roll. The earlier version
@@ -1430,6 +1494,11 @@ onBeforeUnmount(() => {
   font: 12px ui-monospace, monospace;
 }
 .walk2-status.err { background: rgba(120,20,20,.85); color: #ffdada; }
+.walk2-live {
+  position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 50%; transform: translateX(-50%); z-index: 5;
+  background: rgba(0,0,0,.62); color: #e8e8ef; padding: 7px 12px; border-radius: 999px;
+  font: 12px ui-monospace, monospace; white-space: nowrap; pointer-events: none;
+}
 .walk2-progress { height: 4px; background: #2a2a33; border-radius: 2px; margin-top: 7px; overflow: hidden; }
 .walk2-progress-fill { height: 100%; background: #2f6fd0; transition: width .15s linear; }
 .walk2-hint {
