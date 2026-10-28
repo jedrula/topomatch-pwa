@@ -102,7 +102,9 @@
              LPIPS leads, PSNR follows dimmed (2026-10-28, Andrzej): in blind tests he picked the
              LPIPS-better splat 3/3; the PSNR-better one looked "foggy, as if smoke in the room". -->
         <div v-if="job.exam" class="metrics-row exam-row">
-          <span class="exam-label" title="Scored on exam photos: views taken after the scan, never used for training">EXAM</span>
+          <span v-if="job.exam.kind === 'sim'" class="exam-label"
+                :title="`Sim run, scored against the true renders from views no photo had (${job.exam.compared_with?.replace('sim truth: ', '')}); in-block = photos placed within 10 cm of the truth`">SIM TRUTH</span>
+          <span v-else class="exam-label" title="Scored on exam photos: views taken after the scan, never used for training">EXAM</span>
           <span v-if="job.exam.lpips != null" class="metric primary" :class="lpipsClass(job.exam.lpips)"
                 :title="LPIPS_TITLE + ' On the exam photos (never trained on), comparable between captures.'">
             LPIPS {{ job.exam.lpips.toFixed(3) }}
