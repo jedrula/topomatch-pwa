@@ -95,39 +95,45 @@
 
         <div v-if="job.error" class="job-error">{{ job.error }}</div>
 
-        <!-- Shared-exam score. Read this one, not PSNR: a capture that covers only part of
+        <!-- Shared-exam score. Read this one, not own held-out numbers: a capture that covers only part of
              the scene writes itself an easy held-out split. The coverage-driven walk scored
              32.45 dB on its own views and 19.67 on a shared set of novel views nobody
-             captured. In-block % is the fold check — PSNR cannot see a fold at all. -->
+             captured. In-block % is the fold check — PSNR cannot see a fold at all.
+             LPIPS leads, PSNR follows dimmed (2026-10-28, Andrzej): in blind tests he picked the
+             LPIPS-better splat 3/3; the PSNR-better one looked "foggy, as if smoke in the room". -->
         <div v-if="job.exam" class="metrics-row exam-row">
           <span class="exam-label" title="Scored on exam photos: views taken after the scan, never used for training">EXAM</span>
-          <span v-if="job.exam.psnr != null" class="metric" :class="psnrClass(job.exam.psnr)"
-                title="PSNR on the exam photos (never trained on) — comparable between captures, unlike own held-out PSNR">
-            {{ job.exam.psnr.toFixed(2) }} dB
-          </span>
-          <!-- Colour-matched (2026-10-17, Andrzej: "seems important"): each exam photo's brightness and white balance
-               fitted to the render first (gain + offset per channel), so a phone that exposed the exam differently
-               from the scan is not counted as a splat error. Closest to "how good is the splat itself". -->
-          <span v-if="job.exam.psnr_colorfit != null" class="metric" :class="psnrClass(job.exam.psnr_colorfit)"
-                title="PSNR after matching each exam photo's brightness and colour balance to the render — the splat's own error, without exposure differences between the scan and the exam">
-            {{ job.exam.psnr_colorfit.toFixed(2) }} dB colour-matched
-          </span>
-          <span v-if="job.exam.lpips != null" class="metric" :class="job.exam.lpips <= 0.35 ? 'metric-good' : job.exam.lpips <= 0.45 ? 'metric-ok' : 'metric-poor'"
-                title="LPIPS on the exam photos: how different the render looks to a person (0 = identical; lower is better)">
+          <span v-if="job.exam.lpips != null" class="metric primary" :class="lpipsClass(job.exam.lpips)"
+                :title="LPIPS_TITLE + ' On the exam photos (never trained on), comparable between captures.'">
             LPIPS {{ job.exam.lpips.toFixed(3) }}
           </span>
-          <span v-else class="metric metric-poor" title="Cameras could not be fitted to the true poses in one block, so the model is folded and shape cannot be scored">
+          <span v-else class="metric primary metric-poor" title="Cameras could not be fitted to the true poses in one block, so the model is folded and shape cannot be scored">
             FOLDED
           </span>
           <span class="metric" :class="job.exam.in_block_pct >= 95 ? 'metric-good' : job.exam.in_block_pct >= 80 ? 'metric-ok' : 'metric-poor'"
                 title="Share of cameras that fit the true poses in one consistent block. Below ~95% means part of the map is welded in the wrong place.">
             in-block {{ job.exam.in_block_pct.toFixed(1) }}%
           </span>
+          <span v-if="job.exam.psnr != null" class="metric muted"
+                title="PSNR on the exam photos — secondary: it rewards a blurry, foggy splat that LPIPS and the eye mark down (higher is better)">
+            {{ job.exam.psnr.toFixed(2) }} dB
+          </span>
+          <!-- Colour-matched (2026-10-17, Andrzej: "seems important"): each exam photo's brightness and white balance
+               fitted to the render first (gain + offset per channel), so a phone that exposed the exam differently
+               from the scan is not counted as a splat error. -->
+          <span v-if="job.exam.psnr_colorfit != null" class="metric muted"
+                title="PSNR after matching each exam photo's brightness and colour balance to the render — without exposure differences between the scan and the exam (higher is better)">
+            {{ job.exam.psnr_colorfit.toFixed(2) }} dB colour-matched
+          </span>
         </div>
 
         <!-- Headline numbers only; the rest is under "details". Warnings surface here even when details are closed. -->
-        <div v-if="job.metrics && (job.metrics.psnr != null || job.metrics.registered_images != null)" class="metrics-row">
-          <span v-if="job.metrics.psnr != null" class="metric" :class="psnrClass(job.metrics.psnr)" title="PSNR on this capture's OWN held-out views. Not comparable between captures — a capture covering less ground scores higher here. Use the EXAM row.">
+        <div v-if="job.metrics && (job.metrics.lpips != null || job.metrics.psnr != null || job.metrics.registered_images != null)" class="metrics-row">
+          <span v-if="job.metrics.lpips != null" class="metric" :class="[lpipsClass(job.metrics.lpips), { primary: !job.exam }]"
+                :title="LPIPS_TITLE + ' On this capture\'s OWN held-out views: not comparable between captures. Use the EXAM row.'">
+            own LPIPS {{ job.metrics.lpips.toFixed(3) }}
+          </span>
+          <span v-if="job.metrics.psnr != null" class="metric muted" title="PSNR on this capture's OWN held-out views (higher is better). Secondary to LPIPS, and not comparable between captures — a capture covering less ground scores higher here. Use the EXAM row.">
             own {{ job.metrics.psnr.toFixed(1) }} dB
           </span>
           <span v-if="job.metrics.registered_images != null" class="metric muted" title="SfM: registered images / submitted">
@@ -278,7 +284,6 @@
         </div>
         <div v-if="job.metrics" class="metrics-row">
           <span v-if="job.metrics.ssim != null" class="metric" title="SSIM — structural similarity, 0–1, higher better">SSIM {{ job.metrics.ssim.toFixed(3) }}</span>
-          <span v-if="job.metrics.lpips != null" class="metric" title="LPIPS — perceptual loss, lower better">LPIPS {{ job.metrics.lpips.toFixed(3) }}</span>
           <span v-if="job.metrics.sfm_points != null" class="metric muted" title="Sparse point count from SfM">pts {{ job.metrics.sfm_points.toLocaleString() }}</span>
           <span v-if="job.metrics.track_len_mean != null" class="metric muted" title="Mean SfM track length: how many photos see each point (co-visibility)">track {{ job.metrics.track_len_mean.toFixed(1) }}</span>
           <span v-if="job.metrics.floater_frac_pct != null" class="metric muted" title="Share of splats flagged as floaters">floaters {{ job.metrics.floater_frac_pct.toFixed(1) }}%</span>
@@ -611,7 +616,7 @@ function filtersFromQuery(q) {
   return {
     query: typeof q.q === 'string' && q.q ? q.q : null,
     statuses: list(q.status), trainers: list(q.trainer), sources: list(q.source),
-    minPsnr: num(q.psnr), maxIters: num(q.iters), starredOnly: q.starred === '1',
+    maxLpips: num(q.lpips), maxIters: num(q.iters), starredOnly: q.starred === '1',
   };
 }
 const initialFilters = filtersFromQuery(route.query);
@@ -621,7 +626,7 @@ const filters = ref({
   statuses: initialFilters.statuses ? new Set(initialFilters.statuses) : null,
   trainers: initialFilters.trainers ? new Set(initialFilters.trainers) : null,
   sources: initialFilters.sources ? new Set(initialFilters.sources) : null,
-  minPsnr: initialFilters.minPsnr,
+  maxLpips: initialFilters.maxLpips,
   maxIters: initialFilters.maxIters,
   starredOnly: initialFilters.starredOnly,
 });
@@ -636,7 +641,7 @@ const pageSize = ref(PAGE_SIZES.includes(Number(route.query.per)) ? Number(route
 const shownUploads = computed(() => new Set(jobs.value.flatMap(j => [j.upload_job, j.run_job]).filter(Boolean)));
 
 const filteredJobs = computed(() => {
-  const { statuses, trainers, sources, minPsnr, maxIters, query, starredOnly } = filters.value;
+  const { statuses, trainers, sources, maxLpips, maxIters, query, starredOnly } = filters.value;
   const needle = query?.trim().toLowerCase();
   return jobs.value.filter(job => {
     if (shownUploads.value.has(job.job_id))              return false;
@@ -645,9 +650,9 @@ const filteredJobs = computed(() => {
     if (trainers  && !trainers.has(job.params?.trainer)) return false;
     if (sources   && !sources.has(job.params?.source))   return false;
     if (maxIters != null && (job.params?.iters ?? Infinity) > maxIters) return false;
-    if (minPsnr != null) {
-      const psnr = job.metrics?.psnr;
-      if (psnr == null || psnr < minPsnr) return false;
+    if (maxLpips != null) {
+      const lpips = jobLpips(job);
+      if (lpips == null || lpips > maxLpips) return false;
     }
     if (needle) {
       const haystack = [job.scene, job.upload_job, job.run_job, job.owner?.email].filter(Boolean).join(' ').toLowerCase();
@@ -698,7 +703,7 @@ watch([filters, page, pageSize], () => {
   set('status', f.statuses ? [...f.statuses].join(',') : null);
   set('trainer', f.trainers ? [...f.trainers].join(',') : null);
   set('source', f.sources ? [...f.sources].join(',') : null);
-  set('psnr', f.minPsnr);
+  set('lpips', f.maxLpips);
   set('iters', f.maxIters);
   set('starred', f.starredOnly ? '1' : null);
   set('page', page.value > 1 ? page.value : null);
@@ -1350,11 +1355,16 @@ function gpsClass(m) {
   return 'metric-good';
 }
 
-function psnrClass(psnr) {
-  if (psnr >= 24) return 'metric-good';
-  if (psnr >= 21) return 'metric-ok';
+// LPIPS is the quality number to read (2026-10-28): it matches Andrzej's eye where PSNR does not. Lower is better;
+// the best real recipe scores ~0.32 on the exam, a clean sim ~0.19, a poor real scan 0.5+.
+const LPIPS_TITLE = 'LPIPS — lower is better, closest to how it looks (0 = identical to the photo).';
+function lpipsClass(lpips) {
+  if (lpips <= 0.35) return 'metric-good';
+  if (lpips <= 0.45) return 'metric-ok';
   return 'metric-poor';
 }
+// The LPIPS a job is judged and filtered by: the shared exam's when it has one, else its own held-out views'.
+const jobLpips = (job) => job.exam?.lpips ?? job.metrics?.lpips ?? null;
 
 function formatElapsed(seconds) {
   if (seconds == null) return '';
@@ -1688,7 +1698,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .metric.metric-poor { color: #f87171; border-color: #7f1d1d; background: #1c0a0a; }
 
 /* The shared-exam row sits above the per-capture metrics because it is the comparable
-   number. Own held-out PSNR below it is kept, dimmed, for continuity with older runs. */
+   number. LPIPS is each row's lead number (.primary); PSNR follows it, dimmed. */
+.metric.primary { font-size: 0.85rem; font-weight: 700; }
 .exam-row { margin-bottom: 2px; }
 .exam-label {
   font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
