@@ -4,7 +4,7 @@
     <div v-if="captureFov && camIntr" class="walk2-capframe"
          :style="{ aspectRatio: `${camIntr.width} / ${camIntr.height}` }"></div>
 
-    <div v-if="!isTouch" class="walk2-hud" :class="{ collapsed: !hudOpen }">
+    <div v-if="!isTouch && !appMode" class="walk2-hud" :class="{ collapsed: !hudOpen }">
       <div class="hud-head">
         <span class="hud-title">Walk</span>
         <code class="hud-id">{{ splatId }}</code>
@@ -80,7 +80,7 @@
 
     <!-- Flag a POOR view (Andrzej 2026-09-30): saved with camera + screenshot, reopenable, analysed by
          experiments/smallarea/analyze_flags.py. The camera here is in the COLMAP frame (see applyCamera). -->
-    <div class="walk2-flags">
+    <div v-if="!appMode" class="walk2-flags">
       <button class="walk2-flag-btn" :disabled="flagging" @click="flagOpen = !flagOpen">
         {{ flagging ? 'Flagging…' : '⚑ Flag view' }}</button>
       <select v-if="flags.length" class="walk2-flag-list" @change="openFlag($event.target.value); $event.target.value = ''">
@@ -110,25 +110,29 @@
     <CaptureJudgeReport v-if="judgeOpen" :job-id="splatId" @close="judgeOpen = false" />
 
     <!-- What am I looking at? The job's note (PRE / POST), from GET .../note -->
-    <div v-if="jobNote && noteShown" class="walk2-note-box" :class="{ open: noteOpen }">
+    <div v-if="jobNote && noteShown && !appMode" class="walk2-note-box" :class="{ open: noteOpen }">
       <div class="nb-head"><b>Note</b>
         <button v-if="noteLong" @click="noteOpen = !noteOpen">{{ noteOpen ? 'less' : 'more' }}</button>
         <button title="hide" @click="noteShown = false">×</button></div>
       <div class="nb-body"><p v-for="(l, i) in noteLines" :key="i"><em v-if="l.tag" :class="l.tag">{{ l.tag }}</em>{{ l.text }}</p></div>
     </div>
 
-    <div class="walk2-status" :class="{ err: !!error }">
+    <div v-if="!appMode || error || loading" class="walk2-status" :class="{ err: !!error }">
       {{ error || status }}<span v-if="!error && progressLabel"> — {{ progressLabel }}</span>
       <div v-if="!error && loading" class="walk2-progress">
         <div class="walk2-progress-fill" :style="{ width: progressPct + '%' }"></div>
       </div>
     </div>
 
+    <div v-if="live && !loading && !error" class="walk2-live">
+      Still training · {{ Math.round((live.step / live.of) * 100) }}% — it sharpens as it learns
+    </div>
+
     <pre v-if="debug" class="walk2-debug">{{ dbg }}</pre>
 
     <div v-if="showHint" class="walk2-hint">
       {{ isTouch ? 'drag to look · stick to walk' : 'click to look around' }}
-      <span class="walk2-build">build {{ buildStamp }}</span>
+      <span v-if="!appMode" class="walk2-build">build {{ buildStamp }}</span>
     </div>
 
     <!-- Touch layer -->
@@ -147,10 +151,10 @@
     </div>
     <!-- Top-right: a hamburger menu for navigation, with the flag controls stacked BELOW it (they used to
          sit on top of the old "walk v1" link). -->
-    <button class="walk2-menu-btn walk2-star-btn" :class="{ on: starred }" :disabled="starBusy"
+    <button v-if="!appMode" class="walk2-menu-btn walk2-star-btn" :class="{ on: starred }" :disabled="starBusy"
             :title="starred == null ? 'Star state not loaded yet' : starred ? 'Starred — click to unstar' : 'Star this run'"
             @click="toggleStar">{{ starred ? '★' : starred == null ? '☆?' : '☆' }}</button>
-    <div v-if="!isTouch" class="walk2-menu" @keydown.esc="menuOpen = false">
+    <div v-if="!isTouch && !appMode" class="walk2-menu" @keydown.esc="menuOpen = false">
       <button class="walk2-menu-btn" :class="{ open: menuOpen }" aria-label="menu" @click="menuOpen = !menuOpen">☰</button>
       <nav v-if="menuOpen" class="walk2-menu-list" @click="menuOpen = false">
         <RouterLink :to="{ name: 'splat-viewer', params: { splatId } }">Splat viewer</RouterLink>
@@ -164,7 +168,7 @@
         <RouterLink :to="{ name: 'splat-history' }">← History</RouterLink>
       </nav>
     </div>
-    <RouterLink v-else :to="{ name: 'splat-history' }" class="walk2-back-btn"
+    <RouterLink v-else-if="!appMode" :to="{ name: 'splat-history' }" class="walk2-back-btn"
                 aria-label="back to history">←</RouterLink>
   </div>
 </template>
@@ -193,6 +197,9 @@ import { getGateway } from '../config/gateway.js';
 import CaptureJudgeReport from '../components/CaptureJudgeReport.vue';
 
 const route = useRoute();
+// ?app=1 (2026-10-26): inside the LiveFusion iPhone app, for the person who scanned the room - the splat and the
+// walk controls only; no flags, star, job note, build stamp or links to the lab pages (the app has its own close).
+const appMode = route.query.app === '1';
 const splatId = route.params.splatId;
 const router = useRouter();
 const canvasEl = ref(null);
@@ -204,6 +211,8 @@ const progressLabel = ref('');
 const showHint = ref(false);
 const speed = ref(1.5);
 const sizeInfo = ref('');
+// {step, of} while the job still trains and shows its newest preview (server /live); null otherwise.
+const live = ref(null);
 const sens = ref(0.14);
 const upLabel = ref('');
 // carpet-walk: confine the viewer to within `radius` of a camera centre. See the clamp below.
@@ -214,7 +223,9 @@ const carpetWalk = ref(true);
 // what walk v1 shipped with.
 // 2026-10-14: 1.2 m by default (Andrzej: more freedom to move in RAW room scans); watch for drifting too close to walls,
 // the reason it went back from 1.5 to 0.6 before.
-const radius = ref(1.2);
+// ?r= sets it; the LiveFusion app and the landing page's embed (?app=1) stay closer to where the photos were taken: 0.75 m
+// (2026-10-26, Andrzej) - the view is sharpest there.
+const radius = ref(Number(route.query.r) || (appMode ? 0.75 : 1.2));
 // Draw where the capture actually went. The clamp below has always been invisible: you could
 // be held at the edge of the captured area with nothing on screen saying where that edge is,
 // which reads as broken controls rather than as a boundary.
@@ -465,8 +476,15 @@ onMounted(async () => {
         progressLabel.value = `${s} s`;
       }
     }, 1000);
+    // A job still training shows its newest preview (a small flat-colour .sog every 1000 steps) and swaps in each
+    // newer one, then the finished splat (2026-10-28: the phone watches it sharpen instead of a progress bar).
+    const liveInfo = await fetch(`${base}/live`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     let res;
-    try { res = await fetch(`${base}/sog`); } finally { clearInterval(prepTimer); }
+    try {
+      if (liveInfo) res = await fetch(`${base}/live.sog`, { cache: 'no-store' });
+      if (!res?.ok) res = await fetch(`${base}/sog`);       // training finished meanwhile
+    } finally { clearInterval(prepTimer); }
+    const fromLive = !!liveInfo && res.url.includes('/live.sog');
     status.value = 'downloading splat (.sog)…';
     progressLabel.value = '';
     if (!res.ok) throw new Error(`sog ${res.status} — ${(await res.text()).slice(0, 200)}`);
@@ -581,6 +599,57 @@ onMounted(async () => {
     progressLabel.value = '';
     status.value = 'ready — click to look around';
     showHint.value = true;
+
+    if (fromLive) {
+      // Every 5 s: a newer preview replaces the splat in place (same frame, so the camera stays put); once /live is
+      // gone the job has finished, and its final splat replaces the last preview.
+      live.value = liveInfo;
+      let current = asset;
+      let busy = false;
+      const swap = async (path) => {
+        const r = await fetch(`${base}/${path}`, { cache: 'no-store' });
+        if (!r.ok || !app) return false;
+        const url = URL.createObjectURL(await r.blob());
+        const next = new pc.Asset(`splat-${splatId}-${Date.now()}`, 'gsplat', { url, filename: `${splatId}.sog` });
+        await new Promise((resolve, reject) => {
+          next.once('load', resolve);
+          next.once('error', (e) => reject(new Error(`gsplat asset failed: ${e}`)));
+          app.assets.add(next);
+          app.assets.load(next);
+        });
+        if (!app) return false;
+        splatEntity.gsplat.asset = next;
+        app.assets.remove(current);
+        current.unload();
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = url;
+        current = next;
+        sizeInfo.value = `${(r.headers.get('Content-Length') / 1e6 || 0).toFixed(1)} MB SOG`;
+        return true;
+      };
+      let timer = null;
+      const tick = async () => {
+        if (busy || !app) return;
+        busy = true;
+        try {
+          const r = await fetch(`${base}/live`, { cache: 'no-store' });
+          if (r.ok) {
+            const n = await r.json();
+            if (n.step > live.value.step && await swap('live.sog')) live.value = n;
+          } else if (r.status === 404) {
+            const job = await fetch(base, { cache: 'no-store' }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+            if (job?.status === 'done') {
+              if (await swap('sog')) { live.value = null; clearInterval(timer); }
+            } else if (job && job.status !== 'running') {
+              live.value = null;
+              clearInterval(timer);
+            }
+          }
+        } catch { /* try again on the next tick */ } finally { busy = false; }
+      };
+      timer = setInterval(tick, 5000);
+      cleanupFns.push(() => clearInterval(timer));
+    }
 
     // ---- camera ----
     // Orientation comes from carpet.world_up, NOT a hardcoded roll. The earlier version
@@ -1425,6 +1494,11 @@ onBeforeUnmount(() => {
   font: 12px ui-monospace, monospace;
 }
 .walk2-status.err { background: rgba(120,20,20,.85); color: #ffdada; }
+.walk2-live {
+  position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); left: 50%; transform: translateX(-50%); z-index: 5;
+  background: rgba(0,0,0,.62); color: #e8e8ef; padding: 7px 12px; border-radius: 999px;
+  font: 12px ui-monospace, monospace; white-space: nowrap; pointer-events: none;
+}
 .walk2-progress { height: 4px; background: #2a2a33; border-radius: 2px; margin-top: 7px; overflow: hidden; }
 .walk2-progress-fill { height: 100%; background: #2f6fd0; transition: width .15s linear; }
 .walk2-hint {

@@ -43,11 +43,11 @@
       :match-count="filteredJobs.length"
     />
 
-    <nav v-if="!loading && !error && filteredJobs.length > pageSize" class="pager" aria-label="History pages">
+    <nav v-if="!loading && !error && listedJobs.length > pageSize" class="pager" aria-label="History pages">
       <button class="pg" :disabled="page <= 1" @click="goPage(1)" aria-label="First page">&laquo;</button>
       <button class="pg" :disabled="page <= 1" @click="goPage(page - 1)">Prev</button>
       <span class="pg-mid">
-        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ filteredJobs.length }}
+        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ listedJobs.length }}
         <span v-if="filteredJobs.length !== jobs.length" class="pg-filtered">filtered from {{ jobs.length }}</span>
         <span class="pg-page">page {{ page }} / {{ pageCount }}</span>
       </span>
@@ -63,7 +63,11 @@
     <div v-else-if="filteredJobs.length === 0" class="state-msg muted">No jobs match the current filters.</div>
 
     <div v-else class="job-list">
-      <div v-for="job in pagedJobs" :key="job.job_id" class="job-card" :class="job.status">
+      <template v-for="(job, i) in pagedJobs" :key="job.job_id">
+      <button v-if="i === queuedRowAt" class="queued-row" @click="showQueued = true">
+        Queued ({{ queuedCount }}) <span class="muted">· show</span>
+      </button>
+      <div class="job-card" :class="job.status">
         <div class="job-top">
           <div class="job-left">
             <span class="job-id">{{ job.job_id }}</span>
@@ -85,8 +89,8 @@
           <div class="job-right">
             <img v-if="job.thumbnail" :src="job.thumbnail" class="job-thumb" alt="splat preview" @click="openCaptureLightbox(job.job_id, job.thumbnail)" style="cursor:pointer" />
             <span class="time" :title="timesTitle(job)">{{ timeLabel(job) }}</span>
-            <span v-if="job.finished_at" class="time finished" :title="timesTitle(job)">→ {{ formatFinish(startedAt(job) || job.created_at, job.finished_at) }}</span>
-            <span v-if="job.elapsed_s != null" class="elapsed">{{ formatElapsed(job.elapsed_s) }}</span>
+            <span v-if="job.finished_at" class="time finished" :title="timesTitle(job)">→ {{ formatFinish(job.photos_at || startedAt(job) || job.created_at, job.finished_at) }}</span>
+            <span v-if="waitS(job) != null" class="elapsed" :title="timesTitle(job)">{{ formatElapsed(waitS(job)) }}</span>
           </div>
         </div>
 
@@ -95,39 +99,47 @@
 
         <div v-if="job.error" class="job-error">{{ job.error }}</div>
 
-        <!-- Shared-exam score. Read this one, not PSNR: a capture that covers only part of
+        <!-- Shared-exam score. Read this one, not own held-out numbers: a capture that covers only part of
              the scene writes itself an easy held-out split. The coverage-driven walk scored
              32.45 dB on its own views and 19.67 on a shared set of novel views nobody
-             captured. In-block % is the fold check — PSNR cannot see a fold at all. -->
+             captured. In-block % is the fold check — PSNR cannot see a fold at all.
+             LPIPS leads, PSNR follows dimmed (2026-10-28, Andrzej): in blind tests he picked the
+             LPIPS-better splat 3/3; the PSNR-better one looked "foggy, as if smoke in the room". -->
         <div v-if="job.exam" class="metrics-row exam-row">
-          <span class="exam-label" title="Scored on exam photos: views taken after the scan, never used for training">EXAM</span>
-          <span v-if="job.exam.psnr != null" class="metric" :class="psnrClass(job.exam.psnr)"
-                title="PSNR on the exam photos (never trained on) — comparable between captures, unlike own held-out PSNR">
-            {{ job.exam.psnr.toFixed(2) }} dB
-          </span>
-          <!-- Colour-matched (2026-10-17, Andrzej: "seems important"): each exam photo's brightness and white balance
-               fitted to the render first (gain + offset per channel), so a phone that exposed the exam differently
-               from the scan is not counted as a splat error. Closest to "how good is the splat itself". -->
-          <span v-if="job.exam.psnr_colorfit != null" class="metric" :class="psnrClass(job.exam.psnr_colorfit)"
-                title="PSNR after matching each exam photo's brightness and colour balance to the render — the splat's own error, without exposure differences between the scan and the exam">
-            {{ job.exam.psnr_colorfit.toFixed(2) }} dB colour-matched
-          </span>
-          <span v-if="job.exam.lpips != null" class="metric" :class="job.exam.lpips <= 0.35 ? 'metric-good' : job.exam.lpips <= 0.45 ? 'metric-ok' : 'metric-poor'"
-                title="LPIPS on the exam photos: how different the render looks to a person (0 = identical; lower is better)">
+          <span v-if="job.exam.kind === 'sim'" class="exam-label"
+                :title="`Sim run, scored against the true renders from views no photo had (${job.exam.compared_with?.replace('sim truth: ', '')}); in-block = photos placed within 10 cm of the truth`">SIM TRUTH</span>
+          <span v-else class="exam-label" title="Scored on exam photos: views taken after the scan, never used for training">EXAM</span>
+          <span v-if="job.exam.lpips != null" class="metric primary" :class="lpipsClass(job.exam.lpips)"
+                :title="LPIPS_TITLE + ' On the exam photos (never trained on), comparable between captures.'">
             LPIPS {{ job.exam.lpips.toFixed(3) }}
           </span>
-          <span v-else class="metric metric-poor" title="Cameras could not be fitted to the true poses in one block, so the model is folded and shape cannot be scored">
+          <span v-else class="metric primary metric-poor" title="Cameras could not be fitted to the true poses in one block, so the model is folded and shape cannot be scored">
             FOLDED
           </span>
           <span class="metric" :class="job.exam.in_block_pct >= 95 ? 'metric-good' : job.exam.in_block_pct >= 80 ? 'metric-ok' : 'metric-poor'"
                 title="Share of cameras that fit the true poses in one consistent block. Below ~95% means part of the map is welded in the wrong place.">
             in-block {{ job.exam.in_block_pct.toFixed(1) }}%
           </span>
+          <span v-if="job.exam.psnr != null" class="metric muted"
+                title="PSNR on the exam photos — secondary: it rewards a blurry, foggy splat that LPIPS and the eye mark down (higher is better)">
+            {{ job.exam.psnr.toFixed(2) }} dB
+          </span>
+          <!-- Colour-matched (2026-10-17, Andrzej: "seems important"): each exam photo's brightness and white balance
+               fitted to the render first (gain + offset per channel), so a phone that exposed the exam differently
+               from the scan is not counted as a splat error. -->
+          <span v-if="job.exam.psnr_colorfit != null" class="metric muted"
+                title="PSNR after matching each exam photo's brightness and colour balance to the render — without exposure differences between the scan and the exam (higher is better)">
+            {{ job.exam.psnr_colorfit.toFixed(2) }} dB colour-matched
+          </span>
         </div>
 
         <!-- Headline numbers only; the rest is under "details". Warnings surface here even when details are closed. -->
-        <div v-if="job.metrics && (job.metrics.psnr != null || job.metrics.registered_images != null)" class="metrics-row">
-          <span v-if="job.metrics.psnr != null" class="metric" :class="psnrClass(job.metrics.psnr)" title="PSNR on this capture's OWN held-out views. Not comparable between captures — a capture covering less ground scores higher here. Use the EXAM row.">
+        <div v-if="job.metrics && (job.metrics.lpips != null || job.metrics.psnr != null || job.metrics.registered_images != null)" class="metrics-row">
+          <span v-if="job.metrics.lpips != null" class="metric" :class="[lpipsClass(job.metrics.lpips), { primary: !job.exam }]"
+                :title="LPIPS_TITLE + ' On this capture\'s OWN held-out views: not comparable between captures. Use the EXAM row.'">
+            own LPIPS {{ job.metrics.lpips.toFixed(3) }}
+          </span>
+          <span v-if="job.metrics.psnr != null" class="metric muted" title="PSNR on this capture's OWN held-out views (higher is better). Secondary to LPIPS, and not comparable between captures — a capture covering less ground scores higher here. Use the EXAM row.">
             own {{ job.metrics.psnr.toFixed(1) }} dB
           </span>
           <span v-if="job.metrics.registered_images != null" class="metric muted" title="SfM: registered images / submitted">
@@ -144,6 +156,24 @@
                 :title="`GPS/scale check failed: ${job.metrics.gps_within_5m_pct?.toFixed(0)}% of cameras within 5 m of their GPS, scale spread ×${job.metrics.gps_scale_spread?.toFixed(2)} (1.0 = one consistent scene). Details for more.`">
             ⚠ geometry
           </span>
+        </div>
+
+        <!-- Whose phone scan this is, and its upload (the job that placed the photos; its row is folded into this one) -->
+        <div v-if="job.upload_job || job.run_job || job.owner?.email" class="scan-origin">
+          📱 <span v-if="job.owner?.email">{{ job.owner.email }}</span>
+          <template v-if="job.run_job"> · run <code>{{ job.run_job }}</code>
+            <a :href="`${gatewayCache}/topowall/api/v1/video-to-splat/${job.run_job}/logs${tokenQuery()}`" target="_blank" rel="noopener">run log ↗</a>
+          </template>
+          <template v-if="job.upload_job"> · upload <code>{{ job.upload_job }}</code>
+            <a :href="`${gatewayCache}/topowall/api/v1/video-to-splat/${job.upload_job}/logs${tokenQuery()}`" target="_blank" rel="noopener">pipeline log ↗</a>
+          </template>
+        </div>
+
+        <!-- The scanner's own verdict, from the LiveFusion app's result screen (POST /my/scans/<id>/feedback) -->
+        <div v-if="job.feedback" class="tester-feedback" :title="`${job.feedback.email || 'tester'} · ${job.feedback.at}`">
+          <span v-if="job.feedback.rating" class="tf-stars">{{ '★'.repeat(job.feedback.rating) }}{{ '☆'.repeat(5 - job.feedback.rating) }}</span>
+          <span v-if="job.feedback.comment" class="tf-comment">“{{ job.feedback.comment }}”</span>
+          <span class="tf-who">— {{ job.feedback.email || 'tester' }}</span>
         </div>
 
         <!-- Note -->
@@ -182,6 +212,13 @@
           >
             Walk v2 ⚡
           </RouterLink>
+          <button
+            class="view-btn copy-link-btn"
+            title="Copy a link to this splat's walk view - anyone can open it"
+            @click="copyWalkLink(job.job_id)"
+          >
+            {{ copiedId === job.job_id ? 'Copied ✓' : 'Copy link 🔗' }}
+          </button>
           <RouterLink
             class="view-btn"
             :to="{ name: 'splat-viewer', params: { splatId: job.job_id } }"
@@ -253,7 +290,6 @@
         </div>
         <div v-if="job.metrics" class="metrics-row">
           <span v-if="job.metrics.ssim != null" class="metric" title="SSIM — structural similarity, 0–1, higher better">SSIM {{ job.metrics.ssim.toFixed(3) }}</span>
-          <span v-if="job.metrics.lpips != null" class="metric" title="LPIPS — perceptual loss, lower better">LPIPS {{ job.metrics.lpips.toFixed(3) }}</span>
           <span v-if="job.metrics.sfm_points != null" class="metric muted" title="Sparse point count from SfM">pts {{ job.metrics.sfm_points.toLocaleString() }}</span>
           <span v-if="job.metrics.track_len_mean != null" class="metric muted" title="Mean SfM track length: how many photos see each point (co-visibility)">track {{ job.metrics.track_len_mean.toFixed(1) }}</span>
           <span v-if="job.metrics.floater_frac_pct != null" class="metric muted" title="Share of splats flagged as floaters">floaters {{ job.metrics.floater_frac_pct.toFixed(1) }}%</span>
@@ -471,13 +507,20 @@
           <img :src="job.thumbnail" alt="splat capture" class="capture-img" @click="openCaptureLightbox(job.job_id, job.thumbnail)" />
         </div>
       </div>
+      </template>
+      <button v-if="queuedRowAt === pagedJobs.length" class="queued-row" @click="showQueued = true">
+        Queued ({{ queuedCount }}) <span class="muted">· show</span>
+      </button>
+      <button v-if="showQueued && queuedCount && !queuedByFilter" class="queued-row" @click="showQueued = false">
+        Hide the {{ queuedCount }} queued
+      </button>
     </div>
 
-    <nav v-if="!loading && !error && filteredJobs.length > pageSize" class="pager" aria-label="History pages">
+    <nav v-if="!loading && !error && listedJobs.length > pageSize" class="pager" aria-label="History pages">
       <button class="pg" :disabled="page <= 1" @click="goPage(1)" aria-label="First page">&laquo;</button>
       <button class="pg" :disabled="page <= 1" @click="goPage(page - 1)">Prev</button>
       <span class="pg-mid">
-        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ filteredJobs.length }}
+        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ listedJobs.length }}
         <span v-if="filteredJobs.length !== jobs.length" class="pg-filtered">filtered from {{ jobs.length }}</span>
         <span class="pg-page">page {{ page }} / {{ pageCount }}</span>
       </span>
@@ -519,6 +562,7 @@
 </template>
 
 <script setup>
+import { tokenQuery } from '@/services/gatewayAuth';
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import SfmInspector from '../components/SfmInspector.vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -537,6 +581,22 @@ import TrainingCost from '../components/TrainingCost.vue';
 import FrameGrid from '../components/FrameGrid.vue';
 
 const router = useRouter();
+
+// Share a splat (2026-10-21, Andrzej: "easy way to share walk2 splats ... a copy url button in the list"): the walk v2
+// page needs no login, so its link works for anyone
+const copiedId = ref(null);
+async function copyWalkLink(jobId) {
+  const url = window.location.origin + router.resolve({ name: 'splat-walk2', params: { splatId: jobId } }).href;
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    window.prompt('Copy this link:', url); // no clipboard permission (old browser, http): show it to copy by hand
+  }
+  copiedId.value = jobId;
+  setTimeout(() => {
+    if (copiedId.value === jobId) copiedId.value = null;
+  }, 1500);
+}
 
 // Per-job chat with the agent (admin only; Firestore rules enforce it). One live query for the whole page,
 // grouped by job, so a reply shows up without a refresh. jobChatMeta/agent says when the agent next checks in.
@@ -569,7 +629,7 @@ function filtersFromQuery(q) {
   return {
     query: typeof q.q === 'string' && q.q ? q.q : null,
     statuses: list(q.status), trainers: list(q.trainer), sources: list(q.source),
-    minPsnr: num(q.psnr), maxIters: num(q.iters), starredOnly: q.starred === '1',
+    maxLpips: num(q.lpips), maxIters: num(q.iters), starredOnly: q.starred === '1',
   };
 }
 const initialFilters = filtersFromQuery(route.query);
@@ -579,7 +639,7 @@ const filters = ref({
   statuses: initialFilters.statuses ? new Set(initialFilters.statuses) : null,
   trainers: initialFilters.trainers ? new Set(initialFilters.trainers) : null,
   sources: initialFilters.sources ? new Set(initialFilters.sources) : null,
-  minPsnr: initialFilters.minPsnr,
+  maxLpips: initialFilters.maxLpips,
   maxIters: initialFilters.maxIters,
   starredOnly: initialFilters.starredOnly,
 });
@@ -588,21 +648,27 @@ const PAGE_SIZES = [25, 50, 100];
 const page = ref(Math.max(1, Number(route.query.page) || 1));
 const pageSize = ref(PAGE_SIZES.includes(Number(route.query.per)) ? Number(route.query.per) : 25);
 
+// A phone scan is two jobs - the upload (places the photos, waits) and its splat (trains). One row: the splat's, with
+// the upload linked from it (server _scan_pair, 2026-10-26).
+// A run (a queued pipeline / experiment script) folds into the splat it made, like an upload (2026-10-27).
+const shownUploads = computed(() => new Set(jobs.value.flatMap(j => [j.upload_job, j.run_job]).filter(Boolean)));
+
 const filteredJobs = computed(() => {
-  const { statuses, trainers, sources, minPsnr, maxIters, query, starredOnly } = filters.value;
+  const { statuses, trainers, sources, maxLpips, maxIters, query, starredOnly } = filters.value;
   const needle = query?.trim().toLowerCase();
   return jobs.value.filter(job => {
+    if (shownUploads.value.has(job.job_id))              return false;
     if (starredOnly && !job.starred)                     return false;
     if (statuses  && !statuses.has(job.status))          return false;
     if (trainers  && !trainers.has(job.params?.trainer)) return false;
     if (sources   && !sources.has(job.params?.source))   return false;
     if (maxIters != null && (job.params?.iters ?? Infinity) > maxIters) return false;
-    if (minPsnr != null) {
-      const psnr = job.metrics?.psnr;
-      if (psnr == null || psnr < minPsnr) return false;
+    if (maxLpips != null) {
+      const lpips = jobLpips(job);
+      if (lpips == null || lpips > maxLpips) return false;
     }
     if (needle) {
-      const haystack = (job.scene ?? '').toLowerCase();
+      const haystack = [job.scene, job.upload_job, job.run_job, job.owner?.email].filter(Boolean).join(' ').toLowerCase();
       if (!haystack.includes(needle)) return false;
     }
     return true;
@@ -621,13 +687,26 @@ function byCompletion(a, b) {
   if (ra === 1) return (a.queue_position ?? Infinity) - (b.queue_position ?? Infinity);
   return ms(b.finished_at || b.created_at) - ms(a.finished_at || a.created_at);
 }
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredJobs.value.length / pageSize.value)));
+// Queued jobs fold into one "Queued (N)" row after the running ones (Andrzej, 2026-10-30: "most often concerned with
+// what is running and what was done recently"); a click lists them, and filtering by status "queued" lists them too.
+const showQueued = ref(route.query.queued === '1');
+const queuedByFilter = computed(() => !!filters.value.statuses?.has('queued'));
+const queuedCount = computed(() => filteredJobs.value.filter(j => j.status === 'queued').length);
+const queuedFolded = computed(() => !showQueued.value && !queuedByFilter.value && queuedCount.value > 0);
+const listedJobs = computed(() => (queuedFolded.value ? filteredJobs.value.filter(j => j.status !== 'queued') : filteredJobs.value));
+const pageCount = computed(() => Math.max(1, Math.ceil(listedJobs.value.length / pageSize.value)));
 const pagedJobs = computed(() => {
   const start = (page.value - 1) * pageSize.value;
-  return filteredJobs.value.slice(start, start + pageSize.value);
+  return listedJobs.value.slice(start, start + pageSize.value);
 });
-const pageStart = computed(() => (filteredJobs.value.length ? (page.value - 1) * pageSize.value + 1 : 0));
-const pageEnd = computed(() => Math.min(page.value * pageSize.value, filteredJobs.value.length));
+// Where the folded row goes: page 1, before the first job that is not running (-1: no row).
+const queuedRowAt = computed(() => {
+  if (!queuedFolded.value || page.value !== 1) return -1;
+  const i = pagedJobs.value.findIndex(j => j.status !== 'running');
+  return i === -1 ? pagedJobs.value.length : i;
+});
+const pageStart = computed(() => (listedJobs.value.length ? (page.value - 1) * pageSize.value + 1 : 0));
+const pageEnd = computed(() => Math.min(page.value * pageSize.value, listedJobs.value.length));
 
 // Changing a filter must send you back to page 1 — otherwise narrowing 300 jobs to 4 while on
 // page 6 shows an empty list that looks like "no results".
@@ -642,7 +721,7 @@ function goPage(n) {
 
 // Mirror filters + page into the query string. replace(), not push(), so paging does not bury
 // the back button under one entry per page.
-watch([filters, page, pageSize], () => {
+watch([filters, page, pageSize, showQueued], () => {
   const f = filters.value;
   const q = { ...route.query };
   const set = (k, v) => { if (v == null || v === '' || v === false) delete q[k]; else q[k] = String(v); };
@@ -650,11 +729,12 @@ watch([filters, page, pageSize], () => {
   set('status', f.statuses ? [...f.statuses].join(',') : null);
   set('trainer', f.trainers ? [...f.trainers].join(',') : null);
   set('source', f.sources ? [...f.sources].join(',') : null);
-  set('psnr', f.minPsnr);
+  set('lpips', f.maxLpips);
   set('iters', f.maxIters);
   set('starred', f.starredOnly ? '1' : null);
   set('page', page.value > 1 ? page.value : null);
   set('per', pageSize.value !== 25 ? pageSize.value : null);
+  set('queued', showQueued.value ? '1' : null);
   router.replace({ query: q });
 }, { deep: true });
 
@@ -901,7 +981,8 @@ async function toggleSfm(jobId) {
 }
 
 function colmapDatasetUrl(jobId) {
-  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/colmap-dataset`;
+  // a plain link carries no header: the admin token rides in the query (gatewayAuth.js)
+  return `${gatewayCache}/topowall/api/v1/video-to-splat/${jobId}/colmap-dataset${tokenQuery()}`;
 }
 
 // Reorder the GPU queue without cancelling: the server returns the new order of queued jobs.
@@ -1249,7 +1330,15 @@ function startedAt(job) {
   return null;
 }
 
+// A phone scan's (or a script's) job: timed from when its photos arrived, so the wait shown is the whole wait -
+// placing the photos and depth included - not just training (2026-10-27: a 6 min 21 s run showed as 4m 36s).
+function waitS(job) {
+  if (job.photos_at && job.finished_at) return Math.round((new Date(job.finished_at) - new Date(job.photos_at)) / 1000);
+  return job.elapsed_s;
+}
+
 function timeLabel(job) {
+  if (job.photos_at) return `photos ${formatDate(job.photos_at)}`;
   if (job.status === 'queued') return `queued ${formatDate(job.created_at)}`;
   const st = startedAt(job);
   if (job.status === 'running') return st ? `started ${formatDate(st)}` : `queued ${formatDate(job.created_at)}`;
@@ -1258,8 +1347,9 @@ function timeLabel(job) {
 
 function timesTitle(job) {
   const st = startedAt(job);
-  return [`queued ${formatDate(job.created_at)}`, st && `started ${formatDate(st)}`,
-          job.finished_at && `finished ${formatDate(job.finished_at)}`].filter(Boolean).join(' · ');
+  return [job.photos_at && `photos arrived ${formatDate(job.photos_at)}`, `queued ${formatDate(job.created_at)}`,
+          st && `started ${formatDate(st)}`, job.finished_at && `finished ${formatDate(job.finished_at)}`,
+          job.photos_at && job.elapsed_s != null && `training job ${formatElapsed(job.elapsed_s)}`].filter(Boolean).join(' · ');
 }
 
 // Finish time next to the start time: just the clock when it is the same day, the full date otherwise.
@@ -1292,11 +1382,16 @@ function gpsClass(m) {
   return 'metric-good';
 }
 
-function psnrClass(psnr) {
-  if (psnr >= 24) return 'metric-good';
-  if (psnr >= 21) return 'metric-ok';
+// LPIPS is the quality number to read (2026-10-28): it matches Andrzej's eye where PSNR does not. Lower is better;
+// the best real recipe scores ~0.32 on the exam, a clean sim ~0.19, a poor real scan 0.5+.
+const LPIPS_TITLE = 'LPIPS — lower is better, closest to how it looks (0 = identical to the photo).';
+function lpipsClass(lpips) {
+  if (lpips <= 0.35) return 'metric-good';
+  if (lpips <= 0.45) return 'metric-ok';
   return 'metric-poor';
 }
+// The LPIPS a job is judged and filtered by: the shared exam's when it has one, else its own held-out views'.
+const jobLpips = (job) => job.exam?.lpips ?? job.metrics?.lpips ?? null;
 
 function formatElapsed(seconds) {
   if (seconds == null) return '';
@@ -1429,6 +1524,8 @@ async function saveAssignment(jobId) {
     // FieldPath handles ISO timestamp keys that contain dots/colons
     await updateDoc(ref, new FieldPath('splatJobs', sel.routesetting), list, 'splatGatewayUrl', gateway);
     if (loc) loc.splatJobs = { ...(loc.splatJobs || {}), [sel.routesetting]: list };
+    // Build its 3D view now (202 = building, ~3 min), so the gym's first visitor does not wait - as assign-splat.js
+    fetch(`${gateway}/topowall/api/v1/video-to-splat/${jobId}/viewer/settings.json`).catch(() => {});
     sel.done = true;
     // Auto-close panel after 3s
     setTimeout(() => {
@@ -1516,6 +1613,17 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .job-card.error { border-color: #4a1a1a; }
 .job-card.running { border-color: #1a3050; }
 .job-card.queued { border-color: #78350f; }
+.queued-row {
+  background: #1a1a1a;
+  border: 1px dashed #78350f;
+  border-radius: 10px;
+  padding: 10px 16px;
+  color: #fbbf24;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.queued-row .muted { color: #777; }
 
 .job-top {
   display: flex;
@@ -1628,7 +1736,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .metric.metric-poor { color: #f87171; border-color: #7f1d1d; background: #1c0a0a; }
 
 /* The shared-exam row sits above the per-capture metrics because it is the comparable
-   number. Own held-out PSNR below it is kept, dimmed, for continuity with older runs. */
+   number. LPIPS is each row's lead number (.primary); PSNR follows it, dimmed. */
+.metric.primary { font-size: 0.85rem; font-weight: 700; }
 .exam-row { margin-bottom: 2px; }
 .exam-label {
   font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
@@ -1838,6 +1947,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .rerun-btn:hover { background: #6d28d9; }
 .walk2-btn { background: #1f6f43; }
 .walk2-btn:hover { background: #185835; }
+.copy-link-btn { background: #374151; }
+.copy-link-btn:hover { background: #1f2937; }
 
 .no-images {
   font-size: 0.78rem;
@@ -1967,6 +2078,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .details-link:hover { text-decoration: underline; }
 .details-panel { margin-top: 6px; padding: 8px; border: 1px dashed #2a3547; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
 .note-section { margin-top: 2px; }
+.scan-origin { margin: 4px 0 2px; font-size: 12px; opacity: .85; }
+.scan-origin code { font-size: 11px; }
+.scan-origin a { margin-left: 6px; }
+.tester-feedback { margin: 4px 0; padding: 6px 9px; border-radius: 7px; background: rgba(250, 204, 21, .08);
+  border: 1px solid rgba(250, 204, 21, .25); font-size: 13px; line-height: 1.4; }
+.tf-stars { color: #facc15; letter-spacing: 1px; margin-right: 6px; }
+.tf-comment { color: inherit; }
+.tf-who { opacity: .6; margin-left: 6px; font-size: 12px; }
 
 .note-display {
   font-size: 0.82rem;

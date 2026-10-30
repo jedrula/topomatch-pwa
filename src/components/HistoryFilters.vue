@@ -45,12 +45,12 @@
       </div>
 
       <!-- Max iters slider -->
-      <div class="filter-group psnr-group">
-        <label class="filter-label psnr-label">
-          <input type="checkbox" class="psnr-check" v-model="itersEnabled" />
+      <div class="filter-group slider-group">
+        <label class="filter-label slider-label">
+          <input type="checkbox" class="slider-check" v-model="itersEnabled" />
           Max iters
         </label>
-        <div class="psnr-controls" :class="{ disabled: !itersEnabled }">
+        <div class="slider-controls" :class="{ disabled: !itersEnabled }">
           <input
             type="range"
             :min="itersMin"
@@ -58,9 +58,9 @@
             :step="itersStep"
             v-model.number="itersValue"
             :disabled="!itersEnabled"
-            class="psnr-slider"
+            class="slider"
           />
-          <span class="psnr-value" style="color:#93c5fd">{{ formatIters(itersValue) }}</span>
+          <span class="slider-value" style="color:#93c5fd">{{ formatIters(itersValue) }}</span>
         </div>
       </div>
 
@@ -78,23 +78,23 @@
         </div>
       </div>
 
-      <!-- PSNR slider -->
-      <div class="filter-group psnr-group">
-        <label class="filter-label psnr-label">
-          <input type="checkbox" class="psnr-check" v-model="psnrEnabled" />
-          Min PSNR
+      <!-- LPIPS slider: the exam's LPIPS when a job has one, else its own held-out LPIPS (lower is better) -->
+      <div class="filter-group slider-group">
+        <label class="filter-label slider-label" title="LPIPS — lower is better, closest to how it looks. Hides jobs without an LPIPS.">
+          <input type="checkbox" class="slider-check" v-model="lpipsEnabled" />
+          Max LPIPS
         </label>
-        <div class="psnr-controls" :class="{ disabled: !psnrEnabled }">
+        <div class="slider-controls" :class="{ disabled: !lpipsEnabled }">
           <input
             type="range"
-            :min="PSNR_MIN"
-            :max="PSNR_MAX"
-            step="0.5"
-            v-model.number="psnrValue"
-            :disabled="!psnrEnabled"
-            class="psnr-slider"
+            :min="LPIPS_MIN"
+            :max="LPIPS_MAX"
+            step="0.01"
+            v-model.number="lpipsValue"
+            :disabled="!lpipsEnabled"
+            class="slider"
           />
-          <span class="psnr-value" :class="psnrColorClass">{{ psnrValue.toFixed(1) }} dB</span>
+          <span class="slider-value" :class="lpipsColorClass">{{ lpipsValue.toFixed(2) }}</span>
         </div>
       </div>
     </div>
@@ -124,8 +124,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue']);
 
-const PSNR_MIN = 15;
-const PSNR_MAX = 35;
+const LPIPS_MIN = 0.1;
+const LPIPS_MAX = 0.7;
 
 const STATUS_OPTIONS = [
   { value: 'done',      label: 'Done' },
@@ -140,8 +140,8 @@ const activeStatuses = ref(new Set());
 const activeTrainers = ref(new Set());
 const activeSources  = ref(new Set());
 const starredOnly    = ref(false);
-const psnrEnabled    = ref(false);
-const psnrValue      = ref(22);
+const lpipsEnabled   = ref(false);
+const lpipsValue     = ref(0.4);
 const itersEnabled   = ref(false);
 const itersValue     = ref(30000);
 
@@ -167,10 +167,11 @@ function formatIters(n) {
   return String(n);
 }
 
-const psnrColorClass = computed(() => {
-  if (psnrValue.value >= 24) return 'psnr-good';
-  if (psnrValue.value >= 21) return 'psnr-ok';
-  return 'psnr-poor';
+// Same bands as the view's lpipsClass.
+const lpipsColorClass = computed(() => {
+  if (lpipsValue.value <= 0.35) return 'lpips-good';
+  if (lpipsValue.value <= 0.45) return 'lpips-ok';
+  return 'lpips-poor';
 });
 
 const isActive = computed(() =>
@@ -178,7 +179,7 @@ const isActive = computed(() =>
   activeStatuses.value.size > 0 ||
   activeTrainers.value.size > 0 ||
   activeSources.value.size  > 0 ||
-  psnrEnabled.value ||
+  lpipsEnabled.value ||
   itersEnabled.value
 );
 
@@ -195,7 +196,7 @@ function reset() {
   activeStatuses.value = new Set();
   activeTrainers.value = new Set();
   activeSources.value  = new Set();
-  psnrEnabled.value    = false;
+  lpipsEnabled.value   = false;
   itersEnabled.value   = false;
   itersValue.value     = itersDataMax.value;
 }
@@ -206,7 +207,7 @@ function buildFilters() {
     statuses: activeStatuses.value.size > 0 ? new Set(activeStatuses.value) : null,
     trainers: activeTrainers.value.size > 0 ? new Set(activeTrainers.value) : null,
     sources:  activeSources.value.size  > 0 ? new Set(activeSources.value)  : null,
-    minPsnr:  psnrEnabled.value  ? psnrValue.value  : null,
+    maxLpips: lpipsEnabled.value ? lpipsValue.value : null,
     maxIters: itersEnabled.value ? itersValue.value  : null,
     starredOnly: starredOnly.value,
   };
@@ -219,13 +220,13 @@ if (props.initial) {
   if (i.trainers?.length) activeTrainers.value = new Set(i.trainers);
   if (i.sources?.length)  activeSources.value  = new Set(i.sources);
   if (i.starredOnly) starredOnly.value = true;
-  if (i.minPsnr  != null) { psnrEnabled.value  = true; psnrValue.value  = i.minPsnr; }
+  if (i.maxLpips != null) { lpipsEnabled.value = true; lpipsValue.value = i.maxLpips; }
   if (i.maxIters != null) { itersEnabled.value = true; itersValue.value = i.maxIters; }
   // Hand the seeded state up immediately; the watcher below only fires on later edits.
   emit('update:modelValue', buildFilters());
 }
 
-watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrValue, itersEnabled, itersValue, starredOnly], () => {
+watch([query, activeStatuses, activeTrainers, activeSources, lpipsEnabled, lpipsValue, itersEnabled, itersValue, starredOnly], () => {
   emit('update:modelValue', buildFilters());
 }, { deep: true });
 </script>
@@ -326,10 +327,10 @@ watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrVa
 .plain-chip:hover:not(.active) { background: #222; color: #888; border-color: #444; }
 .plain-chip.active { background: #1e3050; color: #93c5fd; border-color: #2563eb; }
 
-/* PSNR */
-.psnr-group { gap: 10px; }
+/* Sliders (max iters, max LPIPS) */
+.slider-group { gap: 10px; }
 
-.psnr-label {
+.slider-label {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -337,22 +338,22 @@ watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrVa
   user-select: none;
 }
 
-.psnr-check {
+.slider-check {
   accent-color: #2563eb;
   cursor: pointer;
   width: 13px;
   height: 13px;
 }
 
-.psnr-controls {
+.slider-controls {
   display: flex;
   align-items: center;
   gap: 10px;
   transition: opacity 0.15s;
 }
-.psnr-controls.disabled { opacity: 0.35; pointer-events: none; }
+.slider-controls.disabled { opacity: 0.35; pointer-events: none; }
 
-.psnr-slider {
+.slider {
   -webkit-appearance: none;
   appearance: none;
   width: 130px;
@@ -362,7 +363,7 @@ watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrVa
   outline: none;
   cursor: pointer;
 }
-.psnr-slider::-webkit-slider-thumb {
+.slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;
@@ -373,8 +374,8 @@ watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrVa
   border: 2px solid #1d4ed8;
   transition: background 0.15s;
 }
-.psnr-slider::-webkit-slider-thumb:hover { background: #3b82f6; }
-.psnr-slider::-moz-range-thumb {
+.slider::-webkit-slider-thumb:hover { background: #3b82f6; }
+.slider::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -383,15 +384,15 @@ watch([query, activeStatuses, activeTrainers, activeSources, psnrEnabled, psnrVa
   border: 2px solid #1d4ed8;
 }
 
-.psnr-value {
+.slider-value {
   font-size: 0.78rem;
   font-family: monospace;
   min-width: 52px;
   font-weight: 600;
 }
-.psnr-good { color: #4ade80; }
-.psnr-ok   { color: #fbbf24; }
-.psnr-poor { color: #f87171; }
+.lpips-good { color: #4ade80; }
+.lpips-ok   { color: #fbbf24; }
+.lpips-poor { color: #f87171; }
 
 /* Meta row */
 .filter-meta {

@@ -169,6 +169,7 @@
 </template>
 
 <script setup>
+import { splatToken } from '@/services/gatewayAuth';
 import { ref, reactive, computed, onMounted, onUnmounted, shallowReactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSplatStore } from '../stores/splatStore.js';
@@ -578,9 +579,11 @@ async function confirmUpload() {
 
       const chunkBytes = chunks[ci].reduce((s, f) => s + f.size, 0);
       const baseUploaded = bytesUploaded;
+      const token = await splatToken();
       jobId = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `${gateway}/topowall/api/v1/images-to-splat`);
+        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable)
             uploadLoaded.value = baseUploaded + Math.round(e.loaded / e.total * chunkBytes);
