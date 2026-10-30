@@ -43,11 +43,11 @@
       :match-count="filteredJobs.length"
     />
 
-    <nav v-if="!loading && !error && filteredJobs.length > pageSize" class="pager" aria-label="History pages">
+    <nav v-if="!loading && !error && listedJobs.length > pageSize" class="pager" aria-label="History pages">
       <button class="pg" :disabled="page <= 1" @click="goPage(1)" aria-label="First page">&laquo;</button>
       <button class="pg" :disabled="page <= 1" @click="goPage(page - 1)">Prev</button>
       <span class="pg-mid">
-        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ filteredJobs.length }}
+        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ listedJobs.length }}
         <span v-if="filteredJobs.length !== jobs.length" class="pg-filtered">filtered from {{ jobs.length }}</span>
         <span class="pg-page">page {{ page }} / {{ pageCount }}</span>
       </span>
@@ -63,7 +63,11 @@
     <div v-else-if="filteredJobs.length === 0" class="state-msg muted">No jobs match the current filters.</div>
 
     <div v-else class="job-list">
-      <div v-for="job in pagedJobs" :key="job.job_id" class="job-card" :class="job.status">
+      <template v-for="(job, i) in pagedJobs" :key="job.job_id">
+      <button v-if="i === queuedRowAt" class="queued-row" @click="showQueued = true">
+        Queued ({{ queuedCount }}) <span class="muted">· show</span>
+      </button>
+      <div class="job-card" :class="job.status">
         <div class="job-top">
           <div class="job-left">
             <span class="job-id">{{ job.job_id }}</span>
@@ -503,13 +507,20 @@
           <img :src="job.thumbnail" alt="splat capture" class="capture-img" @click="openCaptureLightbox(job.job_id, job.thumbnail)" />
         </div>
       </div>
+      </template>
+      <button v-if="queuedRowAt === pagedJobs.length" class="queued-row" @click="showQueued = true">
+        Queued ({{ queuedCount }}) <span class="muted">· show</span>
+      </button>
+      <button v-if="showQueued && queuedCount && !queuedByFilter" class="queued-row" @click="showQueued = false">
+        Hide the {{ queuedCount }} queued
+      </button>
     </div>
 
-    <nav v-if="!loading && !error && filteredJobs.length > pageSize" class="pager" aria-label="History pages">
+    <nav v-if="!loading && !error && listedJobs.length > pageSize" class="pager" aria-label="History pages">
       <button class="pg" :disabled="page <= 1" @click="goPage(1)" aria-label="First page">&laquo;</button>
       <button class="pg" :disabled="page <= 1" @click="goPage(page - 1)">Prev</button>
       <span class="pg-mid">
-        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ filteredJobs.length }}
+        <b>{{ pageStart }}&ndash;{{ pageEnd }}</b> of {{ listedJobs.length }}
         <span v-if="filteredJobs.length !== jobs.length" class="pg-filtered">filtered from {{ jobs.length }}</span>
         <span class="pg-page">page {{ page }} / {{ pageCount }}</span>
       </span>
@@ -676,13 +687,26 @@ function byCompletion(a, b) {
   if (ra === 1) return (a.queue_position ?? Infinity) - (b.queue_position ?? Infinity);
   return ms(b.finished_at || b.created_at) - ms(a.finished_at || a.created_at);
 }
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredJobs.value.length / pageSize.value)));
+// Queued jobs fold into one "Queued (N)" row after the running ones (Andrzej, 2026-10-30: "most often concerned with
+// what is running and what was done recently"); a click lists them, and filtering by status "queued" lists them too.
+const showQueued = ref(route.query.queued === '1');
+const queuedByFilter = computed(() => !!filters.value.statuses?.has('queued'));
+const queuedCount = computed(() => filteredJobs.value.filter(j => j.status === 'queued').length);
+const queuedFolded = computed(() => !showQueued.value && !queuedByFilter.value && queuedCount.value > 0);
+const listedJobs = computed(() => (queuedFolded.value ? filteredJobs.value.filter(j => j.status !== 'queued') : filteredJobs.value));
+const pageCount = computed(() => Math.max(1, Math.ceil(listedJobs.value.length / pageSize.value)));
 const pagedJobs = computed(() => {
   const start = (page.value - 1) * pageSize.value;
-  return filteredJobs.value.slice(start, start + pageSize.value);
+  return listedJobs.value.slice(start, start + pageSize.value);
 });
-const pageStart = computed(() => (filteredJobs.value.length ? (page.value - 1) * pageSize.value + 1 : 0));
-const pageEnd = computed(() => Math.min(page.value * pageSize.value, filteredJobs.value.length));
+// Where the folded row goes: page 1, before the first job that is not running (-1: no row).
+const queuedRowAt = computed(() => {
+  if (!queuedFolded.value || page.value !== 1) return -1;
+  const i = pagedJobs.value.findIndex(j => j.status !== 'running');
+  return i === -1 ? pagedJobs.value.length : i;
+});
+const pageStart = computed(() => (listedJobs.value.length ? (page.value - 1) * pageSize.value + 1 : 0));
+const pageEnd = computed(() => Math.min(page.value * pageSize.value, listedJobs.value.length));
 
 // Changing a filter must send you back to page 1 — otherwise narrowing 300 jobs to 4 while on
 // page 6 shows an empty list that looks like "no results".
@@ -697,7 +721,7 @@ function goPage(n) {
 
 // Mirror filters + page into the query string. replace(), not push(), so paging does not bury
 // the back button under one entry per page.
-watch([filters, page, pageSize], () => {
+watch([filters, page, pageSize, showQueued], () => {
   const f = filters.value;
   const q = { ...route.query };
   const set = (k, v) => { if (v == null || v === '' || v === false) delete q[k]; else q[k] = String(v); };
@@ -710,6 +734,7 @@ watch([filters, page, pageSize], () => {
   set('starred', f.starredOnly ? '1' : null);
   set('page', page.value > 1 ? page.value : null);
   set('per', pageSize.value !== 25 ? pageSize.value : null);
+  set('queued', showQueued.value ? '1' : null);
   router.replace({ query: q });
 }, { deep: true });
 
@@ -1588,6 +1613,17 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 .job-card.error { border-color: #4a1a1a; }
 .job-card.running { border-color: #1a3050; }
 .job-card.queued { border-color: #78350f; }
+.queued-row {
+  background: #1a1a1a;
+  border: 1px dashed #78350f;
+  border-radius: 10px;
+  padding: 10px 16px;
+  color: #fbbf24;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.queued-row .muted { color: #777; }
 
 .job-top {
   display: flex;
